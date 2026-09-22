@@ -850,69 +850,38 @@ export const signInWithGoogle = async (): Promise<any> => {
   const origin = window.location.origin;
   const redirectUrl = `${origin}/auth/callback`;
 
-  const isInIframe = window.self !== window.top;
+  // 1. Try native in-app Google Identity Services (One Tap) first
+  // If user selects their account in the native bottom sheet, no navigation or external tab occurs at all!
+  try {
+    const idToken = await promptGoogleOneTap();
+    if (idToken) {
+      console.log('[Google Auth] Credential received from Google One Tap');
+      const { data: idData, error: idErr } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: idToken,
+      });
 
-  // In PWA, standalone, or normal browser outside iframe:
-  // NEVER launch window.open popup! On Android PWAs, window.open causes the OS to open
-  // an external Chrome Custom Tab with an unwanted black top bar and [X] close button,
-  // which traps users and breaks session recovery.
-  // Instead, use native Google One Tap bottom sheet (zero navigation) or clean full-window redirect!
-  if (!isInIframe) {
-    // 1A. Try native in-app Google One Tap bottom sheet first
-    try {
-      const idToken = await promptGoogleOneTap();
-      if (idToken) {
-        console.log('[Google Auth] Credential received from Google One Tap');
-        const { data: idData, error: idErr } = await supabase.auth.signInWithIdToken({
-          provider: 'google',
-          token: idToken,
-        });
-
-        if (!idErr && idData?.user) {
-          handleSupabaseUser(idData.user);
-          return cachedCurrentUser;
-        }
-        if (idErr) {
-          console.warn('[Google Auth] signInWithIdToken notice:', idErr);
-        }
+      if (!idErr && idData?.user) {
+        handleSupabaseUser(idData.user);
+        return cachedCurrentUser;
       }
-    } catch (gisErr) {
-      console.log('[Google Auth] One Tap prompt skipped or unavailable:', gisErr);
+      if (idErr) {
+        console.warn('[Google Auth] signInWithIdToken notice:', idErr);
+      }
     }
-
-    // 1B. Full-window in-place OAuth redirect
-    console.log('[Google Auth] Initiating clean full-window PWA redirect');
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-        skipBrowserRedirect: false, // Navigate directly in same window
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'select_account',
-        },
-      },
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    if (data?.url) {
-      window.location.assign(data.url);
-    }
-
-    // Keep promise pending while the page navigates
-    return new Promise(() => {});
+  } catch (gisErr) {
+    console.log('[Google Auth] One Tap prompt skipped or unavailable:', gisErr);
   }
 
-  // Running inside an iframe (e.g. AI Studio development preview):
-  // Popup window is required because Google prohibits iframe embedding (403 Forbidden).
+  // 2. Open Google OAuth via target popup window
+  // In an installed PWA or mobile browser, opening via popup keeps the standalone PWA active in the background.
+  // When the OAuth completes at /auth/callback, the callback immediately closes itself (window.close())
+  // and hands off credentials via BroadcastChannel and localStorage, so the user remains in the pure PWA without the [X] top bar.
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       redirectTo: redirectUrl,
-      skipBrowserRedirect: true,
+      skipBrowserRedirect: true, // Generate the URL so we can open it in a closable target window
       queryParams: {
         access_type: 'offline',
         prompt: 'select_account',

@@ -18,6 +18,7 @@ import { InAppPushToast } from './components/Navigation/InAppPushToast';
 import { PWASplashScreen } from './components/PWA/PWASplashScreen';
 import { PWAInstallBanner } from './components/PWA/PWAInstallBanner';
 import { OfflineIndicator } from './components/PWA/OfflineIndicator';
+import { ChromeCustomTabExitBanner } from './components/PWA/ChromeCustomTabExitBanner';
 import { useDevicePlatform } from './hooks/useDevicePlatform';
 
 function MainLayout() {
@@ -74,6 +75,9 @@ function MainLayout() {
 
   return (
     <div className="w-full min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-blue-600 selection:text-white transition-colors duration-200">
+      {/* Chrome Custom Tab Notification Banner (guides user to standalone PWA mode if viewing inside a CCT) */}
+      <ChromeCustomTabExitBanner />
+
       {/* Top Sticky Navigation & Header */}
       <Header onOpenAdminPanel={() => setViewMode('admin')} />
 

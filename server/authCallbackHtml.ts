@@ -131,15 +131,40 @@ export const getAuthCallbackHtml = (): string => {
           try {
             window.opener.postMessage(payload, '*');
           } catch(e) {}
-          setTimeout(function() {
-            try { window.close(); } catch(e) {}
-          }, 600);
-        } else {
-          // If loaded directly (PWA or standalone redirect), replace URL to root
-          setTimeout(function() {
-            window.location.replace('/');
-          }, 400);
         }
+
+        // 4. Update UI to confirm success
+        try {
+          const card = document.querySelector('.card');
+          if (card) {
+            card.innerHTML = '<div style="font-size: 38px; color: #10b981; margin-bottom: 12px;">✓</div>' +
+              '<h3 style="color: #fff; margin-bottom: 8px;">Sign-In Connected!</h3>' +
+              '<p style="color: #94a3b8; margin-bottom: 20px;">Your session is authenticated. Tap below to close this tab and return to your installed Grobaax app.</p>' +
+              '<button class="btn" id="closeTabBtn" style="width: 100%;">Close Tab & Return to App</button>';
+            
+            const btn = document.getElementById('closeTabBtn');
+            if (btn) {
+              btn.onclick = function() {
+                try { window.close(); } catch(e) {}
+                setTimeout(function() {
+                  if (history.length > 1) {
+                    history.back();
+                  } else {
+                    window.location.replace('/');
+                  }
+                }, 300);
+              };
+            }
+          }
+        } catch(e) {}
+
+        // 5. Try closing the tab/window automatically
+        // When opened from an installed PWA or target popup, window.close() dismisses the Chrome Custom Tab immediately
+        setTimeout(function() {
+          try {
+            window.close();
+          } catch(e) {}
+        }, 300);
       })();
     </script>
   </body>
