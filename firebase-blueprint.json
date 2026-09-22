@@ -1,0 +1,706 @@
+{
+  "schemaVersion": "1.0.0",
+  "collections": {
+    "users": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "usernameLower", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "usernames": {
+      "indexes": []
+    },
+    "daily_chat_responses": {
+      "indexes": []
+    },
+    "institutions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "category", "order": "ASCENDING" },
+            { "fieldPath": "name", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "departments": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "institutionId", "order": "ASCENDING" },
+            { "fieldPath": "name", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "academicLevels": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "institutionType", "order": "ASCENDING" },
+            { "fieldPath": "ordering", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "seasons": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "category", "order": "ASCENDING" },
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "seasonParticipations": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "institutionId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "qualifications": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "institutionId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "qualificationAttempts": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "qualificationId", "order": "ASCENDING" },
+            { "fieldPath": "score", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "representativeAssignments": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "institutionId", "order": "ASCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "standings": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "points", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "fixtures": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "gusSeasons": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "gusRegistrations": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "userId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "gusParticipants": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "gusAnswers": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "userId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "gusWinners": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "position", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "gusPrizeTransactions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" },
+            { "fieldPath": "timestamp", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "auditLogs": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "timestamp", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "managerAssignments": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "role", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "managerActivityLogs": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "timestamp", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "wallets": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "balanceGP", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "walletTransactions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" },
+            { "fieldPath": "createdAt", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "withdrawals": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "status", "order": "ASCENDING" },
+            { "fieldPath": "requestDate", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "championsSeasons": {
+      "indexes": []
+    },
+    "championsGroups": {
+      "indexes": []
+    },
+    "championsFixtures": {
+      "indexes": []
+    },
+    "groupBattleSeasons": {
+      "indexes": []
+    },
+    "groupBattleTeams": {
+      "indexes": []
+    },
+    "events": {
+      "indexes": []
+    },
+    "announcements": {
+      "indexes": []
+    },
+    "sponsors": {
+      "indexes": []
+    },
+    "badges": {
+      "indexes": []
+    },
+    "notifications": {
+      "indexes": []
+    },
+    "subscriptionPlans": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "displayOrder", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "userSubscriptions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "posts": {
+      "indexes": []
+    },
+    "institutionLeagueSeasons": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "institutionLeagueFixtureDays": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "dayNumber", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "institutionLeagueFixtures": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "category", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "institutionLeagueQuestions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "category", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "institutionLeagueLiveRooms": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "institutionLeagueResults": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "category", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "institutionLeagueStandings": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "category", "order": "ASCENDING" },
+            { "fieldPath": "points", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "championsSeasons": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "championsQualifiers": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "institutionCategory", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "championsGroups": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "championsFeatureDays": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "dayNumber", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "championsFixtures": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "stage", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "championsQuestions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "featureDayId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "championsStandings": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "groupId", "order": "ASCENDING" },
+            { "fieldPath": "points", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "championsAuditLogs": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "timestamp", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "libraryGenerations": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" },
+            { "fieldPath": "createdAt", "order": "DESCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "faculty", "order": "ASCENDING" },
+            { "fieldPath": "department", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "librarySettings": {
+      "indexes": []
+    },
+    "airtimeDataTransactions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" },
+            { "fieldPath": "createdAt", "order": "DESCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "status", "order": "ASCENDING" },
+            { "fieldPath": "createdAt", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "airtimeDataSettings": {
+      "indexes": []
+    },
+    "airtimeDataAuditLogs": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "timestamp", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "minimartProducts": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "status", "order": "ASCENDING" },
+            { "fieldPath": "createdAt", "order": "DESCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "sellerId", "order": "ASCENDING" },
+            { "fieldPath": "createdAt", "order": "DESCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "categoryId", "order": "ASCENDING" },
+            { "fieldPath": "createdAt", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "minimartCategories": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "displayOrder", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "minimartReports": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "status", "order": "ASCENDING" },
+            { "fieldPath": "createdAt", "order": "DESCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "productId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "minimartConfig": {
+      "indexes": []
+    },
+    "past_questions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "status", "order": "ASCENDING" },
+            { "fieldPath": "uploadedAt", "order": "DESCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "uploadedBy", "order": "ASCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "compositeKey", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "past_question_views": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" },
+            { "fieldPath": "date", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "past_question_uploads": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" },
+            { "fieldPath": "date", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "past_question_bookmarks": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "campus_memberships": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "institution", "order": "ASCENDING" },
+            { "fieldPath": "department", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "campus_connection_requests": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "senderId", "order": "ASCENDING" },
+            { "fieldPath": "recipientId", "order": "ASCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "recipientId", "order": "ASCENDING" },
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "senderId", "order": "ASCENDING" },
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "institution", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "school_dome_questions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "questionNumber", "order": "ASCENDING" }
+          ]
+        },
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "school_dome_messages": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "timestamp", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "school_dome_seasons": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "school_dome_registrations": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "seasonId", "order": "ASCENDING" },
+            { "fieldPath": "userId", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "competition_hints": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "competitionType", "order": "ASCENDING" },
+            { "fieldPath": "status", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "user_handouts": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" },
+            { "fieldPath": "createdAt", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "user_handout_usage": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "userId", "order": "ASCENDING" },
+            { "fieldPath": "dateKey", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "handout_library_settings": {
+      "indexes": []
+    }
+  }
+}

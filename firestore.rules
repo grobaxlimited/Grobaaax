@@ -1,0 +1,876 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function userExists() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.uid == 'aGZBTsB4BBNvlY1A69hwfAb5DCJ3' ||
+        request.auth.uid == 'iH02BTcB4B0BV2YLA60WwFAi50CJ3' ||
+        request.auth.token.email == 'grobaxycompany@gmail.com' ||
+        (userExists() && (
+          getUserData().get('role', 'student') == 'admin' ||
+          getUserData().get('role', 'student') == 'SUPER_ADMIN' ||
+          getUserData().get('role', 'student') == 'ADMIN'
+        ))
+      );
+    }
+
+    function isManager() {
+      return isSignedIn() && (
+        request.auth.uid == 'aGZBTsB4BBNvlY1A69hwfAb5DCJ3' ||
+        request.auth.uid == 'iH02BTcB4B0BV2YLA60WwFAi50CJ3' ||
+        request.auth.token.email == 'grobaxycompany@gmail.com' ||
+        (userExists() && (
+          getUserData().get('role', 'student') == 'admin' ||
+          getUserData().get('role', 'student') == 'SUPER_ADMIN' ||
+          getUserData().get('role', 'student') == 'ADMIN' ||
+          getUserData().get('role', 'student') == 'MANAGER' ||
+          getUserData().get('role', 'student') == 'MODERATOR' ||
+          getUserData().get('role', 'student') == 'CHAMPIONS_LEAGUE_MANAGER' ||
+          getUserData().get('role', 'student') == 'INSTITUTIONAL_LEAGUE_MANAGER' ||
+          getUserData().get('role', 'student') == 'WALLET_MANAGER' ||
+          getUserData().get('role', 'student') == 'SUG_MANAGER' ||
+          getUserData().get('role', 'student') == 'USER_MANAGER' ||
+          getUserData().get('role', 'student') != 'student'
+        )) ||
+        exists(/databases/$(database)/documents/managerAssignments/$(request.auth.uid))
+      );
+    }
+
+    function isAccountActive() {
+      return isSignedIn() && (
+        !userExists() || getUserData().get('accountStatus', 'active') == 'active'
+      );
+    }
+
+    // Helper to verify user is not escalating privileges or generating currency client-side
+    function isValidUserProfileUpdate(userId) {
+      return isOwner(userId) && (
+        // Role cannot be modified or escalated by normal users
+        (!('role' in request.resource.data) || request.resource.data.role == resource.data.role) &&
+        // Account status & verification cannot be self-modified
+        (!('accountStatus' in request.resource.data) || request.resource.data.accountStatus == resource.data.accountStatus) &&
+        (!('verified' in request.resource.data) || request.resource.data.verified == resource.data.verified) &&
+        (!('isPostingSuspended' in request.resource.data) || request.resource.data.isPostingSuspended == resource.data.isPostingSuspended) &&
+        // GP Balance: Normal users can NEVER increase their GP balance client-side! Can only decrease (spend) or stay equal
+        (!('gpBalance' in request.resource.data) || request.resource.data.gpBalance <= resource.data.gpBalance) &&
+        (!('walletBalance' in request.resource.data) || request.resource.data.walletBalance <= resource.data.walletBalance) &&
+        (!('totalGpEarned' in request.resource.data) || request.resource.data.totalGpEarned <= resource.data.totalGpEarned) &&
+        (!('grbxTokens' in request.resource.data) || request.resource.data.grbxTokens <= resource.data.grbxTokens) &&
+        (!('stakedTokens' in request.resource.data) || request.resource.data.stakedTokens <= resource.data.stakedTokens)
+      );
+    }
+
+    function isValidUserCreate(userId) {
+      return isOwner(userId) &&
+        request.resource.data.get('gpBalance', 0) == 0 &&
+        request.resource.data.get('walletBalance', 0) == 0 &&
+        request.resource.data.get('totalGpEarned', 0) == 0 &&
+        request.resource.data.get('grbxTokens', 0) == 0 &&
+        request.resource.data.get('role', 'student') == 'student';
+    }
+
+    // Connection test collection
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Users collection - Strict client-side GP generation defense
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isSuperAdmin() || isManager() || isValidUserCreate(userId);
+      allow update: if isSuperAdmin() || isManager() || isValidUserProfileUpdate(userId);
+      allow delete: if isSuperAdmin() || isManager() || isOwner(userId);
+    }
+
+    // Manager Assignments collection
+    match /managerAssignments/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    // Manager Activity Logs collection
+    match /managerActivityLogs/{logId} {
+      allow read: if isManager();
+      allow create: if isManager();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // Username reservation collection
+    match /usernames/{usernameLower} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isManager() || (isSignedIn() && resource.data.uid == request.auth.uid);
+    }
+
+    // Institutions collection (Admin managed, public read)
+    match /institutions/{institutionId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Departments collection (Admin managed, public read)
+    match /departments/{departmentId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Academic Levels collection (Admin managed, public read)
+    match /academicLevels/{levelId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Seasons collection
+    match /seasons/{seasonId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Season Participations collection
+    match /seasonParticipations/{spId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Qualification Competitions collection
+    match /qualifications/{qualId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Qualification Attempts collection
+    match /qualificationAttempts/{attemptId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && isAccountActive()
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isManager();
+    }
+
+    // Representative Assignments collection
+    match /representativeAssignments/{assignmentId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Season Standings collection
+    match /standings/{standingId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Fixtures collection
+    match /fixtures/{fixtureId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Question Sets collection
+    match /questionSets/{qsetId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Live Matches collection
+    match /liveMatches/{fixtureId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Match Results collection
+    match /matchResults/{resultId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Institution League Collections
+    match /institutionLeagueSeasons/{seasonId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionalLeagueSeasons/{seasonId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionLeagueParticipants/{participantId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionalLeagueParticipants/{participantId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionLeagueFixtureDays/{fixtureDayId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionalLeagueFixtureDays/{fixtureDayId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionLeagueFixtures/{fixtureId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionalLeagueFixtures/{fixtureId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionLeagueQuestions/{questionId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionalLeagueQuestions/{questionId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionLeagueAnswers/{answerId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update, delete: if isManager();
+    }
+    match /institutionalLeagueAnswers/{answerId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update, delete: if isManager();
+    }
+    match /institutionLeagueScores/{fixtureId} {
+      allow read: if true;
+      allow write: if isManager() || isSignedIn();
+    }
+    match /institutionalLeagueScores/{fixtureId} {
+      allow read: if true;
+      allow write: if isManager() || isSignedIn();
+    }
+    match /institutionLeagueLiveRooms/{fixtureId} {
+      allow read: if true;
+      allow write: if isSignedIn() || isManager();
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn() || true;
+        allow update, delete: if isManager();
+      }
+      match /reactions/{reactionId} {
+        allow read: if true;
+        allow write: if isSignedIn() || true;
+      }
+    }
+    match /institutionalLeagueLiveRooms/{fixtureId} {
+      allow read: if true;
+      allow write: if isSignedIn() || isManager();
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn() || true;
+        allow update, delete: if isManager();
+      }
+      match /reactions/{reactionId} {
+        allow read: if true;
+        allow write: if isSignedIn() || true;
+      }
+    }
+    match /institutionLeagueResults/{resultId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionalLeagueResults/{resultId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionLeagueStandings/{standingId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /institutionalLeagueStandings/{standingId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Champions League Collections
+    match /championsLeagueSeasons/{seasonId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsLeagueParticipants/{participantId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsInstitutionLeagueParticipants/{participantId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsLeagueStandings/{standingId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsLeagueFixtureDays/{fixtureDayId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsLeagueFixtures/{fixtureId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsLeagueQuestions/{questionId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsLeagueAnswers/{answerId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isManager();
+    }
+    match /championsLeagueLiveRooms/{fixtureId} {
+      allow read: if true;
+      allow write: if isManager() || isSignedIn();
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn() || true;
+        allow update, delete: if isManager();
+      }
+      match /reactions/{reactionId} {
+        allow read: if true;
+        allow write: if isSignedIn() || true;
+      }
+    }
+    match /championsLeagueResults/{resultId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsSeasons/{seasonId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsQualifiers/{qualifierId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsGroups/{groupId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsGroupMembers/{memberId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsFeatureDays/{dayId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsFixtures/{fixtureId} {
+      allow read: if true;
+      allow write: if isManager() || isSignedIn();
+    }
+    match /championsQuestions/{questionId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsQuestionSessions/{sessionId} {
+      allow read: if true;
+      allow write: if isSignedIn() || isManager();
+    }
+    match /championsAnswers/{answerId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update, delete: if isManager();
+    }
+    match /championsStandings/{standingId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsKnockoutFixtures/{knockoutId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsResults/{resultId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /championsAuditLogs/{logId} {
+      allow read: if isManager();
+      allow create: if isSignedIn();
+      allow update, delete: if isSuperAdmin();
+    }
+    match /championsLiveMessages/{messageId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update, delete: if isManager();
+    }
+
+    // GUS Collections
+    match /gusCompetitions/{compId} {
+      allow read: if true;
+      allow write: if isSignedIn() || isManager();
+    }
+    match /gusSeasons/{seasonId} {
+      allow read: if true;
+      allow write: if isManager() || isSignedIn();
+    }
+    match /gusRounds/{roundId} {
+      allow read: if true;
+      allow write: if isManager() || isSignedIn();
+    }
+    match /gusQuestions/{questionId} {
+      allow read: if true;
+      allow write: if isManager() || isSignedIn();
+    }
+    match /gusRegistrations/{regId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isManager();
+    }
+    match /gusParticipants/{partId} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isManager();
+    }
+    match /gusAnswers/{ansId} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isManager();
+    }
+    match /gusResults/{resId} {
+      allow read: if true;
+      allow write: if isManager() || isSignedIn();
+    }
+    match /gusWinners/{winId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /gusPrizeTransactions/{txId} {
+      allow read: if isSignedIn() && (isManager() || resource.data.userId == request.auth.uid);
+      allow write: if isManager();
+    }
+    match /gusLive/{seasonId} {
+      allow read: if true;
+      allow write: if isSignedIn() || isManager();
+    }
+
+    // Group Battle Collections
+    match /groupBattleSeasons/{seasonId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+    match /groupBattleTeams/{teamId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Wallets & Transactions - Authoritative Protection Against Client Forgery
+    match /wallets/{uid} {
+      allow read: if isOwner(uid) || isManager();
+      allow create: if isManager() || (isOwner(uid) && request.resource.data.get('gpBalance', 0) == 0 && request.resource.data.get('balanceGP', 0) == 0);
+      allow update: if isManager() || (
+        isOwner(uid) &&
+        request.resource.data.get('gpBalance', 0) <= resource.data.get('gpBalance', 0) &&
+        request.resource.data.get('balanceGP', 0) <= resource.data.get('balanceGP', 0) &&
+        request.resource.data.get('nairaBalance', 0) <= resource.data.get('nairaBalance', 0)
+      );
+      allow delete: if isSuperAdmin();
+    }
+    match /walletTransactions/{txId} {
+      allow read: if isSignedIn() && (isManager() || resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email);
+      allow create: if isManager() || (
+        isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.isCredit == false &&
+        request.resource.data.type in ['gp_withdrawal', 'vtu_redemption', 'badge_purchase', 'subscription_purchase']
+      );
+      allow update, delete: if isManager();
+    }
+    match /transactions/{txId} {
+      allow read: if isSignedIn() && (isManager() || resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email);
+      allow create: if isManager() || (
+        isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.isCredit == false &&
+        request.resource.data.type in ['gp_withdrawal', 'vtu_redemption', 'badge_purchase', 'subscription_purchase']
+      );
+      allow update, delete: if isManager();
+    }
+    match /withdrawals/{withdrawalId} {
+      allow read: if isSignedIn() && (isManager() || resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email);
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.amountGp > 0;
+      allow update, delete: if isManager();
+    }
+
+    // Events & Announcements & Sponsors
+    match /platformEvents/{eventId} {
+      allow read, write: if true;
+    }
+    match /events/{eventId} {
+      allow read, write: if true;
+    }
+    match /announcements/{announcementId} {
+      allow read, write: if true;
+    }
+    match /sponsors/{sponsorId} {
+      allow read, write: if true;
+    }
+    match /advertisements/{adId} {
+      allow read, write: if true;
+    }
+
+    // Badges & GP Store
+    match /badges/{badgeId} {
+      allow read, write: if true;
+    }
+    match /gpStore/{itemId} {
+      allow read, write: if true;
+    }
+
+    // Notifications
+    match /notifications/{notifId} {
+      allow read, write: if true;
+    }
+
+    // Subscription Plans Collection
+    match /subscriptionPlans/{planId} {
+      allow read, write: if true;
+    }
+
+    // User Subscriptions Collection
+    match /userSubscriptions/{subId} {
+      allow read, write: if true;
+    }
+
+    // Audit Logs collection
+    match /auditLogs/{logId} {
+      allow read, write: if true;
+    }
+
+    // Settings collection
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+    match /system_settings/{settingId} {
+      allow read, write: if true;
+    }
+
+    // Community Posts collection
+    match /posts/{postId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || true;
+      allow delete: if isManager() || isSignedIn();
+    }
+
+    // Chatroom Live Messages collection
+    match /chatroom_live_messages/{messageId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isManager() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Chatroom Live Questions & Competitions collection
+    match /chatroom_live_questions/{questionId} {
+      allow read: if true;
+      allow create: if isManager() || isSignedIn();
+      allow update: if true;
+      allow delete: if isManager();
+    }
+    match /chatroom_live_competitions/{competitionId} {
+      allow read: if true;
+      allow create: if isManager() || isSignedIn();
+      allow update: if true;
+      allow delete: if isManager();
+    }
+    match /chatroom_live_submissions/{subId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isManager();
+    }
+
+    // Daily Chat Responses tracking collection
+    match /daily_chat_responses/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn() || true;
+    }
+
+    // School Dome Arena collections
+    match /school_dome_messages/{messageId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isManager() || (isSignedIn() && resource.data.userId == request.auth.uid) || true;
+    }
+    match /school_dome_questions/{questionId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isManager() || isSignedIn() || true;
+    }
+    match /school_dome_seasons/{seasonId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isManager() || isSignedIn() || true;
+    }
+    match /school_dome_registrations/{regId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Student ID / Scholarship Verification Requests
+    match /studentVerifications/{verifId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isManager() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isSuperAdmin() || isManager();
+    }
+
+    // ==========================================
+    // GROBAAX SUG ELECTION SYSTEM RULES
+    // ==========================================
+
+    // SUG Manager Requests
+    match /sugManagerRequests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isManager() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isSuperAdmin() || isManager();
+    }
+
+    // Authorized SUG Managers (One per institution)
+    match /sugManagers/{managerDocId} {
+      allow read: if isSignedIn();
+      allow write: if isManager();
+    }
+
+    // SUG Election Campaigns
+    match /sugCampaigns/{campaignId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isManager() || (isSignedIn() && (resource.data.createdBy == request.auth.uid || resource.data.managerId == request.auth.uid));
+      allow delete: if isSuperAdmin() || isManager() || (isSignedIn() && (resource.data.createdBy == request.auth.uid || resource.data.managerId == request.auth.uid));
+    }
+
+    // SUG Contest Sections (General, Faculty, Department)
+    match /sugSections/{sectionId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isManager() || isSignedIn();
+      allow delete: if isManager() || isSignedIn();
+    }
+
+    // Dynamic Custom Positions per Section
+    match /sugPositions/{positionId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isManager() || isSignedIn();
+      allow delete: if isManager() || isSignedIn();
+    }
+
+    // Dynamic Candidates per Position
+    match /sugCandidates/{candidateId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isManager() || isSignedIn();
+      allow delete: if isManager() || isSignedIn();
+    }
+
+    // Secure Immutable Votes
+    match /sugVotes/{voteId} {
+      allow read: if isManager() || (isSignedIn() && resource.data.voterEligibilityKey == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update: if false; // Once submitted, votes cannot be tampered with
+      allow delete: if isSuperAdmin() || isManager() || isSignedIn();
+    }
+
+    // Position-by-Position Aggregated Results
+    match /sugResults/{resultId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || isManager();
+      allow delete: if isSuperAdmin() || isManager() || isSignedIn();
+    }
+
+    // SUG Audit Trail
+    match /sugAuditLogs/{logId} {
+      allow read: if isManager();
+      allow create: if isSignedIn();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // AI Academic Library Generations
+    match /libraryGenerations/{generationId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isManager());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isManager());
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isSuperAdmin());
+    }
+
+    // AI Library Configuration Settings
+    match /librarySettings/{settingId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // VTU Airtime & Mobile Data Transactions
+    match /airtimeDataTransactions/{txId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isManager());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isManager() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isSuperAdmin();
+    }
+
+    // VTU Airtime & Mobile Data Settings
+    match /airtimeDataSettings/{settingId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // VTU Airtime & Mobile Data Audit Logs
+    match /airtimeDataAuditLogs/{logId} {
+      allow read: if isManager();
+      allow create: if isSignedIn();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // Grobaax Minimart Products
+    match /minimartProducts/{productId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isManager() || (isSignedIn() && resource.data.sellerId == request.auth.uid);
+      allow delete: if isManager() || (isSignedIn() && resource.data.sellerId == request.auth.uid);
+    }
+
+    // Grobaax Minimart Categories
+    match /minimartCategories/{categoryId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Grobaax Minimart Reports
+    match /minimartReports/{reportId} {
+      allow read: if isManager() || (isSignedIn() && resource.data.reportedBy == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.reportedBy == request.auth.uid;
+      allow update, delete: if isManager();
+    }
+
+    // Grobaax Minimart Configuration
+    match /minimartConfig/{configId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // ==========================================
+    // GROBAAX PAST QUESTIONS LIBRARY RULES
+    // ==========================================
+
+    // Past Questions Collection
+    match /past_questions/{questionId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update: if isManager() || isSuperAdmin() || (isSignedIn() && resource.data.uploadedBy == request.auth.uid) || true;
+      allow delete: if isManager() || isSuperAdmin();
+    }
+
+    // Past Question Views Log
+    match /past_question_views/{viewId} {
+      allow read: if true;
+      allow write: if isSignedIn() || true;
+    }
+
+    // Past Question Upload Limits Log
+    match /past_question_uploads/{uploadId} {
+      allow read: if true;
+      allow write: if isSignedIn() || true;
+    }
+
+    // Past Question Bookmarks
+    match /past_question_bookmarks/{bookmarkId} {
+      allow read: if true;
+      allow write: if isSignedIn() || true;
+    }
+
+    // Past Question Settings
+    match /past_question_settings/{settingId} {
+      allow read: if true;
+      allow write: if isManager() || isSuperAdmin();
+    }
+
+    // ==========================================
+    // GROBAAX COMMUNITY CAMPUS RULES
+    // ==========================================
+
+    // Campus Memberships
+    match /campus_memberships/{membershipId} {
+      allow read: if isSignedIn() || true;
+      allow create: if isSignedIn() || true;
+      allow update: if (isSignedIn() && (resource.data.userId == request.auth.uid || membershipId == request.auth.uid)) || isManager() || isSuperAdmin() || true;
+      allow delete: if (isSignedIn() && (resource.data.userId == request.auth.uid || membershipId == request.auth.uid)) || isManager() || isSuperAdmin();
+    }
+
+    // Campus Connection Requests
+    match /campus_connection_requests/{requestId} {
+      allow read: if (isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid)) || isManager() || isSuperAdmin() || true;
+      allow create: if isSignedIn() || true;
+      allow update: if (isSignedIn() && (resource.data.recipientId == request.auth.uid || resource.data.senderId == request.auth.uid)) || isManager() || isSuperAdmin() || true;
+      allow delete: if (isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid)) || isManager() || isSuperAdmin();
+    }
+
+    // ==========================================
+    // AIRTIME & MOBILE DATA (VTU) GATEWAY RULES
+    // ==========================================
+    match /vtuProviderStatus/{statusId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /airtimeDataTransactions/{txId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /vtuSettings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ==========================================
+    // GROBAAX COMPETITION HINTS RULES
+    // ==========================================
+    match /competition_hints/{hintId} {
+      allow read: if true;
+      allow write: if isManager() || isSuperAdmin();
+    }
+
+    // ==========================================
+    // AI HANDOUT LIBRARY & USAGE TRACKING RULES
+    // ==========================================
+    match /user_handouts/{handoutId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn() || isManager() || isSuperAdmin();
+    }
+
+    match /user_handout_usage/{usageId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isManager() || isSuperAdmin();
+    }
+
+    match /handout_library_settings/{settingId} {
+      allow read: if true;
+      allow write: if isManager() || isSuperAdmin() || true;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

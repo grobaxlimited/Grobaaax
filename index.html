@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      // Gracefully filter benign Vite HMR websocket messages in iframe/proxy environments
+      (function () {
+        const _err = console.error;
+        console.error = function (...args) {
+          if (
+            args.length > 0 &&
+            typeof args[0] === 'string' &&
+            (args[0].includes('[vite] failed to connect to websocket') ||
+             args[0].includes('[vite] connecting') ||
+             args[0].startsWith('[vite]'))
+          ) {
+            return;
+          }
+          _err.apply(console, args);
+        };
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover" />
+    <title>Grobaax - Represent your school title, conquer academic arenas, and connect with scholars nationwide.</title>
+    <meta name="description" content="Represent your school title, conquer academic arenas, and connect with scholars nationwide." />
+    <meta property="og:title" content="Grobaax - Represent your school title, conquer academic arenas, and connect with scholars nationwide." />
+    <meta property="og:description" content="Represent your school title, conquer academic arenas, and connect with scholars nationwide." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- PWA & Mobile Web App Meta Tags -->
+    <meta name="theme-color" content="#02081c" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Grobaax" />
+    <meta name="application-name" content="Grobaax" />
+    <meta name="msapplication-TileColor" content="#02081c" />
+
+    <!-- PWA Icons & Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,8 @@
+{
+  "name": "Grobaax",
+  "description": "Represent your school title, conquer academic arenas, and connect with scholars nationwide.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

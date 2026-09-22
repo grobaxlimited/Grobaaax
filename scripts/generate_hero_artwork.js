@@ -1,0 +1,510 @@
+import fs from 'fs';
+import path from 'path';
+import sharp from 'sharp';
+
+const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="100%" height="100%">
+  <defs>
+    <!-- Daytime Sky Background Gradients -->
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7dd3fc"/>
+      <stop offset="25%" stop-color="#bae6fd"/>
+      <stop offset="60%" stop-color="#e0f2fe"/>
+      <stop offset="85%" stop-color="#f0f9ff"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+
+    <radialGradient id="sunGlow" cx="50%" cy="15%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="20%" stop-color="#fef08a" stop-opacity="0.6"/>
+      <stop offset="50%" stop-color="#bae6fd" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#e0f2fe" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Cloud Gradients -->
+    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#e0f2fe" stop-opacity="0.7"/>
+    </linearGradient>
+
+    <!-- Gold Trophy Gradients -->
+    <linearGradient id="trophyGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="25%" stop-color="#facc15"/>
+      <stop offset="60%" stop-color="#eab308"/>
+      <stop offset="90%" stop-color="#ca8a04"/>
+      <stop offset="100%" stop-color="#854d0e"/>
+    </linearGradient>
+
+    <!-- Student 1 (Center Male): Deep Warm Espresso Skin -->
+    <radialGradient id="sCenterSkin" cx="45%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#8a4d25"/>
+      <stop offset="45%" stop-color="#6e3814"/>
+      <stop offset="85%" stop-color="#4d2209"/>
+      <stop offset="100%" stop-color="#321303"/>
+    </radialGradient>
+    <linearGradient id="sCenterHoodie" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="50%" stop-color="#172554"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+
+    <!-- Student 2 (Left Female): Warm Chocolate Mahogany Skin -->
+    <radialGradient id="sLeftSkin" cx="45%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#99582a"/>
+      <stop offset="45%" stop-color="#7c3f18"/>
+      <stop offset="85%" stop-color="#5a290c"/>
+      <stop offset="100%" stop-color="#3b1704"/>
+    </radialGradient>
+    <linearGradient id="sLeftHoodie" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="60%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+
+    <!-- Student 3 (Right Male): Rich Umber Skin -->
+    <radialGradient id="sRightMaleSkin" cx="45%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#7d441c"/>
+      <stop offset="45%" stop-color="#602f0e"/>
+      <stop offset="85%" stop-color="#431d06"/>
+      <stop offset="100%" stop-color="#280f02"/>
+    </radialGradient>
+    <linearGradient id="sRightPolo" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#92400e"/>
+      <stop offset="50%" stop-color="#78350f"/>
+      <stop offset="100%" stop-color="#451a03"/>
+    </linearGradient>
+
+    <!-- Student 4 (Far Right Female in Hijab): Warm Caramel Skin -->
+    <radialGradient id="sHijabSkin" cx="45%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#ab6b3a"/>
+      <stop offset="45%" stop-color="#8c4e20"/>
+      <stop offset="85%" stop-color="#673411"/>
+      <stop offset="100%" stop-color="#451f08"/>
+    </radialGradient>
+
+    <!-- Drop Shadows & Glow Filters -->
+    <filter id="softShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0f172a" flood-opacity="0.28"/>
+    </filter>
+
+    <filter id="glowSun" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- ================= 1. SKY & SUNNY CAMPUS BACKGROUND ================= -->
+  <rect width="1600" height="1000" fill="url(#skyGrad)"/>
+
+  <!-- Sunburst Radiant Rays & Glow -->
+  <circle cx="800" cy="180" r="450" fill="url(#sunGlow)"/>
+  <g opacity="0.22">
+    <polygon points="800,180 -200,-100 -100,-100" fill="#ffffff"/>
+    <polygon points="800,180 100,-100 240,-100" fill="#ffffff"/>
+    <polygon points="800,180 500,-100 660,-100" fill="#ffffff"/>
+    <polygon points="800,180 940,-100 1100,-100" fill="#ffffff"/>
+    <polygon points="800,180 1360,-100 1500,-100" fill="#ffffff"/>
+    <polygon points="800,180 1700,-100 1850,-100" fill="#ffffff"/>
+    <polygon points="800,180 1900,200 1900,340" fill="#ffffff"/>
+    <polygon points="800,180 -300,200 -300,340" fill="#ffffff"/>
+  </g>
+
+  <!-- Soft Sunny Clouds -->
+  <g fill="url(#cloudGrad)" opacity="0.85">
+    <ellipse cx="280" cy="190" rx="140" ry="55"/>
+    <ellipse cx="360" cy="160" rx="100" ry="60"/>
+    <ellipse cx="210" cy="195" rx="80" ry="45"/>
+
+    <ellipse cx="1320" cy="180" rx="150" ry="60"/>
+    <ellipse cx="1230" cy="150" rx="110" ry="65"/>
+    <ellipse cx="1410" cy="185" rx="90" ry="50"/>
+  </g>
+
+  <!-- Subtle Campus Buildings Silhouettes in Distance -->
+  <g fill="#bfdbfe" opacity="0.45">
+    <!-- Left Campus Hall -->
+    <rect x="120" y="290" width="220" height="180" rx="4"/>
+    <polygon points="100,290 230,220 360,290"/>
+    <rect x="150" y="320" width="24" height="40" rx="3" fill="#93c5fd"/>
+    <rect x="190" y="320" width="24" height="40" rx="3" fill="#93c5fd"/>
+    <rect x="246" y="320" width="24" height="40" rx="3" fill="#93c5fd"/>
+    <rect x="286" y="320" width="24" height="40" rx="3" fill="#93c5fd"/>
+    <!-- Center Clock Tower -->
+    <rect x="760" y="240" width="80" height="230" rx="4"/>
+    <polygon points="740,240 800,170 860,240"/>
+    <circle cx="800" cy="280" r="18" fill="#ffffff" opacity="0.8"/>
+    <!-- Right Campus Library -->
+    <rect x="1280" y="280" width="220" height="190" rx="4"/>
+    <polygon points="1260,280 1390,210 1520,280"/>
+    <rect x="1310" y="315" width="24" height="40" rx="3" fill="#93c5fd"/>
+    <rect x="1350" y="315" width="24" height="40" rx="3" fill="#93c5fd"/>
+    <rect x="1410" y="315" width="24" height="40" rx="3" fill="#93c5fd"/>
+    <rect x="1450" y="315" width="24" height="40" rx="3" fill="#93c5fd"/>
+  </g>
+
+  <!-- Nigerian Flag on Campus Flagpole (Right Background) -->
+  <g transform="translate(1420, 210)">
+    <line x1="0" y1="0" x2="0" y2="160" stroke="#64748b" stroke-width="4"/>
+    <circle cx="0" cy="0" r="6" fill="#eab308"/>
+    <!-- Green-White-Green Flag -->
+    <g transform="translate(2, 6)">
+      <rect x="0" y="0" width="28" height="50" fill="#16a34a"/>
+      <rect x="28" y="0" width="28" height="50" fill="#ffffff"/>
+      <rect x="56" y="0" width="28" height="50" fill="#16a34a"/>
+    </g>
+  </g>
+
+  <!-- ================= 2. FLOATING ACADEMIC ELEMENTS ================= -->
+
+  <!-- Left: Big Floating Golden Championship Trophy -->
+  <g transform="translate(480, 100)" filter="url(#glowSun)">
+    <!-- Trophy Cup -->
+    <path d="M40,20 L120,20 L110,95 Q80,120 80,140 L100,140 L105,170 L55,170 L60,140 L80,140 Q80,120 50,95 Z" fill="url(#trophyGold)" stroke="#fef08a" stroke-width="2.5"/>
+    <ellipse cx="80" cy="20" rx="40" ry="10" fill="#fef08a"/>
+    <!-- Trophy Handles -->
+    <path d="M42,32 C12,35 12,85 52,90" stroke="url(#trophyGold)" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M118,32 C148,35 148,85 108,90" stroke="url(#trophyGold)" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <!-- Graduation Cap perched on Trophy -->
+    <g transform="translate(40, -45) rotate(-12)">
+      <polygon points="40,0 85,18 40,36 -5,18" fill="#1e3a8a" stroke="#3b82f6" stroke-width="2"/>
+      <polygon points="40,4 80,18 40,32 0,18" fill="#0f172a"/>
+      <ellipse cx="40" cy="18" rx="5" ry="3.5" fill="#facc15"/>
+      <path d="M40,18 C55,25 65,35 68,52" stroke="#facc15" stroke-width="2.5" fill="none"/>
+      <polygon points="65,50 71,50 72,66 64,66" fill="#facc15"/>
+    </g>
+  </g>
+
+  <!-- Left Question Mark Chat Bubble #1 -->
+  <g transform="translate(230, 200)" filter="url(#cardShadow)">
+    <rect width="65" height="55" rx="16" fill="#38bdf8"/>
+    <path d="M32,55 L24,68 L42,55 Z" fill="#38bdf8"/>
+    <text x="32" y="39" font-family="system-ui, -apple-system, sans-serif" font-size="32" font-weight="900" fill="#ffffff" text-anchor="middle">?</text>
+  </g>
+
+  <!-- Left Question Mark Chat Bubble #2 -->
+  <g transform="translate(130, 310)" filter="url(#cardShadow)">
+    <rect width="55" height="48" rx="14" fill="#60a5fa"/>
+    <path d="M36,48 L44,58 L28,48 Z" fill="#60a5fa"/>
+    <text x="27" y="34" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle">?</text>
+  </g>
+
+  <!-- Left Stack of Scholastic Books: "DISCOVER", "LEARN", "COMPETE", "WIN" -->
+  <g transform="translate(40, 480)" filter="url(#softShadow)">
+    <!-- Book 4 (Bottom): WIN -->
+    <g transform="translate(0, 105)">
+      <rect width="180" height="34" rx="5" fill="#1e3a8a"/>
+      <rect x="170" y="4" width="10" height="26" fill="#f8fafc"/>
+      <text x="20" y="23" font-family="system-ui, sans-serif" font-size="14" font-weight="900" fill="#ffffff" letter-spacing="2">WIN</text>
+    </g>
+    <!-- Book 3: COMPETE -->
+    <g transform="translate(12, 70)">
+      <rect width="175" height="34" rx="5" fill="#2563eb"/>
+      <rect x="165" y="4" width="10" height="26" fill="#f8fafc"/>
+      <text x="20" y="23" font-family="system-ui, sans-serif" font-size="13" font-weight="900" fill="#ffffff" letter-spacing="1.5">COMPETE</text>
+    </g>
+    <!-- Book 2: LEARN -->
+    <g transform="translate(6, 35)">
+      <rect width="180" height="34" rx="5" fill="#1d4ed8"/>
+      <rect x="170" y="4" width="10" height="26" fill="#f8fafc"/>
+      <text x="20" y="23" font-family="system-ui, sans-serif" font-size="14" font-weight="900" fill="#ffffff" letter-spacing="2">LEARN</text>
+    </g>
+    <!-- Book 1 (Top): DISCOVER -->
+    <g transform="translate(16, 0)">
+      <rect width="175" height="34" rx="5" fill="#3b82f6"/>
+      <rect x="165" y="4" width="10" height="26" fill="#f8fafc"/>
+      <text x="18" y="23" font-family="system-ui, sans-serif" font-size="13" font-weight="900" fill="#ffffff" letter-spacing="1">DISCOVER</text>
+    </g>
+  </g>
+
+  <!-- Right: Question Mark Chat Bubble -->
+  <g transform="translate(1020, 190)" filter="url(#cardShadow)">
+    <rect width="55" height="48" rx="14" fill="#38bdf8"/>
+    <path d="M22,48 L14,58 L32,48 Z" fill="#38bdf8"/>
+    <text x="27" y="34" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle">?</text>
+  </g>
+
+  <!-- Right: "Think Solve Win" Speech Bubble -->
+  <g transform="translate(1140, 220)" filter="url(#cardShadow)">
+    <path d="M15,0 L115,0 C123,0 130,7 130,15 L130,85 C130,93 123,100 115,100 L45,100 L20,122 L25,100 L15,100 C7,100 0,93 0,85 L0,15 C0,7 7,0 15,0 Z" fill="#2563eb"/>
+    <text x="65" y="32" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="900" fill="#ffffff" text-anchor="middle">Think</text>
+    <text x="65" y="58" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="900" fill="#ffffff" text-anchor="middle">Solve</text>
+    <text x="65" y="84" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="900" fill="#fde047" text-anchor="middle">Win</text>
+  </g>
+
+  <!-- Right: Floating Graduation Mortarboard Cap -->
+  <g transform="translate(1220, 160) rotate(14)" filter="url(#glowSun)">
+    <polygon points="65,-5 140,28 65,60 -10,28" fill="#1e3a8a" stroke="#3b82f6" stroke-width="2.5"/>
+    <polygon points="65,0 132,28 65,54 -2,28" fill="#0f172a"/>
+    <path d="M22,32 Q65,62 108,32 L106,56 Q65,86 24,56 Z" fill="#030712"/>
+    <ellipse cx="65" cy="28" rx="6" ry="4" fill="#facc15"/>
+    <path d="M65,28 C85,38 98,54 102,82" stroke="#facc15" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <polygon points="99,80 105,80 106,102 98,102" fill="#facc15"/>
+  </g>
+
+  <!-- ================= 3. FOUR SMILING NIGERIAN TERTIARY SCHOLARS ================= -->
+
+  <!-- STUDENT 2: (Left Female Scholar in Royal Blue Hoodie) -->
+  <g id="femaleStudentLeft" filter="url(#softShadow)">
+    <!-- Body & Hoodie -->
+    <path d="M190,920 L220,600 Q260,530 350,515 Q430,525 460,600 L490,920 Z" fill="url(#sLeftHoodie)"/>
+    <!-- Hoodie Strings & Center Fold -->
+    <path d="M330,540 L325,660" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M355,540 L358,655" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+
+    <!-- Neck -->
+    <rect x="330" y="450" width="40" height="75" rx="10" fill="url(#sLeftSkin)"/>
+    <ellipse cx="350" cy="470" rx="20" ry="8" fill="#2d1305" opacity="0.6"/>
+
+    <!-- Head & Face -->
+    <ellipse cx="350" cy="385" rx="55" ry="70" fill="url(#sLeftSkin)"/>
+    <ellipse cx="362" cy="375" rx="18" ry="24" fill="#b46736" opacity="0.25"/>
+
+    <!-- Intricate Styled Braided High Bun -->
+    <circle cx="350" cy="285" r="46" fill="#090d16"/>
+    <path d="M295,370 C295,300 325,285 350,285 C375,285 405,300 405,370 C395,335 375,325 350,325 C325,325 305,335 295,370 Z" fill="#090d16"/>
+    <path d="M315,310 Q350,325 385,310" stroke="#334155" stroke-width="2.5" fill="none"/>
+
+    <!-- Golden Hoop Earrings -->
+    <ellipse cx="294" cy="390" rx="7" ry="14" fill="url(#sLeftSkin)"/>
+    <circle cx="294" cy="402" r="8" fill="none" stroke="#facc15" stroke-width="3"/>
+    <ellipse cx="406" cy="390" rx="7" ry="14" fill="url(#sLeftSkin)"/>
+    <circle cx="406" cy="402" r="8" fill="none" stroke="#facc15" stroke-width="3"/>
+
+    <!-- Eyebrows -->
+    <path d="M312,365 Q326,357 340,363" stroke="#090d16" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M360,363 Q374,357 388,365" stroke="#090d16" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <!-- Eyes -->
+    <ellipse cx="326" cy="377" rx="7" ry="5" fill="#ffffff"/>
+    <circle cx="327" cy="377" r="3.5" fill="#111827"/>
+    <circle cx="329" cy="375" r="1.5" fill="#ffffff"/>
+    <ellipse cx="374" cy="377" rx="7" ry="5" fill="#ffffff"/>
+    <circle cx="373" cy="377" r="3.5" fill="#111827"/>
+    <circle cx="375" cy="375" r="1.5" fill="#ffffff"/>
+    <!-- Nose -->
+    <path d="M350,377 L347,405 Q350,412 357,408" stroke="#3b1704" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <!-- Warm Radiant Smile -->
+    <path d="M332,428 Q350,448 368,428" stroke="#ffffff" stroke-width="5" fill="#ffffff" stroke-linecap="round"/>
+    <path d="M330,426 Q350,452 370,426" stroke="#991b1b" stroke-width="2.5" fill="none"/>
+
+    <!-- Holding "STUDY" Hardcover Notebook -->
+    <g transform="translate(230, 620) rotate(16)" filter="url(#cardShadow)">
+      <rect width="130" height="170" rx="10" fill="#0f172a" stroke="#38bdf8" stroke-width="2.5"/>
+      <rect x="8" y="8" width="114" height="154" rx="6" fill="#1e293b"/>
+      <text x="65" y="80" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="3">STUDY</text>
+      <line x1="25" y1="96" x2="105" y2="96" stroke="#60a5fa" stroke-width="2.5"/>
+    </g>
+  </g>
+
+  <!-- STUDENT 3: (Right Male Scholar with Glasses & Brown Polo) -->
+  <g id="maleStudentRight" filter="url(#softShadow)">
+    <!-- Body & Brown Polo -->
+    <path d="M960,920 L980,590 Q1015,520 1090,510 Q1165,520 1205,590 L1230,920 Z" fill="url(#sRightPolo)"/>
+    <!-- White Inner Collar -->
+    <path d="M1070,512 L1090,575 L1110,512 Z" fill="#ffffff"/>
+
+    <!-- Neck -->
+    <rect x="1070" y="440" width="40" height="80" rx="10" fill="url(#sRightMaleSkin)"/>
+    <ellipse cx="1090" cy="460" rx="20" ry="8" fill="#1b0a01" opacity="0.6"/>
+
+    <!-- Head & Face -->
+    <ellipse cx="1090" cy="380" rx="54" ry="70" fill="url(#sRightMaleSkin)"/>
+    <ellipse cx="1102" cy="370" rx="18" ry="24" fill="#8c4e20" opacity="0.25"/>
+
+    <!-- Neat Short Fade Haircut -->
+    <path d="M1035,365 C1035,305 1065,290 1090,290 C1115,290 1145,305 1145,365 C1135,335 1115,325 1090,325 C1065,325 1045,335 1035,365 Z" fill="#090d16"/>
+    <!-- Ears -->
+    <ellipse cx="1034" cy="385" rx="7" ry="15" fill="url(#sRightMaleSkin)"/>
+    <ellipse cx="1146" cy="385" rx="7" ry="15" fill="url(#sRightMaleSkin)"/>
+
+    <!-- Eyebrows -->
+    <path d="M1050,360 Q1066,352 1082,358" stroke="#090d16" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M1100,358 Q1116,352 1132,360" stroke="#090d16" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <!-- Stylish Scholar Glasses -->
+    <rect x="1048" y="356" width="36" height="28" rx="8" fill="none" stroke="#1e293b" stroke-width="3"/>
+    <rect x="1096" y="356" width="36" height="28" rx="8" fill="none" stroke="#1e293b" stroke-width="3"/>
+    <line x1="1084" y1="368" x2="1096" y2="368" stroke="#1e293b" stroke-width="3"/>
+    <!-- Eyes behind Glasses -->
+    <ellipse cx="1066" cy="370" rx="6.5" ry="4.5" fill="#ffffff"/>
+    <circle cx="1067" cy="370" r="3.5" fill="#111827"/>
+    <circle cx="1069" cy="368" r="1.5" fill="#ffffff"/>
+    <ellipse cx="1114" cy="370" rx="6.5" ry="4.5" fill="#ffffff"/>
+    <circle cx="1113" cy="370" r="3.5" fill="#111827"/>
+    <circle cx="1115" cy="368" r="1.5" fill="#ffffff"/>
+    <!-- Nose -->
+    <path d="M1090,372 L1087,400 Q1090,406 1097,402" stroke="#280f02" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <!-- Friendly Smile -->
+    <path d="M1072,424 Q1090,444 1108,424" stroke="#ffffff" stroke-width="4.5" fill="#ffffff" stroke-linecap="round"/>
+    <path d="M1070,422 Q1090,448 1110,422" stroke="#1b0a01" stroke-width="2" fill="none"/>
+  </g>
+
+  <!-- STUDENT 4: (Far Right Female Scholar with Black Hijab & Tablet) -->
+  <g id="femaleStudentHijab" filter="url(#softShadow)">
+    <!-- Light Jacket / Blouse -->
+    <path d="M1170,920 L1190,620 Q1220,545 1290,535 Q1360,545 1395,620 L1420,920 Z" fill="#e2e8f0"/>
+    <path d="M1250,545 L1290,680 L1330,545 Z" fill="#0284c7"/>
+
+    <!-- Black Hijab Wrap -->
+    <path d="M1220,440 C1220,320 1250,290 1290,290 C1330,290 1360,320 1360,440 C1360,510 1340,550 1290,550 C1240,550 1220,510 1220,440 Z" fill="#0f172a"/>
+    <!-- Hijab Drapery Folds -->
+    <path d="M1230,490 Q1290,560 1350,490" stroke="#334155" stroke-width="3" fill="none"/>
+
+    <!-- Face Oval peeking from Hijab -->
+    <ellipse cx="1290" cy="405" rx="42" ry="52" fill="url(#sHijabSkin)"/>
+    <ellipse cx="1298" cy="395" rx="14" ry="18" fill="#be743d" opacity="0.25"/>
+
+    <!-- Eyebrows -->
+    <path d="M1260,388 Q1272,382 1284,386" stroke="#090d16" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M1298,386 Q1310,382 1322,388" stroke="#090d16" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <!-- Eyes -->
+    <ellipse cx="1272" cy="398" rx="6.5" ry="4.5" fill="#ffffff"/>
+    <circle cx="1273" cy="398" r="3.5" fill="#111827"/>
+    <circle cx="1275" cy="396" r="1.5" fill="#ffffff"/>
+    <ellipse cx="1310" cy="398" rx="6.5" ry="4.5" fill="#ffffff"/>
+    <circle cx="1309" cy="398" r="3.5" fill="#111827"/>
+    <circle cx="1311" cy="396" r="1.5" fill="#ffffff"/>
+    <!-- Nose -->
+    <path d="M1290,398 L1288,422 Q1290,427 1295,424" stroke="#451f08" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- Bright Radiant Smile -->
+    <path d="M1276,442 Q1290,458 1304,442" stroke="#ffffff" stroke-width="4" fill="#ffffff" stroke-linecap="round"/>
+    <path d="M1274,440 Q1290,462 1306,440" stroke="#881337" stroke-width="2" fill="none"/>
+
+    <!-- Holding Digital Study Tablet Under Arm -->
+    <g transform="translate(1290, 600) rotate(8)" filter="url(#cardShadow)">
+      <rect width="105" height="145" rx="10" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
+      <rect x="6" y="6" width="93" height="133" rx="6" fill="#1e293b"/>
+      <circle cx="52" cy="72" r="18" fill="#3b82f6" opacity="0.3"/>
+    </g>
+  </g>
+
+  <!-- STUDENT 1 (CENTER HERO MALE SCHOLAR IN NAVY HOODIE HOLDING GROBAAX LAPTOP) -->
+  <g id="maleStudentCenter" filter="url(#softShadow)">
+    <!-- Shoulders & Dark Navy Blue Collegiate Hoodie -->
+    <path d="M490,1000 L520,580 Q570,490 730,475 Q880,490 940,580 L970,1000 Z" fill="url(#sCenterHoodie)"/>
+    <!-- Backpack Straps Over Shoulders -->
+    <path d="M570,515 L620,800" stroke="#090d16" stroke-width="18" stroke-linecap="round"/>
+    <path d="M570,515 L620,800" stroke="#334155" stroke-width="4" stroke-linecap="round"/>
+    <path d="M885,515 L835,800" stroke="#090d16" stroke-width="18" stroke-linecap="round"/>
+    <path d="M885,515 L835,800" stroke="#334155" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- Hoodie Collar & Strings -->
+    <path d="M685,505 Q730,550 775,505" stroke="#334155" stroke-width="8" fill="none"/>
+    <path d="M705,520 L700,640" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <path d="M755,520 L760,635" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- Neck & Masculine Contours -->
+    <rect x="705" y="415" width="50" height="90" rx="12" fill="url(#sCenterSkin)"/>
+    <ellipse cx="730" cy="438" rx="26" ry="10" fill="#200c03" opacity="0.65"/>
+
+    <!-- Head & Handsome Face -->
+    <ellipse cx="730" cy="340" rx="66" ry="85" fill="url(#sCenterSkin)"/>
+    <!-- Facial Highlights -->
+    <ellipse cx="745" cy="325" rx="22" ry="30" fill="#a45e31" opacity="0.25"/>
+
+    <!-- Crisp Nigerian Low Fade / Textured Waves Haircut -->
+    <path d="M660,320 C660,240 700,215 730,215 C760,215 800,240 800,320 C790,285 770,270 730,270 C690,270 670,285 660,320 Z" fill="#090d16"/>
+    <path d="M656,325 Q730,250 804,325" fill="#111827"/>
+    <!-- Ears -->
+    <ellipse cx="662" cy="345" rx="9" ry="18" fill="url(#sCenterSkin)"/>
+    <ellipse cx="798" cy="345" rx="9" ry="18" fill="url(#sCenterSkin)"/>
+
+    <!-- Eyebrows (Strong, Ambitious) -->
+    <path d="M682,315 Q702,305 720,312" stroke="#090d16" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <path d="M740,312 Q758,305 778,315" stroke="#090d16" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <!-- Expressive, Warm Eyes -->
+    <ellipse cx="700" cy="328" rx="8" ry="5.5" fill="#ffffff"/>
+    <circle cx="701" cy="328" r="4" fill="#111827"/>
+    <circle cx="703" cy="326" r="1.5" fill="#ffffff"/>
+    <ellipse cx="760" cy="328" rx="8" ry="5.5" fill="#ffffff"/>
+    <circle cx="759" cy="328" r="4" fill="#111827"/>
+    <circle cx="761" cy="326" r="1.5" fill="#ffffff"/>
+    <!-- Nose -->
+    <path d="M730,328 L726,364 Q730,372 739,367" stroke="#321303" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <!-- Confident, Charismatic Wide Smile with White Teeth -->
+    <path d="M706,394 Q730,422 754,394" stroke="#ffffff" stroke-width="6" fill="#ffffff" stroke-linecap="round"/>
+    <path d="M702,391 Q730,428 758,391" stroke="#220c02" stroke-width="2.5" fill="none"/>
+
+    <!-- FOREGROUND: SLEEK SILVER LAPTOP HELD PROUDLY IN HANDS -->
+    <g transform="translate(605, 540)" filter="url(#softShadow)">
+      <!-- Hands Holding Laptop -->
+      <ellipse cx="30" cy="140" rx="22" ry="15" fill="url(#sCenterSkin)" transform="rotate(-15, 30, 140)"/>
+      <ellipse cx="220" cy="140" rx="22" ry="15" fill="url(#sCenterSkin)" transform="rotate(15, 220, 140)"/>
+
+      <!-- Laptop Shell (Silver / Platinum Aluminum) -->
+      <rect width="250" height="175" rx="18" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="3"/>
+      <!-- Inner Bezel -->
+      <rect x="8" y="8" width="234" height="159" rx="14" fill="#f8fafc"/>
+
+      <!-- GROBAAX BLUE SHIELD & GRADUATION CAP EMBLEM -->
+      <g transform="translate(125, 78)">
+        <!-- Blue Crest Rounded Box -->
+        <rect x="-32" y="-32" width="64" height="64" rx="16" fill="#2563eb"/>
+        <!-- White Graduation Cap Icon -->
+        <polygon points="0,-14 20,-3 0,8 -20,-3" fill="#ffffff"/>
+        <path d="M-12,2 Q0,9 12,2 L12,8 Q0,15 -12,8 Z" fill="#ffffff"/>
+        <circle cx="0" cy="-3" r="2" fill="#facc15"/>
+        <path d="M0,-3 C6,-1 10,4 12,12" stroke="#facc15" stroke-width="1.5" fill="none"/>
+        <circle cx="12" cy="13" r="1.5" fill="#facc15"/>
+      </g>
+      <!-- "GROBAAX" Text Printed On Laptop -->
+      <text x="125" y="132" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="900" fill="#1e3a8a" text-anchor="middle" letter-spacing="3">GROBAAX</text>
+    </g>
+  </g>
+
+  <!-- ================= 4. GOLDEN CONFETTI & SPARKS ================= -->
+  <g fill="#facc15" opacity="0.75">
+    <circle cx="480" cy="320" r="4"/>
+    <circle cx="560" cy="220" r="5" fill="#fef08a"/>
+    <circle cx="890" cy="240" r="4.5"/>
+    <circle cx="1020" cy="340" r="5"/>
+    <circle cx="1180" cy="180" r="4"/>
+    <polygon points="380,240 384,248 392,248 386,253 388,261 380,256 372,261 374,253 368,248 376,248" fill="#fef08a"/>
+    <polygon points="980,180 983,186 990,186 985,190 987,196 980,192 973,196 975,190 970,186 977,186" fill="#facc15"/>
+  </g>
+
+  <!-- ================= 5. SEAMLESS BOTTOM FADE TO PURE WHITE ================= -->
+  <!-- This smooth gradient feathers the artwork down into the crisp white background of the webpage -->
+  <rect y="780" width="1600" height="220" fill="url(#bottomMistGrad)"/>
+
+  <defs>
+    <linearGradient id="bottomMistGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#ffffff" stop-opacity="0.6"/>
+      <stop offset="75%" stop-color="#ffffff" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="1"/>
+    </linearGradient>
+  </defs>
+</svg>`;
+
+const outputSvgPath = path.resolve('public/images/grobaax-hero-students.svg');
+const outputPngPath = path.resolve('public/images/grobaax-hero-students.png');
+const outputWebpPath = path.resolve('public/images/grobaax-hero-students.webp');
+
+fs.writeFileSync(outputSvgPath, svgContent);
+console.log('Daytime hero SVG written to', outputSvgPath);
+
+async function convert() {
+  try {
+    await sharp(Buffer.from(svgContent))
+      .resize(1600, 1000)
+      .png({ quality: 95 })
+      .toFile(outputPngPath);
+    console.log('Daytime hero PNG written to', outputPngPath);
+
+    await sharp(Buffer.from(svgContent))
+      .resize(1600, 1000)
+      .webp({ quality: 92 })
+      .toFile(outputWebpPath);
+    console.log('Daytime hero WebP written to', outputWebpPath);
+  } catch (err) {
+    console.error('Sharp conversion error:', err);
+  }
+}
+
+convert();

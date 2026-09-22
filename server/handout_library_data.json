@@ -1,0 +1,33 @@
+{
+  "settings": {
+    "freeDailyLimit": 2,
+    "premiumDailyLimit": 30,
+    "vipDailyLimit": "unlimited",
+    "updatedAt": "2026-09-21T09:51:16.496Z",
+    "updatedBy": "System Default"
+  },
+  "stats": {
+    "totalGenerated": 3,
+    "generatedToday": 3,
+    "generatedThisMonth": 3,
+    "freeGenerations": 0,
+    "premiumGenerations": 1,
+    "vipGenerations": 2,
+    "failedGenerations": 0,
+    "lastUpdated": "2026-09-21T11:04:47.183Z"
+  },
+  "dailyUsage": {
+    "4403bd2b-e385-479b-af16-058582fa4ee3_2026-09-21": {
+      "count": 2,
+      "tier": "vip",
+      "lastGeneratedAt": "2026-09-21T10:57:05.563Z"
+    },
+    "cfbee966-28fd-4829-bc2a-b009f004c84d_2026-09-21": {
+      "count": 2,
+      "tier": "premium",
+      "lastGeneratedAt": "2026-09-21T11:04:47.183Z"
+    }
+  },
+  "monthTrackKey": "2026-09",
+  "todayTrackKey": "2026-09-21"
+}
