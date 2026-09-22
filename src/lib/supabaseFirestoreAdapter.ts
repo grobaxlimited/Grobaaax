@@ -545,7 +545,9 @@ function handleSupabaseUser(rawUser: any) {
   authListeners.forEach((listener) => listener(cachedCurrentUser));
 }
 
-// Check local storage for initial user or session and parse incoming tokens from URL
+import { promptGoogleOneTap } from './googleAuthHelper';
+
+// Check local storage for initial user or session and parse incoming tokens or code from URL
 if (typeof window !== 'undefined') {
   // Synchronously restore cachedCurrentUser from Supabase storage so auth.currentUser is instantly available
   try {
@@ -559,25 +561,100 @@ if (typeof window !== 'undefined') {
   } catch (_) {}
 
   try {
-    // 1. If loaded with #access_token=... in the URL, immediately capture session
     const currentHash = window.location.hash || '';
+    const currentSearch = window.location.search || '';
+    const isCallbackPath = window.location.pathname.startsWith('/auth/callback');
+
+    let accessToken: string | null = null;
+    let refreshToken: string | null = null;
+    let code: string | null = null;
+
     if (currentHash && currentHash.includes('access_token=')) {
       const hashParams = new URLSearchParams(currentHash.replace(/^#/, ''));
-      const aToken = hashParams.get('access_token');
-      const rToken = hashParams.get('refresh_token');
-      if (aToken) {
-        supabase.auth.setSession({
-          access_token: aToken,
-          refresh_token: rToken || '',
-        }).then(({ data, error }) => {
-          if (!error && data?.user) {
-            handleSupabaseUser(data.user);
-          }
-        });
-        try {
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        } catch (_) {}
+      accessToken = hashParams.get('access_token');
+      refreshToken = hashParams.get('refresh_token');
+    }
+
+    if (currentSearch) {
+      const sParams = new URLSearchParams(currentSearch.replace(/^\?/, ''));
+      code = sParams.get('code');
+      if (!accessToken) {
+        accessToken = sParams.get('access_token');
+        refreshToken = sParams.get('refresh_token');
       }
+    }
+
+    const broadcastAuthSuccess = (sess?: any, aTok?: string, rTok?: string, cde?: string) => {
+      const payload = {
+        type: 'SUPABASE_AUTH_SUCCESS',
+        hash: currentHash,
+        search: currentSearch,
+        code: cde || code,
+        accessToken: aTok || sess?.access_token || accessToken,
+        refreshToken: rTok || sess?.refresh_token || refreshToken,
+        timestamp: Date.now(),
+      };
+
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('grobaax_oauth_channel');
+          bc.postMessage(payload);
+        }
+      } catch (_) {}
+
+      try {
+        localStorage.setItem('grobaax_oauth_event', JSON.stringify(payload));
+      } catch (_) {}
+
+      if (window.opener) {
+        try {
+          window.opener.postMessage(payload, '*');
+        } catch (_) {}
+        setTimeout(() => {
+          try { window.close(); } catch (_) {}
+        }, 600);
+      } else if (isCallbackPath) {
+        // If this window itself was redirected (e.g. PWA in-place redirect), return to root
+        setTimeout(() => {
+          try {
+            window.location.replace('/');
+          } catch (_) {
+            window.location.href = '/';
+          }
+        }, 350);
+      }
+    };
+
+    // 1. If loaded with PKCE code parameter in URL (standard for modern Supabase OAuth)
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+        if (!error && data?.user) {
+          handleSupabaseUser(data.user);
+          broadcastAuthSuccess(data.session, undefined, undefined, code);
+        }
+        if (!isCallbackPath) {
+          try {
+            window.history.replaceState(null, '', window.location.pathname);
+          } catch (_) {}
+        }
+      });
+    }
+    // 2. If loaded with #access_token=... in the URL
+    else if (accessToken) {
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || '',
+      }).then(({ data, error }) => {
+        if (!error && data?.user) {
+          handleSupabaseUser(data.user);
+          broadcastAuthSuccess(data.session, accessToken, refreshToken);
+        }
+        if (!isCallbackPath) {
+          try {
+            window.history.replaceState(null, '', window.location.pathname);
+          } catch (_) {}
+        }
+      });
     }
 
     supabase.auth.getSession().then(({ data }) => {
@@ -763,7 +840,6 @@ export const signInWithGoogle = async (): Promise<any> => {
   }
 
   // 1. Capture current user ID (if any) before sign-in begins
-  // This ensures we NEVER resolve the OAuth promise with the previous stale session
   const initialUserId = cachedCurrentUser?.uid || cachedCurrentUser?.id || null;
 
   // Clear any existing OAuth event before starting
@@ -774,8 +850,64 @@ export const signInWithGoogle = async (): Promise<any> => {
   const origin = window.location.origin;
   const redirectUrl = `${origin}/auth/callback`;
 
-  // Always use skipBrowserRedirect: true so the iframe is NEVER redirected to Google
-  // (Google strictly returns HTTP 403 Forbidden when rendered inside an iframe)
+  const isInIframe = window.self !== window.top;
+
+  // In PWA, standalone, or normal browser outside iframe:
+  // NEVER launch window.open popup! On Android PWAs, window.open causes the OS to open
+  // an external Chrome Custom Tab with an unwanted black top bar and [X] close button,
+  // which traps users and breaks session recovery.
+  // Instead, use native Google One Tap bottom sheet (zero navigation) or clean full-window redirect!
+  if (!isInIframe) {
+    // 1A. Try native in-app Google One Tap bottom sheet first
+    try {
+      const idToken = await promptGoogleOneTap();
+      if (idToken) {
+        console.log('[Google Auth] Credential received from Google One Tap');
+        const { data: idData, error: idErr } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
+        });
+
+        if (!idErr && idData?.user) {
+          handleSupabaseUser(idData.user);
+          return cachedCurrentUser;
+        }
+        if (idErr) {
+          console.warn('[Google Auth] signInWithIdToken notice:', idErr);
+        }
+      }
+    } catch (gisErr) {
+      console.log('[Google Auth] One Tap prompt skipped or unavailable:', gisErr);
+    }
+
+    // 1B. Full-window in-place OAuth redirect
+    console.log('[Google Auth] Initiating clean full-window PWA redirect');
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: false, // Navigate directly in same window
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'select_account',
+        },
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (data?.url) {
+      window.location.assign(data.url);
+    }
+
+    // Keep promise pending while the page navigates
+    return new Promise(() => {});
+  }
+
+  // Running inside an iframe (e.g. AI Studio development preview):
+  // Popup window is required because Google prohibits iframe embedding (403 Forbidden).
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -870,7 +1002,6 @@ export const signInWithGoogle = async (): Promise<any> => {
         // 3. Check active Supabase session (must be valid session)
         const { data: curr } = await supabase.auth.getSession();
         if (curr?.session?.user) {
-          // If we had a prior user, only accept if the session user ID has changed or if explicitly triggered
           if (!initialUserId || curr.session.user.id !== initialUserId || explicitCode || aToken) {
             handleSupabaseUser(curr.session.user);
             resolved = true;
@@ -962,7 +1093,7 @@ export const signInWithGoogle = async (): Promise<any> => {
       }
     } catch (_) {}
 
-    // Open OAuth popup window
+    // Open OAuth popup window in iframe environments
     const width = 520;
     const height = 650;
     const left = window.screenX + (window.outerWidth - width) / 2;
@@ -975,7 +1106,6 @@ export const signInWithGoogle = async (): Promise<any> => {
     );
 
     if (!popup) {
-      // If popup was blocked by browser (e.g. mobile Safari/Chrome without gesture), fallback to new tab
       const fallback = window.open(data.url, '_blank');
       if (!fallback) {
         cleanup();
@@ -990,7 +1120,6 @@ export const signInWithGoogle = async (): Promise<any> => {
     const pollTimer = setInterval(async () => {
       if (resolved) return;
 
-      // Check if localStorage was populated by popup (e.g., if storage event didn't trigger)
       try {
         const stored = localStorage.getItem('grobaax_oauth_event');
         if (stored) {
@@ -1009,7 +1138,6 @@ export const signInWithGoogle = async (): Promise<any> => {
         }
       } catch (_) {}
 
-      // Check active Supabase session ONLY if user is new or changed
       const { data: curr } = await supabase.auth.getSession();
       if (curr?.session?.user && (!initialUserId || curr.session.user.id !== initialUserId)) {
         console.log('[Google Auth] New session user detected in poll:', curr.session.user.id);
@@ -1020,7 +1148,6 @@ export const signInWithGoogle = async (): Promise<any> => {
         return;
       }
 
-      // Check popup closed state only after grace period
       const elapsed = Date.now() - startTime;
       const gracePeriod = isMobile ? 60000 : 35000;
 
@@ -1047,7 +1174,7 @@ export const signInWithGoogle = async (): Promise<any> => {
 };
 
 /**
- * Manually connect session from a redirected URL (such as localhost:3000/#access_token=... or code)
+ * Manually connect session from a redirected URL (with #access_token=... or ?code=...)
  */
 export const setSessionFromUrlOrHash = async (input: string): Promise<any> => {
   if (!input || typeof input !== 'string') {

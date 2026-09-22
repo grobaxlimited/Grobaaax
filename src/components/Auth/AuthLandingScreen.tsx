@@ -47,7 +47,6 @@ export const AuthLandingScreen: React.FC = () => {
 
       if (isCancelledOrClosed) {
         console.log('Google sign-in completed or cancelled.');
-        setShowPasteHelper(true);
       } else {
         console.error('Google Direct Sign In Error:', err);
         setGoogleError(formatAuthError(err.code || err.message || ''));
@@ -174,52 +173,50 @@ export const AuthLandingScreen: React.FC = () => {
               <span>Continue with Google</span>
             </button>
 
-            {/* Paste Redirect Link Helper (shown if clicked or after sign-in attempt) */}
-            {(showPasteHelper || isGoogleSigningIn) && (
+            {/* Optional Manual Paste Link Helper (only shown if explicitly opened by user) */}
+            {showPasteHelper ? (
               <div className="w-full bg-blue-50/80 dark:bg-slate-900/90 border border-blue-200 dark:border-blue-900/50 rounded-2xl p-3.5 text-left space-y-2 transition-all">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <Link2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                    Got redirected to localhost:3000?
+                    Having trouble connecting?
                   </span>
                   <button
                     type="button"
-                    onClick={() => setShowPasteHelper(!showPasteHelper)}
-                    className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                    onClick={() => setShowPasteHelper(false)}
+                    className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-semibold cursor-pointer"
                   >
-                    {showPasteHelper ? 'Close' : 'Paste link'}
+                    Close
                   </button>
                 </div>
 
-                {showPasteHelper && (
-                  <form onSubmit={handlePasteConnect} className="space-y-2 pt-1">
-                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Copy the URL from the browser address bar (including <code className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9.5px]">#access_token=...</code>) and paste it here:
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={pastedUrl}
-                        onChange={(e) => setPastedUrl(e.target.value)}
-                        placeholder="Paste localhost:3000/#access_token=... link"
-                        className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500"
-                      />
-                      <button
-                        type="submit"
-                        disabled={isPastingToken || !pastedUrl.trim()}
-                        className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer shadow-xs"
-                      >
-                        {isPastingToken ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
-                        <span>Connect</span>
-                      </button>
-                    </div>
-                    {pasteError && (
-                      <p className="text-[10.5px] text-rose-500 font-medium">{pasteError}</p>
-                    )}
-                  </form>
-                )}
+                <form onSubmit={handlePasteConnect} className="space-y-2 pt-1">
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    If redirected to a callback URL or token, paste it here to complete sign-in:
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={pastedUrl}
+                      onChange={(e) => setPastedUrl(e.target.value)}
+                      placeholder="Paste callback URL or token"
+                      className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isPastingToken || !pastedUrl.trim()}
+                      className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer shadow-xs"
+                    >
+                      {isPastingToken ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                      <span>Connect</span>
+                    </button>
+                  </div>
+                  {pasteError && (
+                    <p className="text-[10.5px] text-rose-500 font-medium">{pasteError}</p>
+                  )}
+                </form>
               </div>
-            )}
+            ) : null}
 
             <div className="relative w-full text-center my-1.5">
               <div className="absolute inset-0 flex items-center">

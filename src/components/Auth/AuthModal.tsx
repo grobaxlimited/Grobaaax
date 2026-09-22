@@ -209,7 +209,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       if (isCancelledOrClosed) {
         console.log('Google sign-in completed or cancelled.');
-        setShowPasteHelper(true);
       } else {
         console.error('Google Sign-In Error:', err);
         setErrorMessage(formatAuthError(err.code || err.message || ''));
@@ -436,26 +435,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <Link2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                    Redirected to localhost:3000?
+                    Having trouble connecting?
                   </span>
                   <button
                     type="button"
                     onClick={() => setShowPasteHelper(false)}
-                    className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer font-medium"
                   >
                     Close
                   </button>
                 </div>
                 <form onSubmit={handlePasteConnect} className="space-y-2">
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Copy the URL from your browser address bar and paste it here:
+                    If redirected to a callback URL or token, paste it here to complete sign-in:
                   </p>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
                       value={pastedUrl}
                       onChange={(e) => setPastedUrl(e.target.value)}
-                      placeholder="Paste localhost:3000/#access_token=... link"
+                      placeholder="Paste callback URL or token"
                       className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500"
                     />
                     <button

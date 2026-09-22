@@ -12,6 +12,7 @@ import {
   getAcademicPhotoForChapter,
   generateVisualSvgDiagram,
 } from '../src/lib/academicIllustrationService';
+import { getAuthCallbackHtml } from './authCallbackHtml';
 
 dotenv.config();
 
@@ -69,6 +70,12 @@ apiApp.use((req: Request, res: Response, next: NextFunction) => {
     if (err) return next(err);
     express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
   });
+});
+
+// OAuth Callback handler for both /auth/callback and /api/auth/callback
+apiApp.get(['/auth/callback', '/auth/callback/', '/api/auth/callback', '/api/auth/callback/'], (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(getAuthCallbackHtml());
 });
 
 // Gemini AI Client helper
