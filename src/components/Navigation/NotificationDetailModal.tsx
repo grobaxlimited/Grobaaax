@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { NotificationItem } from '../../types';
-import { useApp } from '../../context/AppContext';
+import { useApp, formatNotificationTime } from '../../context/AppContext';
 import {
   X,
   Bell,
@@ -326,19 +326,22 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
         {/* Timestamp & Status info */}
         <div className="relative z-10 flex items-center justify-between text-xs text-slate-400 border-y border-blue-900/50 py-2.5 px-1">
           <span className="flex items-center gap-1.5 font-medium text-slate-300">
-            <Clock className="w-3.5 h-3.5 text-blue-400" /> Received: {notification.timestamp}
+            <Clock className="w-3.5 h-3.5 text-blue-400" /> Received: {formatNotificationTime(notification) || notification.timestamp}
           </span>
-          <span className="flex items-center gap-1 font-bold">
+          <div className="flex items-center gap-2 font-bold">
+            <span className="text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 text-[10px]">
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Read
+            </span>
             {notification.targetUserId || notification.userId ? (
-              <span className="text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Direct Award
+              <span className="text-slate-400 flex items-center gap-1 text-[10px]">
+                Direct Award
               </span>
             ) : (
-              <span className="text-blue-400 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" /> Official Broadcast
+              <span className="text-blue-400 flex items-center gap-1 text-[10px]">
+                Broadcast
               </span>
             )}
-          </span>
+          </div>
         </div>
 
         {/* Scholar Profile & Origin Card for Chat Requests */}

@@ -259,7 +259,12 @@ export const InAppPushToast: React.FC = () => {
 
           <button
             id="btn-dismiss-push-toast"
-            onClick={() => setActiveToast(null)}
+            onClick={() => {
+              if (activeToast?.id) {
+                markNotificationRead(activeToast.id);
+              }
+              setActiveToast(null);
+            }}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
             aria-label="Dismiss toast"
           >

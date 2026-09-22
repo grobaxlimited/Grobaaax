@@ -821,15 +821,137 @@ export const resolveUserSubscriptionStatus = (user: Partial<UserProfile> | null 
   };
 };
 
+export const normalizeNotifFp = (title?: string, message?: string): string => {
+  return `${(title || '').trim().toLowerCase()}_${(message || '').trim().toLowerCase()}`;
+};
+
+export const getNotificationTimestampMs = (item: any): number => {
+  if (!item) return 0;
+  if (typeof item.createdAtMs === 'number' && item.createdAtMs > 0) return item.createdAtMs;
+  if (typeof item.createdAtMillis === 'number' && item.createdAtMillis > 0) return item.createdAtMillis;
+  if (item.createdAt) {
+    if (typeof item.createdAt.toMillis === 'function') return item.createdAt.toMillis();
+    if (typeof item.createdAt.toDate === 'function') return item.createdAt.toDate().getTime();
+    if (typeof item.createdAt.seconds === 'number') return item.createdAt.seconds * 1000;
+    if (typeof item.createdAt === 'number') {
+      return item.createdAt < 10000000000 ? item.createdAt * 1000 : item.createdAt;
+    }
+    if (typeof item.createdAt === 'string') {
+      const parsed = Date.parse(item.createdAt);
+      if (!isNaN(parsed)) return parsed;
+    }
+  }
+  if (item.timestamp) {
+    if (typeof item.timestamp === 'number') {
+      return item.timestamp < 10000000000 ? item.timestamp * 1000 : item.timestamp;
+    }
+    if (typeof item.timestamp === 'string') {
+      const t = item.timestamp.trim();
+      const parsed = Date.parse(t);
+      if (!isNaN(parsed)) return parsed;
+      const lower = t.toLowerCase();
+      const now = Date.now();
+      if (lower.includes('just now') || lower === 'recent') return now;
+      const match = lower.match(/^(\d+)\s*(s|sec|m|min|minute|h|hr|hour|d|day|week|month)s?\s*ago/);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        const unit = match[2];
+        if (unit.startsWith('s')) return now - val * 1000;
+        if (unit.startsWith('m') && !unit.startsWith('month')) return now - val * 60 * 1000;
+        if (unit.startsWith('h')) return now - val * 3600 * 1000;
+        if (unit.startsWith('d')) return now - val * 86400 * 1000;
+        if (unit.startsWith('w')) return now - val * 7 * 86400 * 1000;
+        if (unit.startsWith('month')) return now - val * 30 * 86400 * 1000;
+      }
+    }
+  }
+  return 0;
+};
+
+export const sortNotificationsNewestFirst = (list: NotificationItem[]): NotificationItem[] => {
+  if (!Array.isArray(list)) return [];
+  return [...list].sort((a, b) => {
+    const timeA = getNotificationTimestampMs(a);
+    const timeB = getNotificationTimestampMs(b);
+    if (timeA !== timeB) {
+      return timeB - timeA;
+    }
+    return String(b.id || '').localeCompare(String(a.id || ''));
+  });
+};
+
+export const formatNotificationTime = (item: NotificationItem | any): string => {
+  const ms = getNotificationTimestampMs(item);
+  if (!ms || ms <= 0) {
+    return item?.timestamp || 'Recent';
+  }
+  const diffSec = Math.floor((Date.now() - ms) / 1000);
+  if (diffSec < 60) return 'Just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  const date = new Date(ms);
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+export const isNotificationRead = (
+  notif: Partial<NotificationItem> | any,
+  readSet: Set<string>
+): boolean => {
+  if (!notif) return false;
+  if (notif.isRead === true) return true;
+  if (notif.id) {
+    const trimmedId = String(notif.id).trim();
+    if (readSet.has(trimmedId) || readSet.has(trimmedId.toLowerCase())) return true;
+  }
+  const title = (notif.title || '').trim().toLowerCase();
+  const msg = (notif.message || '').trim().toLowerCase();
+  if (title && readSet.has(title)) return true;
+  const fp = normalizeNotifFp(notif.title, notif.message);
+  if (fp && (readSet.has(fp) || readSet.has(`${(notif.title || '').trim()}_${(notif.message || '').trim()}`))) {
+    return true;
+  }
+  if (notif.requestId && readSet.has(String(notif.requestId).trim())) return true;
+  return false;
+};
+
 export const getReadNotifSet = (uid?: string, fallbackUid?: string, fbUid?: string | null): Set<string> => {
   const set = new Set<string>();
+  let resolvedUid = uid || fallbackUid || fbUid;
+  if (!resolvedUid && typeof window !== 'undefined') {
+    try {
+      const uStr = localStorage.getItem('grobax_current_user') || localStorage.getItem('grobax_auth_user');
+      if (uStr) {
+        const u = JSON.parse(uStr);
+        resolvedUid = u?.id || u?.uid;
+      }
+    } catch {}
+  }
+
   const keys = [
+    ...(resolvedUid ? [`grobax_read_notifs_${resolvedUid}`] : []),
     ...(uid ? [`grobax_read_notifs_${uid}`] : []),
     ...(fallbackUid ? [`grobax_read_notifs_${fallbackUid}`] : []),
     ...(fbUid ? [`grobax_read_notifs_${fbUid}`] : []),
     'grobax_read_notifs',
     'grobax_read_notifs_global',
   ];
+
+  if (typeof window !== 'undefined') {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('grobax_read_notifs')) {
+          if (!keys.includes(k)) keys.push(k);
+        }
+      }
+    } catch {}
+  }
+
   keys.forEach((k) => {
     try {
       const stored = localStorage.getItem(k);
@@ -837,7 +959,10 @@ export const getReadNotifSet = (uid?: string, fallbackUid?: string, fbUid?: stri
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
           parsed.forEach((x: string) => {
-            if (typeof x === 'string' && x.trim()) set.add(x.trim());
+            if (typeof x === 'string' && x.trim()) {
+              set.add(x.trim());
+              set.add(x.trim().toLowerCase());
+            }
           });
         }
       }
@@ -852,12 +977,27 @@ export const persistReadNotifKeys = (
   fallbackUid?: string,
   fbUid?: string | null
 ) => {
-  const set = getReadNotifSet(uid, fallbackUid, fbUid);
+  let resolvedUid = uid || fallbackUid || fbUid;
+  if (!resolvedUid && typeof window !== 'undefined') {
+    try {
+      const uStr = localStorage.getItem('grobax_current_user') || localStorage.getItem('grobax_auth_user');
+      if (uStr) {
+        const u = JSON.parse(uStr);
+        resolvedUid = u?.id || u?.uid;
+      }
+    } catch {}
+  }
+
+  const set = getReadNotifSet(resolvedUid, fallbackUid, fbUid);
   keysToAdd.forEach((k) => {
-    if (k && typeof k === 'string' && k.trim()) set.add(k.trim());
+    if (k && typeof k === 'string' && k.trim()) {
+      set.add(k.trim());
+      set.add(k.trim().toLowerCase());
+    }
   });
   const arr = Array.from(set);
   const keys = [
+    ...(resolvedUid ? [`grobax_read_notifs_${resolvedUid}`] : []),
     ...(uid ? [`grobax_read_notifs_${uid}`] : []),
     ...(fallbackUid ? [`grobax_read_notifs_${fallbackUid}`] : []),
     ...(fbUid ? [`grobax_read_notifs_${fbUid}`] : []),
@@ -1529,10 +1669,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const readSet = getReadNotifSet();
-          return parsed.map((n: any) => ({
+          const mapped = parsed.map((n: any) => ({
             ...n,
-            isRead: Boolean(n.isRead) || readSet.has(n.id) || readSet.has(`${n.title || ''}_${n.message || ''}`),
+            isRead: isNotificationRead(n, readSet),
+            createdAtMs: getNotificationTimestampMs(n),
           }));
+          return sortNotificationsNewestFirst(mapped);
         }
       }
     } catch {}
@@ -2207,7 +2349,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         firebaseUser?.email === 'basmock@gmail.com' ||
         currentUser?.email === 'basmock@gmail.com';
 
-      const notifQuery = query(collection(db, 'notifications'), limit(20));
+      const notifQuery = query(collection(db, 'notifications'), limit(50));
       const unsubNotifs = onSnapshot(
         notifQuery,
         (snapshot) => {
@@ -2217,14 +2359,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
             const rawNotifs: NotificationItem[] = snapshot.docs.map((docSnap) => {
               const data = docSnap.data();
-              const fp = `${data.title || ''}_${data.message || ''}`;
-              const isRead = Boolean(data.isRead) || readSet.has(docSnap.id) || (Boolean(fp) && readSet.has(fp));
+              const createdAtMs = getNotificationTimestampMs(data);
+              const isRead = isNotificationRead(
+                {
+                  id: docSnap.id,
+                  title: data.title,
+                  message: data.message,
+                  isRead: data.isRead,
+                  requestId: data.requestId,
+                },
+                readSet
+              );
               return {
                 id: docSnap.id,
                 title: data.title || 'Platform Notification',
                 message: data.message || '',
                 type: data.type || 'system',
-                timestamp: data.timestamp || (data.createdAt?.toDate ? data.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'),
+                timestamp: data.timestamp || (createdAtMs ? formatNotificationTime({ createdAtMs }) : 'Recent'),
                 isRead,
                 actionUrl: data.actionUrl || '',
                 userId: data.userId || undefined,
@@ -2240,7 +2391,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 senderLevel: data.senderLevel || undefined,
                 senderTier: data.senderTier || undefined,
                 requestId: data.requestId || undefined,
-                createdAtMs: data.createdAtMillis || (data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()),
+                createdAtMs,
               };
             });
 
@@ -2319,10 +2470,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               return notif.type === 'announcement' || notif.type === 'dome' || notif.type === 'league' || notif.type === 'gus';
             });
 
-            // Sort newest first
-            userScopedNotifs.sort((a, b) => ((b as any).createdAtMs || 0) - ((a as any).createdAtMs || 0));
-
-            const finalNotifs = userScopedNotifs.length > 0 ? userScopedNotifs : DEFAULT_NOTIFICATIONS;
+            // Sort strictly newest first: latest notification is always at the top
+            const finalNotifs = userScopedNotifs.length > 0 ? sortNotificationsNewestFirst(userScopedNotifs) : DEFAULT_NOTIFICATIONS;
             setNotifications(finalNotifs);
             try {
               localStorage.setItem('grobax_saved_notifications', JSON.stringify(finalNotifs));
@@ -2335,13 +2484,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 if (Array.isArray(parsed) && parsed.length > 0) {
                   const readSet = getReadNotifSet(currentUid, currentUser.id, firebaseUser?.uid);
                   const cleaned = parsed
-                    .map((notif: any) => {
-                      const fp = `${notif.title || ''}_${notif.message || ''}`;
-                      return {
-                        ...notif,
-                        isRead: Boolean(notif.isRead) || readSet.has(notif.id) || (Boolean(fp) && readSet.has(fp)),
-                      };
-                    })
+                    .map((notif: any) => ({
+                      ...notif,
+                      isRead: isNotificationRead(notif, readSet),
+                      createdAtMs: getNotificationTimestampMs(notif),
+                    }))
                     .filter((notif: any) => {
                       const lowerTitle = (notif.title || '').toLowerCase();
                       const lowerMsg = (notif.message || '').toLowerCase();
@@ -2358,7 +2505,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                       }
                       return true;
                     });
-                  setNotifications(cleaned);
+                  setNotifications(sortNotificationsNewestFirst(cleaned));
                   return;
                 }
               }
@@ -2375,13 +2522,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               if (Array.isArray(parsed) && parsed.length > 0) {
                 const readSet = getReadNotifSet(currentUid, currentUser.id, firebaseUser?.uid);
                 const cleaned = parsed
-                  .map((notif: any) => {
-                    const fp = `${notif.title || ''}_${notif.message || ''}`;
-                    return {
-                      ...notif,
-                      isRead: Boolean(notif.isRead) || readSet.has(notif.id) || (Boolean(fp) && readSet.has(fp)),
-                    };
-                  })
+                  .map((notif: any) => ({
+                    ...notif,
+                    isRead: isNotificationRead(notif, readSet),
+                    createdAtMs: getNotificationTimestampMs(notif),
+                  }))
                   .filter((notif: any) => {
                     const lowerTitle = (notif.title || '').toLowerCase();
                     const lowerMsg = (notif.message || '').toLowerCase();
@@ -2398,7 +2543,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     }
                     return true;
                   });
-                setNotifications(cleaned);
+                setNotifications(sortNotificationsNewestFirst(cleaned));
                 return;
               }
             }
@@ -5276,31 +5421,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const markNotificationRead = (id: string) => {
+    if (!id) return;
     const currentUid = firebaseUser?.uid || currentUser.id;
-    const targetNotif = notifications.find(n => n.id === id);
-    const keysToPersist: string[] = [id];
-    if (targetNotif && (targetNotif.title || targetNotif.message)) {
-      keysToPersist.push(`${targetNotif.title || ''}_${targetNotif.message || ''}`);
+    const trimmedId = id.trim();
+    const targetNotif = notifications.find(n => n.id === trimmedId || n.id === id);
+    const keysToPersist: string[] = [trimmedId, trimmedId.toLowerCase()];
+    if (targetNotif) {
+      if (targetNotif.title) {
+        keysToPersist.push(targetNotif.title.trim().toLowerCase());
+      }
+      if (targetNotif.title || targetNotif.message) {
+        keysToPersist.push(normalizeNotifFp(targetNotif.title, targetNotif.message));
+        keysToPersist.push(`${(targetNotif.title || '').trim()}_${(targetNotif.message || '').trim()}`);
+      }
+      if (targetNotif.requestId) {
+        keysToPersist.push(String(targetNotif.requestId).trim());
+      }
     }
 
     persistReadNotifKeys(keysToPersist, currentUid, currentUser.id, firebaseUser?.uid);
 
     setNotifications(prev => {
       const updated = prev.map(n => {
-        const matchesId = n.id === id;
+        const matchesId = n.id === trimmedId || n.id.toLowerCase() === trimmedId.toLowerCase();
         const matchesFp = targetNotif && (n.title || n.message) &&
-          `${n.title || ''}_${n.message || ''}` === `${targetNotif.title || ''}_${targetNotif.message || ''}`;
+          normalizeNotifFp(n.title, n.message) === normalizeNotifFp(targetNotif.title, targetNotif.message);
         return matchesId || matchesFp ? { ...n, isRead: true } : n;
       });
       try {
         localStorage.setItem('grobax_saved_notifications', JSON.stringify(updated));
       } catch {}
-      return updated;
+      return sortNotificationsNewestFirst(updated);
     });
 
-    if (id && !id.startsWith('notif_')) {
+    if (typeof window !== 'undefined') {
       try {
-        updateDoc(doc(db, 'notifications', id), { isRead: true }).catch(() => {});
+        window.dispatchEvent(new CustomEvent('grobax_notification_read_updated', { detail: { id: trimmedId } }));
+      } catch {}
+    }
+
+    if (trimmedId && !trimmedId.startsWith('notif_')) {
+      try {
+        updateDoc(doc(db, 'notifications', trimmedId), { isRead: true }).catch(() => {});
       } catch {}
     }
   };
@@ -5309,9 +5471,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const currentUid = firebaseUser?.uid || currentUser.id;
     const keysToPersist: string[] = [];
     notifications.forEach(n => {
-      keysToPersist.push(n.id);
+      if (n.id) {
+        keysToPersist.push(n.id.trim());
+        keysToPersist.push(n.id.trim().toLowerCase());
+      }
+      if (n.title) {
+        keysToPersist.push(n.title.trim().toLowerCase());
+      }
       if (n.title || n.message) {
-        keysToPersist.push(`${n.title || ''}_${n.message || ''}`);
+        keysToPersist.push(normalizeNotifFp(n.title, n.message));
+        keysToPersist.push(`${(n.title || '').trim()}_${(n.message || '').trim()}`);
+      }
+      if (n.requestId) {
+        keysToPersist.push(String(n.requestId).trim());
       }
     });
 
@@ -5322,8 +5494,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         localStorage.setItem('grobax_saved_notifications', JSON.stringify(updated));
       } catch {}
-      return updated;
+      return sortNotificationsNewestFirst(updated);
     });
+
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new CustomEvent('grobax_notification_read_updated', { detail: { all: true } }));
+      } catch {}
+    }
 
     notifications.forEach(n => {
       if (!n.isRead && n.id && !n.id.startsWith('notif_')) {
@@ -5359,16 +5537,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    const nowMs = Date.now();
     const newNotif: NotificationItem = {
       ...notif,
-      id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      id: 'notif_' + nowMs + '_' + Math.random().toString(36).substring(2, 6),
       timestamp: 'Just now',
       isRead: false,
-      createdAtMs: Date.now(),
+      createdAtMs: nowMs,
       targetUserId: resolvedTargetUid,
       userId: resolvedTargetUid,
     };
-    setNotifications(prev => [newNotif, ...prev]);
+    setNotifications(prev => sortNotificationsNewestFirst([newNotif, ...prev]));
 
     // Also persist targeted or broadcast notification to Firestore
     if (resolvedTargetUid || (!isPrizeNotification && (notif.type === 'announcement' || notif.type === 'dome' || notif.type === 'league' || notif.type === 'gus'))) {
@@ -5462,7 +5641,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         setNotifications((prev) => {
           if (prev.some((n) => n.id === winnerNotifId)) return prev;
-          return [winnerNotif, ...prev];
+          return sortNotificationsNewestFirst([winnerNotif, ...prev]);
         });
       }
     };
