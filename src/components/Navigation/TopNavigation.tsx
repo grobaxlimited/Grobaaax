@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { useApp, sortNotificationsNewestFirst, formatNotificationTime } from '../../context/AppContext';
+import { useApp, sortNotificationsNewestFirst } from '../../context/AppContext';
 import { useDevicePlatform } from '../../hooks/useDevicePlatform';
 import { WalletButton } from '../Wallet/WalletButton';
 import { NotificationBadge } from '../ui/NotificationBadge';
 import { NotificationDetailModal } from './NotificationDetailModal';
+import { NotificationsModal } from './NotificationsModal';
 import { AdvertisementTicker } from '../ui/AdvertisementTicker';
 import { PRIMARY_SUPER_ADMIN_UID, NotificationItem } from '../../types';
 import {
@@ -13,21 +14,12 @@ import {
   Users,
   ShieldCheck,
   Bell,
-  CheckCheck,
-  Check,
-  X,
   BookOpen,
-  Sparkles,
   Wallet,
   Search,
   Swords,
-  ShoppingBag,
-  Gift,
-  Smartphone,
   Shield,
-  Megaphone,
   Lightbulb,
-  GraduationCap,
 } from 'lucide-react';
 
 interface TopNavigationProps {
@@ -51,7 +43,6 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
-  const [notifFilter, setNotifFilter] = useState<'all' | 'unread'>('all');
 
   const { isIOS } = useDevicePlatform();
 
@@ -70,12 +61,6 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
 
   const unreadCount = sortedNotifs.filter((n) => !n.isRead).length;
 
-  const displayedNotifs = useMemo(() => {
-    if (notifFilter === 'unread') {
-      return sortedNotifs.filter((n) => !n.isRead);
-    }
-    return sortedNotifs;
-  }, [sortedNotifs, notifFilter]);
   const adminTotalUnread: number = Object.values(adminSectionNotifications || {}).reduce<number>(
     (a, b) => a + Number(b || 0),
     0
@@ -114,40 +99,6 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
       notifications.forEach((n) => {
         if (!n.isRead) markNotificationRead(n.id);
       });
-    }
-  };
-
-  const getNotifIcon = (type: string) => {
-    switch (type) {
-      case 'campus':
-        return <GraduationCap className="w-4 h-4 text-blue-500 dark:text-blue-400" />;
-      case 'league':
-        return <Building2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />;
-      case 'wallet':
-        return <Wallet className="w-4 h-4 text-amber-500 dark:text-amber-400" />;
-      case 'reward':
-        return <Gift className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />;
-      case 'gus':
-        return <Trophy className="w-4 h-4 text-amber-500 dark:text-amber-400" />;
-      case 'dome':
-      case 'arena':
-        return <Swords className="w-4 h-4 text-blue-500 dark:text-blue-400" />;
-      case 'academic_library':
-      case 'library':
-        return <BookOpen className="w-4 h-4 text-teal-500 dark:text-teal-400" />;
-      case 'vtu':
-        return <Smartphone className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />;
-      case 'minimart':
-        return <ShoppingBag className="w-4 h-4 text-purple-500 dark:text-purple-400" />;
-      case 'announcement':
-        return <Megaphone className="w-4 h-4 text-blue-500 dark:text-blue-400" />;
-      case 'hints':
-      case 'hint':
-        return <Lightbulb className="w-4 h-4 text-amber-500 dark:text-amber-400" />;
-      case 'system':
-        return <ShieldCheck className="w-4 h-4 text-blue-500 dark:text-blue-400" />;
-      default:
-        return <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />;
     }
   };
 
@@ -234,11 +185,14 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
               </button>
             )}
 
-            {/* Notification Bell Dropdown */}
-            <div className="relative">
+            {/* Notification Bell Button */}
+            <div>
               <button
-                onClick={() => setIsNotificationsOpen((prev) => !prev)}
-                title="Notifications"
+                type="button"
+                id="btn-open-notifications-pop-card"
+                onClick={() => setIsNotificationsOpen(true)}
+                title="View Notifications"
+                aria-label="View Notifications"
                 className={`relative p-1.5 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition cursor-pointer flex items-center justify-center ${
                   isNotificationsOpen ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : ''
                 }`}
@@ -250,171 +204,6 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
                   </span>
                 )}
               </button>
-
-              {/* Notification Popover Dropdown */}
-              {isNotificationsOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-[998] bg-black/40 backdrop-blur-xs"
-                    onClick={() => setIsNotificationsOpen(false)}
-                  />
-                  <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 max-w-[calc(100vw-24px)] rounded-2xl bg-white dark:bg-[#021024] border border-slate-200 dark:border-blue-900/60 shadow-2xl z-[999] p-4 space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-blue-900/50">
-                      <div className="flex items-center gap-2">
-                        <Bell className="w-4 h-4 text-blue-500" />
-                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                          Notifications
-                        </h4>
-                        {unreadCount > 0 ? (
-                          <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 text-[10px] font-bold border border-rose-500/20">
-                            {unreadCount} new
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold border border-emerald-500/20">
-                            All read
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {unreadCount > 0 && (
-                          <button
-                            onClick={handleMarkAllRead}
-                            className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
-                            title="Mark all notifications as read"
-                          >
-                            <CheckCheck className="w-3.5 h-3.5" /> Read all
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setIsNotificationsOpen(false)}
-                          className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg cursor-pointer"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Quick filter tabs: All vs Unread */}
-                    <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-[#011429]/80 rounded-xl text-xs font-bold border border-slate-200/50 dark:border-blue-950/60">
-                      <button
-                        onClick={() => setNotifFilter('all')}
-                        className={`flex-1 py-1.5 px-2 rounded-lg text-center transition cursor-pointer ${
-                          notifFilter === 'all'
-                            ? 'bg-white dark:bg-blue-600 text-slate-900 dark:text-white shadow-xs'
-                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        All ({sortedNotifs.length})
-                      </button>
-                      <button
-                        onClick={() => setNotifFilter('unread')}
-                        className={`flex-1 py-1.5 px-2 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                          notifFilter === 'unread'
-                            ? 'bg-white dark:bg-blue-600 text-slate-900 dark:text-white shadow-xs'
-                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <span>Unread</span>
-                        {unreadCount > 0 && (
-                          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                            notifFilter === 'unread'
-                              ? 'bg-rose-500 text-white'
-                              : 'bg-rose-500/20 text-rose-500'
-                          }`}>
-                            {unreadCount}
-                          </span>
-                        )}
-                      </button>
-                    </div>
-
-                    <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
-                      {displayedNotifs && displayedNotifs.length > 0 ? (
-                        displayedNotifs.map((notif) => {
-                          const isRead = Boolean(notif.isRead);
-                          return (
-                            <div
-                              key={notif.id}
-                              onClick={() => {
-                                if (markNotificationRead) markNotificationRead(notif.id);
-                                setSelectedNotification({ ...notif, isRead: true });
-                                setIsNotificationsOpen(false);
-                              }}
-                              className={`p-3 rounded-2xl border transition cursor-pointer flex items-start gap-3 ${
-                                !isRead
-                                  ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700/60 shadow-xs hover:border-blue-500'
-                                  : 'bg-slate-50/50 dark:bg-[#011429]/40 border-slate-200/60 dark:border-blue-950/40 opacity-75 hover:opacity-100 hover:border-slate-300 dark:hover:border-blue-900'
-                              }`}
-                            >
-                              <div className={`p-2 rounded-xl shrink-0 border ${
-                                !isRead
-                                  ? 'bg-blue-100/60 dark:bg-[#04244d] border-blue-300 dark:border-blue-600/50 shadow-xs'
-                                  : 'bg-slate-100/60 dark:bg-[#02142b] border-slate-200 dark:border-slate-800'
-                              }`}>
-                                {getNotifIcon(notif.type)}
-                              </div>
-
-                              <div className="flex-1 space-y-1 min-w-0">
-                                <div className="flex items-center justify-between gap-1.5">
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    {!isRead && (
-                                      <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 animate-pulse" />
-                                    )}
-                                    <h5 className={`text-xs truncate ${!isRead ? 'font-black text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'}`}>
-                                      {notif.title}
-                                    </h5>
-                                  </div>
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    {!isRead ? (
-                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-blue-500 text-white shadow-xs">
-                                        NEW
-                                      </span>
-                                    ) : (
-                                      <span className="flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
-                                        <Check className="w-3 h-3 text-emerald-500" /> Read
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <p className={`text-[11px] leading-relaxed line-clamp-2 ${!isRead ? 'text-slate-700 dark:text-slate-200 font-medium' : 'text-slate-500 dark:text-slate-400'}`}>
-                                  {notif.message}
-                                </p>
-
-                                <div className="flex items-center justify-between pt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
-                                  <span className="font-medium">
-                                    {formatNotificationTime(notif)}
-                                  </span>
-                                  {(notif.senderInstitution || notif.senderDepartment) && (
-                                    <div className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-bold truncate max-w-[150px]">
-                                      <GraduationCap className="w-3 h-3 shrink-0" />
-                                      <span className="truncate">
-                                        {[notif.senderInstitution, notif.senderFaculty, notif.senderDepartment].filter(Boolean).join(' • ')}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : notifFilter === 'unread' ? (
-                        <div className="p-8 text-center text-xs text-slate-400 space-y-1">
-                          <CheckCheck className="w-6 h-6 mx-auto text-emerald-500 dark:text-emerald-400" />
-                          <p className="font-semibold text-slate-700 dark:text-slate-300">All caught up!</p>
-                          <p className="text-[10px] text-slate-500">You have no unread notifications.</p>
-                        </div>
-                      ) : (
-                        <div className="p-8 text-center text-xs text-slate-400 space-y-1">
-                          <Bell className="w-6 h-6 mx-auto text-slate-300 dark:text-slate-700" />
-                          <p className="font-semibold">No notifications yet</p>
-                          <p className="text-[10px] text-slate-500">System updates and match alerts will appear here.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
             </div>
 
             <WalletButton className="shrink-0" />
@@ -426,6 +215,21 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
       {activeTab !== 'school_dome' && activeTab !== 'school_dome_results' && (
         <AdvertisementTicker />
       )}
+
+      {/* Notifications Pop-up Modal for all phone screens and desktop */}
+      <NotificationsModal
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        notifications={sortedNotifs}
+        onSelectNotification={(notif) => {
+          setSelectedNotification(notif);
+          setIsNotificationsOpen(false);
+        }}
+        onMarkAllRead={handleMarkAllRead}
+        onMarkAsRead={(id) => {
+          if (markNotificationRead) markNotificationRead(id);
+        }}
+      />
 
       {/* Full Notification Detail Modal */}
       {selectedNotification && (
