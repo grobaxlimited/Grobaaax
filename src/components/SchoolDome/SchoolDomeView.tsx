@@ -8,6 +8,7 @@ import {
 } from '../../types';
 import { SchoolDomeMessageItem } from './SchoolDomeMessageItem';
 import { SchoolDomeRulesModal } from './SchoolDomeRulesModal';
+import { SchoolDomeContendersModal } from './SchoolDomeContendersModal';
 import { ChatroomComposer } from '../Community/ChatroomLive/ChatroomComposer';
 import { CreateSchoolDomeQuestionModal } from './CreateSchoolDomeQuestionModal';
 import { SchoolDomeResultsTab } from './SchoolDomeResultsTab';
@@ -370,23 +371,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [isCreateQuestionModalOpen, setIsCreateQuestionModalOpen] = useState(false);
-  const [isContendersPopoverOpen, setIsContendersPopoverOpen] = useState(false);
-  const contendersRef = useRef<HTMLDivElement>(null);
-
-  // Close contenders popover on click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (contendersRef.current && !contendersRef.current.contains(event.target as Node)) {
-        setIsContendersPopoverOpen(false);
-      }
-    }
-    if (isContendersPopoverOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-  }, [isContendersPopoverOpen]);
+  const [isContendersModalOpen, setIsContendersModalOpen] = useState(false);
 
   // Filter messages by search query and completely hide automated Arbiter question conclusion & verification spam
   const filteredMessages = useMemo(() => {
@@ -729,12 +714,13 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
           {/* Live Contenders Count & Elimination Status Icon */}
           {currentSeason && (
-            <div className="relative shrink-0" ref={contendersRef}>
+            <div className="shrink-0">
               <button
                 type="button"
-                onClick={() => setIsContendersPopoverOpen((prev) => !prev)}
+                id="btn-open-contenders-breakdown"
+                onClick={() => setIsContendersModalOpen(true)}
                 className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 dark:from-blue-950/40 dark:to-indigo-950/40 dark:hover:from-blue-900/60 dark:hover:to-indigo-900/60 text-blue-700 dark:text-blue-300 border border-blue-200/90 dark:border-blue-800/80 rounded-xl shadow-xs transition cursor-pointer shrink-0"
-                title={`Contenders Standing: ${currentSeason.activeUserIds?.length ?? 0} / Registered: ${currentSeason.registeredUserIds?.length ?? 0}`}
+                title={`View Registered (${currentSeason.registeredUserIds?.length || 0}), Standing (${currentSeason.activeUserIds?.length ?? 0}), and Knockout (${currentSeason.eliminatedUserIds?.length || 0}) Members`}
                 aria-label="View Contenders Breakdown"
               >
                 <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
@@ -759,96 +745,6 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 )}
               </button>
-
-              {/* Contenders Breakdown Dropdown Popover */}
-              {isContendersPopoverOpen && (
-                <div className="absolute left-0 top-full mt-2 w-72 p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 mb-2.5">
-                    <div className="flex items-center gap-1.5">
-                      <Swords className="w-4 h-4 text-blue-500 shrink-0" />
-                      <span className="text-xs font-black text-slate-900 dark:text-white">
-                        Season #{currentSeason.seasonNumber || 1} Contenders
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                      {currentSeason.prizePool?.toLocaleString()} {currentSeason.prizeCurrency || 'GP'}
-                    </span>
-                  </div>
-
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-3 gap-1.5 text-center mb-3">
-                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                      <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                        Registered
-                      </span>
-                      <span className="text-sm font-black text-slate-800 dark:text-slate-100 tabular-nums">
-                        {currentSeason.registeredUserIds?.length || 0}
-                      </span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/40">
-                      <span className="block text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
-                        Standing
-                      </span>
-                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        {currentSeason.activeUserIds?.length ?? 0}
-                      </span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200/50 dark:border-rose-800/40">
-                      <span className="block text-[10px] font-medium text-rose-700 dark:text-rose-400">
-                        Knocked Out
-                      </span>
-                      <span className="text-sm font-black text-rose-600 dark:text-rose-400 tabular-nums">
-                        {currentSeason.eliminatedUserIds?.length || 0}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Scholar's Own Status in the Arena */}
-                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-xs">
-                    <div className="flex items-center gap-1.5 font-bold mb-1">
-                      {isUserStanding ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                          <span className="text-emerald-600 dark:text-emerald-400">Contender Still Standing!</span>
-                        </>
-                      ) : isUserEliminated ? (
-                        <>
-                          <UserX className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                          <span className="text-rose-600 dark:text-rose-400">Eliminated (Spectator Mode)</span>
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="text-slate-600 dark:text-slate-300">Spectator</span>
-                        </>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                      {isUserStanding
-                        ? 'You are active in this season. Each correct answer keeps you standing for the grand prize pool!'
-                        : isUserEliminated
-                        ? 'You submitted an incorrect answer or time expired. You can continue watching all live questions and chats.'
-                        : isRegistrationOpen
-                        ? 'You have not registered for Season #' + (currentSeason.seasonNumber || 1) + '. Register now to enter the arena!'
-                        : 'Registration closed when Question #1 launched. Spectators can follow live action in real-time.'}
-                    </p>
-                    {!isUserRegistered && isRegistrationOpen && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsContendersPopoverOpen(false);
-                          handleRegister();
-                        }}
-                        disabled={isRegistering}
-                        className="mt-2 w-full py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-lg transition shadow-xs cursor-pointer flex items-center justify-center gap-1"
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                        {isRegistering ? 'Registering...' : 'Register for Season #' + (currentSeason.seasonNumber || 1)}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -939,7 +835,11 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
       {/* Registration & Survival Status Banner */}
       {currentSeason && (
-        <div className="px-3 sm:px-4 py-2 bg-transparent text-slate-800 dark:text-slate-100 border-b border-slate-200/70 dark:border-slate-800/80 shrink-0 flex items-center justify-between gap-3 flex-wrap">
+        <div
+          onClick={() => setIsContendersModalOpen(true)}
+          className="px-3 sm:px-4 py-2 bg-transparent hover:bg-slate-50/50 dark:hover:bg-slate-800/40 text-slate-800 dark:text-slate-100 border-b border-slate-200/70 dark:border-slate-800/80 shrink-0 flex items-center justify-between gap-3 flex-wrap cursor-pointer transition"
+          title="Click to view full Contenders Breakdown (Registered, Standing, and Knockout members)"
+        >
           <div className="flex items-center gap-2 text-xs min-w-0">
             {currentSeason.status === 'ended' ? (
               <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold">
@@ -982,7 +882,10 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
               <button
                 type="button"
                 disabled={isRegistering}
-                onClick={handleRegister}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRegister();
+                }}
                 className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 shrink-0 hover:scale-105 active:scale-95"
               >
                 <UserCheck className="w-4 h-4" />
@@ -1221,6 +1124,20 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         isOpen={isRulesModalOpen}
         onClose={() => setIsRulesModalOpen(false)}
         season={currentSeason}
+      />
+
+      {/* Contenders Breakdown Pop-up Modal for all phone screens */}
+      <SchoolDomeContendersModal
+        isOpen={isContendersModalOpen}
+        onClose={() => setIsContendersModalOpen(false)}
+        season={currentSeason}
+        currentUser={currentUser}
+        isUserRegistered={isUserRegistered}
+        isUserStanding={isUserStanding}
+        isUserEliminated={isUserEliminated}
+        isRegistrationOpen={isRegistrationOpen}
+        isRegistering={isRegistering}
+        onRegister={handleRegister}
       />
     </div>
   );
