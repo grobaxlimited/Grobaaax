@@ -816,7 +816,29 @@ export async function sendPasswordResetEmail(authInstance: any, email: string) {
 }
 
 export async function signOut(authInstance?: any) {
-  await supabase.auth.signOut();
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('grobaax_oauth_event');
+      localStorage.removeItem('grobaax_oauth_in_progress');
+      localStorage.removeItem('grobaax_oauth_started_at');
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (
+          k &&
+          (k.startsWith('sb-') ||
+            k.startsWith('grobaax_') ||
+            k.startsWith('grobax_user_') ||
+            k.startsWith('grobax_cached_') ||
+            k.startsWith('grobax_academic_'))
+        ) {
+          localStorage.removeItem(k);
+        }
+      }
+    }
+  } catch (_) {}
+  try {
+    await supabase.auth.signOut();
+  } catch (_) {}
   handleSupabaseUser(null);
 }
 
@@ -936,6 +958,8 @@ export const signInWithGoogle = async (): Promise<any> => {
       if (pollTimer) clearInterval(pollTimer);
       try {
         localStorage.removeItem('grobaax_oauth_in_progress');
+        localStorage.removeItem('grobaax_oauth_event');
+        localStorage.removeItem('grobaax_oauth_started_at');
       } catch (_) {}
     };
 
@@ -954,6 +978,13 @@ export const signInWithGoogle = async (): Promise<any> => {
           hasCode: Boolean(explicitCode),
           hasAccessToken: Boolean(explicitAccessToken),
         });
+
+        // Remove the stored oauth event immediately upon consumption so it cannot be reused
+        try {
+          localStorage.removeItem('grobaax_oauth_event');
+          localStorage.removeItem('grobaax_oauth_in_progress');
+          localStorage.removeItem('grobaax_oauth_started_at');
+        } catch (_) {}
 
         // 1. Direct tokens or extracted from hash
         let aToken = explicitAccessToken;

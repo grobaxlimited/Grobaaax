@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { GraduationCap } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Navigation/Header';
 import { Navbar } from './components/Navigation/Navbar';
@@ -44,6 +45,21 @@ function MainLayout() {
   // If user is not authenticated with Firebase, show Auth Landing Screen (Login/Register)
   if (!firebaseUser) {
     return <AuthLandingScreen />;
+  }
+
+  // If user is authenticated, but their profile document has not yet loaded for this uid,
+  // show an authentic Scholar loading state instead of prematurely flashing AcademicProfileCompletionScreen
+  if (!currentUser || (currentUser.id !== firebaseUser.uid && currentUser.uid !== firebaseUser.uid)) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 space-y-4 font-sans">
+        <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center animate-bounce shadow-xl shadow-blue-500/25">
+          <GraduationCap className="w-8 h-8 text-white" />
+        </div>
+        <p className="text-sm font-bold text-slate-300 animate-pulse tracking-wide">
+          Connecting Scholar Profile...
+        </p>
+      </div>
+    );
   }
 
   // Check if academic profile was marked complete in localStorage or Firestore
@@ -138,6 +154,7 @@ function MainLayout() {
         initialMode={authModalMode}
         onAuthSuccess={(profile) => {
           login(profile);
+          setIsAuthModalOpen(false);
         }}
       />
     </div>

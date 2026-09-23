@@ -1220,22 +1220,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const key = localStorage.key(i);
         if (
           key &&
-          (key.startsWith('grobax_user_profile_') ||
-           key.startsWith('grobax_academic_completed_') ||
-           key.startsWith('grobax_daily_qa_') ||
-           key.startsWith('grobax_read_notifs_') ||
-           key.startsWith('grobax_cached_user_profile') ||
-           key.startsWith('grobax_saved_wallet_txs') ||
-           key.startsWith('grobax_saved_notifications') ||
-           key.startsWith('grobax_saved_withdrawals') ||
-           key.startsWith('grobax_active_handout_') ||
-           key.startsWith('grobax_last_viewed_handout_') ||
-           key.startsWith('grobax_handout_library_cache_'))
+          (key.startsWith('grobax_') ||
+           key.startsWith('grobaax_') ||
+           key.startsWith('sb-') ||
+           key.includes('auth-token') ||
+           key.includes('oauth'))
         ) {
-          keysToRemove.push(key);
+          if (key !== 'grobax_theme') {
+            keysToRemove.push(key);
+          }
         }
       }
       keysToRemove.forEach(k => localStorage.removeItem(k));
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.clear();
+      }
     } catch (e) {
       console.warn('Cache clearance notice:', e);
     }
@@ -1250,6 +1249,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('grobax_cached_user_profile', JSON.stringify(profile));
       if (profile.id) {
         localStorage.setItem(`grobax_user_profile_${profile.id}`, JSON.stringify(profile));
+        if (profile.academicProfileCompleted) {
+          localStorage.setItem(`grobax_academic_completed_${profile.id}`, 'true');
+        }
       }
     } catch {}
   };
@@ -1261,6 +1263,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = async () => {
     try {
+      setIsWalletModalOpen(false);
+      setIsAuthModalOpen(false);
       await firebaseSignOut(auth);
       setFirebaseUser(null);
       setCurrentUser(MOCK_USERS.student);
@@ -1287,6 +1291,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setFirebaseUser(user);
 
       if (user) {
+        // If we have a cached profile for this specific user.uid, hydrate immediately to eliminate layout flash
+        try {
+          const userSpecific = typeof window !== 'undefined' ? localStorage.getItem(`grobax_user_profile_${user.uid}`) : null;
+          if (userSpecific) {
+            const parsed = JSON.parse(userSpecific);
+            if (parsed && (parsed.id === user.uid || parsed.uid === user.uid)) {
+              setCurrentUser(parsed);
+              if (parsed.role) setRoleState(parsed.role);
+            }
+          }
+        } catch (_) {}
+
         // If switching from another active user on the same device, immediately flush previous user lists
         setCurrentUser(prev => {
           if (prev.id && prev.id !== 'user_student' && prev.id !== user.uid) {

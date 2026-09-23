@@ -74,6 +74,17 @@ export const AuthCallbackReturn: React.FC = () => {
           window.close();
         } catch (_) {}
       }, 500);
+
+      // In single-window or mobile PWA environments where window.close() is blocked, navigate back to main app
+      if (!window.opener) {
+        setTimeout(() => {
+          try {
+            window.location.replace('/');
+          } catch (_) {
+            window.location.href = '/';
+          }
+        }, 1000);
+      }
     };
 
     processCallback();

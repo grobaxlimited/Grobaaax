@@ -312,6 +312,7 @@ export const AuthLandingScreen: React.FC = () => {
         initialMode={authModalMode}
         onAuthSuccess={(profile) => {
           login(profile);
+          setIsAuthModalOpen(false);
         }}
       />
     </div>
