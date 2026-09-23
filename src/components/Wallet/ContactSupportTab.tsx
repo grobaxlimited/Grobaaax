@@ -193,16 +193,22 @@ export const ContactSupportTab: React.FC<ContactSupportTabProps> = ({
             </div>
 
             <div className="mt-5 space-y-2">
-              <button
-                type="button"
-                onClick={handleOpenWhatsApp}
-                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-xs sm:text-sm rounded-2xl transition shadow-md shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.592 2.654-.696c1.001.572 1.794.887 2.806.887 3.181 0 5.767-2.586 5.767-5.766.001-3.18-2.585-5.766-5.767-5.766zm9.969 5.766c0 5.485-4.467 9.953-9.969 9.953-1.611 0-3.125-.386-4.469-1.071l-5.562 1.458 1.488-5.431c-.767-1.393-1.196-2.993-1.196-4.695 0-5.486 4.468-9.953 9.969-9.953 5.502 0 9.739 4.467 9.739 9.739z" />
-                </svg>
-                <span>Chat with us on WhatsApp</span>
-              </button>
+              {config.whatsappEnabled !== false ? (
+                <button
+                  type="button"
+                  onClick={handleOpenWhatsApp}
+                  className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-xs sm:text-sm rounded-2xl transition shadow-md shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.592 2.654-.696c1.001.572 1.794.887 2.806.887 3.181 0 5.767-2.586 5.767-5.766.001-3.18-2.585-5.766-5.767-5.766zm9.969 5.766c0 5.485-4.467 9.953-9.969 9.953-1.611 0-3.125-.386-4.469-1.071l-5.562 1.458 1.488-5.431c-.767-1.393-1.196-2.993-1.196-4.695 0-5.486 4.468-9.953 9.969-9.953 5.502 0 9.739 4.467 9.739 9.739z" />
+                  </svg>
+                  <span>Chat with us on WhatsApp</span>
+                </button>
+              ) : (
+                <div className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 text-slate-400 font-bold text-xs rounded-2xl text-center">
+                  WhatsApp Support Temporarily Paused
+                </div>
+              )}
               <p className="text-[10px] text-center text-slate-500 dark:text-slate-400">
                 Directly opens WhatsApp app or Web
               </p>
@@ -252,14 +258,20 @@ export const ContactSupportTab: React.FC<ContactSupportTabProps> = ({
             </div>
 
             <div className="mt-5 space-y-2">
-              <button
-                type="button"
-                onClick={handleSendEmail}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs sm:text-sm rounded-2xl transition shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Mail className="w-4 h-4" />
-                <span>Send Email Support</span>
-              </button>
+              {config.emailEnabled !== false ? (
+                <button
+                  type="button"
+                  onClick={handleSendEmail}
+                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs sm:text-sm rounded-2xl transition shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Mail className="w-4 h-4" />
+                  <span>Send Email Support</span>
+                </button>
+              ) : (
+                <div className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 text-slate-400 font-bold text-xs rounded-2xl text-center">
+                  Email Support Paused
+                </div>
+              )}
               <p className="text-[10px] text-center text-slate-500 dark:text-slate-400">
                 Replies usually within 1–2 hours
               </p>
@@ -310,15 +322,21 @@ export const ContactSupportTab: React.FC<ContactSupportTabProps> = ({
 
             <div className="mt-5 space-y-2">
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleCallPhone}
-                  className="flex-1 py-3 px-3 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs rounded-2xl transition shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Phone className="w-4 h-4" />
-                  <span>Call Support</span>
-                </button>
-                {config.telegramUsername && (
+                {config.phoneCallEnabled !== false ? (
+                  <button
+                    type="button"
+                    onClick={handleCallPhone}
+                    className="flex-1 py-3 px-3 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs rounded-2xl transition shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Phone className="w-4 h-4" />
+                    <span>Call Support</span>
+                  </button>
+                ) : (
+                  <div className="flex-1 py-3 px-3 bg-slate-100 dark:bg-slate-800 text-slate-400 font-bold text-xs rounded-2xl text-center">
+                    Calls Offline
+                  </div>
+                )}
+                {config.telegramUsername && config.telegramEnabled !== false && (
                   <button
                     type="button"
                     onClick={handleOpenTelegram}

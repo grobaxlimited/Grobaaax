@@ -79,25 +79,50 @@ export function subscribeContactSupportConfig(
   // Emit local cache immediately
   callback(getCachedContactSupportConfig());
 
+  // Listen to in-window instant broadcast
+  const handleLocalUpdate = (e: any) => {
+    if (e?.detail) {
+      callback(e.detail);
+    }
+  };
+  const handleStorage = (e: StorageEvent) => {
+    if (e.key === LOCAL_STORAGE_KEY && e.newValue) {
+      try {
+        callback({ ...DEFAULT_CONTACT_SUPPORT_CONFIG, ...JSON.parse(e.newValue) });
+      } catch {}
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('grobaax_contact_support_updated', handleLocalUpdate);
+    window.addEventListener('storage', handleStorage);
+  }
+
+  let unsubscribeSnapshot = () => {};
+
   try {
     const docRef = doc(db, 'system_settings', 'contact_support');
-    const unsubscribe = onSnapshot(
+    unsubscribeSnapshot = onSnapshot(
       docRef,
       (docSnap) => {
-        if (docSnap.exists()) {
+        if (docSnap && typeof docSnap.exists === 'function' && docSnap.exists()) {
           const data = docSnap.data() as ContactSupportConfig;
-          const merged: ContactSupportConfig = {
-            ...DEFAULT_CONTACT_SUPPORT_CONFIG,
-            ...data,
-          };
-          try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
-          } catch {}
-          callback(merged);
+          if (data && typeof data === 'object') {
+            const merged: ContactSupportConfig = {
+              ...DEFAULT_CONTACT_SUPPORT_CONFIG,
+              ...getCachedContactSupportConfig(),
+              ...data,
+            };
+            try {
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
+            } catch {}
+            callback(merged);
+          }
         } else {
-          // Initialize if document does not exist yet
-          setDoc(docRef, DEFAULT_CONTACT_SUPPORT_CONFIG).catch(() => {});
-          callback(DEFAULT_CONTACT_SUPPORT_CONFIG);
+          // Initialize if document does not exist yet by publishing the active local cached config
+          const cached = getCachedContactSupportConfig();
+          setDoc(docRef, cached, { merge: true }).catch(() => {});
+          callback(cached);
         }
       },
       (err) => {
@@ -105,12 +130,19 @@ export function subscribeContactSupportConfig(
         callback(getCachedContactSupportConfig());
       }
     );
-
-    return unsubscribe;
   } catch (err) {
     console.warn('Contact support subscription error:', err);
-    return () => {};
   }
+
+  return () => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('grobaax_contact_support_updated', handleLocalUpdate);
+      window.removeEventListener('storage', handleStorage);
+    }
+    try {
+      unsubscribeSnapshot();
+    } catch {}
+  };
 }
 
 /**
@@ -128,15 +160,34 @@ export async function updateContactSupportConfig(
     updatedBy: updatedBy || 'Grobaax Admin',
   };
 
+  // 1. Immediately update local storage so student & admin screens reflect instantly
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
   } catch {}
 
+  // 2. Dispatch custom in-window event for 0ms latency UI updates
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(
+        new CustomEvent('grobaax_contact_support_updated', { detail: updated })
+      );
+    } catch {}
+  }
+
+  // 3. Persist to primary system_settings collection
   try {
     const docRef = doc(db, 'system_settings', 'contact_support');
     await setDoc(docRef, updated, { merge: true });
   } catch (err) {
-    console.warn('Could not save contact support config to Firestore, local updated:', err);
+    console.warn('Could not save contact support config to system_settings/contact_support, local updated:', err);
+  }
+
+  // 4. Secondary fallback write to settings collection
+  try {
+    const backupRef = doc(db, 'settings', 'contact_support');
+    await setDoc(backupRef, updated, { merge: true });
+  } catch (err) {
+    console.warn('Could not save contact support config to settings/contact_support backup:', err);
   }
 
   return updated;
