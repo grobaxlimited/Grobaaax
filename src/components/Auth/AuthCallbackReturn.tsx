@@ -1,30 +1,82 @@
-import React, { useEffect } from 'react';
-import { CheckCircle2, GraduationCap, ArrowRight } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, GraduationCap, ArrowRight, Loader2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 export const AuthCallbackReturn: React.FC = () => {
+  const [isProcessing, setIsProcessing] = useState(true);
+
   useEffect(() => {
-    // Attempt automatic window close immediately
-    try {
-      window.close();
-    } catch (_) {}
+    const processCallback = async () => {
+      try {
+        const hash = window.location.hash || '';
+        const search = window.location.search || '';
+        const sParams = new URLSearchParams(search.replace(/^\?/, ''));
+        const hParams = new URLSearchParams(hash.replace(/^#/, ''));
 
-    // Retry automatic close after brief intervals
-    const t1 = setTimeout(() => {
+        const code = sParams.get('code');
+        const accessToken = hParams.get('access_token') || sParams.get('access_token');
+        const refreshToken = hParams.get('refresh_token') || sParams.get('refresh_token');
+
+        let session: any = null;
+        if (code) {
+          const res = await supabase.auth.exchangeCodeForSession(code);
+          session = res.data?.session;
+        } else if (accessToken) {
+          const res = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+          session = res.data?.session;
+        }
+
+        const payload = {
+          type: 'SUPABASE_AUTH_SUCCESS',
+          hash,
+          search,
+          code,
+          accessToken: session?.access_token || accessToken,
+          refreshToken: session?.refresh_token || refreshToken,
+          timestamp: Date.now(),
+        };
+
+        // 1. BroadcastChannel
+        try {
+          if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('grobaax_oauth_channel');
+            bc.postMessage(payload);
+          }
+        } catch (_) {}
+
+        // 2. LocalStorage for cross-window / tab
+        try {
+          localStorage.setItem('grobaax_oauth_event', JSON.stringify(payload));
+        } catch (_) {}
+
+        // 3. PostMessage to opener
+        if (window.opener) {
+          try {
+            window.opener.postMessage(payload, '*');
+          } catch (_) {}
+        }
+      } catch (e) {
+        console.warn('[AuthCallbackReturn] Process error:', e);
+      } finally {
+        setIsProcessing(false);
+      }
+
+      // Try closing immediately
       try {
         window.close();
       } catch (_) {}
-    }, 400);
 
-    const t2 = setTimeout(() => {
-      try {
-        window.close();
-      } catch (_) {}
-    }, 1200);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
+      setTimeout(() => {
+        try {
+          window.close();
+        } catch (_) {}
+      }, 500);
     };
+
+    processCallback();
   }, []);
 
   const handleManualClose = () => {
@@ -32,7 +84,6 @@ export const AuthCallbackReturn: React.FC = () => {
       window.close();
     } catch (_) {}
 
-    // Fallback: If window.close() is blocked, navigate back or to root
     setTimeout(() => {
       try {
         if (window.history.length > 1) {
@@ -43,7 +94,7 @@ export const AuthCallbackReturn: React.FC = () => {
       } catch (_) {
         window.location.href = '/';
       }
-    }, 300);
+    }, 200);
   };
 
   return (
@@ -53,16 +104,22 @@ export const AuthCallbackReturn: React.FC = () => {
           <GraduationCap className="w-10 h-10" />
         </div>
         <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 border-2 border-[#040817] flex items-center justify-center text-white shadow-md">
-          <CheckCircle2 className="w-5 h-5 text-white" />
+          {isProcessing ? (
+            <Loader2 className="w-5 h-5 text-white animate-spin" />
+          ) : (
+            <CheckCircle2 className="w-5 h-5 text-white" />
+          )}
         </div>
       </div>
 
       <h1 className="text-2xl font-black tracking-tight text-white mb-2">
-        Signed in Successfully!
+        {isProcessing ? 'Connecting Scholar...' : 'Signed in Successfully!'}
       </h1>
 
       <p className="text-sm text-slate-300 max-w-xs mb-8 leading-relaxed">
-        Your Grobaax session is authenticated. You can now close this tab to return to the app.
+        {isProcessing
+          ? 'Finalizing your authenticated session...'
+          : 'Your Grobaax session is connected. You can now return to the app.'}
       </p>
 
       <button
@@ -80,3 +137,4 @@ export const AuthCallbackReturn: React.FC = () => {
     </div>
   );
 };
+

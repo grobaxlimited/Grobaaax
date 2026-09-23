@@ -910,7 +910,6 @@ export const signInWithGoogle = async (): Promise<any> => {
       skipBrowserRedirect: true, // Generate the URL so we can open it in a closable target window
       queryParams: {
         access_type: 'offline',
-        prompt: 'select_account',
       },
     },
   });
@@ -1147,14 +1146,26 @@ export const signInWithGoogle = async (): Promise<any> => {
       }
 
       const elapsed = Date.now() - startTime;
-      const gracePeriod = isMobile ? 60000 : 35000;
 
-      if (popup && popup.closed && elapsed > gracePeriod) {
+      if (popup && popup.closed && elapsed > 2500) {
         if (!resolved) {
+          // Double check one last time for storage event or session before rejecting
+          try {
+            const lastEvent = localStorage.getItem('grobaax_oauth_event');
+            if (lastEvent) {
+              const p = JSON.parse(lastEvent);
+              if (p?.type === 'SUPABASE_AUTH_SUCCESS' && p.timestamp >= startTime) {
+                finishWithSession(p.hash, p.search, p.code, p.accessToken, p.refreshToken);
+                return;
+              }
+            }
+          } catch (_) {}
+
           cleanup();
           const cancelErr: any = new Error('Google sign-in was cancelled before completion.');
           cancelErr.code = 'auth/popup-closed-by-user';
           reject(cancelErr);
+          return;
         }
       }
     }, 1000);
