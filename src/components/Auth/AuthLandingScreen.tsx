@@ -40,9 +40,10 @@ export const AuthLandingScreen: React.FC = () => {
 
     try {
       const user = await signInWithGoogle();
-      const profile = await ensureUserInFirestore(user);
-
-      login(profile);
+      if (user) {
+        const profile = await ensureUserInFirestore(user);
+        login(profile);
+      }
     } catch (err: any) {
       const isCancelledOrClosed =
         err?.code === 'auth/cancelled-popup-request' ||

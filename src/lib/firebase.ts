@@ -1439,10 +1439,16 @@ export const completeUserAcademicProfileDoc = async (
  * This guarantees users registering or signing in via email/password or Google are immediately saved and visible in the Firestore database and admin dashboard.
  */
 export const ensureUserInFirestore = async (
-  firebaseUser: { uid: string; email?: string | null; displayName?: string | null; photoURL?: string | null },
+  firebaseUser: any,
   fallbackDetails?: Partial<UserProfile>
 ): Promise<UserProfile> => {
-  const uid = firebaseUser.uid;
+  if (!firebaseUser) {
+    throw new Error('Authentication required.');
+  }
+  const uid = firebaseUser.uid || firebaseUser.id;
+  if (!uid) {
+    throw new Error('Authentication user ID missing.');
+  }
   const userDocRef = doc(db, 'users', uid);
   
   try {

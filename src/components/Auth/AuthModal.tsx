@@ -190,10 +190,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       const user = await signInWithGoogle();
-      const profile = await ensureUserInFirestore(user);
-
-      onAuthSuccess(profile);
-      onClose();
+      if (user) {
+        const profile = await ensureUserInFirestore(user);
+        onAuthSuccess(profile);
+        onClose();
+      }
     } catch (err: any) {
       const isCancelledOrClosed =
         err?.code === 'auth/cancelled-popup-request' ||

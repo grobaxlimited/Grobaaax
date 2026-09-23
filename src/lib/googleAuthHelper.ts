@@ -73,85 +73,8 @@ export const loadGoogleIdentityScript = (): Promise<boolean> => {
  * Returns ID token (JWT) if selected by user, or null if dismissed/unavailable.
  */
 export const promptGoogleOneTap = async (
-  onCredentialReceived?: (credential: string) => void
+  _onCredentialReceived?: (credential: string) => void
 ): Promise<string | null> => {
-  if (typeof window === 'undefined') return null;
-
-  // Skip in iframes where FedCM is blocked by Chromium permissions policy
-  if (window.self !== window.top) {
-    return null;
-  }
-
-  const loaded = await loadGoogleIdentityScript();
-  if (!loaded) return null;
-
-  const google = (window as any).google;
-  if (!google?.accounts?.id) return null;
-
-  return new Promise((resolve) => {
-    let resolved = false;
-
-    const safeResolve = (token: string | null) => {
-      if (!resolved) {
-        resolved = true;
-        resolve(token);
-      }
-    };
-
-    try {
-      google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: (response: any) => {
-          if (response?.credential) {
-            console.log('[Google GIS] Credential received from in-app selection');
-            if (onCredentialReceived) {
-              onCredentialReceived(response.credential);
-            }
-            safeResolve(response.credential);
-          } else {
-            console.warn('[Google GIS] Empty response callback');
-            safeResolve(null);
-          }
-        },
-        auto_select: false,
-        cancel_on_tap_outside: true,
-        use_fedcm_for_prompt: false,
-      });
-
-      google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed?.()) {
-          const reason =
-            notification.getNotDisplayedReason?.() || 'not_displayed';
-          console.log('[Google GIS Not Displayed]:', reason);
-          safeResolve(null);
-        } else if (notification.isSkippedMoment?.()) {
-          const reason =
-            notification.getSkippedReason?.() || 'skipped';
-          console.log('[Google GIS Skipped]:', reason);
-          if (reason === 'user_cancel' || reason === 'tap_outside') {
-            safeResolve('USER_CANCELLED');
-          }
-        } else if (notification.isDismissedMoment?.()) {
-          const reason =
-            notification.getDismissedReason?.() || 'dismissed';
-          console.log('[Google GIS Dismissed]:', reason);
-          // If reason is credential_returned, do NOT resolve null because callback is processing the JWT
-          if (reason === 'credential_returned') {
-            return;
-          }
-          if (reason === 'user_cancel' || reason === 'tap_outside') {
-            safeResolve('USER_CANCELLED');
-          }
-        }
-      });
-
-      // Allow ample time (120s) for user to review and tap their account
-      setTimeout(() => {
-        safeResolve(null);
-      }, 120000);
-    } catch (e) {
-      console.warn('[Google GIS Init Error]:', e);
-      safeResolve(null);
-    }
-  });
+  // Bypassed: Use standard Google OAuth accounts chooser ("whitish" standard flow)
+  return null;
 };
