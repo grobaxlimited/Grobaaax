@@ -9,10 +9,27 @@ let isScriptLoaded = false;
 let isInitializing = false;
 
 /**
- * Ensures Google Identity Services (GSI) client script is loaded in the document
+ * Ensures Google Identity Services (GSI) client script is loaded in the document.
+ * In iframe environments where 'identity-credentials-get' is not delegated, GSI is skipped.
  */
 export const loadGoogleIdentityScript = (): Promise<boolean> => {
   if (typeof window === 'undefined') return Promise.resolve(false);
+
+  // In iframe environments (e.g. preview/dev tool), FedCM / GSI prompts are disallowed by browser permissions
+  if (window.self !== window.top) {
+    return Promise.resolve(false);
+  }
+
+  // Check if browser explicitly disallows identity-credentials-get
+  try {
+    const policy = (document as any).permissionsPolicy || (document as any).featurePolicy;
+    if (policy && typeof policy.allowsFeature === 'function') {
+      if (!policy.allowsFeature('identity-credentials-get')) {
+        return Promise.resolve(false);
+      }
+    }
+  } catch (_) {}
+
   if ((window as any).google?.accounts?.id) {
     isScriptLoaded = true;
     return Promise.resolve(true);
@@ -52,13 +69,18 @@ export const loadGoogleIdentityScript = (): Promise<boolean> => {
 };
 
 /**
- * Prompts Google One Tap if supported in the browser / PWA context
- * Returns ID token (JWT) if selected by user, or null if dismissed/unavailable
+ * Prompts Google One Tap if supported in the browser / PWA context.
+ * Returns ID token (JWT) if selected by user, or null if dismissed/unavailable.
  */
 export const promptGoogleOneTap = async (
   onCredentialReceived?: (credential: string) => void
 ): Promise<string | null> => {
   if (typeof window === 'undefined') return null;
+
+  // Skip in iframes where FedCM is blocked by Chromium permissions policy
+  if (window.self !== window.top) {
+    return null;
+  }
 
   const loaded = await loadGoogleIdentityScript();
   if (!loaded) return null;
@@ -93,6 +115,7 @@ export const promptGoogleOneTap = async (
         },
         auto_select: false,
         cancel_on_tap_outside: true,
+        use_fedcm_for_prompt: false,
       });
 
       google.accounts.id.prompt((notification: any) => {

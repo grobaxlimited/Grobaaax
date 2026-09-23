@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <script>
-      // Gracefully filter benign Vite HMR websocket messages in iframe/proxy environments
+      // Gracefully filter benign Vite HMR and FedCM iframe messages in preview/iframe environments
       (function () {
         const _err = console.error;
         console.error = function (...args) {
@@ -11,15 +11,30 @@
             typeof args[0] === 'string' &&
             (args[0].includes('[vite] failed to connect to websocket') ||
              args[0].includes('[vite] connecting') ||
-             args[0].startsWith('[vite]'))
+             args[0].startsWith('[vite]') ||
+             args[0].includes('identity-credentials-get') ||
+             args[0].includes('[GSI_LOGGER]'))
           ) {
             return;
           }
           _err.apply(console, args);
         };
+        const _warn = console.warn;
+        console.warn = function (...args) {
+          if (
+            args.length > 0 &&
+            typeof args[0] === 'string' &&
+            (args[0].includes('identity-credentials-get') ||
+             args[0].includes('[GSI_LOGGER]'))
+          ) {
+            return;
+          }
+          _warn.apply(console, args);
+        };
       })();
     </script>
     <meta charset="UTF-8" />
+    <meta http-equiv="Permissions-Policy" content="identity-credentials-get=(self)" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover" />
     <title>Grobaax - Represent your school title, conquer academic arenas, and connect with scholars nationwide.</title>
     <meta name="description" content="Represent your school title, conquer academic arenas, and connect with scholars nationwide." />
@@ -42,9 +57,6 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-
-    <!-- Google Identity Services (GIS) for seamless PWA & mobile authentication -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
     <div id="root"></div>
