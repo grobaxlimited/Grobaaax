@@ -118,3 +118,101 @@ body {
   animation: coinSparkle 2.5s ease-in-out infinite;
 }
 
+@keyframes spotlightLeft {
+  0%, 100% {
+    transform: rotate(-22deg) scaleY(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: rotate(6deg) scaleY(1.1);
+    opacity: 0.7;
+  }
+}
+
+@keyframes spotlightRight {
+  0%, 100% {
+    transform: rotate(22deg) scaleY(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: rotate(-6deg) scaleY(1.1);
+    opacity: 0.7;
+  }
+}
+
+@keyframes bannerSway {
+  0%, 100% {
+    transform: rotate(-1.5deg) translateY(0px);
+  }
+  50% {
+    transform: rotate(1.5deg) translateY(-4px);
+  }
+}
+
+@keyframes flowDash {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+@keyframes streamVertical {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(200%);
+    opacity: 0;
+  }
+}
+
+@keyframes radarPing {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-spotlight-left {
+  animation: spotlightLeft 7s ease-in-out infinite;
+  transform-origin: top left;
+}
+
+.animate-spotlight-right {
+  animation: spotlightRight 7s ease-in-out infinite;
+  transform-origin: top right;
+}
+
+.animate-banner-sway {
+  animation: bannerSway 4.5s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+.animate-banner-sway-delayed {
+  animation: bannerSway 5s ease-in-out infinite 0.7s;
+  transform-origin: top center;
+}
+
+.animate-flow-dash {
+  stroke-dasharray: 6 6;
+  animation: flowDash 1.8s linear infinite;
+}
+
+.animate-stream-vertical {
+  animation: streamVertical 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-radar-ping {
+  animation: radarPing 3s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+

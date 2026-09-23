@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   GraduationCap,
   ArrowRight,
@@ -16,8 +16,13 @@ import {
   Smartphone,
   Wallet,
   ArrowDown,
-  CheckCircle2,
 } from 'lucide-react';
+import { WelcomeVisual } from './visuals/WelcomeVisual';
+import { SchoolDomeVisual } from './visuals/SchoolDomeVisual';
+import { DailyGPGrabVisual } from './visuals/DailyGPGrabVisual';
+import { CampusNetworkVisual } from './visuals/CampusNetworkVisual';
+import { MiniMartVisual } from './visuals/MiniMartVisual';
+import { GPRedemptionVisual } from './visuals/GPRedemptionVisual';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -144,9 +149,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
         {currentStep === 0 && (
           <div
             key="step-0"
-            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-4 sm:space-y-5"
+            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3.5 sm:space-y-4"
           >
-            <div className="space-y-2 max-w-sm px-2">
+            <div className="space-y-1.5 max-w-sm px-2">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight text-white">
                 Your School.{' '}
                 <span className="text-cyan-400 drop-shadow-[0_0_16px_rgba(34,211,238,0.4)]">
@@ -159,34 +164,26 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
               </p>
             </div>
 
-            {/* Visual Hero Illustration Card */}
-            <div className="relative w-full aspect-[4/3.3] max-h-[260px] sm:max-h-[300px] rounded-3xl overflow-hidden border border-blue-500/20 shadow-2xl shadow-blue-900/40 bg-slate-900/60 group">
-              <img
-                src="/images/onboarding/welcome.jpg"
-                alt="Nigerian tertiary students on campus"
-                className="w-full h-full object-cover object-center transform transition-transform duration-700 group-hover:scale-105"
-                loading="eager"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#040817] via-transparent to-transparent opacity-80" />
-            </div>
+            {/* Live Animated UI Visual */}
+            <WelcomeVisual />
 
             {/* Bottom 4 Feature Value Pills: Learn, Compete, Connect, Earn */}
-            <div className="grid grid-cols-4 gap-2 w-full pt-1">
+            <div className="grid grid-cols-4 gap-2 w-full pt-0.5">
               <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-blue-500/40 transition-all">
-                <BookOpen className="w-5 h-5 text-blue-400 mb-1" />
-                <span className="text-[11px] font-bold text-slate-200">Learn</span>
+                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 mb-1" />
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-200">Learn</span>
               </div>
               <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-amber-500/40 transition-all">
-                <Trophy className="w-5 h-5 text-amber-400 mb-1" />
-                <span className="text-[11px] font-bold text-slate-200">Compete</span>
+                <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 mb-1" />
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-200">Compete</span>
               </div>
               <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-cyan-500/40 transition-all">
-                <Users className="w-5 h-5 text-cyan-400 mb-1" />
-                <span className="text-[11px] font-bold text-slate-200">Connect</span>
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400 mb-1" />
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-200">Connect</span>
               </div>
               <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-emerald-500/40 transition-all">
-                <Coins className="w-5 h-5 text-emerald-400 mb-1" />
-                <span className="text-[11px] font-bold text-slate-200">Earn</span>
+                <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 mb-1" />
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-200">Earn</span>
               </div>
             </div>
           </div>
@@ -196,7 +193,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
         {currentStep === 1 && (
           <div
             key="step-1"
-            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3.5 sm:space-y-4"
+            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3 sm:space-y-3.5"
           >
             <div className="space-y-1.5 max-w-sm px-2">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
@@ -222,16 +219,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
               </div>
             </div>
 
-            {/* Grand Arena & Golden Trophy Illustration */}
-            <div className="relative w-full aspect-[4/3.3] max-h-[260px] sm:max-h-[300px] rounded-3xl overflow-hidden border border-amber-500/30 shadow-2xl shadow-amber-900/30 bg-slate-900/60 group">
-              <img
-                src="/images/onboarding/schooldome.jpg"
-                alt="School Dome Championship Arena with Golden Trophy"
-                className="w-full h-full object-cover object-center transform transition-transform duration-700 group-hover:scale-105"
-                loading="eager"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#040817] via-transparent to-transparent opacity-80" />
-            </div>
+            {/* Live Animated Arena UI Visual */}
+            <SchoolDomeVisual />
           </div>
         )}
 
@@ -239,7 +228,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
         {currentStep === 2 && (
           <div
             key="step-2"
-            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3.5 sm:space-y-4"
+            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3 sm:space-y-3.5"
           >
             <div className="space-y-1.5 max-w-sm px-2">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
@@ -263,16 +252,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
               <span>Monday – Friday</span>
             </div>
 
-            {/* Individual Challenge & Golden Coins Visual */}
-            <div className="relative w-full aspect-[4/3.3] max-h-[260px] sm:max-h-[300px] rounded-3xl overflow-hidden border border-cyan-500/25 shadow-2xl shadow-cyan-900/30 bg-slate-900/60 group">
-              <img
-                src="/images/onboarding/dailygp.jpg"
-                alt="Student answering academic challenge and earning GP"
-                className="w-full h-full object-cover object-center transform transition-transform duration-700 group-hover:scale-105"
-                loading="eager"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#040817] via-transparent to-transparent opacity-80" />
-            </div>
+            {/* Live Animated Daily Challenge UI Visual */}
+            <DailyGPGrabVisual />
           </div>
         )}
 
@@ -280,7 +261,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
         {currentStep === 3 && (
           <div
             key="step-3"
-            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3.5 sm:space-y-4"
+            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3 sm:space-y-3.5"
           >
             <div className="space-y-1.5 max-w-sm px-2">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
@@ -301,16 +282,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
               <span>Inter-Institutional Student Networks</span>
             </div>
 
-            {/* Campus Connection Visual */}
-            <div className="relative w-full aspect-[4/3.3] max-h-[260px] sm:max-h-[300px] rounded-3xl overflow-hidden border border-blue-500/25 shadow-2xl shadow-blue-900/30 bg-slate-900/60 group">
-              <img
-                src="/images/onboarding/campus.jpg"
-                alt="Nigerian tertiary students connecting on campus"
-                className="w-full h-full object-cover object-center transform transition-transform duration-700 group-hover:scale-105"
-                loading="eager"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#040817] via-transparent to-transparent opacity-80" />
-            </div>
+            {/* Live Animated Campus Network UI Visual */}
+            <CampusNetworkVisual />
           </div>
         )}
 
@@ -318,7 +291,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
         {currentStep === 4 && (
           <div
             key="step-4"
-            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3.5 sm:space-y-4"
+            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3 sm:space-y-3.5"
           >
             <div className="space-y-1.5 max-w-sm px-2">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
@@ -353,16 +326,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
               </div>
             </div>
 
-            {/* MiniMart Stall & Entrepreneur Visual */}
-            <div className="relative w-full aspect-[4/3.3] max-h-[260px] sm:max-h-[300px] rounded-3xl overflow-hidden border border-purple-500/25 shadow-2xl shadow-purple-900/30 bg-slate-900/60 group">
-              <img
-                src="/images/onboarding/minimart.jpg"
-                alt="Campus MiniMart students supporting students marketplace"
-                className="w-full h-full object-cover object-center transform transition-transform duration-700 group-hover:scale-105"
-                loading="eager"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#040817] via-transparent to-transparent opacity-80" />
-            </div>
+            {/* Live Animated Student MiniMart UI Visual */}
+            <MiniMartVisual />
           </div>
         )}
 
@@ -370,7 +335,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
         {currentStep === 5 && (
           <div
             key="step-5"
-            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3.5 sm:space-y-4"
+            className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-300 w-full space-y-3 sm:space-y-3.5"
           >
             <div className="space-y-1.5 max-w-sm px-2">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
@@ -385,40 +350,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
               </p>
             </div>
 
-            {/* Flow Diagram: Earn GP -> GROBAAX Wallet -> Airtime & Data / Cash Out */}
-            <div className="w-full max-w-xs flex flex-col items-center gap-1.5 py-1">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-bold">
-                <Coins className="w-4 h-4 text-amber-400" />
-                <span>Earn GP</span>
-              </div>
-              <ArrowDown className="w-3.5 h-3.5 text-slate-400" />
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-500/20 border border-blue-400/40 text-blue-200 text-xs font-bold">
-                <Wallet className="w-4 h-4 text-blue-400" />
-                <span>Your GROBAAX Wallet</span>
-              </div>
-              <ArrowDown className="w-3.5 h-3.5 text-slate-400" />
-              <div className="grid grid-cols-2 gap-2 w-full">
-                <div className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-[11px] font-bold">
-                  <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Airtime & Data</span>
-                </div>
-                <div className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-yellow-500/15 border border-yellow-400/30 text-yellow-300 text-[11px] font-bold">
-                  <Coins className="w-3.5 h-3.5 text-yellow-400" />
-                  <span>Cash Out</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Wallet & GP Redemption Visual */}
-            <div className="relative w-full aspect-[4/3] max-h-[220px] sm:max-h-[260px] rounded-3xl overflow-hidden border border-emerald-500/25 shadow-2xl shadow-emerald-900/30 bg-slate-900/60 group">
-              <img
-                src="/images/onboarding/wallet.jpg"
-                alt="GROBAAX Wallet and GP Redemption"
-                className="w-full h-full object-cover object-center transform transition-transform duration-700 group-hover:scale-105"
-                loading="eager"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#040817] via-transparent to-transparent opacity-80" />
-            </div>
+            {/* Live Animated GP Value Pipeline UI Visual */}
+            <GPRedemptionVisual />
           </div>
         )}
       </main>
