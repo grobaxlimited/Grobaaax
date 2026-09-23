@@ -77,3 +77,44 @@ body {
   animation-play-state: paused !important;
 }
 
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes coinSparkle {
+  0%, 100% {
+    filter: drop-shadow(0 0 12px rgba(234, 179, 8, 0.45));
+  }
+  50% {
+    filter: drop-shadow(0 0 24px rgba(234, 179, 8, 0.85));
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 6s ease-in-out infinite;
+}
+
+.animate-coin-sparkle {
+  animation: coinSparkle 2.5s ease-in-out infinite;
+}
+
