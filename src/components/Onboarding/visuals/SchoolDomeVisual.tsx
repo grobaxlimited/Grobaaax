@@ -3,7 +3,7 @@ import { Trophy, Shield, GraduationCap, Flame, Sparkles, Crown } from 'lucide-re
 
 export const SchoolDomeVisual: React.FC = () => {
   return (
-    <div className="relative w-full aspect-[4/3.2] max-h-[280px] sm:max-h-[310px] rounded-3xl overflow-hidden border border-amber-500/30 bg-gradient-to-b from-[#0b0c26] via-[#080d22] to-[#040817] shadow-2xl shadow-amber-950/40 p-4 flex flex-col items-center justify-between select-none">
+    <div className="relative w-full aspect-[4/3.2] max-h-[280px] sm:max-h-[320px] lg:max-h-[370px] xl:max-h-[410px] rounded-3xl overflow-hidden border border-amber-500/30 bg-gradient-to-b from-[#0b0c26] via-[#080d22] to-[#040817] shadow-2xl shadow-amber-950/40 p-4 flex flex-col items-center justify-between select-none">
       {/* Stadium Arena Lighting: 2 Sweeping Spotlights & Glowing Rim */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Left Sweeping Spotlight Beam */}

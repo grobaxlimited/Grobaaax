@@ -3,7 +3,7 @@ import { BookOpen, Trophy, Users, Coins, GraduationCap, Sparkles, Building2, Glo
 
 export const WelcomeVisual: React.FC = () => {
   return (
-    <div className="relative w-full aspect-[4/3.2] max-h-[280px] sm:max-h-[310px] rounded-3xl overflow-hidden border border-blue-500/25 bg-gradient-to-b from-[#071330] via-[#050e24] to-[#040817] shadow-2xl shadow-blue-950/60 p-4 flex flex-col items-center justify-center select-none">
+    <div className="relative w-full aspect-[4/3.2] max-h-[280px] sm:max-h-[320px] lg:max-h-[370px] xl:max-h-[410px] rounded-3xl overflow-hidden border border-blue-500/25 bg-gradient-to-b from-[#071330] via-[#050e24] to-[#040817] shadow-2xl shadow-blue-950/60 p-4 flex flex-col items-center justify-center select-none">
       {/* Background Animated Ambience */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl animate-pulse-glow" />

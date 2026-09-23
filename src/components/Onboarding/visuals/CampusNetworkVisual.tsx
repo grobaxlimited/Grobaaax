@@ -3,7 +3,7 @@ import { Users, GraduationCap, MessageCircle, Sparkles, UserCheck, ShieldCheck }
 
 export const CampusNetworkVisual: React.FC = () => {
   return (
-    <div className="relative w-full aspect-[4/3.2] max-h-[280px] sm:max-h-[310px] rounded-3xl overflow-hidden border border-blue-500/30 bg-gradient-to-b from-[#08152e] via-[#050f21] to-[#040817] shadow-2xl shadow-blue-950/50 p-3.5 sm:p-4 flex flex-col justify-between select-none">
+    <div className="relative w-full aspect-[4/3.2] max-h-[280px] sm:max-h-[320px] lg:max-h-[370px] xl:max-h-[410px] rounded-3xl overflow-hidden border border-blue-500/30 bg-gradient-to-b from-[#08152e] via-[#050f21] to-[#040817] shadow-2xl shadow-blue-950/50 p-3.5 sm:p-4 flex flex-col justify-between select-none">
       {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-blue-600/15 rounded-full blur-3xl animate-pulse-glow" />

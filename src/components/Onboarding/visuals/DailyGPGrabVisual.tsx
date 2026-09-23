@@ -12,7 +12,7 @@ export const DailyGPGrabVisual: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative w-full aspect-[4/3.2] max-h-[280px] sm:max-h-[310px] rounded-3xl overflow-hidden border border-cyan-500/30 bg-gradient-to-b from-[#08182b] via-[#051121] to-[#040817] shadow-2xl shadow-cyan-950/40 p-3.5 sm:p-4 flex flex-col justify-between select-none">
+    <div className="relative w-full aspect-[4/3.2] max-h-[280px] sm:max-h-[320px] lg:max-h-[370px] xl:max-h-[410px] rounded-3xl overflow-hidden border border-cyan-500/30 bg-gradient-to-b from-[#08182b] via-[#051121] to-[#040817] shadow-2xl shadow-cyan-950/40 p-3.5 sm:p-4 flex flex-col justify-between select-none">
       {/* Background Animated Particle Rays */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-10 right-4 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl animate-pulse-glow" />
@@ -69,7 +69,7 @@ export const DailyGPGrabVisual: React.FC = () => {
         <div className="flex items-center justify-between pt-1">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/30 to-yellow-500/20 border border-amber-400/50 text-amber-300 text-xs font-black shadow-md shadow-amber-950/50 animate-bounce" style={{ animationDuration: '2.5s' }}>
             <Coins className="w-3.5 h-3.5 text-yellow-400 animate-coin-sparkle" />
-            <span>+50 GP Rewarded!</span>
+            <span>100 GP+ Rewarded!</span>
           </div>
 
           <div className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-300">

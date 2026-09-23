@@ -3,7 +3,7 @@ import { Wallet, Smartphone, ArrowDown, Coins, Zap, CreditCard, Sparkles } from 
 
 export const GPRedemptionVisual: React.FC = () => {
   return (
-    <div className="relative w-full aspect-[4/3.2] max-h-[280px] sm:max-h-[310px] rounded-3xl overflow-hidden border border-emerald-500/30 bg-gradient-to-b from-[#06181f] via-[#041117] to-[#040817] shadow-2xl shadow-emerald-950/40 p-3.5 sm:p-4 flex flex-col justify-between select-none">
+    <div className="relative w-full aspect-[4/3.2] max-h-[280px] sm:max-h-[320px] lg:max-h-[370px] xl:max-h-[410px] rounded-3xl overflow-hidden border border-emerald-500/30 bg-gradient-to-b from-[#06181f] via-[#041117] to-[#040817] shadow-2xl shadow-emerald-950/40 p-3.5 sm:p-4 flex flex-col justify-between select-none">
       {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-emerald-500/15 rounded-full blur-3xl animate-pulse-glow" />
