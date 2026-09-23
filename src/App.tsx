@@ -18,6 +18,7 @@ import { InAppPushToast } from './components/Navigation/InAppPushToast';
 import { PWASplashScreen } from './components/PWA/PWASplashScreen';
 import { PWAInstallBanner } from './components/PWA/PWAInstallBanner';
 import { OfflineIndicator } from './components/PWA/OfflineIndicator';
+import { AuthCallbackReturn } from './components/Auth/AuthCallbackReturn';
 import { useDevicePlatform } from './hooks/useDevicePlatform';
 
 function MainLayout() {
@@ -34,6 +35,11 @@ function MainLayout() {
   } = useApp();
 
   const { isIOS } = useDevicePlatform();
+
+  // If this window is the OAuth callback path, render the clean return screen that closes this tab
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/callback')) {
+    return <AuthCallbackReturn />;
+  }
 
   // If user is not authenticated with Firebase, show Auth Landing Screen (Login/Register)
   if (!firebaseUser) {

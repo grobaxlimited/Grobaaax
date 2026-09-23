@@ -81,11 +81,13 @@ export const promptGoogleOneTap = async (
         client_id: GOOGLE_CLIENT_ID,
         callback: (response: any) => {
           if (response?.credential) {
+            console.log('[Google GIS] Credential received from in-app selection');
             if (onCredentialReceived) {
               onCredentialReceived(response.credential);
             }
             safeResolve(response.credential);
           } else {
+            console.warn('[Google GIS] Empty response callback');
             safeResolve(null);
           }
         },
@@ -94,23 +96,36 @@ export const promptGoogleOneTap = async (
       });
 
       google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+        if (notification.isNotDisplayed?.()) {
           const reason =
-            notification.getNotDisplayedReason?.() ||
-            notification.getSkippedReason?.() ||
-            'GIS prompt skipped';
-          console.log('[Google GIS Notice]:', reason);
+            notification.getNotDisplayedReason?.() || 'not_displayed';
+          console.log('[Google GIS Not Displayed]:', reason);
           safeResolve(null);
+        } else if (notification.isSkippedMoment?.()) {
+          const reason =
+            notification.getSkippedReason?.() || 'skipped';
+          console.log('[Google GIS Skipped]:', reason);
+          if (reason === 'user_cancel' || reason === 'tap_outside') {
+            safeResolve('USER_CANCELLED');
+          }
         } else if (notification.isDismissedMoment?.()) {
-          console.log('[Google GIS Dismissed]:', notification.getDismissedReason?.());
-          safeResolve(null);
+          const reason =
+            notification.getDismissedReason?.() || 'dismissed';
+          console.log('[Google GIS Dismissed]:', reason);
+          // If reason is credential_returned, do NOT resolve null because callback is processing the JWT
+          if (reason === 'credential_returned') {
+            return;
+          }
+          if (reason === 'user_cancel' || reason === 'tap_outside') {
+            safeResolve('USER_CANCELLED');
+          }
         }
       });
 
-      // Safety timeout after 10s of inactivity
+      // Allow ample time (120s) for user to review and tap their account
       setTimeout(() => {
         safeResolve(null);
-      }, 10000);
+      }, 120000);
     } catch (e) {
       console.warn('[Google GIS Init Error]:', e);
       safeResolve(null);

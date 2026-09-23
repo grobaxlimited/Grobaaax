@@ -606,15 +606,33 @@ if (typeof window !== 'undefined') {
         localStorage.setItem('grobaax_oauth_event', JSON.stringify(payload));
       } catch (_) {}
 
+      const isSecondaryTab = Boolean(
+        window.opener ||
+        (typeof localStorage !== 'undefined' &&
+          localStorage.getItem('grobaax_oauth_in_progress') === 'true')
+      );
+
       if (window.opener) {
         try {
           window.opener.postMessage(payload, '*');
         } catch (_) {}
+      }
+
+      if (isSecondaryTab) {
+        // This is a popup or Chrome Custom Tab opened from the PWA/app.
+        // It must close itself immediately so the user returns to their pure PWA without the [X] top bar!
+        try {
+          window.close();
+        } catch (_) {}
+
+        // Fallback retry if window.close was throttled
         setTimeout(() => {
-          try { window.close(); } catch (_) {}
-        }, 600);
+          try {
+            window.close();
+          } catch (_) {}
+        }, 500);
       } else if (isCallbackPath) {
-        // If this window itself was redirected (e.g. PWA in-place redirect), return to root
+        // Only top-level single-tab browser navigations should replace to root
         setTimeout(() => {
           try {
             window.location.replace('/');
@@ -845,6 +863,7 @@ export const signInWithGoogle = async (): Promise<any> => {
   // Clear any existing OAuth event before starting
   try {
     localStorage.removeItem('grobaax_oauth_event');
+    localStorage.removeItem('grobaax_oauth_in_progress');
   } catch (_) {}
 
   const origin = window.location.origin;
@@ -854,6 +873,10 @@ export const signInWithGoogle = async (): Promise<any> => {
   // If user selects their account in the native bottom sheet, no navigation or external tab occurs at all!
   try {
     const idToken = await promptGoogleOneTap();
+    if (idToken === 'USER_CANCELLED') {
+      console.log('[Google Auth] User dismissed Google account chooser.');
+      return cachedCurrentUser;
+    }
     if (idToken) {
       console.log('[Google Auth] Credential received from Google One Tap');
       const { data: idData, error: idErr } = await supabase.auth.signInWithIdToken({
@@ -874,9 +897,12 @@ export const signInWithGoogle = async (): Promise<any> => {
   }
 
   // 2. Open Google OAuth via target popup window
-  // In an installed PWA or mobile browser, opening via popup keeps the standalone PWA active in the background.
-  // When the OAuth completes at /auth/callback, the callback immediately closes itself (window.close())
-  // and hands off credentials via BroadcastChannel and localStorage, so the user remains in the pure PWA without the [X] top bar.
+  // Mark in-progress so callback knows it's a secondary tab and should close itself
+  try {
+    localStorage.setItem('grobaax_oauth_in_progress', 'true');
+    localStorage.setItem('grobaax_oauth_started_at', String(Date.now()));
+  } catch (_) {}
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -909,6 +935,9 @@ export const signInWithGoogle = async (): Promise<any> => {
         try { bc.close(); } catch (_) {}
       }
       if (pollTimer) clearInterval(pollTimer);
+      try {
+        localStorage.removeItem('grobaax_oauth_in_progress');
+      } catch (_) {}
     };
 
     const finishWithSession = async (
