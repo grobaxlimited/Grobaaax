@@ -547,21 +547,29 @@ export function subscribeSchoolDomeActiveSeason(
           } catch {}
           callback(fullSeason);
         } else {
-          // Check localStorage first before falling back to DEFAULT_INITIAL_SEASON
-          let fallback = DEFAULT_INITIAL_SEASON;
+          // If no season documents exist in Firestore, initialize a pristine Season 1
+          const freshFallback: SchoolDomeSeason = {
+            ...DEFAULT_INITIAL_SEASON,
+            status: 'active',
+            isRegistrationLocked: false,
+            firstQuestionLaunched: false,
+            registeredUserIds: [],
+            activeUserIds: [],
+            eliminatedUserIds: [],
+            winners: [],
+            createdAt: Date.now(),
+            startedAt: Date.now(),
+          };
           try {
             if (typeof window !== 'undefined') {
-              const stored = localStorage.getItem('grobax_school_dome_active_season');
-              if (stored) {
-                fallback = { ...DEFAULT_INITIAL_SEASON, ...JSON.parse(stored) };
-              }
+              localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(freshFallback));
             }
           } catch {}
-          // Initialize default season in Firestore if non-existent
-          setDoc(doc(db, 'school_dome_seasons', fallback.id || DEFAULT_INITIAL_SEASON.id), fallback, { merge: true }).catch(
+          // Initialize fresh season 1 in Firestore
+          setDoc(doc(db, 'school_dome_seasons', freshFallback.id), freshFallback).catch(
             () => {}
           );
-          callback(fallback);
+          callback(freshFallback);
         }
       },
       (err) => {
@@ -571,7 +579,10 @@ export function subscribeSchoolDomeActiveSeason(
           if (typeof window !== 'undefined') {
             const stored = localStorage.getItem('grobax_school_dome_active_season');
             if (stored) {
-              fallback = { ...DEFAULT_INITIAL_SEASON, ...JSON.parse(stored) };
+              const parsed = JSON.parse(stored);
+              if (parsed && parsed.status !== 'ended') {
+                fallback = { ...DEFAULT_INITIAL_SEASON, ...parsed };
+              }
             }
           }
         } catch {}
@@ -587,7 +598,10 @@ export function subscribeSchoolDomeActiveSeason(
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('grobax_school_dome_active_season');
         if (stored) {
-          fallback = { ...DEFAULT_INITIAL_SEASON, ...JSON.parse(stored) };
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.status !== 'ended') {
+            fallback = { ...DEFAULT_INITIAL_SEASON, ...parsed };
+          }
         }
       }
     } catch {}
@@ -1870,25 +1884,7 @@ export async function deleteAllSchoolDomeSeasons(
   adminName?: string
 ): Promise<SchoolDomeSeason> {
   try {
-    // 1. Fetch and delete all existing season documents from Firestore
-    const seasonsCol = collection(db, 'school_dome_seasons');
-    const seasonsSnap = await getDocs(seasonsCol);
-    const deleteSeasonPromises: Promise<void>[] = [];
-    seasonsSnap.forEach((d) => {
-      deleteSeasonPromises.push(deleteDoc(doc(db, 'school_dome_seasons', d.id)));
-    });
-    await Promise.all(deleteSeasonPromises);
-
-    // 2. Delete all questions from Firestore
-    const questionsCol = collection(db, 'school_dome_questions');
-    const questionsSnap = await getDocs(questionsCol);
-    const deleteQPromises: Promise<void>[] = [];
-    questionsSnap.forEach((d) => {
-      deleteQPromises.push(deleteDoc(doc(db, 'school_dome_questions', d.id)));
-    });
-    await Promise.all(deleteQPromises);
-
-    // 3. Create fresh Season 1 document
+    // Fresh Season 1 specification
     const freshSeason1: SchoolDomeSeason = {
       id: 'season_dome_1',
       seasonNumber: 1,
@@ -1917,14 +1913,53 @@ export async function deleteAllSchoolDomeSeasons(
       ],
     };
 
-    await setDoc(doc(db, 'school_dome_seasons', freshSeason1.id), freshSeason1);
-
-    // Clear local storage fallback cache if present
+    // 1. Immediately wipe local storage cache and dispatch update event so UI updates synchronously
     try {
-      localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(freshSeason1));
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('grobax_school_dome_active_season');
+        localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(freshSeason1));
+        localStorage.removeItem('grobax_school_dome_cached_messages');
+        window.dispatchEvent(
+          new CustomEvent('school_dome_season_updated', {
+            detail: freshSeason1,
+          })
+        );
+      }
     } catch {}
 
-    // 4. Send official announcement in Arena messages
+    // 2. Set fresh Season 1 document in Firestore FIRST so collection is never empty (prevents snapshot empty-fallback races)
+    await setDoc(doc(db, 'school_dome_seasons', freshSeason1.id), freshSeason1);
+
+    // 3. Fetch and delete all other season documents from Firestore
+    const seasonsCol = collection(db, 'school_dome_seasons');
+    const seasonsSnap = await getDocs(seasonsCol);
+    const deleteSeasonPromises: Promise<void>[] = [];
+    seasonsSnap.forEach((d) => {
+      if (d.id !== freshSeason1.id) {
+        deleteSeasonPromises.push(deleteDoc(doc(db, 'school_dome_seasons', d.id)));
+      }
+    });
+    await Promise.all(deleteSeasonPromises);
+
+    // 4. Wipe all previous registrations completely so all users can register fresh for Season 1
+    const regsCol = collection(db, 'school_dome_registrations');
+    const regsSnap = await getDocs(regsCol);
+    const deleteRegPromises: Promise<void>[] = [];
+    regsSnap.forEach((d) => {
+      deleteRegPromises.push(deleteDoc(doc(db, 'school_dome_registrations', d.id)));
+    });
+    await Promise.all(deleteRegPromises);
+
+    // 5. Delete all questions from Firestore
+    const questionsCol = collection(db, 'school_dome_questions');
+    const questionsSnap = await getDocs(questionsCol);
+    const deleteQPromises: Promise<void>[] = [];
+    questionsSnap.forEach((d) => {
+      deleteQPromises.push(deleteDoc(doc(db, 'school_dome_questions', d.id)));
+    });
+    await Promise.all(deleteQPromises);
+
+    // 6. Send official announcement in Arena messages
     const annRef = doc(db, 'school_dome_messages', `ann_reset_${Date.now()}`);
     await setDoc(annRef, {
       id: annRef.id,
@@ -1940,6 +1975,18 @@ export async function deleteAllSchoolDomeSeasons(
       type: 'announcement',
       reactions: { '🔥': 5, '⚔️': 4 },
     });
+
+    // 7. Ensure local cache and broadcast remain synced
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(freshSeason1));
+        window.dispatchEvent(
+          new CustomEvent('school_dome_season_updated', {
+            detail: freshSeason1,
+          })
+        );
+      }
+    } catch {}
 
     return freshSeason1;
   } catch (err) {

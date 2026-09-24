@@ -72,6 +72,8 @@ export const AdminSchoolDomeView: React.FC = () => {
 
       const freshSeason = await deleteAllSchoolDomeSeasons(currentUser?.id, currentUser?.name);
       setCurrentSeason(freshSeason);
+      setActiveQuestion(null);
+      setQuestions([]);
       setDeleteAllSuccessMsg('All seasons and past champions have been permanently deleted! School Dome has restarted fresh from Season 1.');
       setTimeout(() => {
         setIsConfirmDeleteAllModalOpen(false);
