@@ -2516,29 +2516,29 @@ export const WalletModal: React.FC = () => {
             return (
               <div className="space-y-6">
                 {/* Header Banner with Active Current Tier Indicator */}
-                <div className="p-6 rounded-3xl bg-gradient-to-r from-[#0a1b38] via-[#0d234d] to-[#0a1b38] border border-blue-500/30 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-white">
+                <div className="p-6 rounded-3xl bg-transparent border border-slate-300 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-slate-900 dark:text-white">
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-500/30 text-blue-200 border border-blue-400/40">
+                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-transparent text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700/80">
                         Authoritative Tier System
                       </span>
-                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span>Active Tier: <strong className="text-white">{activeTierName}</strong></span>
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Active Tier: <strong className="text-slate-900 dark:text-white">{activeTierName}</strong></span>
                       </div>
                     </div>
-                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                    <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                       Scholar Membership Tiers
                     </h3>
-                    <p className="text-xs sm:text-sm text-blue-100 max-w-2xl leading-relaxed">
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
                       Upgrade your Grobaax academic tier for 2x–3x GP multiplier boosts, verified profile badges, arena priority, and unlimited Minimart seller listings.
                     </p>
                   </div>
 
                   {currentUser.subscriptionExpiry && (
-                    <div className="px-4 py-2.5 rounded-2xl bg-blue-950/80 border border-blue-400/30 text-right shrink-0">
-                      <div className="text-[10px] font-bold text-blue-200 uppercase tracking-wider">Subscription Expiry</div>
-                      <div className="text-sm font-black text-amber-300 mt-0.5">
+                    <div className="px-4 py-2.5 rounded-2xl bg-transparent border border-slate-300 dark:border-slate-700/80 text-right shrink-0">
+                      <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subscription Expiry</div>
+                      <div className="text-sm font-black text-amber-500 dark:text-amber-400 mt-0.5">
                         {new Date(currentUser.subscriptionExpiry).toLocaleDateString(undefined, {
                           month: 'short',
                           day: 'numeric',
@@ -2553,10 +2553,10 @@ export const WalletModal: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Free Scholar Base Card */}
                   <div
-                    className={`rounded-3xl p-6 sm:p-7 flex flex-col justify-between space-y-6 transition-all duration-200 relative text-white ${
+                    className={`rounded-3xl p-6 sm:p-7 flex flex-col justify-between space-y-6 transition-all duration-200 relative bg-transparent ${
                       isFreeBase
-                        ? 'bg-gradient-to-b from-[#07242c] via-[#051a21] to-[#030e13] border-2 border-emerald-400 shadow-2xl shadow-emerald-950/50 ring-2 ring-emerald-500/30'
-                        : 'bg-gradient-to-b from-[#0a1b38] via-[#071329] to-[#040a17] border border-blue-500/40 hover:border-blue-400/70 shadow-xl shadow-blue-950/40'
+                        ? 'border-2 border-emerald-500/70 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/20'
+                        : 'border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700'
                     }`}
                   >
                     {isFreeBase && (
@@ -2568,31 +2568,31 @@ export const WalletModal: React.FC = () => {
 
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <span className="px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-full bg-blue-500/20 text-blue-200 border border-blue-400/30">
+                        <span className="px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-full bg-transparent text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700/80">
                           {freeScholarPlan?.badgeLabel || 'Free Forever'}
                         </span>
-                        <span className="text-[11px] font-mono text-blue-200 bg-blue-950/80 px-2.5 py-0.5 rounded-md border border-blue-500/20">
+                        <span className="text-[11px] font-mono text-slate-600 dark:text-slate-300 bg-transparent px-2.5 py-0.5 rounded-md border border-slate-300 dark:border-slate-700/80">
                           Lifetime
                         </span>
                       </div>
 
                       <div>
-                        <h4 className="font-black text-xl sm:text-2xl text-white tracking-tight">
+                        <h4 className="font-black text-xl sm:text-2xl text-slate-900 dark:text-white tracking-tight">
                           {freeScholarPlan?.name || 'Free Scholar'}
                         </h4>
-                        <div className="text-3xl sm:text-4xl font-black text-white mt-1.5 tracking-tight flex items-baseline gap-1.5">
-                          ₦0 <span className="text-xs font-semibold text-blue-200">/ Lifetime</span>
+                        <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mt-1.5 tracking-tight flex items-baseline gap-1.5">
+                          ₦0 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">/ Lifetime</span>
                         </div>
-                        <p className="text-xs sm:text-sm text-blue-100/90 mt-2 leading-relaxed">
+                        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
                           {freeScholarPlan?.shortDescription || 'Standard academic access to campus discussions and basic quizzes.'}
                         </p>
                       </div>
 
-                      <div className="border-t border-blue-500/20 pt-4">
-                        <div className="text-[11px] font-bold text-blue-200 uppercase tracking-wider mb-3">
+                      <div className="border-t border-slate-200 dark:border-slate-800/80 pt-4">
+                        <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
                           Standard Privileges:
                         </div>
-                        <ul className="space-y-3 text-xs sm:text-sm text-white">
+                        <ul className="space-y-3 text-xs sm:text-sm">
                           {(freeScholarPlan?.benefits && freeScholarPlan.benefits.length > 0
                             ? freeScholarPlan.benefits
                             : [
@@ -2612,11 +2612,11 @@ export const WalletModal: React.FC = () => {
                             return (
                               <li key={bIdx} className="flex items-start gap-2.5">
                                 {isUnavailable ? (
-                                  <XCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                                  <XCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                                 ) : (
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                                 )}
-                                <span className={`leading-snug font-medium ${isUnavailable ? 'text-slate-300' : 'text-white'}`}>
+                                <span className={`leading-snug font-medium ${isUnavailable ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
                                   {benefit}
                                 </span>
                               </li>
@@ -2630,13 +2630,13 @@ export const WalletModal: React.FC = () => {
                       disabled
                       className={`w-full py-3.5 font-black text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 border transition ${
                         isFreeBase
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/60 shadow-sm cursor-default'
-                          : 'bg-slate-900/80 text-slate-400 border-slate-700 cursor-not-allowed'
+                          ? 'bg-transparent text-emerald-600 dark:text-emerald-400 border-emerald-500/50 shadow-sm cursor-default'
+                          : 'bg-transparent text-slate-400 dark:text-slate-500 border-slate-300 dark:border-slate-800 cursor-not-allowed'
                       }`}
                     >
                       {isFreeBase ? (
                         <>
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                           <span>Active Current Tier</span>
                         </>
                       ) : (
@@ -2667,12 +2667,12 @@ export const WalletModal: React.FC = () => {
                     return (
                       <div
                         key={plan.id || plan.planId}
-                        className={`rounded-3xl p-6 sm:p-7 flex flex-col justify-between space-y-6 relative transition-all duration-200 text-white ${
+                        className={`rounded-3xl p-6 sm:p-7 flex flex-col justify-between space-y-6 relative transition-all duration-200 bg-transparent ${
                           isCurrent
-                            ? 'bg-gradient-to-b from-[#07242c] via-[#051a21] to-[#030e13] border-2 border-emerald-400 shadow-2xl shadow-emerald-950/50 ring-2 ring-emerald-500/30'
+                            ? 'border-2 border-emerald-500/70 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/20'
                             : plan.featured
-                            ? 'bg-gradient-to-b from-[#0f2349] via-[#0c1c3c] to-[#071126] border-2 border-blue-400 shadow-2xl shadow-blue-900/60 ring-2 ring-blue-500/30 hover:border-cyan-300'
-                            : 'bg-gradient-to-b from-[#0a1b38] via-[#071329] to-[#040a17] border border-blue-500/40 hover:border-blue-400/70 shadow-xl shadow-blue-950/40'
+                            ? 'border-2 border-blue-500/60 hover:border-blue-400/80 shadow-lg shadow-blue-500/5'
+                            : 'border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700'
                         }`}
                       >
                         {isCurrent ? (
@@ -2681,7 +2681,7 @@ export const WalletModal: React.FC = () => {
                             Active Current Tier
                           </div>
                         ) : plan.featured ? (
-                          <div className="absolute -top-3 right-5 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-blue-400 to-cyan-300 text-slate-950 shadow-md">
+                          <div className="absolute -top-3 right-5 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-600 text-white shadow-md">
                             Featured Choice
                           </div>
                         ) : null}
@@ -2689,41 +2689,41 @@ export const WalletModal: React.FC = () => {
                         <div className="space-y-4">
                           <div className="flex items-center gap-2">
                             {plan.badgeLabel && (
-                              <span className="px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-full bg-blue-500/20 text-blue-200 border border-blue-400/30 inline-block">
+                              <span className="px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-full bg-transparent text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700/80 inline-block">
                                 {plan.badgeLabel}
                               </span>
                             )}
-                            <span className="text-[11px] text-blue-200 font-mono bg-blue-950/80 px-2.5 py-0.5 rounded-md border border-blue-500/20">
+                            <span className="text-[11px] text-slate-600 dark:text-slate-300 font-mono bg-transparent px-2.5 py-0.5 rounded-md border border-slate-300 dark:border-slate-700/80">
                               {plan.durationValue} {plan.durationUnit}
                             </span>
                           </div>
 
                           <div>
-                            <h4 className="font-black text-xl sm:text-2xl text-white tracking-tight">
+                            <h4 className="font-black text-xl sm:text-2xl text-slate-900 dark:text-white tracking-tight">
                               {plan.name}
                             </h4>
-                            <div className="text-3xl sm:text-4xl font-black text-white mt-1.5 tracking-tight flex items-baseline gap-1.5">
+                            <div className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mt-1.5 tracking-tight flex items-baseline gap-1.5">
                               ₦{plan.priceNaira.toLocaleString()}{' '}
-                              <span className="text-xs sm:text-sm font-semibold text-blue-200">
+                              <span className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400">
                                 / {plan.durationValue} {plan.durationUnit}
                               </span>
                             </div>
                             {plan.shortDescription && (
-                              <p className="text-xs sm:text-sm text-blue-100/90 mt-2 leading-relaxed font-normal">
+                              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed font-normal">
                                 {plan.shortDescription}
                               </p>
                             )}
                           </div>
 
                           {/* Benefits list */}
-                          <div className="border-t border-blue-500/20 pt-4">
-                            <div className="text-[11px] font-bold text-blue-200 uppercase tracking-wider mb-3">
+                          <div className="border-t border-slate-200 dark:border-slate-800/80 pt-4">
+                            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
                               Tier Benefits:
                             </div>
-                            <ul className="space-y-3 text-xs sm:text-sm text-white">
+                            <ul className="space-y-3 text-xs sm:text-sm text-slate-800 dark:text-slate-200">
                               {plan.benefits.map((benefit, idx) => (
                                 <li key={idx} className="flex items-start gap-2.5">
-                                  <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                                   <span className="leading-snug font-medium">{benefit}</span>
                                 </li>
                               ))}
@@ -2736,7 +2736,7 @@ export const WalletModal: React.FC = () => {
                               {plan.features.map((feat, idx) => (
                                 <span
                                   key={idx}
-                                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-blue-950/90 text-blue-200 border border-blue-400/30"
+                                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-transparent text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700/80"
                                 >
                                   {feat}
                                 </span>
@@ -2751,17 +2751,17 @@ export const WalletModal: React.FC = () => {
                             setSelectedPlanForUpgrade(plan);
                           }}
                           disabled={isCurrent}
-                          className={`w-full py-3.5 font-black text-xs sm:text-sm rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] ${
+                          className={`w-full py-3.5 font-black text-xs sm:text-sm rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] ${
                             isCurrent
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/60 cursor-default shadow-sm'
+                              ? 'bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/50 cursor-default'
                               : plan.featured
-                              ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-600/40 hover:shadow-blue-500/60'
-                              : 'bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white shadow-blue-900/40'
+                              ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/30'
+                              : 'bg-slate-800 hover:bg-slate-700 text-white dark:bg-slate-800 dark:hover:bg-slate-700'
                           }`}
                         >
                           {isCurrent ? (
                             <>
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                               <span>Active Current Tier</span>
                             </>
                           ) : (
