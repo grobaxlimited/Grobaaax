@@ -40,10 +40,16 @@ export function AdminContactSupportView() {
 
   useEffect(() => {
     const unsub = subscribeContactSupportConfig((c) => {
-      setConfig(c);
+      setConfig((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(c)) return prev;
+        return c;
+      });
       // Only sync remote data into form if the admin does NOT have uncommitted edits in progress
       if (!isDirtyRef.current) {
-        setFormData(c);
+        setFormData((prev) => {
+          if (JSON.stringify(prev) === JSON.stringify(c)) return prev;
+          return c;
+        });
       }
     });
     return () => unsub();

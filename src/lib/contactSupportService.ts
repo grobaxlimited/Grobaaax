@@ -76,19 +76,32 @@ export function getCachedContactSupportConfig(): ContactSupportConfig {
 export function subscribeContactSupportConfig(
   callback: (config: ContactSupportConfig) => void
 ): () => void {
+  let lastEmittedJson = '';
+
+  const emitSafely = (cfg: ContactSupportConfig) => {
+    try {
+      const json = JSON.stringify(cfg);
+      if (json === lastEmittedJson) return;
+      lastEmittedJson = json;
+      callback(cfg);
+    } catch {
+      callback(cfg);
+    }
+  };
+
   // Emit local cache immediately
-  callback(getCachedContactSupportConfig());
+  emitSafely(getCachedContactSupportConfig());
 
   // Listen to in-window instant broadcast
   const handleLocalUpdate = (e: any) => {
     if (e?.detail) {
-      callback(e.detail);
+      emitSafely(e.detail);
     }
   };
   const handleStorage = (e: StorageEvent) => {
     if (e.key === LOCAL_STORAGE_KEY && e.newValue) {
       try {
-        callback({ ...DEFAULT_CONTACT_SUPPORT_CONFIG, ...JSON.parse(e.newValue) });
+        emitSafely({ ...DEFAULT_CONTACT_SUPPORT_CONFIG, ...JSON.parse(e.newValue) });
       } catch {}
     }
   };
@@ -114,20 +127,22 @@ export function subscribeContactSupportConfig(
               ...data,
             };
             try {
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
+              const currentCached = localStorage.getItem(LOCAL_STORAGE_KEY);
+              const serialized = JSON.stringify(merged);
+              if (currentCached !== serialized) {
+                localStorage.setItem(LOCAL_STORAGE_KEY, serialized);
+              }
             } catch {}
-            callback(merged);
+            emitSafely(merged);
           }
         } else {
-          // Initialize if document does not exist yet by publishing the active local cached config
-          const cached = getCachedContactSupportConfig();
-          setDoc(docRef, cached, { merge: true }).catch(() => {});
-          callback(cached);
+          // If remote doc is not yet written, emit the local cached config without recursive write
+          emitSafely(getCachedContactSupportConfig());
         }
       },
       (err) => {
         console.warn('Contact support config snapshot notice:', err);
-        callback(getCachedContactSupportConfig());
+        emitSafely(getCachedContactSupportConfig());
       }
     );
   } catch (err) {

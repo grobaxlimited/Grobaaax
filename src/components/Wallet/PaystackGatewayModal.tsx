@@ -381,12 +381,18 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
 
   // Countdown timer
   useEffect(() => {
-    if (timeLeft <= 0 || paymentStep === 'success') return;
+    if (paymentStep === 'success') return;
     const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, paymentStep]);
+  }, [paymentStep]);
 
   // Manual check payment status
   const handleManualVerify = async () => {

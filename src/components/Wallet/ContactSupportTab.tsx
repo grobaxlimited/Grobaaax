@@ -45,7 +45,10 @@ export const ContactSupportTab: React.FC<ContactSupportTabProps> = ({
 
   useEffect(() => {
     const unsub = subscribeContactSupportConfig((c) => {
-      setConfig(c);
+      setConfig((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(c)) return prev;
+        return c;
+      });
     });
     return () => unsub();
   }, []);
