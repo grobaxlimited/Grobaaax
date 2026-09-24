@@ -142,8 +142,8 @@ export const HomeTab: React.FC = () => {
                 <div className="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
                   <Swords className="w-5 h-5" />
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                       School Dome Arena
                     </h2>
@@ -151,6 +151,13 @@ export const HomeTab: React.FC = () => {
                       CHAMPIONSHIP
                     </span>
                   </div>
+
+                  {/* Starting Schedule Badge */}
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 dark:bg-amber-500/25 border border-amber-500/40 text-amber-800 dark:text-amber-200 text-[10.5px] font-extrabold tracking-tight">
+                    <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>Saturday &amp; Sunday • 5:00 PM</span>
+                  </div>
+
                   <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                     Represent your institution as the Last School Standing! Survive elimination rounds of rapid academic questions to claim achievement and your equal share of the grand GP prize pool.
                   </p>
@@ -173,8 +180,8 @@ export const HomeTab: React.FC = () => {
                 <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 group-hover:scale-105 transition-transform">
                   <Trophy className="w-5 h-5" />
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       Daily GP Grab
                     </h2>
@@ -182,6 +189,13 @@ export const HomeTab: React.FC = () => {
                       LIVE
                     </span>
                   </div>
+
+                  {/* Starting Schedule Badge */}
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/15 dark:bg-blue-500/25 border border-blue-500/40 text-blue-800 dark:text-blue-200 text-[10.5px] font-extrabold tracking-tight">
+                    <Clock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                    <span>Monday to Friday • 5:00 PM</span>
+                  </div>
+
                   <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                     Participate in daily real-time search queries and challenge questions to boost your knowledge and earn GP points.
                   </p>
