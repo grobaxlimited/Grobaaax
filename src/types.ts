@@ -815,6 +815,10 @@ export interface SystemSettings {
   enableGusRegistration: boolean;
   announcementBannerText?: string;
   announcementBannerActive?: boolean;
+  welcomeVideoUrl?: string;
+  welcomeVideoTitle?: string;
+  welcomeVideoDescription?: string;
+  welcomeVideoActive?: boolean;
   updatedAt?: string;
   updatedByUid?: string;
 }

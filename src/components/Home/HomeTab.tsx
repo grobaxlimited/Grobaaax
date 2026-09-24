@@ -31,7 +31,9 @@ import {
   BookOpen,
   Smartphone,
   Swords,
+  Lightbulb,
 } from 'lucide-react';
+import { WelcomeVideoBox } from './WelcomeVideoBox';
 
 export const HomeTab: React.FC = () => {
   const {
@@ -42,6 +44,7 @@ export const HomeTab: React.FC = () => {
     navigateToCommunitySubTab,
     navigateToEventChannel,
     openWalletModal,
+    systemSettings,
   } = useApp();
 
   // Clear home notification badge when user views Home tab
@@ -98,23 +101,33 @@ export const HomeTab: React.FC = () => {
         className="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 sm:p-8 lg:p-10 border border-slate-200 dark:border-slate-800 shadow-sm"
       >
         <div className="relative space-y-6">
-          <div className="space-y-2.5 max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider">
-              <GraduationCap className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-              <span>Campus Academic Hub</span>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-2.5 max-w-2xl flex-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider">
+                <GraduationCap className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+                <span>Campus Academic Hub</span>
+              </div>
+
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
+                Welcome to Grobaax
+              </h1>
+
+              <p className="text-sm sm:text-base lg:text-lg font-bold text-blue-600 dark:text-blue-400">
+                Represent your school title, conquer academic arenas, and connect with scholars nationwide.
+              </p>
+
+              <p className="text-xs sm:text-sm lg:text-base text-slate-600 dark:text-slate-300 max-w-3xl leading-relaxed font-medium">
+                Grobaax is an education-focused platform where students discover useful academic resources in the <strong>Academic Library</strong>, test knowledge through <strong>Daily GP Grab</strong>, represent their institution as the last school standing in the <strong>School Dome Arena</strong>, recharge instant <strong>VTU Airtime & Data</strong>, connect with fellow scholars via the <strong>Campus Mini Mart</strong>, build verified student networks on <strong>Campus</strong>, and unlock strategic competition intelligence in <strong>Hints</strong>.
+              </p>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
-              Welcome to Grobaax
-            </h1>
-
-            <p className="text-sm sm:text-base lg:text-lg font-bold text-blue-600 dark:text-blue-400">
-              Represent your school title, conquer academic arenas, and connect with scholars nationwide.
-            </p>
-
-            <p className="text-xs sm:text-sm lg:text-base text-slate-600 dark:text-slate-300 max-w-3xl leading-relaxed font-medium">
-              Grobaax is an education-focused platform where students discover useful academic resources in the <strong>Academic Library</strong>, test knowledge through <strong>Daily GP Grab</strong>, represent their institution as the last school standing in the <strong>School Dome Arena</strong>, recharge instant <strong>VTU Airtime & Data</strong>, connect with fellow scholars via the <strong>Campus Mini Mart</strong>, and build verified student networks on <strong>Campus</strong>.
-            </p>
+            {/* YouTube Platform Guide Video Animation Box */}
+            <WelcomeVideoBox
+              videoUrl={systemSettings?.welcomeVideoUrl}
+              title={systemSettings?.welcomeVideoTitle}
+              description={systemSettings?.welcomeVideoDescription}
+              isActive={systemSettings?.welcomeVideoActive !== false}
+            />
           </div>
 
           {/* Academic & Platform Pillars Quick Action / Highlight Grid */}
@@ -301,6 +314,37 @@ export const HomeTab: React.FC = () => {
 
               <div className="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
                 <span>Explore Campus</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+
+            {/* 6. Hints Pillar Card */}
+            <div
+              id="home-pillar-hints-card"
+              onClick={() => setActiveTab('hints')}
+              className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
+                  <Lightbulb className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                      Hints
+                    </h2>
+                    <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 text-[9px] font-black border border-amber-500/30">
+                      STRATEGY
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Access official competition hints, syllabus breakdowns, and tactical question clues for Daily GP Grab and School Dome Arena.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
+                <span>Explore Hints</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
