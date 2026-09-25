@@ -7,7 +7,6 @@ import { HomeTab } from './components/Home/HomeTab';
 import { ChatroomLiveView } from './components/Community/ChatroomLive/ChatroomLiveView';
 import { SchoolDomeView } from './components/SchoolDome/SchoolDomeView';
 import { CommunityTab } from './components/Community/CommunityTab';
-import { LibraryTab } from './components/Library/LibraryTab';
 import { HintsView } from './components/Hints/HintsView';
 import { WalletModal } from './components/Wallet/WalletModal';
 import { AuthModal } from './components/Auth/AuthModal';
@@ -131,7 +130,6 @@ function MainLayout() {
             <HintsView />
           </div>
         )}
-        {activeTab === 'library' && <LibraryTab />}
         {activeTab === 'community' && <CommunityTab />}
       </main>
 

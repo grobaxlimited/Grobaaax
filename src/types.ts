@@ -190,7 +190,7 @@ export type AdminTabType =
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 
-export type TabType = 'home' | 'gus' | 'daily_qa' | 'school_dome' | 'school_dome_results' | 'hints' | 'library' | 'community';
+export type TabType = 'home' | 'gus' | 'daily_qa' | 'school_dome' | 'school_dome_results' | 'hints' | 'community';
 
 // ==========================================
 // GROBAAX COMPETITION HINTS TYPES & SCHEMAS

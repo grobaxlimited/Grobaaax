@@ -534,42 +534,41 @@ export function subscribeSchoolDomeActiveSeason(
       limit(1)
     );
 
+    let lastSeasonJson = '';
+
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
         if (!snapshot.empty) {
           const docData = snapshot.docs[0].data() as SchoolDomeSeason;
           const fullSeason = { ...docData, id: snapshot.docs[0].id };
-          try {
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(fullSeason));
-            }
-          } catch {}
-          callback(fullSeason);
+          const seasonJson = JSON.stringify(fullSeason);
+          if (seasonJson !== lastSeasonJson) {
+            lastSeasonJson = seasonJson;
+            try {
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('grobax_school_dome_active_season', seasonJson);
+              }
+            } catch {}
+            callback(fullSeason);
+          }
         } else {
-          // If no season documents exist in Firestore, initialize a pristine Season 1
-          const freshFallback: SchoolDomeSeason = {
-            ...DEFAULT_INITIAL_SEASON,
-            status: 'active',
-            isRegistrationLocked: false,
-            firstQuestionLaunched: false,
-            registeredUserIds: [],
-            activeUserIds: [],
-            eliminatedUserIds: [],
-            winners: [],
-            createdAt: Date.now(),
-            startedAt: Date.now(),
-          };
+          // If no season documents exist, return pristine fallback Season 1 without mutative writes inside the listener
+          let fallback = DEFAULT_INITIAL_SEASON;
           try {
             if (typeof window !== 'undefined') {
-              localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(freshFallback));
+              const stored = localStorage.getItem('grobax_school_dome_active_season');
+              if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed) fallback = { ...DEFAULT_INITIAL_SEASON, ...parsed };
+              }
             }
           } catch {}
-          // Initialize fresh season 1 in Firestore
-          setDoc(doc(db, 'school_dome_seasons', freshFallback.id), freshFallback).catch(
-            () => {}
-          );
-          callback(freshFallback);
+          const fallbackJson = JSON.stringify(fallback);
+          if (fallbackJson !== lastSeasonJson) {
+            lastSeasonJson = fallbackJson;
+            callback(fallback);
+          }
         }
       },
       (err) => {
@@ -586,7 +585,11 @@ export function subscribeSchoolDomeActiveSeason(
             }
           }
         } catch {}
-        callback(fallback);
+        const fallbackJson = JSON.stringify(fallback);
+        if (fallbackJson !== lastSeasonJson) {
+          lastSeasonJson = fallbackJson;
+          callback(fallback);
+        }
       }
     );
 

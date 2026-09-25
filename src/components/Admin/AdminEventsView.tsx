@@ -787,7 +787,6 @@ export function AdminEventsView() {
                       <option value="school_dome">School Dome Arena</option>
                       <option value="daily_qa">Daily GP Grab</option>
                       <option value="community">Community / Campus / Mini Mart</option>
-                      <option value="library">AI Academic Library & Assistant</option>
                       <option value="home">Home Hub</option>
                       <option value="profile">Student Profile Hub</option>
                     </select>

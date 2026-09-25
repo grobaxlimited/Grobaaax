@@ -280,16 +280,6 @@ export function AdminNotificationsView() {
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0 pt-1">
-                    {(notif.type === 'academic_library' || notif.actionUrl?.includes('library')) && (
-                      <button
-                        onClick={() => setAdminActiveTab('library')}
-                        title="Review in Vault"
-                        className="px-2.5 py-1 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-[11px] flex items-center gap-1 transition shadow-xs cursor-pointer"
-                      >
-                        <BookOpen className="w-3.5 h-3.5" />
-                        <span>Vault</span>
-                      </button>
-                    )}
                     <button
                       onClick={() => setPreviewNotif(notif)}
                       title="Preview Notification Modal"

@@ -19,9 +19,12 @@ export function useDevicePlatform(): DevicePlatform {
       (/iphone|ipad|ipod/.test(ua) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
-    const isStandaloneMedia = window.matchMedia('(display-mode: standalone)').matches;
+    const isStandaloneMedia =
+      typeof window.matchMedia === 'function'
+        ? window.matchMedia('(display-mode: standalone)').matches
+        : false;
     const isNavigatorStandalone =
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+      (window.navigator as unknown as { standalone?: boolean })?.standalone === true;
 
     // Optional query param / local override for platform testing
     let forcedIOS = false;
@@ -54,9 +57,12 @@ export function useDevicePlatform(): DevicePlatform {
         (/iphone|ipad|ipod/.test(ua) ||
           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
-      const isStandaloneMedia = window.matchMedia('(display-mode: standalone)').matches;
+      const isStandaloneMedia =
+        typeof window.matchMedia === 'function'
+          ? window.matchMedia('(display-mode: standalone)').matches
+          : false;
       const isNavigatorStandalone =
-        (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+        (window.navigator as unknown as { standalone?: boolean })?.standalone === true;
 
       let forcedIOS = false;
       let forcedAndroid = false;

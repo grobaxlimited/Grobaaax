@@ -68,11 +68,9 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
     const isAdminUser = userRoleStr === 'admin' || userRoleStr === 'super_admin';
 
     if (
-      notification.targetRole === 'admin' ||
-      notification.actionUrl?.includes('admin:library') ||
-      (isAdminUser && notification.type === 'academic_library')
+      notification.targetRole === 'admin'
     ) {
-      navigateToAdminTab('library');
+      navigateToAdminTab('dashboard');
       return;
     }
 
@@ -114,10 +112,6 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
         }
         return;
       }
-      if (target.includes('library')) {
-        setActiveTab('library');
-        return;
-      }
       if (target.includes('hint')) {
         setActiveTab('hints');
         return;
@@ -157,8 +151,6 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
       openWalletModal('history');
     } else if (notification.type === 'gus') {
       setActiveTab('gus');
-    } else if (notification.type === 'academic_library' || notification.type === 'library') {
-      setActiveTab('library');
     } else {
       setActiveTab('home');
     }
@@ -186,9 +178,6 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
     }
     if (target.includes('campus') || notification.type === 'campus') {
       return { label: 'Open Campus Connections & Chat', icon: <GraduationCap className="w-4 h-4 text-blue-300" /> };
-    }
-    if (target.includes('library') || notification.type === 'academic_library') {
-      return { label: 'Go to Academic Vault', icon: <BookOpen className="w-4 h-4 text-teal-300" /> };
     }
     if (target.includes('hint') || notification.type === 'hints' || notification.type === 'hint') {
       return { label: 'Explore Competition Hints', icon: <Lightbulb className="w-4 h-4 text-amber-300" /> };

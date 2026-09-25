@@ -133,19 +133,17 @@ export const InAppPushToast: React.FC = () => {
     const isAdminUser = userRoleStr === 'admin' || userRoleStr === 'super_admin';
 
     if (
-      activeToast.targetRole === 'admin' ||
-      activeToast.actionUrl?.includes('admin:library') ||
-      (isAdminUser && activeToast.type === 'academic_library')
+      activeToast.targetRole === 'admin'
     ) {
-      navigateToAdminTab('library');
+      navigateToAdminTab('dashboard');
       setActiveToast(null);
       return;
     }
 
     if (activeToast.actionUrl) {
       const target = activeToast.actionUrl.toLowerCase();
-      if (target.includes('admin') && target.includes('library')) {
-        navigateToAdminTab('library');
+      if (target.includes('admin')) {
+        navigateToAdminTab('dashboard');
       } else if (target.includes('upgrade') || target.includes('membership') || target.includes('tier')) {
         openWalletModal('upgrade');
       } else if (target.startsWith('wallet:')) {
@@ -169,8 +167,6 @@ export const InAppPushToast: React.FC = () => {
         }
       } else if (target.includes('community') || target.includes('feed') || target.includes('minimart')) {
         setActiveTab('community');
-      } else if (target.includes('library') || target.includes('past_question')) {
-        setActiveTab('library');
       } else {
         setActiveTab('home');
       }
@@ -184,8 +180,6 @@ export const InAppPushToast: React.FC = () => {
       }
     } else if (activeToast.type === 'dome' || activeToast.type === 'league') {
       setActiveTab('home');
-    } else if (activeToast.type === 'academic_library' || activeToast.type === 'library') {
-      setActiveTab('library');
     } else if (activeToast.type === 'gus') {
       setActiveTab('gus');
     } else if (activeToast.type === 'minimart') {

@@ -77,14 +77,6 @@ export function resolveEventChannel(event: PlatformEventItem): EventTargetChanne
         badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
       };
     }
-    if (event.targetTab === 'library' || (event.targetTab as string) === 'ai') {
-      return {
-        tab: 'library',
-        label: 'AI Handout Library',
-        actionText: 'Open Academic Library',
-        badgeClass: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
-      };
-    }
     if (event.targetTab === 'hints') {
       return {
         tab: 'hints',
@@ -140,14 +132,6 @@ export function resolveEventChannel(event: PlatformEventItem): EventTargetChanne
       label: 'Campus Mini Mart',
       actionText: 'Explore Mini Mart',
       badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-    };
-  }
-  if (lower.includes('library') || lower.includes('handout') || lower.includes('curriculum') || lower.includes('exam')) {
-    return {
-      tab: 'library',
-      label: 'AI Academic Library',
-      actionText: 'Open Academic Library',
-      badgeClass: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
     };
   }
   if (lower.includes('announc') || lower.includes('circular') || lower.includes('official notice')) {

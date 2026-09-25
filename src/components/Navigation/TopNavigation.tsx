@@ -71,7 +71,6 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
     { id: 'daily_qa', label: 'Daily GP Grab', icon: Trophy, badgeKey: 'daily_qa' },
     { id: 'school_dome', label: 'School Dome', icon: Swords, badgeKey: 'school_dome' },
     { id: 'hints', label: 'Hints', icon: Lightbulb, badgeKey: 'hints' },
-    { id: 'library', label: 'Library', icon: BookOpen, badgeKey: 'library' },
     { id: 'community', label: 'Community', icon: Users, badgeKey: 'community' },
   ];
 

@@ -13,7 +13,7 @@ interface WelcomeVideoBoxProps {
 export const WelcomeVideoBox: React.FC<WelcomeVideoBoxProps> = ({
   videoUrl,
   title = 'How Grobaax Works: Complete Guide & Walkthrough',
-  description = 'Watch this quick video walkthrough to learn every platform function, earn GP in Daily GP Grab, battle in School Dome Arena, generate handouts in Library, and connect on Campus.',
+  description = 'Watch this quick video walkthrough to learn every platform function, earn GP in Daily GP Grab, battle in School Dome Arena, redeem Airtime & Data 24/7, and connect on Campus.',
   isActive = true,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);

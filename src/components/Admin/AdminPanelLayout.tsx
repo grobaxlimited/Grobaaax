@@ -22,7 +22,6 @@ import { AdminWithdrawalsView } from './AdminWithdrawalsView';
 import { AdminChatroomLiveView } from './AdminChatroomLiveView';
 import { AdminNotificationsView } from './AdminNotificationsView';
 import { AdminSettingsView } from './AdminSettingsView';
-import { AdminLibraryView } from './AdminLibraryView';
 import { AdminAirtimeDataView } from './AdminAirtimeDataView';
 import { AdminTransactionsView } from './AdminTransactionsView';
 import { AdminSchoolDomeView } from './AdminSchoolDomeView';
@@ -83,13 +82,11 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
 
-  // Filter alerts relevant to administrators (including Past Question submissions)
+  // Filter alerts relevant to administrators
   const adminAlerts = (notifications || []).filter(
     (n) =>
       n.targetRole === 'admin' ||
-      n.type === 'academic_library' ||
-      n.actionUrl?.includes('admin') ||
-      n.actionUrl?.includes('library')
+      n.actionUrl?.includes('admin')
   );
   const unreadAlertsCount = adminAlerts.filter((n) => !n.isRead).length;
 
@@ -161,7 +158,6 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
     {
       title: 'OPERATIONS & SYSTEM',
       items: [
-        { id: 'library' as AdminTabType, label: 'AI Handout Library', icon: BookOpen, badge: 'AI' },
         { id: 'notifications' as AdminTabType, label: 'Notifications Dispatcher', icon: Bell },
         { id: 'contact' as AdminTabType, label: 'Contact Channels & Support', icon: Headphones, badge: 'Channels' },
         { id: 'settings' as AdminTabType, label: 'System Settings', icon: Settings },
@@ -228,8 +224,6 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
         return <AdminSettingsView />;
       case 'contact':
         return <AdminContactSupportView />;
-      case 'library':
-        return <AdminLibraryView />;
       case 'hints':
         return <AdminHintsView />;
       default:
@@ -367,12 +361,12 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
                                 <button
                                   onClick={() => {
                                     markNotificationRead(alert.id);
-                                    setActiveTab('library');
+                                    setActiveTab('dashboard');
                                     setIsAlertsOpen(false);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-xs cursor-pointer transition"
+                                  className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-xs cursor-pointer transition"
                                 >
-                                  <span>Review in Vault</span>
+                                  <span>View Dashboard</span>
                                   <ChevronRight className="w-3 h-3" />
                                 </button>
                               </div>

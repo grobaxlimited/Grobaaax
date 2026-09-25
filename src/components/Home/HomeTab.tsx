@@ -28,7 +28,6 @@ import {
   Compass,
   Building2,
   Users,
-  BookOpen,
   Smartphone,
   Swords,
   Lightbulb,
@@ -117,7 +116,7 @@ export const HomeTab: React.FC = () => {
               </p>
 
               <p className="text-xs sm:text-sm lg:text-base text-slate-600 dark:text-slate-300 max-w-3xl leading-relaxed font-medium">
-                Grobaax is an education-focused platform where students discover useful academic resources in the <strong>Academic Library</strong>, test knowledge through <strong>Daily GP Grab</strong>, represent their institution as the last school standing in the <strong>School Dome Arena</strong>, recharge instant <strong>VTU Airtime & Data</strong>, connect with fellow scholars via the <strong>Campus Mini Mart</strong>, build verified student networks on <strong>Campus</strong>, and unlock strategic competition intelligence in <strong>Hints</strong>.
+                Grobaax is an education-focused platform where students test knowledge through <strong>Daily GP Grab</strong>, represent their institution as the last school standing in the <strong>School Dome Arena</strong>, access 24/7 <strong>Airtime and Data Redemption</strong>, connect with fellow scholars via the <strong>Campus Mini Mart</strong>, build verified student networks on <strong>Campus</strong>, and unlock strategic competition intelligence in <strong>Hints</strong>.
               </p>
             </div>
 
@@ -208,64 +207,40 @@ export const HomeTab: React.FC = () => {
               </div>
             </div>
 
-            {/* 2. Academic Library Pillar Card */}
+            {/* 3. Airtime & Data Redemption Pillar Card */}
             <div
-              id="home-pillar-library-card"
-              onClick={() => setActiveTab('library')}
-              className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0 group-hover:scale-105 transition-transform">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
-                      Academic Library
-                    </h2>
-                    <span className="px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-600 dark:text-sky-300 text-[9px] font-black border border-sky-500/30">
-                      LIBRARY
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Generate study-grade, curriculum-aligned academic handouts, worked examples, and exam review questions tailored to your exact Nigerian tertiary institution.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-sky-600 dark:text-sky-400">
-                <span>Generate Academic Handouts</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* 3. Instant VTU Services (Airtime & Data) Pillar Card */}
-            <div
-              id="home-pillar-vtu-card"
+              id="home-pillar-airtime-data-card"
               onClick={() => openWalletModal('airtime_data')}
-              className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+              className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-slate-50 to-emerald-500/5 dark:from-emerald-950/20 dark:via-slate-800/80 dark:to-slate-900 hover:bg-white dark:hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-500/60 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
             >
               <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
+                <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
                   <Smartphone className="w-5 h-5" />
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                      Instant VTU Services
+                      Airtime and Data Redemption
                     </h2>
-                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 text-[9px] font-black border border-emerald-500/30">
-                      VTU
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[9px] font-black border border-emerald-500/30">
+                      24/7 ACTIVE
                     </span>
                   </div>
+
+                  {/* 24/7 Availability Badge */}
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 dark:bg-emerald-500/25 border border-emerald-500/40 text-emerald-800 dark:text-emerald-200 text-[10.5px] font-extrabold tracking-tight">
+                    <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Redemption Available 24/7 • Instant Delivery</span>
+                  </div>
+
                   <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Instant airtime recharge and affordable mobile data bundles for MTN, Airtel, Glo, and 9mobile directly from your student dashboard.
+                    Automated 24/7 airtime recharge and affordable high-speed data bundles for MTN, Airtel, Glo, and 9mobile. Redeem your earned GP points or wallet balance anytime, round the clock.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                <span>Recharge Airtime & Data</span>
+              <div className="mt-4 pt-3 border-t border-emerald-500/20 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <span>Redeem Airtime &amp; Data (24/7)</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
