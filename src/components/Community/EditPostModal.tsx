@@ -165,6 +165,7 @@ export const EditPostModal: React.FC<EditPostModalProps> = ({ post, isOpen, onCl
                 verified={post.author.verified !== false}
                 isPremium={Boolean(post.author.isPremium)}
                 membershipTier={post.author.membershipTier || post.author.subscriptionTier}
+                subscriptionExpiry={(post.author as any).subscriptionExpiry}
                 equippedBadge={post.author.equippedBadge}
                 role={post.author.role}
                 isStaffOrAdmin={post.author.isStaffOrAdmin}

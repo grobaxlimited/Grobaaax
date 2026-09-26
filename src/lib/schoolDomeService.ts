@@ -15,6 +15,7 @@ import {
   increment,
   writeBatch,
   deleteDoc,
+  isSubscriptionExpired,
 } from './firebase';
 import {
   SchoolDomeSeason,
@@ -72,9 +73,7 @@ export function checkScholarSchoolDomePlanEligibility(
   const rawPlanId = ((user?.activePlanId || user?.planId || user?.tier || '') + '').toLowerCase();
   const subPlanName = ((user?.subscriptionPlan || '') + '').toLowerCase();
 
-  const isExpired = user?.subscriptionExpiry
-    ? new Date(user.subscriptionExpiry).getTime() <= Date.now()
-    : false;
+  const isExpired = !isStaffOrAdmin && isSubscriptionExpired(user);
 
   const isVip = isStaffOrAdmin || (!isExpired && Boolean(
     user?.isVip ||
@@ -105,16 +104,17 @@ export function checkScholarSchoolDomePlanEligibility(
 
   const userTierName: 'free' | 'premium' | 'vip' = isVip ? 'vip' : isPremium ? 'premium' : 'free';
 
-  const userPlanName =
-    (user?.subscriptionPlan && !user.subscriptionPlan.toLowerCase().includes('free') && user.subscriptionPlan) ||
-    (user?.subscriptionTier && !user.subscriptionTier.toLowerCase().includes('free') && user.subscriptionTier) ||
-    (user?.membershipTier && !user.membershipTier.toLowerCase().includes('free') && user.membershipTier) ||
-    (rawPlanId === 'plan_titan_naira' ? 'Grobaax Titan Annual VIP' :
-     rawPlanId === 'plan_pro_naira' ? 'Champions Pro Scholar' :
-     rawPlanId === 'plan_basic_naira' ? 'Scholar Starter Plan' :
-     isStaffOrAdmin ? 'VIP Scholar' :
-     isVip ? 'VIP Scholar' :
-     isPremium ? 'Premium Scholar' : 'Free Scholar');
+  const userPlanName = isExpired
+    ? 'Free Scholar'
+    : (user?.subscriptionPlan && !user.subscriptionPlan.toLowerCase().includes('free') && user.subscriptionPlan) ||
+      (user?.subscriptionTier && !user.subscriptionTier.toLowerCase().includes('free') && user.subscriptionTier) ||
+      (user?.membershipTier && !user.membershipTier.toLowerCase().includes('free') && user.membershipTier) ||
+      (rawPlanId === 'plan_titan_naira' ? 'Grobaax Titan Annual VIP' :
+       rawPlanId === 'plan_pro_naira' ? 'Champions Pro Scholar' :
+       rawPlanId === 'plan_basic_naira' ? 'Scholar Starter Plan' :
+       isStaffOrAdmin ? 'VIP Scholar' :
+       isVip ? 'VIP Scholar' :
+       isPremium ? 'Premium Scholar' : 'Free Scholar');
 
   // If no question is active or provided, return user's accurate resolved plan info
   if (!question) {

@@ -1067,12 +1067,14 @@ export const isSubscriptionExpired = (target?: any): boolean => {
     ) {
       return false;
     }
-    if (target.isExpired === true) return true;
     if (
-      target.subscription &&
-      (target.subscription.status === 'expired' ||
-        target.subscription.status === 'inactive' ||
-        target.subscription.status === 'cancelled')
+      target.isExpired === true ||
+      target.status === 'expired' ||
+      target.subscriptionStatus === 'expired' ||
+      (target.subscription &&
+        (target.subscription.status === 'expired' ||
+          target.subscription.status === 'inactive' ||
+          target.subscription.status === 'cancelled'))
     ) {
       return true;
     }
@@ -1549,29 +1551,73 @@ export const ensureUserInFirestore = async (
       reputationPoints: existing?.reputationPoints !== undefined ? existing.reputationPoints : (fallbackDetails?.reputationPoints ?? 100),
       gusRank: existing?.gusRank !== undefined ? existing.gusRank : (fallbackDetails?.gusRank ?? 0),
       gusTier: existing?.gusTier || fallbackDetails?.gusTier || (isSuper ? 'Grandmaster' : 'Scholar'),
-      activePlanId: isSuper ? 'plan_titan_naira' : (existing?.activePlanId || fallbackDetails?.activePlanId || ''),
-      membershipTier: isSuper ? 'Grobaax Titan Annual VIP' : (existing?.membershipTier || fallbackDetails?.membershipTier || 'Free Scholar'),
-      subscriptionTier: isSuper ? 'Grobaax Titan Annual VIP' : (existing?.subscriptionTier || fallbackDetails?.subscriptionTier || (existing?.membershipTier || 'Free Scholar')),
-      subscriptionPlan: isSuper ? 'Grobaax Titan Annual VIP' : (existing?.subscriptionPlan || fallbackDetails?.subscriptionPlan || existing?.membershipTier || ''),
-      planId: isSuper ? 'plan_titan_naira' : (existing?.planId || fallbackDetails?.planId || existing?.activePlanId || ''),
-      tier: isSuper ? 'Grobaax Titan Annual VIP' : (existing?.tier || fallbackDetails?.tier || existing?.membershipTier || 'Free Scholar'),
-      plan: isSuper ? 'Grobaax Titan Annual VIP' : (existing?.plan || fallbackDetails?.plan || existing?.membershipTier || ''),
+      activePlanId: isSuper ? 'plan_titan_naira' : (
+        (!isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)))
+          ? ''
+          : (existing?.activePlanId || fallbackDetails?.activePlanId || '')
+      ),
+      membershipTier: isSuper ? 'Grobaax Titan Annual VIP' : (
+        (!isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)))
+          ? 'Free Scholar'
+          : (existing?.membershipTier || fallbackDetails?.membershipTier || 'Free Scholar')
+      ),
+      subscriptionTier: isSuper ? 'Grobaax Titan Annual VIP' : (
+        (!isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)))
+          ? 'Free Scholar'
+          : (existing?.subscriptionTier || fallbackDetails?.subscriptionTier || (existing?.membershipTier || 'Free Scholar'))
+      ),
+      subscriptionPlan: isSuper ? 'Grobaax Titan Annual VIP' : (
+        (!isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)))
+          ? 'Free Scholar'
+          : (existing?.subscriptionPlan || fallbackDetails?.subscriptionPlan || existing?.membershipTier || '')
+      ),
+      planId: isSuper ? 'plan_titan_naira' : (
+        (!isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)))
+          ? ''
+          : (existing?.planId || fallbackDetails?.planId || existing?.activePlanId || '')
+      ),
+      tier: isSuper ? 'Grobaax Titan Annual VIP' : (
+        (!isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)))
+          ? 'Free Scholar'
+          : (existing?.tier || fallbackDetails?.tier || existing?.membershipTier || 'Free Scholar')
+      ),
+      plan: isSuper ? 'Grobaax Titan Annual VIP' : (
+        (!isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)))
+          ? 'Free Scholar'
+          : (existing?.plan || fallbackDetails?.plan || existing?.membershipTier || '')
+      ),
+      targetTier: isSuper ? 'vip' : (
+        (!isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)))
+          ? 'free'
+          : (existing?.targetTier || existing?.tierType || fallbackDetails?.targetTier || fallbackDetails?.tierType || 'free')
+      ),
+      tierType: isSuper ? 'vip' : (
+        (!isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)))
+          ? 'free'
+          : (existing?.tierType || existing?.targetTier || fallbackDetails?.tierType || fallbackDetails?.targetTier || 'free')
+      ),
       isSubscribed: isSuper ? true : Boolean(
-        existing?.isSubscribed ||
-        fallbackDetails?.isSubscribed ||
-        (existing?.activePlanId && !existing.activePlanId.toLowerCase().includes('free')) ||
-        (existing?.membershipTier && !existing.membershipTier.toLowerCase().includes('free') && existing.membershipTier.toLowerCase() !== 'starter scholar')
+        !isSubscriptionExpired(existing) && !isSubscriptionExpired(fallbackDetails) && (
+          existing?.isSubscribed ||
+          fallbackDetails?.isSubscribed ||
+          (existing?.activePlanId && !existing.activePlanId.toLowerCase().includes('free')) ||
+          (existing?.membershipTier && !existing.membershipTier.toLowerCase().includes('free') && existing.membershipTier.toLowerCase() !== 'starter scholar')
+        )
       ),
       isPremium: isSuper ? true : Boolean(
-        existing?.isPremium ||
-        fallbackDetails?.isPremium ||
-        (existing?.activePlanId && !existing.activePlanId.toLowerCase().includes('free')) ||
-        (existing?.membershipTier && !existing.membershipTier.toLowerCase().includes('free') && existing.membershipTier.toLowerCase() !== 'starter scholar')
+        !isSubscriptionExpired(existing) && !isSubscriptionExpired(fallbackDetails) && (
+          existing?.isPremium ||
+          fallbackDetails?.isPremium ||
+          (existing?.activePlanId && !existing.activePlanId.toLowerCase().includes('free')) ||
+          (existing?.membershipTier && !existing.membershipTier.toLowerCase().includes('free') && existing.membershipTier.toLowerCase() !== 'starter scholar')
+        )
       ),
       isVip: isSuper ? true : Boolean(
-        existing?.isVip ||
-        fallbackDetails?.isVip ||
-        (existing?.membershipTier && (existing.membershipTier.toLowerCase().includes('vip') || existing.membershipTier.toLowerCase().includes('titan')))
+        !isSubscriptionExpired(existing) && !isSubscriptionExpired(fallbackDetails) && (
+          existing?.isVip ||
+          fallbackDetails?.isVip ||
+          (existing?.membershipTier && (existing.membershipTier.toLowerCase().includes('vip') || existing.membershipTier.toLowerCase().includes('titan')))
+        )
       ),
       subscriptionExpiry: isSuper ? '2099-12-31T23:59:59.999Z' : (existing?.subscriptionExpiry || fallbackDetails?.subscriptionExpiry || ''),
       subscription: isSuper ? {
@@ -1584,7 +1630,7 @@ export const ensureUserInFirestore = async (
         startDate: '2025-01-01T00:00:00.000Z',
         expiryDate: '2099-12-31T23:59:59.999Z',
         status: 'active',
-      } : (existing?.subscription || fallbackDetails?.subscription || undefined),
+      } : ((isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) && existing?.subscription ? { ...existing.subscription, status: 'expired' } : (existing?.subscription || fallbackDetails?.subscription || undefined)),
       walletAddress: existing?.walletAddress || fallbackDetails?.walletAddress || `0x${uid.substring(0, 10)}${Math.random().toString(16).substring(2, 6)}`,
       privacy: existing?.privacy || fallbackDetails?.privacy || DEFAULT_PRIVACY,
       badges: existing?.badges || fallbackDetails?.badges || [],
@@ -1888,12 +1934,46 @@ export const getUserProfileDoc = async (uid: string): Promise<UserProfile | null
         departmentId: data.departmentId || '',
         level: data.level || '',
         major: data.departmentName || data.department || '',
-        activePlanId: data.activePlanId || '',
-        membershipTier: data.membershipTier || data.subscriptionTier || 'Free Scholar',
-        subscriptionTier: data.subscriptionTier || data.membershipTier || 'Free Scholar',
-        isPremium: Boolean(data.isPremium || (data.membershipTier && !data.membershipTier.toLowerCase().includes('free'))),
+        activePlanId: (data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin)
+          ? (data.activePlanId || 'plan_titan_naira')
+          : (isSubscriptionExpired(data) ? '' : (data.activePlanId || '')),
+        membershipTier: (data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin)
+          ? 'Grobaax Titan Annual VIP'
+          : (isSubscriptionExpired(data) ? 'Free Scholar' : (data.membershipTier || data.subscriptionTier || 'Free Scholar')),
+        subscriptionTier: (data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin)
+          ? 'Grobaax Titan Annual VIP'
+          : (isSubscriptionExpired(data) ? 'Free Scholar' : (data.subscriptionTier || data.membershipTier || 'Free Scholar')),
+        subscriptionPlan: (data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin)
+          ? 'Grobaax Titan Annual VIP'
+          : (isSubscriptionExpired(data) ? 'Free Scholar' : (data.subscriptionPlan || '')),
+        tier: (data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin)
+          ? 'Grobaax Titan Annual VIP'
+          : (isSubscriptionExpired(data) ? 'Free Scholar' : (data.tier || data.membershipTier || 'Free Scholar')),
+        plan: (data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin)
+          ? 'Grobaax Titan Annual VIP'
+          : (isSubscriptionExpired(data) ? 'Free Scholar' : (data.plan || '')),
+        targetTier: (data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin)
+          ? 'vip'
+          : (isSubscriptionExpired(data) ? 'free' : (data.targetTier || data.tierType || 'free')),
+        tierType: (data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin)
+          ? 'vip'
+          : (isSubscriptionExpired(data) ? 'free' : (data.tierType || data.targetTier || 'free')),
+        isSubscribed: Boolean(
+          data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin ||
+          (!isSubscriptionExpired(data) && (data.isSubscribed || data.isPremium || (data.activePlanId && !data.activePlanId.toLowerCase().includes('free'))))
+        ),
+        isPremium: Boolean(
+          data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin ||
+          (!isSubscriptionExpired(data) && (data.isPremium || (data.activePlanId && !data.activePlanId.toLowerCase().includes('free')) || (data.membershipTier && !data.membershipTier.toLowerCase().includes('free'))))
+        ),
+        isVip: Boolean(
+          data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin ||
+          (!isSubscriptionExpired(data) && (data.isVip || (data.membershipTier && (data.membershipTier.toLowerCase().includes('vip') || data.membershipTier.toLowerCase().includes('titan')))))
+        ),
         subscriptionExpiry: data.subscriptionExpiry || '',
-        subscription: data.subscription || undefined,
+        subscription: isSubscriptionExpired(data) && data.subscription
+          ? { ...data.subscription, status: 'expired' }
+          : (data.subscription || undefined),
         grbxTokens: data.grbxTokens || 0,
         gpBalance: data.gpBalance || 0,
         stakedTokens: data.stakedTokens || 0,
@@ -6260,14 +6340,16 @@ export const evaluateAndProcessLiveAnswer = async (
       ))
     );
 
-    let isUserVip = isStaffOrAdmin || Boolean(
+    const isMemoryExpired = !isStaffOrAdmin && isSubscriptionExpired(user);
+
+    let isUserVip = !isMemoryExpired && (isStaffOrAdmin || Boolean(
       user.isVip ||
       (user.membershipTier && (user.membershipTier.toLowerCase().includes('vip') || user.membershipTier.toLowerCase().includes('titan'))) ||
       user.gusTier === 'Titan' ||
       (user.subscriptionTier && (user.subscriptionTier.toLowerCase().includes('vip') || user.subscriptionTier.toLowerCase().includes('titan'))) ||
       (user.subscriptionPlan && (user.subscriptionPlan.toLowerCase().includes('vip') || user.subscriptionPlan.toLowerCase().includes('titan')))
-    );
-    let isUserPremium = isStaffOrAdmin || isUserVip || Boolean(user.isPremium);
+    ));
+    let isUserPremium = !isMemoryExpired && (isStaffOrAdmin || isUserVip || Boolean(user.isPremium));
 
     // Authoritative Firestore database check of user's account for subscription tier verification
     try {
@@ -6295,9 +6377,7 @@ export const evaluateAndProcessLiveAnswer = async (
           isStaffOrAdmin = true;
         }
 
-        const isExpired = uData.subscriptionExpiry
-          ? new Date(uData.subscriptionExpiry).getTime() <= Date.now()
-          : false;
+        const isExpired = !isStaffOrAdmin && isSubscriptionExpired(uData);
 
         const dbIsVip = isStaffOrAdmin || (!isExpired && Boolean(
           uData.isVip ||
@@ -6330,7 +6410,11 @@ export const evaluateAndProcessLiveAnswer = async (
           isUserVip = true;
           isUserPremium = true;
         } else if (dbIsPremium) {
+          isUserVip = false;
           isUserPremium = true;
+        } else {
+          isUserVip = false;
+          isUserPremium = false;
         }
       }
     } catch (uErr) {

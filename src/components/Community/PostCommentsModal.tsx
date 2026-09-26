@@ -282,6 +282,7 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({ post, onCl
                             !post.author.membershipTier.toLowerCase().includes('free'))
                       )}
                       membershipTier={post.author.membershipTier || post.author.subscriptionTier}
+                      subscriptionExpiry={(post.author as any).subscriptionExpiry}
                       equippedBadge={post.author.equippedBadge}
                       role={post.author.role}
                       isStaffOrAdmin={post.author.isStaffOrAdmin}
@@ -515,6 +516,7 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({ post, onCl
                                   topComment.author.subscriptionTier
                                 }
                                 equippedBadge={topComment.author.equippedBadge}
+                                subscriptionExpiry={(topComment.author as any).subscriptionExpiry}
                                 role={topComment.author.role}
                                 isStaffOrAdmin={topComment.author.isStaffOrAdmin}
                                 isCommunityManager={topComment.author.isCommunityManager}
@@ -653,6 +655,7 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({ post, onCl
                                           reply.author.subscriptionTier
                                         }
                                         equippedBadge={reply.author.equippedBadge}
+                                        subscriptionExpiry={(reply.author as any).subscriptionExpiry}
                                         role={reply.author.role}
                                         isStaffOrAdmin={reply.author.isStaffOrAdmin}
                                         isCommunityManager={reply.author.isCommunityManager}

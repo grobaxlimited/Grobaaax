@@ -32,6 +32,7 @@ import {
   getSynchronousDailyChatUsage,
   getUserDailyChatUsage,
   recordUserDailyChatResponse,
+  isSubscriptionExpired,
 } from '../../lib/firebase';
 import {
   MessageSquare,
@@ -239,9 +240,11 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
   }, [activeQuestion?.id, activeQuestion?.status, activeQuestion?.endAt, currentSeason?.id]);
 
   const isActivelySubscribed = isUserSubscribed || checkIsUserSubscribed(currentUser);
+  const isUserExpired = !isStaffOrAdmin && isSubscriptionExpired(currentUser);
 
   const isVIP =
     !isStaffOrAdmin &&
+    !isUserExpired &&
     Boolean(
       currentUser?.isVip ||
       currentUser?.gusTier === 'Titan' ||
@@ -256,6 +259,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
   const isPremium =
     !isStaffOrAdmin &&
+    !isUserExpired &&
     !isVIP &&
     Boolean(
       isActivelySubscribed ||
@@ -585,9 +589,9 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         : isStaffOrAdmin
         ? 'VIP SCHOLAR'
         : 'FREE SCHOLAR',
-      subscriptionTier: currentUser.subscriptionTier || (isVIP ? 'vip' : isPremium ? 'premium' : 'free'),
-      subscriptionPlan: currentUser.subscriptionPlan || resolvedUserPlan.userPlanName,
-      planId: currentUser.activePlanId || (currentUser as any).planId || resolvedUserPlan.userPlanId,
+      subscriptionTier: isUserExpired ? 'free' : (currentUser.subscriptionTier || (isVIP ? 'vip' : isPremium ? 'premium' : 'free')),
+      subscriptionPlan: isUserExpired ? 'Free Scholar' : (currentUser.subscriptionPlan || resolvedUserPlan.userPlanName),
+      planId: isUserExpired ? '' : (currentUser.activePlanId || (currentUser as any).planId || resolvedUserPlan.userPlanId),
       equippedBadge: currentUser.equippedBadge,
       messageText: text,
       timestamp: Date.now(),

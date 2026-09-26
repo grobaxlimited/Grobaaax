@@ -1390,7 +1390,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                       data.isVip ||
                       (data.membershipTier && !data.membershipTier.toLowerCase().includes('free')) ||
                       (data.subscriptionTier && !data.subscriptionTier.toLowerCase().includes('free')) ||
-                      data.activePlanId)
+                      data.activePlanId ||
+                      data.targetTier === 'premium' ||
+                      data.targetTier === 'vip' ||
+                      data.tierType === 'premium' ||
+                      data.tierType === 'vip')
                   ) {
                     try {
                       updateDoc(doc(db, 'users', user.uid), {
@@ -1399,10 +1403,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         isVip: false,
                         membershipTier: 'Free Scholar',
                         subscriptionTier: 'Free Scholar',
+                        subscriptionPlan: 'Free Scholar',
+                        tier: 'Free Scholar',
+                        plan: 'Free Scholar',
+                        targetTier: 'free',
+                        tierType: 'free',
                         activePlanId: '',
                         planId: '',
-                        subscriptionPlan: '',
                         'subscription.status': 'expired',
+                        updatedAt: serverTimestamp(),
                       }).catch(() => {});
                     } catch {}
                   }
@@ -1440,7 +1449,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     stakedTokens: data.stakedTokens !== undefined ? Number(data.stakedTokens) : (isSameUser ? prev.stakedTokens : 0),
                     reputationPoints: data.reputationPoints !== undefined ? Number(data.reputationPoints) : (isSameUser ? prev.reputationPoints : 100),
                     gusRank: data.gusRank !== undefined ? Number(data.gusRank) : (isSameUser ? prev.gusRank : 0),
-                    gusTier: data.gusTier || (isSuper ? 'Grandmaster' : (isSameUser ? prev.gusTier : 'Scholar')),
                     walletAddress: data.walletAddress || (isSameUser ? prev.walletAddress : `0x${user.uid.substring(0, 10)}`),
                     activePlanId: isSuper ? 'plan_titan_naira' : (
                       userIsExpired
@@ -1459,7 +1467,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     ),
                     subscriptionPlan: isSuper ? 'Grobaax Titan Annual VIP' : (
                       userIsExpired
-                        ? ''
+                        ? 'Free Scholar'
                         : (data.subscriptionPlan || data.membershipTier || (isSameUser ? prev.subscriptionPlan : '') || '')
                     ),
                     planId: isSuper ? 'plan_titan_naira' : (
@@ -1474,8 +1482,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     ),
                     plan: isSuper ? 'Grobaax Titan Annual VIP' : (
                       userIsExpired
-                        ? ''
+                        ? 'Free Scholar'
                         : (data.plan || data.membershipTier || (isSameUser ? prev.plan : '') || '')
+                    ),
+                    targetTier: isSuper ? 'vip' : (
+                      userIsExpired
+                        ? 'free'
+                        : (data.targetTier || data.tierType || (isSameUser ? (prev as any).targetTier : 'free') || 'free')
+                    ),
+                    tierType: isSuper ? 'vip' : (
+                      userIsExpired
+                        ? 'free'
+                        : (data.tierType || data.targetTier || (isSameUser ? (prev as any).tierType : 'free') || 'free')
                     ),
                     isSubscribed: isSuper || Boolean(
                       !userIsExpired &&
@@ -1496,9 +1514,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     ),
                     verified: isSuper || Boolean(
                       data.manualVerified ||
+                      data.isManualVerified ||
                       data.role === 'admin' ||
                       data.role === 'super_admin' ||
                       (!userIsExpired && (data.verified || data.isVip || data.isPremium || (data.activePlanId && !data.activePlanId.toLowerCase().includes('free'))))
+                    ),
+                    gusTier: isSuper ? 'Grandmaster' : (
+                      userIsExpired
+                        ? (data.gusTier === 'Titan' ? 'Scholar' : (data.gusTier || (isSameUser ? prev.gusTier : 'Scholar') || 'Scholar'))
+                        : (data.gusTier || (isSameUser ? prev.gusTier : 'Scholar') || 'Scholar')
                     ),
                     subscriptionExpiry: isSuper ? '2099-12-31T23:59:59.999Z' : (data.subscriptionExpiry || (isSameUser ? prev.subscriptionExpiry : '') || ''),
                     subscription: isSuper ? {
@@ -1573,6 +1597,136 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     };
   }, []);
+
+  // =========================================================================
+  // CONTINUOUS SUBSCRIPTION EXPIRATION WATCHDOG
+  // Guarantees that if a user subscribed to Premium or VIP and their subscription
+  // expires, they automatically revert to Free Scholar status immediately in memory
+  // and in Firestore.
+  // =========================================================================
+  useEffect(() => {
+    if (!currentUser?.id || currentUser.id === 'guest') return;
+
+    const isSuper =
+      isPrimarySuperAdmin(currentUser.id, currentUser.email) ||
+      currentUser.email === 'grobaxycompany@gmail.com' ||
+      currentUser.id === PRIMARY_SUPER_ADMIN_UID;
+
+    if (isSuper) return;
+
+    const enforceSubscriptionExpiry = () => {
+      const isExpired = isSubscriptionExpired(currentUser);
+      const hasPaidTierPrivilege = Boolean(
+        currentUser.isSubscribed ||
+        currentUser.isPremium ||
+        currentUser.isVip ||
+        currentUser.activePlanId ||
+        currentUser.planId ||
+        (currentUser.targetTier && currentUser.targetTier !== 'free') ||
+        (currentUser.tierType && currentUser.tierType !== 'free') ||
+        (currentUser.membershipTier && !currentUser.membershipTier.toLowerCase().includes('free')) ||
+        (currentUser.subscriptionTier && !currentUser.subscriptionTier.toLowerCase().includes('free')) ||
+        (currentUser.subscription && currentUser.subscription.status === 'active')
+      );
+
+      if (isExpired && hasPaidTierPrivilege) {
+        console.log('[Subscription Watchdog] Detected expired subscription. Automatically reverting user to Free Scholar.');
+
+        // 1. Revert currentUser state to Free Scholar
+        setCurrentUser(prev => {
+          const reverted: UserProfile = {
+            ...prev,
+            membershipTier: 'Free Scholar',
+            subscriptionTier: 'Free Scholar',
+            subscriptionPlan: 'Free Scholar',
+            tier: 'Free Scholar',
+            plan: 'Free Scholar',
+            targetTier: 'free',
+            tierType: 'free',
+            activePlanId: '',
+            planId: '',
+            isSubscribed: false,
+            isPremium: false,
+            isVip: false,
+            gusTier: prev.gusTier === 'Titan' ? 'Scholar' : (prev.gusTier || 'Scholar'),
+            verified: Boolean((prev as any).manualVerified || (prev as any).isManualVerified),
+            subscription: prev.subscription ? { ...prev.subscription, status: 'expired' } : undefined,
+          };
+
+          try {
+            localStorage.setItem('grobax_cached_user_profile', JSON.stringify(reverted));
+            localStorage.setItem(`grobax_user_profile_${reverted.id}`, JSON.stringify(reverted));
+          } catch {}
+
+          return reverted;
+        });
+
+        // 2. Persist update in Firestore users collection
+        const userRef = doc(db, 'users', currentUser.id);
+        updateDoc(userRef, {
+          membershipTier: 'Free Scholar',
+          subscriptionTier: 'Free Scholar',
+          subscriptionPlan: 'Free Scholar',
+          tier: 'Free Scholar',
+          plan: 'Free Scholar',
+          targetTier: 'free',
+          tierType: 'free',
+          activePlanId: '',
+          planId: '',
+          isSubscribed: false,
+          isPremium: false,
+          isVip: false,
+          'subscription.status': 'expired',
+          updatedAt: serverTimestamp(),
+        }).catch(err => console.warn('[Subscription Watchdog] Notice syncing expired user to Firestore:', err));
+
+        // 3. Mark user's active subscription records in userSubscriptions as expired
+        try {
+          const qSubs = query(
+            collection(db, 'userSubscriptions'),
+            where('userId', '==', currentUser.id),
+            where('status', '==', 'active')
+          );
+          getDocs(qSubs).then(snap => {
+            snap.docs.forEach(d => {
+              const subData = d.data();
+              if (subData.expiryDate && new Date(subData.expiryDate).getTime() <= Date.now()) {
+                updateDoc(d.ref, { status: 'expired', updatedAt: new Date().toISOString() }).catch(() => {});
+              }
+            });
+          }).catch(() => {});
+        } catch {}
+
+        // 4. Update local userSubscriptions array
+        setUserSubscriptions(prev =>
+          prev.map(s => {
+            if ((s.userId === currentUser.id || s.userId === currentUser.uid) && s.expiryDate && new Date(s.expiryDate).getTime() <= Date.now()) {
+              return { ...s, status: 'expired' };
+            }
+            return s;
+          })
+        );
+
+        // 5. Send polite in-app notice
+        try {
+          addDoc(collection(db, 'notifications'), {
+            title: 'Subscription Expired',
+            message: 'Your subscription has ended and your account has automatically reverted to Free Scholar status. Upgrade anytime to restore Premium or VIP privileges.',
+            type: 'system',
+            targetUserId: currentUser.id,
+            userId: currentUser.id,
+            actionUrl: 'wallet:upgrade',
+            read: false,
+            createdAt: serverTimestamp(),
+          }).catch(() => {});
+        } catch {}
+      }
+    };
+
+    enforceSubscriptionExpiry();
+    const interval = setInterval(enforceSubscriptionExpiry, 5000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id, currentUser?.subscriptionExpiry, currentUser?.isSubscribed, currentUser?.isPremium, currentUser?.isVip, currentUser?.membershipTier]);
 
   const [posts, setPosts] = useState<Post[]>(() => {
     try {
@@ -3543,13 +3697,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 2. Evaluate Subscription Tier
     let tier: 'free' | 'premium' | 'vip' = 'free';
-    const isTargetUserExpired = isTargetCurrentUser && currentUser.subscriptionExpiry
-      ? new Date(currentUser.subscriptionExpiry).getTime() <= Date.now()
+    const isTargetUserExpired = isTargetCurrentUser
+      ? isSubscriptionExpired(currentUser)
       : false;
 
     if (!isTargetUserExpired) {
       const activeSub = userSubscriptions.find(
-        s => (s.userId === uid || (isTargetCurrentUser && s.userId === currentUser.id)) && s.status === 'active'
+        s => (s.userId === uid || (isTargetCurrentUser && s.userId === currentUser.id)) &&
+          s.status === 'active' &&
+          (!s.expiryDate || new Date(s.expiryDate).getTime() > Date.now())
       );
 
       if (activeSub) {
@@ -4291,14 +4447,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let tier: 'free' | 'premium' | 'vip' = 'free';
 
     // Check expiration if present
-    const isTargetUserExpired = isTargetCurrentUser && currentUser.subscriptionExpiry
-      ? new Date(currentUser.subscriptionExpiry).getTime() <= Date.now()
+    const isTargetUserExpired = isTargetCurrentUser
+      ? isSubscriptionExpired(currentUser)
       : false;
 
     if (!isTargetUserExpired) {
       // Check userSubscriptions collection
       const activeSub = userSubscriptions.find(
-        s => (s.userId === uid || (isTargetCurrentUser && s.userId === currentUser.id)) && s.status === 'active'
+        s => (s.userId === uid || (isTargetCurrentUser && s.userId === currentUser.id)) &&
+          s.status === 'active' &&
+          (!s.expiryDate || new Date(s.expiryDate).getTime() > Date.now())
       );
 
       if (activeSub) {

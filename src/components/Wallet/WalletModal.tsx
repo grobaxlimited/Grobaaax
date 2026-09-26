@@ -26,6 +26,7 @@ import {
   EmailAuthProvider,
   sendPasswordResetEmail,
   sendEmailVerification,
+  isSubscriptionExpired,
 } from '../../lib/firebase';
 import {
   Wallet,
@@ -660,8 +661,9 @@ export const WalletModal: React.FC = () => {
                       <UserBadgeItem
                         name={currentUser.name || currentUser.fullName}
                         verified={currentUser.verified !== false}
-                        isPremium={currentUser.isPremium || (Boolean(currentUser.membershipTier) && !currentUser.membershipTier?.toLowerCase().includes('free'))}
-                        membershipTier={currentUser.membershipTier}
+                        isPremium={!isSubscriptionExpired(currentUser) && (currentUser.isPremium || (Boolean(currentUser.membershipTier) && !currentUser.membershipTier?.toLowerCase().includes('free')))}
+                        membershipTier={isSubscriptionExpired(currentUser) ? 'Free Scholar' : currentUser.membershipTier}
+                        subscriptionExpiry={currentUser.subscriptionExpiry}
                         equippedBadge={currentUser.equippedBadge}
                         size="lg"
                       />
@@ -672,7 +674,7 @@ export const WalletModal: React.FC = () => {
                         </span>
                       )}
                       <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-[11px]">
-                        {currentUser.membershipTier || 'Free Scholar'}
+                        {isSubscriptionExpired(currentUser) ? 'Free Scholar' : (currentUser.membershipTier || 'Free Scholar')}
                       </span>
                     </div>
 
@@ -1876,12 +1878,14 @@ export const WalletModal: React.FC = () => {
 
           {/* TAB 3: CASH WITHDRAWAL */}
           {activeTab === 'withdraw' && (() => {
+            const isUserExpired = isSubscriptionExpired(currentUser);
             const isFreeScholar =
-              !isUserSubscribed &&
-              (!currentUser.membershipTier || currentUser.membershipTier.toLowerCase().includes('free')) &&
-              (!currentUser.subscriptionTier || currentUser.subscriptionTier.toLowerCase().includes('free')) &&
+              isUserExpired ||
+              (!isUserSubscribed &&
+              (!currentUser.membershipTier || currentUser.membershipTier.toLowerCase().includes('free') || currentUser.membershipTier.toLowerCase() === 'starter scholar') &&
+              (!currentUser.subscriptionTier || currentUser.subscriptionTier.toLowerCase().includes('free') || currentUser.subscriptionTier.toLowerCase() === 'starter scholar') &&
               !currentUser.isRepresentative &&
-              role !== 'admin';
+              role !== 'admin');
 
             return (
               <div className="space-y-6">
@@ -2493,17 +2497,17 @@ export const WalletModal: React.FC = () => {
               currentUser.role === 'admin' ||
               currentUser.role === 'super_admin';
 
-            const isUserExpired = !isSuper && currentUser.subscriptionExpiry
-              ? new Date(currentUser.subscriptionExpiry).getTime() <= Date.now()
-              : false;
+            const isUserExpired = !isSuper && isSubscriptionExpired(currentUser);
 
             const activeTierName = isSuper
               ? 'Grobaax Titan Annual VIP'
+              : isUserExpired
+              ? 'Free Scholar'
               : (!isUserExpired && currentUser.membershipTier && !currentUser.membershipTier.toLowerCase().includes('free')
                 ? currentUser.membershipTier
                 : (!isUserExpired && currentUser.activePlanId
                   ? (subscriptionPlans.find(p => p.planId === currentUser.activePlanId || p.id === currentUser.activePlanId)?.name || currentUser.membershipTier || 'Free Scholar')
-                  : (currentUser.membershipTier || currentUser.subscriptionTier || 'Free Scholar')));
+                  : 'Free Scholar'));
 
             const isFreeBase = !isSuper && (
               isUserExpired ||
@@ -2650,9 +2654,7 @@ export const WalletModal: React.FC = () => {
                     (activeSubscriptionPlans.length > 0 ? activeSubscriptionPlans : subscriptionPlans)
                       .filter(p => p.active !== false && p.planId !== 'plan_free_scholar' && p.id !== 'plan_free_scholar' && p.priceNaira > 0)
                   ).map((plan) => {
-                    const isPlanExpired = !isSuper && currentUser.subscriptionExpiry
-                      ? new Date(currentUser.subscriptionExpiry).getTime() <= Date.now()
-                      : false;
+                    const isPlanExpired = !isSuper && isSubscriptionExpired(currentUser);
 
                     const isCurrent = (isSuper && (plan.planId === 'plan_titan_naira' || plan.name.toLowerCase().includes('titan') || plan.name.toLowerCase().includes('vip'))) ||
                       (!isPlanExpired && Boolean(

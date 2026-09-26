@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { CreateProductModal } from './Minimart/CreateProductModal';
 import { UserBadgeItem } from '../ui/UserBadgeItem';
+import { isSubscriptionExpired } from '../../lib/firebase';
 import { X, Image as ImageIcon, Tag, Send, AlertCircle, FileText, ShoppingBag, Crown, Upload, Sparkles, Clock } from 'lucide-react';
 
 interface CreatePostModalProps {
@@ -179,12 +180,13 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClos
               <UserBadgeItem
                 name={currentUser.name}
                 verified={currentUser.verified !== false}
-                isPremium={Boolean(
+                isPremium={!isSubscriptionExpired(currentUser) && Boolean(
                   currentUser.isPremium ||
                   (currentUser.membershipTier && !currentUser.membershipTier.toLowerCase().includes('free')) ||
                   (currentUser.subscriptionTier && !currentUser.subscriptionTier.toLowerCase().includes('free'))
                 )}
-                membershipTier={currentUser.membershipTier || currentUser.subscriptionTier}
+                membershipTier={isSubscriptionExpired(currentUser) ? 'Free Scholar' : (currentUser.membershipTier || currentUser.subscriptionTier || 'Free Scholar')}
+                subscriptionExpiry={currentUser.subscriptionExpiry}
                 equippedBadge={currentUser.equippedBadge}
                 role={currentUser.role}
                 isStaffOrAdmin={

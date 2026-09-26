@@ -21,6 +21,7 @@ import {
   recordUserDailyChatResponse,
   getDailyChatLimitForTier,
   isMockSponsorshipCampaign,
+  isSubscriptionExpired,
 } from '../../../lib/firebase';
 import {
   MessageSquare,
@@ -95,9 +96,11 @@ export const ChatroomLiveView: React.FC = () => {
     currentUser?.name?.toLowerCase().includes('staff');
 
   const isActivelySubscribed = isUserSubscribed || checkIsUserSubscribed(currentUser);
+  const isUserExpired = !isStaffOrAdmin && isSubscriptionExpired(currentUser);
 
   const isVIP =
     !isStaffOrAdmin &&
+    !isUserExpired &&
     Boolean(
       currentUser?.isVip ||
       currentUser?.gusTier === 'Titan' ||
@@ -112,6 +115,7 @@ export const ChatroomLiveView: React.FC = () => {
 
   const isPremium =
     !isStaffOrAdmin &&
+    !isUserExpired &&
     !isVIP &&
     Boolean(
       isActivelySubscribed ||
@@ -428,7 +432,7 @@ export const ChatroomLiveView: React.FC = () => {
       level: currentUser.level,
       isPremium: isVIP || isPremium || isStaffOrAdmin,
       isVip: isVIP,
-      membershipTier: isVIP ? 'VIP SCHOLAR' : isPremium ? 'PREMIUM SCHOLAR' : isStaffOrAdmin ? 'VIP SCHOLAR' : undefined,
+      membershipTier: isVIP ? 'VIP SCHOLAR' : isPremium ? 'PREMIUM SCHOLAR' : isStaffOrAdmin ? 'VIP SCHOLAR' : 'FREE SCHOLAR',
       role: currentUser.role,
       equippedBadge: currentUser.equippedBadge,
       messageText: text,

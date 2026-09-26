@@ -893,10 +893,10 @@ export function AdminSubscriptionsView() {
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              User Active Subscriptions ({userSubscriptions.length})
+              User Subscriptions ({userSubscriptions.length}) • {userSubscriptions.filter(s => s.status === 'active' && (!s.expiryDate || new Date(s.expiryDate).getTime() > Date.now())).length} Active
             </h3>
             <span className="text-xs text-slate-500">
-              Live subscription history snapshot
+              Live subscription history & status
             </span>
           </div>
 
@@ -922,40 +922,48 @@ export function AdminSubscriptionsView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
-                  {userSubscriptions.map((sub) => (
-                    <tr key={sub.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
-                      <td className="p-3.5 font-medium">
-                        <div>
-                          <div className="font-bold text-slate-900 dark:text-white">{sub.userName}</div>
-                          <div className="text-[10px] text-slate-400">{sub.userEmail || sub.userId}</div>
-                        </div>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-semibold text-blue-600 dark:text-blue-400">
-                            {sub.planNameSnapshot}
+                  {userSubscriptions.map((sub) => {
+                    const isSubExpired = sub.expiryDate ? new Date(sub.expiryDate).getTime() <= Date.now() : false;
+                    const effectiveStatus = isSubExpired ? 'expired' : sub.status;
+                    return (
+                      <tr key={sub.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
+                        <td className="p-3.5 font-medium">
+                          <div>
+                            <div className="font-bold text-slate-900 dark:text-white">{sub.userName}</div>
+                            <div className="text-[10px] text-slate-400">{sub.userEmail || sub.userId}</div>
+                          </div>
+                        </td>
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-blue-600 dark:text-blue-400">
+                              {sub.planNameSnapshot}
+                            </span>
+                            {sub.targetTier === 'vip' || sub.tierType === 'vip' || sub.isVip || (sub.planNameSnapshot || '').toLowerCase().includes('vip') || (sub.planNameSnapshot || '').toLowerCase().includes('titan') ? (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 flex items-center gap-0.5">
+                                <Crown className="w-2.5 h-2.5 text-amber-500" /> VIP
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30 flex items-center gap-0.5">
+                                <Sparkles className="w-2.5 h-2.5 text-blue-500" /> PRO
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3.5 font-bold">₦{sub.priceSnapshot.toLocaleString()}</td>
+                        <td className="p-3.5">{new Date(sub.startDate).toLocaleDateString()}</td>
+                        <td className="p-3.5">{new Date(sub.expiryDate).toLocaleDateString()}</td>
+                        <td className="p-3.5">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            effectiveStatus === 'active'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                          }`}>
+                            {effectiveStatus}
                           </span>
-                          {sub.targetTier === 'vip' || sub.tierType === 'vip' || sub.isVip || (sub.planNameSnapshot || '').toLowerCase().includes('vip') || (sub.planNameSnapshot || '').toLowerCase().includes('titan') ? (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 flex items-center gap-0.5">
-                              <Crown className="w-2.5 h-2.5 text-amber-500" /> VIP
-                            </span>
-                          ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30 flex items-center gap-0.5">
-                              <Sparkles className="w-2.5 h-2.5 text-blue-500" /> PRO
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3.5 font-bold">₦{sub.priceSnapshot.toLocaleString()}</td>
-                      <td className="p-3.5">{new Date(sub.startDate).toLocaleDateString()}</td>
-                      <td className="p-3.5">{new Date(sub.expiryDate).toLocaleDateString()}</td>
-                      <td className="p-3.5">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">
-                          {sub.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

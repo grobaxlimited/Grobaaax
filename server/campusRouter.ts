@@ -46,14 +46,26 @@ function getUserTier(user: any): 'free' | 'premium' | 'vip' {
   if (user.role === 'community_manager') return 'vip';
 
   // Check expiration first
-  if (user.subscriptionExpiry) {
+  const expiryRaw =
+    user.subscriptionExpiry ||
+    user.subscription?.expiryDate ||
+    user.subscription?.expiresAt ||
+    user.expiryDate;
+
+  if (expiryRaw) {
     try {
-      const expTime = new Date(user.subscriptionExpiry).getTime();
+      const expTime = new Date(expiryRaw).getTime();
       if (!isNaN(expTime) && expTime <= Date.now() && !user.isSuperAdmin && user.role !== 'admin') {
         return 'free';
       }
     } catch {
       // ignore
+    }
+  }
+
+  if (user.subscription?.status === 'expired' || user.subscription?.status === 'cancelled' || user.isExpired === true) {
+    if (!user.isSuperAdmin && user.role !== 'admin') {
+      return 'free';
     }
   }
 

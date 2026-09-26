@@ -7,6 +7,7 @@ interface UserBadgeItemProps {
   verified?: boolean;
   isPremium?: boolean;
   isVip?: boolean;
+  isExpired?: boolean;
   membershipTier?: string;
   subscriptionExpiry?: string;
   institution?: string;
@@ -119,6 +120,7 @@ export const UserBadgeItem: React.FC<UserBadgeItemProps> = ({
   verified = false,
   isPremium = false,
   isVip = false,
+  isExpired: isExpiredProp = false,
   membershipTier,
   subscriptionExpiry,
   institution,
@@ -144,19 +146,25 @@ export const UserBadgeItem: React.FC<UserBadgeItemProps> = ({
     name.toLowerCase().includes('admin') ||
     name.toLowerCase().includes('staff');
 
-  const isExpired = subscriptionExpiry
-    ? new Date(subscriptionExpiry).getTime() <= Date.now()
-    : false;
+  const isExpired = Boolean(
+    !isStaff &&
+    !isCm &&
+    (isExpiredProp ||
+      (subscriptionExpiry && new Date(subscriptionExpiry).getTime() <= Date.now()))
+  );
 
   const rawTierUpper = (membershipTier || '').toUpperCase();
   const isVipUser =
-    Boolean(isVip) ||
-    rawTierUpper.includes('VIP') ||
-    rawTierUpper.includes('TITAN') ||
-    rawTierUpper.includes('ANNUAL');
+    !isExpired &&
+    !rawTierUpper.includes('FREE') &&
+    (Boolean(isVip) ||
+      rawTierUpper.includes('VIP') ||
+      rawTierUpper.includes('TITAN') ||
+      rawTierUpper.includes('ANNUAL'));
 
   const hasPremium =
     !isExpired &&
+    !rawTierUpper.includes('FREE') &&
     (isVipUser ||
       Boolean(isPremium) ||
       Boolean(

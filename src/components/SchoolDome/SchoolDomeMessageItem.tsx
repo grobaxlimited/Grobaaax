@@ -223,20 +223,29 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
     ''
   ).toLowerCase();
 
+  const isMessageUserExpired = !isStaffOrAdmin && (
+    Boolean((message as any).isExpired) ||
+    Boolean((message as any).subscriptionExpiry && new Date((message as any).subscriptionExpiry).getTime() <= Date.now())
+  );
+
   const isVip =
-    Boolean((message as any).isVip) ||
-    tierString.includes('vip') ||
-    tierString.includes('titan') ||
-    tierString.includes('annual');
+    !isMessageUserExpired &&
+    !tierString.includes('free') &&
+    (Boolean((message as any).isVip) ||
+      tierString.includes('vip') ||
+      tierString.includes('titan') ||
+      tierString.includes('annual'));
 
   const hasPremium =
-    isVip ||
-    Boolean(message.isPremium) ||
-    Boolean(
-      (message as any).membershipTier &&
-        !(message as any).membershipTier.toLowerCase().includes('free')
-    ) ||
-    (tierString.length > 0 && !tierString.includes('free'));
+    !isMessageUserExpired &&
+    !tierString.includes('free') &&
+    (isVip ||
+      Boolean(message.isPremium) ||
+      Boolean(
+        (message as any).membershipTier &&
+          !(message as any).membershipTier.toLowerCase().includes('free')
+      ) ||
+      (tierString.length > 0 && !tierString.includes('free')));
 
   const formattedTime = (() => {
     try {
@@ -373,12 +382,14 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
               verified={hasPremium || isStaffOrAdmin || (message as any).verified}
               isPremium={hasPremium}
               isVip={isVip}
+              isExpired={isMessageUserExpired}
               membershipTier={
                 isArbiter
                   ? 'OFFICIAL ARBITER'
                   : (message as any).membershipTier ||
                     (isVip ? 'VIP SCHOLAR' : isStaffOrAdmin ? 'VIP SCHOLAR' : hasPremium ? 'PREMIUM SCHOLAR' : 'FREE SCHOLAR')
               }
+              subscriptionExpiry={(message as any).subscriptionExpiry}
               equippedBadge={effectiveEquippedBadge}
               role={(message as any).role}
               isStaffOrAdmin={isStaffOrAdmin}

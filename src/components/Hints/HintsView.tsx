@@ -9,6 +9,7 @@ import {
   subscribeToCompetitionHints,
   getCachedCompetitionHints,
 } from '../../lib/hintsService';
+import { isSubscriptionExpired } from '../../lib/firebase';
 import {
   Lightbulb,
   Trophy,
@@ -67,9 +68,10 @@ export function HintsView() {
   const [adminSimulatedTier, setAdminSimulatedTier] = useState<'actual' | 'free' | 'premium' | 'vip' | 'admin'>('actual');
 
   // Check user subscription status
-  const isExpired = currentUser?.subscriptionExpiry
-    ? new Date(currentUser.subscriptionExpiry).getTime() <= Date.now()
-    : false;
+  const isExpired = !isSuperOrAdmin && (
+    isSubscriptionExpired(currentUser) ||
+    Boolean(currentUser?.subscriptionExpiry && new Date(currentUser.subscriptionExpiry).getTime() <= Date.now())
+  );
 
   const rawTier = (
     currentUser?.subscriptionTier ||

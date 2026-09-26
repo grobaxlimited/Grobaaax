@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp, resolveUserSubscriptionStatus } from '../../context/AppContext';
 import { NIGERIAN_INSTITUTIONS } from '../../data/nigerianInstitutions';
 import {
   GraduationCap,
@@ -81,16 +81,17 @@ export const CampusCard: React.FC = () => {
     currentUser?.profileImage ||
     `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username || currentUser?.id || 'scholar')}`;
 
+  const subStatus = resolveUserSubscriptionStatus(currentUser);
+  const isExpired = subStatus.isExpired;
+  const isVip = !isExpired && subStatus.tierType === 'vip';
+  const isPremium = !isExpired && subStatus.tierType === 'premium';
+
   const isVerified = Boolean(
     currentUser?.isVerified ||
     currentUser?.hasBlueBadge ||
     currentUser?.academicProfile?.isVerified ||
-    currentUser?.tier === 'vip' ||
-    currentUser?.tier === 'premium'
+    (!isExpired && (isVip || isPremium))
   );
-
-  const isVip = currentUser?.tier === 'vip';
-  const isPremium = currentUser?.tier === 'premium';
 
   return (
     <div
