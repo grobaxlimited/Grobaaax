@@ -341,7 +341,7 @@ export async function getDocs<T = any>(target: CollectionReference | Query): Pro
 export async function setDoc<T = any>(
   docRef: DocumentReference,
   data: T,
-  options?: { merge?: boolean }
+  options?: { merge?: boolean; isServerAuthoritative?: boolean }
 ): Promise<void> {
   const merge = options?.merge ?? true;
   let finalData: any = data;
@@ -351,16 +351,17 @@ export async function setDoc<T = any>(
   } else {
     finalData = resolveFieldUpdates({}, data);
   }
-  await setDocToSupabase(docRef.collection, docRef.id, finalData, merge);
+  await setDocToSupabase(docRef.collection, docRef.id, finalData, merge, options);
 }
 
 export async function updateDoc<T = any>(
   docRef: DocumentReference,
-  data: Partial<T>
+  data: Partial<T>,
+  options?: { isServerAuthoritative?: boolean }
 ): Promise<void> {
   const existing = await getDocFromSupabase(docRef.collection, docRef.id);
   const resolved = resolveFieldUpdates(existing, data);
-  await setDocToSupabase(docRef.collection, docRef.id, resolved, true);
+  await setDocToSupabase(docRef.collection, docRef.id, resolved, true, options);
 }
 
 export async function deleteDoc(docRef: DocumentReference): Promise<void> {

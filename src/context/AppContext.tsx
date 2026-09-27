@@ -5838,11 +5838,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const detail = (e as CustomEvent).detail;
       const targetUserId = detail?.userId;
       if (detail && (targetUserId === currentUser.id || targetUserId === firebaseUser?.uid)) {
-        const added = Number(detail.gpAwarded) || 0;
-        if (added > 0) {
+        const added = Number(detail.gpAwarded ?? detail.gpAward) || 0;
+        if (added > 0 || typeof detail.newBalance === 'number') {
           setCurrentUser(prev => {
-            const nextGp = Math.max(0, (Number(prev.gpBalance) || 0) + added);
-            const nextWallet = Math.max(0, (Number((prev as any).walletBalance) || Number(prev.gpBalance) || 0) + added);
+            const nextGp = typeof detail.newBalance === 'number' ? detail.newBalance : Math.max(0, (Number(prev.gpBalance) || 0) + added);
+            const nextWallet = typeof detail.newBalance === 'number' ? detail.newBalance : Math.max(0, (Number((prev as any).walletBalance) || Number(prev.gpBalance) || 0) + added);
             const nextTotal = Math.max(0, (Number(prev.totalGpEarned) || 0) + added);
             const updated = {
               ...prev,

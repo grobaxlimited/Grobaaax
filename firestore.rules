@@ -23,6 +23,7 @@ service cloud.firestore {
         request.auth.uid == 'aGZBTsB4BBNvlY1A69hwfAb5DCJ3' ||
         request.auth.uid == 'iH02BTcB4B0BV2YLA60WwFAi50CJ3' ||
         request.auth.token.email == 'grobaxycompany@gmail.com' ||
+        request.auth.token.email == 'grobaxlimited@gmail.com' ||
         (userExists() && (
           getUserData().get('role', 'student') == 'admin' ||
           getUserData().get('role', 'student') == 'SUPER_ADMIN' ||
@@ -36,6 +37,7 @@ service cloud.firestore {
         request.auth.uid == 'aGZBTsB4BBNvlY1A69hwfAb5DCJ3' ||
         request.auth.uid == 'iH02BTcB4B0BV2YLA60WwFAi50CJ3' ||
         request.auth.token.email == 'grobaxycompany@gmail.com' ||
+        request.auth.token.email == 'grobaxlimited@gmail.com' ||
         (userExists() && (
           getUserData().get('role', 'student') == 'admin' ||
           getUserData().get('role', 'student') == 'SUPER_ADMIN' ||

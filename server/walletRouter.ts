@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import {
   supabaseAdmin,
   isSuperAdmin,
+  setDocToSupabase,
 } from '../src/lib/supabaseFirestoreAdapter';
 
 export const walletRouter = Router();
@@ -198,22 +199,12 @@ walletRouter.post('/credit-live-reward', async (req: Request, res: Response) => 
       gpBalance: newGp,
       walletBalance: newWallet,
       totalGpEarned: newTotalGp,
+      gp: newGp,
       updatedAt: new Date().toISOString(),
     };
 
-    const { error: upsertErr } = await supabaseAdmin.from('users').upsert({
-      id: userId,
-      data: updatedUserData,
-      updated_at: new Date().toISOString(),
-    });
-
-    if (upsertErr) {
-      console.error('[Live Reward] Error updating user balance in database:', upsertErr.message);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to update user wallet balance.',
-      });
-    }
+    // 1. Authoritative update to user profile with mutation broadcast across all connected clients
+    await setDocToSupabase('users', userId, updatedUserData, true, { isServerAuthoritative: true });
 
     // 2. Authoritative transaction record in walletTransactions
     const txId = `tx_lqa_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
@@ -226,67 +217,20 @@ walletRouter.post('/credit-live-reward', async (req: Request, res: Response) => 
       userAvatar: userData.profileImage || userData.avatar || '',
       institutionName: userData.institutionName || userData.institution || '',
       type: 'gp_earned',
+      source: 'DAILY_GP_GRAB',
+      category: 'DAILY_QA',
       amount: safeReward,
       unit: 'GP',
+      currency: 'GP',
       title: `🏆 Daily GP Grab Reward #${winnerRank || 1}`,
       description: `Winner #${winnerRank || 1} reward for Live Q&A Challenge #${questionNumber || ''}: "${questionText || ''}"`,
       isCredit: true,
       status: 'completed',
       createdAt: new Date().toISOString(),
+      timestamp: Date.now(),
     };
 
-    await supabaseAdmin.from('walletTransactions').upsert({
-      id: txId,
-      data: txRecord,
-      updated_at: new Date().toISOString(),
-    });
-
-    // 3. Authoritative synchronization to Firestore
-    try {
-      const fb: any = await import('../src/lib/firebase').catch(() => null);
-      if (fb && fb.db) {
-        const userDocRef = fb.doc(fb.db, 'users', userId);
-        await fb.setDoc(
-          userDocRef,
-          {
-            gpBalance: fb.increment(safeReward),
-            walletBalance: fb.increment(safeReward),
-            totalGpEarned: fb.increment(safeReward),
-            gp: fb.increment(safeReward),
-            updatedAt: fb.serverTimestamp(),
-          },
-          { merge: true }
-        );
-
-        await fb.setDoc(
-          fb.doc(fb.db, 'walletTransactions', txId),
-          {
-            id: txId,
-            transactionId: txId,
-            userId,
-            userName: txRecord.userName,
-            userEmail: txRecord.userEmail,
-            userAvatar: txRecord.userAvatar,
-            institutionName: txRecord.institutionName,
-            type: 'gp_earned',
-            source: 'DAILY_GP_GRAB',
-            category: 'DAILY_QA',
-            amount: safeReward,
-            unit: 'GP',
-            currency: 'GP',
-            title: txRecord.title,
-            description: txRecord.description,
-            isCredit: true,
-            status: 'completed',
-            timestamp: Date.now(),
-            createdAt: fb.serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
-    } catch (fbErr) {
-      console.warn('[Live Reward] Firestore sync notice in walletRouter:', fbErr);
-    }
+    await setDocToSupabase('walletTransactions', txId, txRecord, true, { isServerAuthoritative: true });
 
     return res.json({
       success: true,

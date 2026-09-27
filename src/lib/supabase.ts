@@ -42,13 +42,18 @@ export const DATABASE_URL =
 export const PRIMARY_SUPER_ADMIN_UID = '4403bd2b-e385-479b-af16-058582fa4ee3';
 export const SUPER_ADMIN_EMAIL = 'grobaxycompany@gmail.com';
 export const LEGACY_SUPER_ADMIN_UID = 'iH02BTcB4B0BV2YLA60WwFAi50CJ3';
+export const SUPER_ADMIN_EMAILS = [
+  'grobaxycompany@gmail.com',
+  'grobaxlimited@gmail.com',
+];
 
 export function isSuperAdmin(uid?: string | null, email?: string | null): boolean {
   if (!uid && !email) return false;
   if (uid === PRIMARY_SUPER_ADMIN_UID || uid === '4403bd2b-e385-479b-af16-058582fa4ee3') return true;
   if (uid === LEGACY_SUPER_ADMIN_UID) return true;
-  if (email && email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase()) return true;
-  if (uid && uid.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase()) return true;
+  const normEmail = (email || '').toLowerCase().trim();
+  const normUid = (uid || '').toLowerCase().trim();
+  if (SUPER_ADMIN_EMAILS.some(e => e.toLowerCase() === normEmail || e.toLowerCase() === normUid)) return true;
   return false;
 }
 
@@ -329,7 +334,10 @@ export async function setDocToSupabase<T = any>(
   // =========================================================================
   // STRICT SECURITY GUARD: Prevent unauthorized client-side GP generation & exploits
   // =========================================================================
-  if (!options?.isServerAuthoritative) {
+  const isServerEnv = typeof window === 'undefined' || Boolean((globalThis as any)?.process?.versions?.node);
+  const isAuthoritative = Boolean(options?.isServerAuthoritative || isServerEnv);
+
+  if (!isAuthoritative) {
     let activeUser: any = null;
     try {
       const sessionRes = await supabase.auth.getSession();

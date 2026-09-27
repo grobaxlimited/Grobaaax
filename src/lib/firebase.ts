@@ -6574,10 +6574,10 @@ export const evaluateAndProcessLiveAnswer = async (
       console.warn('Notice syncing question message in live feed:', e);
     }
 
-    // 2. Award exact GP to user's balance and sync authoritative ledger
+    // 2. Award exact GP to user's balance and sync authoritative ledger via backend official channel
+    let creditedBalance: number | null = null;
     try {
-      // Direct server-side authoritative update (updates Supabase DB and walletTransactions)
-      fetch('/api/wallet/credit-live-reward', {
+      const resp = await fetch('/api/wallet/credit-live-reward', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -6588,68 +6588,32 @@ export const evaluateAndProcessLiveAnswer = async (
           winnerRank,
           questionText: question.questionText,
         }),
-      }).catch((apiErr) => {
-        console.warn('Backend live reward credit call notice:', apiErr);
       });
-
-      // Firestore direct update (credits gpBalance, walletBalance, totalGpEarned, and gp)
-      const userRef = doc(db, 'users', user.id);
-      await setDoc(
-        userRef,
-        {
-          gpBalance: increment(gpAward),
-          walletBalance: increment(gpAward),
-          totalGpEarned: increment(gpAward),
-          gp: increment(gpAward),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      // Immediately sync local storage cache
-      try {
-        const cachedRaw = localStorage.getItem('grobax_cached_user_profile');
-        if (cachedRaw) {
-          const cached = JSON.parse(cachedRaw);
-          if (cached.id === user.id) {
-            cached.gpBalance = (Number(cached.gpBalance) || 0) + gpAward;
-            cached.walletBalance = (Number(cached.walletBalance) || Number(cached.gpBalance) || 0) + gpAward;
-            cached.totalGpEarned = (Number(cached.totalGpEarned) || 0) + gpAward;
-            localStorage.setItem('grobax_cached_user_profile', JSON.stringify(cached));
-            localStorage.setItem(`grobax_user_profile_${user.id}`, JSON.stringify(cached));
-          }
-        }
-      } catch {}
-    } catch (e) {
-      console.warn('Error incrementing user GP balance:', e);
+      const data = await resp.json().catch(() => null);
+      if (data && data.success && typeof data.newBalance === 'number') {
+        creditedBalance = data.newBalance;
+      }
+    } catch (apiErr) {
+      console.warn('Notice from backend live reward credit call:', apiErr);
     }
 
-    // 3. Record transaction ledger in Firestore / Supabase adapter
+    // Immediately sync local storage cache
     try {
-      const txId = 'tx_lqa_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-      await setDoc(doc(db, 'walletTransactions', txId), {
-        id: txId,
-        transactionId: txId,
-        userId: user.id,
-        userName: user.name || user.username || 'Grobaax Scholar',
-        type: 'gp_earned',
-        source: 'LIVE_QA_REWARD',
-        category: 'DAILY_QA',
-        amount: gpAward,
-        unit: 'GP',
-        currency: 'GP',
-        title: `🏆 Daily GP Grab Reward #${winnerRank}`,
-        description: `Winner #${winnerRank} reward for Live Q&A Challenge #${question.questionNumber}: "${question.questionText}"`,
-        isCredit: true,
-        status: 'completed',
-        timestamp: now,
-        createdAt: serverTimestamp(),
-      });
-    } catch (e) {
-      console.warn('Error recording Live Q&A transaction:', e);
-    }
+      const cachedRaw = localStorage.getItem('grobax_cached_user_profile');
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        if (cached.id === user.id) {
+          const nextBal = creditedBalance !== null ? creditedBalance : ((Number(cached.gpBalance) || 0) + gpAward);
+          cached.gpBalance = nextBal;
+          cached.walletBalance = nextBal;
+          cached.totalGpEarned = (Number(cached.totalGpEarned) || 0) + gpAward;
+          localStorage.setItem('grobax_cached_user_profile', JSON.stringify(cached));
+          localStorage.setItem(`grobax_user_profile_${user.id}`, JSON.stringify(cached));
+        }
+      }
+    } catch {}
 
-    // 4. Dispatch instant UI event for immediate balance update in nav
+    // 3. Dispatch instant UI event for immediate balance update in nav
     if (typeof window !== 'undefined') {
       try {
         window.dispatchEvent(
@@ -6657,6 +6621,8 @@ export const evaluateAndProcessLiveAnswer = async (
             detail: {
               userId: user.id,
               gpAwarded: gpAward,
+              gpAward,
+              newBalance: creditedBalance,
               questionNumber: question.questionNumber,
               winnerRank,
             },
