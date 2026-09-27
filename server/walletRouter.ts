@@ -172,7 +172,7 @@ walletRouter.post('/credit-live-reward', async (req: Request, res: Response) => 
       return res.status(400).json({ success: false, message: 'Invalid payload: userId and positive gpAward required.' });
     }
 
-    const safeReward = Math.min(Math.max(1, Math.floor(gpAward)), 10000);
+    const safeReward = Math.min(Math.max(1, Math.floor(gpAward)), 500000);
 
     // 1. Fetch current user from Supabase
     const userDocRes = await supabaseAdmin.from('users').select('id, data').eq('id', userId).single();
@@ -240,6 +240,53 @@ walletRouter.post('/credit-live-reward', async (req: Request, res: Response) => 
       data: txRecord,
       updated_at: new Date().toISOString(),
     });
+
+    // 3. Authoritative synchronization to Firestore
+    try {
+      const fb: any = await import('../src/lib/firebase').catch(() => null);
+      if (fb && fb.db) {
+        const userDocRef = fb.doc(fb.db, 'users', userId);
+        await fb.setDoc(
+          userDocRef,
+          {
+            gpBalance: fb.increment(safeReward),
+            walletBalance: fb.increment(safeReward),
+            totalGpEarned: fb.increment(safeReward),
+            gp: fb.increment(safeReward),
+            updatedAt: fb.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        await fb.setDoc(
+          fb.doc(fb.db, 'walletTransactions', txId),
+          {
+            id: txId,
+            transactionId: txId,
+            userId,
+            userName: txRecord.userName,
+            userEmail: txRecord.userEmail,
+            userAvatar: txRecord.userAvatar,
+            institutionName: txRecord.institutionName,
+            type: 'gp_earned',
+            source: 'DAILY_GP_GRAB',
+            category: 'DAILY_QA',
+            amount: safeReward,
+            unit: 'GP',
+            currency: 'GP',
+            title: txRecord.title,
+            description: txRecord.description,
+            isCredit: true,
+            status: 'completed',
+            timestamp: Date.now(),
+            createdAt: fb.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    } catch (fbErr) {
+      console.warn('[Live Reward] Firestore sync notice in walletRouter:', fbErr);
+    }
 
     return res.json({
       success: true,

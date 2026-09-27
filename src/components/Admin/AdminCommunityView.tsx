@@ -349,6 +349,8 @@ export const AdminCommunityView: React.FC<AdminCommunityViewProps> = ({
             <CreateLiveQuestionModal
               isOpen={isCreateQuestionModalOpen}
               onClose={() => setIsCreateQuestionModalOpen(false)}
+              adminUid={userProfile?.id || currentUser?.id}
+              adminName={userProfile?.name || currentUser?.name || 'Community Manager'}
             />
           )}
         </div>

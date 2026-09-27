@@ -30,7 +30,7 @@ export const CreateLiveQuestionModal: React.FC<CreateLiveQuestionModalProps> = (
   adminUid,
   adminName,
   defaultWinnerCount = 5,
-  defaultGpReward = 50,
+  defaultGpReward = 200,
   defaultTimeLimitSeconds = 300,
   onQuestionCreated,
 }) => {
@@ -73,16 +73,20 @@ export const CreateLiveQuestionModal: React.FC<CreateLiveQuestionModalProps> = (
         .map(s => s.trim())
         .filter(Boolean);
 
+      const rewardVal = Math.max(1, Number(gpReward));
+
       const createdQ = await createChatroomLiveQuestionInFirestore(
         {
           questionText: questionText.trim(),
           correctAnswer: correctAnswer.trim(),
           acceptedAlternativeAnswers: altArray,
           winnerLimit: Number(winnerLimit),
-          gpRewardPerWinner: Number(gpReward),
+          gpRewardPerWinner: rewardVal,
+          gpReward: rewardVal,
+          rewardAmount: rewardVal,
           timeLimitSeconds: Number(timeLimitMinutes) * 60,
           allowFreeParticipation: true,
-        },
+        } as any,
         adminUid,
         adminName
       );
@@ -204,9 +208,9 @@ export const CreateLiveQuestionModal: React.FC<CreateLiveQuestionModalProps> = (
               </label>
               <input
                 type="number"
-                min={5}
-                max={5000}
-                step={5}
+                min={1}
+                max={500000}
+                step={1}
                 value={gpReward}
                 onChange={e => setGpReward(Number(e.target.value))}
                 className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-500/40 rounded-xl text-xs font-black text-slate-900 dark:text-amber-300 focus:outline-hidden"

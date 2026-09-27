@@ -299,15 +299,17 @@ export const ChatroomMessageItem: React.FC<ChatroomMessageItemProps> = ({
     }
 
     const comp = targetQuestionMsg.competitionRef;
+    const compReward = Math.max(1, Number(comp.gpRewardPerWinner ?? (comp as any).gpReward ?? (comp as any).rewardAmount ?? 50));
 
     // Check confirmed winners list on question
     const winnerRecord = (comp.selectedWinners || []).find(
       w => w.userId === message.userId || (w.userName && w.userName.toLowerCase().trim() === normMsgUser && normMsgUser.length > 0)
     );
     if (winnerRecord) {
+      const winnerReward = typeof winnerRecord.gpAwarded === 'number' ? winnerRecord.gpAwarded : compReward;
       return {
         answerStatus: 'correct',
-        gpEarned: (!hasPremium && !isStaffOrAdmin) ? 0 : (winnerRecord.gpAwarded || comp.gpRewardPerWinner || 50),
+        gpEarned: (!hasPremium && !isStaffOrAdmin) ? 0 : winnerReward,
       };
     }
 
@@ -335,7 +337,7 @@ export const ChatroomMessageItem: React.FC<ChatroomMessageItemProps> = ({
         const maxWinners = comp.winnerCountLimit || 5;
         const slotsAvailable = currentWinnersCount < maxWinners;
 
-        const earned = (isEligibleForGp && withinTime && slotsAvailable) ? (comp.gpRewardPerWinner || 50) : 0;
+        const earned = (isEligibleForGp && withinTime && slotsAvailable) ? compReward : 0;
         return {
           answerStatus: 'correct',
           gpEarned: earned,
@@ -469,7 +471,7 @@ export const ChatroomMessageItem: React.FC<ChatroomMessageItemProps> = ({
 
                   <span className="px-2.5 py-1 rounded-full bg-amber-400 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow-xs">
                     <Trophy className="w-3 h-3" />
-                    +{message.competitionRef?.gpRewardPerWinner || 50} GP each
+                    +{message.competitionRef?.gpRewardPerWinner ?? (message.competitionRef as any)?.gpReward ?? (message.competitionRef as any)?.rewardAmount ?? 50} GP each
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200 font-bold text-[10px] border border-blue-400/30">
                     First {message.competitionRef?.winnerCountLimit || 5} scholars
@@ -505,11 +507,14 @@ export const ChatroomMessageItem: React.FC<ChatroomMessageItemProps> = ({
                     <span>Confirmed Winners ({message.competitionRef.selectedWinners.length}/{message.competitionRef.winnerCountLimit || 5}):</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {message.competitionRef.selectedWinners.map((w, wIdx) => (
-                      <span key={w.userId || wIdx} className="px-2 py-0.5 rounded-md bg-amber-400/20 border border-amber-400/30 text-[11px] font-bold text-white flex items-center gap-1">
-                        🏆 @{w.userName} <span className="text-amber-300">(+{w.gpAwarded || message.competitionRef?.gpRewardPerWinner || 50} GP)</span>
-                      </span>
-                    ))}
+                    {message.competitionRef.selectedWinners.map((w, wIdx) => {
+                      const displayAward = typeof w.gpAwarded === 'number' ? w.gpAwarded : Number(message.competitionRef?.gpRewardPerWinner ?? (message.competitionRef as any)?.gpReward ?? 50);
+                      return (
+                        <span key={w.userId || wIdx} className="px-2 py-0.5 rounded-md bg-amber-400/20 border border-amber-400/30 text-[11px] font-bold text-white flex items-center gap-1">
+                          🏆 @{w.userName} <span className="text-amber-300">(+{displayAward} GP)</span>
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}

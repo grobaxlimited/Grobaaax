@@ -118,7 +118,7 @@ export const ChatroomLiveQuestionCard: React.FC<ChatroomLiveQuestionCardProps> =
           <div className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full border border-blue-500/30 text-xs font-black flex items-center gap-1.5">
             <Trophy className="w-3.5 h-3.5 text-amber-400" />
             <span>
-              {maxWinners} Winners • {question.gpRewardPerWinner || 200} GP Each
+              {maxWinners} Winners • {question.gpRewardPerWinner ?? (question as any).gpReward ?? (question as any).rewardAmount ?? 50} GP Each
             </span>
           </div>
 
@@ -253,7 +253,7 @@ export const ChatroomLiveQuestionCard: React.FC<ChatroomLiveQuestionCardProps> =
                       </div>
                     </div>
                     <span className="px-2 py-0.5 bg-amber-400 text-slate-950 font-black text-[10px] rounded-lg shrink-0">
-                      +{winner.gpAwarded || 200} GP
+                      +{typeof winner.gpAwarded === 'number' ? winner.gpAwarded : (question.gpRewardPerWinner ?? (question as any).gpReward ?? 50)} GP
                     </span>
                   </div>
                 );

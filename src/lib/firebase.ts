@@ -5820,7 +5820,13 @@ export const createChatroomLiveQuestionInFirestore = async (
     const timeLimit = Math.max(15, Number(questionData.timeLimitSeconds) || 300);
     const endAt = now + timeLimit * 1000;
     const winnerLimit = Math.max(1, Number(questionData.winnerLimit) || 5);
-    const gpReward = Math.max(1, Number(questionData.gpRewardPerWinner) || 50);
+    const rawInputReward =
+      questionData.gpRewardPerWinner ??
+      (questionData as any).gpReward ??
+      (questionData as any).rewardAmount ??
+      (questionData as any).gpAward ??
+      50;
+    const gpReward = Math.max(1, Number(rawInputReward) || 50);
 
     // 0. Auto-close any prior active questions to ensure only this newly launched challenge is active
     try {
@@ -5867,9 +5873,12 @@ export const createChatroomLiveQuestionInFirestore = async (
       createdAt: now,
     };
 
-    // 1. Save question doc in Firestore
+    // 1. Save question doc in Firestore with complete reward field aliases
     await setDoc(doc(db, 'chatroom_live_questions', qId), {
       ...newQ,
+      gpRewardPerWinner: gpReward,
+      gpReward: gpReward,
+      rewardAmount: gpReward,
       createdAtServer: serverTimestamp(),
       createdByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
       createdByName: adminName || 'Community Manager',
@@ -5894,8 +5903,12 @@ export const createChatroomLiveQuestionInFirestore = async (
         questionNumber: newQ.questionNumber,
         totalQuestions: 10,
         questionText: newQ.questionText,
+        correctAnswer: newQ.correctAnswer,
+        acceptedAlternativeAnswers: newQ.acceptedAlternativeAnswers,
         status: 'active',
         gpRewardPerWinner: gpReward,
+        gpReward: gpReward,
+        rewardAmount: gpReward,
         winnerCountLimit: winnerLimit,
         allowFreeParticipation: true,
         timeLimitSeconds: timeLimit,
@@ -6498,7 +6511,17 @@ export const evaluateAndProcessLiveAnswer = async (
     // SCENARIO 2: PREMIUM / VIP SCHOLAR (OR ADMIN/STAFF)
     // Compute new winner rank and award exact admin-programmed GP reward
     const winnerRank = currentWinners.length + 1;
-    const gpAward = Math.max(1, Number(question.gpRewardPerWinner) || 50);
+    const rawGpReward =
+      question.gpRewardPerWinner ??
+      (question as any).gpReward ??
+      (question as any).rewardAmount ??
+      (question as any).gpAwarded ??
+      (question as any).prizePerWinner ??
+      (question as any).reward ??
+      (question as any).competitionRef?.gpRewardPerWinner ??
+      (question as any).competitionRef?.gpReward ??
+      (question as any).competitionRef?.rewardAmount;
+    const gpAward = Math.max(1, Number(rawGpReward) || 50);
 
     const winnerRecord = {
       userId: user.id,
@@ -6569,9 +6592,34 @@ export const evaluateAndProcessLiveAnswer = async (
         console.warn('Backend live reward credit call notice:', apiErr);
       });
 
-      // Firestore mirror update
+      // Firestore direct update (credits gpBalance, walletBalance, totalGpEarned, and gp)
       const userRef = doc(db, 'users', user.id);
-      await setDoc(userRef, { gpBalance: increment(gpAward), updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(
+        userRef,
+        {
+          gpBalance: increment(gpAward),
+          walletBalance: increment(gpAward),
+          totalGpEarned: increment(gpAward),
+          gp: increment(gpAward),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Immediately sync local storage cache
+      try {
+        const cachedRaw = localStorage.getItem('grobax_cached_user_profile');
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (cached.id === user.id) {
+            cached.gpBalance = (Number(cached.gpBalance) || 0) + gpAward;
+            cached.walletBalance = (Number(cached.walletBalance) || Number(cached.gpBalance) || 0) + gpAward;
+            cached.totalGpEarned = (Number(cached.totalGpEarned) || 0) + gpAward;
+            localStorage.setItem('grobax_cached_user_profile', JSON.stringify(cached));
+            localStorage.setItem(`grobax_user_profile_${user.id}`, JSON.stringify(cached));
+          }
+        }
+      } catch {}
     } catch (e) {
       console.warn('Error incrementing user GP balance:', e);
     }

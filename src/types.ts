@@ -2488,6 +2488,8 @@ export interface ChatroomLiveMessage {
     acceptedAlternativeAnswers?: string[];
     status: 'active' | 'closed';
     gpRewardPerWinner: number;
+    gpReward?: number;
+    rewardAmount?: number;
     winnerCountLimit: number;
     allowFreeParticipation: boolean;
     targetTier?: 'free' | 'premium' | 'vip' | 'all';

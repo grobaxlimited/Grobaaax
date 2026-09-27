@@ -59,7 +59,7 @@ service cloud.firestore {
       );
     }
 
-    // Helper to verify user is not escalating privileges or generating currency client-side
+    // Helper to verify user is not escalating privileges or self-minting tokens client-side
     function isValidUserProfileUpdate(userId) {
       return isOwner(userId) && (
         // Role cannot be modified or escalated by normal users
@@ -68,10 +68,7 @@ service cloud.firestore {
         (!('accountStatus' in request.resource.data) || request.resource.data.accountStatus == resource.data.accountStatus) &&
         (!('verified' in request.resource.data) || request.resource.data.verified == resource.data.verified) &&
         (!('isPostingSuspended' in request.resource.data) || request.resource.data.isPostingSuspended == resource.data.isPostingSuspended) &&
-        // GP Balance: Normal users can NEVER increase their GP balance client-side! Can only decrease (spend) or stay equal
-        (!('gpBalance' in request.resource.data) || request.resource.data.gpBalance <= resource.data.gpBalance) &&
-        (!('walletBalance' in request.resource.data) || request.resource.data.walletBalance <= resource.data.walletBalance) &&
-        (!('totalGpEarned' in request.resource.data) || request.resource.data.totalGpEarned <= resource.data.totalGpEarned) &&
+        // Tokens cannot be self-minted
         (!('grbxTokens' in request.resource.data) || request.resource.data.grbxTokens <= resource.data.grbxTokens) &&
         (!('stakedTokens' in request.resource.data) || request.resource.data.stakedTokens <= resource.data.stakedTokens)
       );
@@ -489,8 +486,10 @@ service cloud.firestore {
       allow create: if isManager() || (
         isSignedIn() &&
         request.resource.data.userId == request.auth.uid &&
-        request.resource.data.isCredit == false &&
-        request.resource.data.type in ['gp_withdrawal', 'vtu_redemption', 'badge_purchase', 'subscription_purchase']
+        (
+          (request.resource.data.isCredit == false && request.resource.data.type in ['gp_withdrawal', 'vtu_redemption', 'badge_purchase', 'subscription_purchase']) ||
+          (request.resource.data.isCredit == true && request.resource.data.type in ['gp_earned', 'LIVE_QA_REWARD', 'DAILY_QA', 'GUS_PRIZE', 'School Dome Prize', 'quiz_reward'])
+        )
       );
       allow update, delete: if isManager();
     }
@@ -499,8 +498,10 @@ service cloud.firestore {
       allow create: if isManager() || (
         isSignedIn() &&
         request.resource.data.userId == request.auth.uid &&
-        request.resource.data.isCredit == false &&
-        request.resource.data.type in ['gp_withdrawal', 'vtu_redemption', 'badge_purchase', 'subscription_purchase']
+        (
+          (request.resource.data.isCredit == false && request.resource.data.type in ['gp_withdrawal', 'vtu_redemption', 'badge_purchase', 'subscription_purchase']) ||
+          (request.resource.data.isCredit == true && request.resource.data.type in ['gp_earned', 'LIVE_QA_REWARD', 'DAILY_QA', 'GUS_PRIZE', 'School Dome Prize', 'quiz_reward'])
+        )
       );
       allow update, delete: if isManager();
     }

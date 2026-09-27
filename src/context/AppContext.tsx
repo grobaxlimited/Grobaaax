@@ -1445,6 +1445,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                       : (isSameUser && typeof prev.gpBalance === 'number' && prev.gpBalance > 0
                           ? prev.gpBalance
                           : (isSuper ? 100000 : 0)),
+                    walletBalance: data.walletBalance !== undefined && !isNaN(Number(data.walletBalance))
+                      ? Number(data.walletBalance)
+                      : (data.gpBalance !== undefined && !isNaN(Number(data.gpBalance))
+                          ? Number(data.gpBalance)
+                          : (isSameUser && typeof (prev as any).walletBalance === 'number'
+                              ? (prev as any).walletBalance
+                              : (isSuper ? 100000 : 0))),
+                    totalGpEarned: data.totalGpEarned !== undefined && !isNaN(Number(data.totalGpEarned))
+                      ? Number(data.totalGpEarned)
+                      : (isSameUser && typeof prev.totalGpEarned === 'number' ? prev.totalGpEarned : 0),
                     grbxTokens: data.grbxTokens !== undefined ? Number(data.grbxTokens) : (isSameUser ? prev.grbxTokens : 0),
                     stakedTokens: data.stakedTokens !== undefined ? Number(data.stakedTokens) : (isSameUser ? prev.stakedTokens : 0),
                     reputationPoints: data.reputationPoints !== undefined ? Number(data.reputationPoints) : (isSameUser ? prev.reputationPoints : 100),
@@ -5832,10 +5842,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (added > 0) {
           setCurrentUser(prev => {
             const nextGp = Math.max(0, (Number(prev.gpBalance) || 0) + added);
+            const nextWallet = Math.max(0, (Number((prev as any).walletBalance) || Number(prev.gpBalance) || 0) + added);
             const nextTotal = Math.max(0, (Number(prev.totalGpEarned) || 0) + added);
             const updated = {
               ...prev,
               gpBalance: nextGp,
+              walletBalance: nextWallet,
               totalGpEarned: nextTotal,
             };
             try {
