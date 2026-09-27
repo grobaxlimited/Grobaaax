@@ -878,12 +878,13 @@ export async function sendSchoolDomeMessage(
   try {
     const msgRef = doc(db, 'school_dome_messages', message.id);
     const cleanMsg = JSON.parse(JSON.stringify(message, (_, v) => (v === undefined ? null : v)));
-    await setDoc(msgRef, cleanMsg);
 
-    // Notify local runtime listeners immediately for rapid optimistic badge and feed sync
+    // Notify local runtime listeners immediately BEFORE any network write for 0ms instantaneous drop
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('school_dome_message_posted', { detail: cleanMsg }));
     }
+
+    await setDoc(msgRef, cleanMsg);
 
     // If message is not answering a question, return normal
     if (message.type !== 'normal' || !message.messageText || !currentSeason) {
@@ -1213,6 +1214,11 @@ export async function createSchoolDomeQuestion(
       },
       reactions: { '⚡': 1, '🎯': 1 },
     };
+
+    // Notify local runtime listeners immediately for 0ms question drop into arena feed
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('school_dome_message_posted', { detail: qMessage }));
+    }
 
     try {
       await setDoc(doc(db, 'school_dome_messages', qMessage.id), qMessage);

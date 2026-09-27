@@ -79,8 +79,8 @@ export const PWASplashScreen: React.FC<PWASplashScreenProps> = ({
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center justify-center gap-2">
             <span>Grobaax</span>
           </h1>
-          <p className="text-xs sm:text-sm font-medium text-blue-200/90 tracking-wide leading-relaxed">
-            Represent your school title, conquer academic arenas, and connect with scholars nationwide.
+          <p className="text-xs sm:text-sm font-bold text-blue-300 tracking-wider uppercase">
+            REPRESENT YOUR SCHOOL
           </p>
         </div>
 

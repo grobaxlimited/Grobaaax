@@ -374,7 +374,7 @@ export const ChatroomLiveView: React.FC = () => {
     return hasUserRepliedToQuestionMessage(replyTarget);
   }, [replyTarget, chatroomMessages, currentUser.id, currentUser?.name]);
 
-  const handleSendMessage = async (text: string, replyTo?: ChatroomLiveMessage['replyTo']) => {
+  const handleSendMessage = (text: string, replyTo?: ChatroomLiveMessage['replyTo']) => {
     // 1. Immediate Synchronous Check against state & local storage
     const currentSyncUsage = getSynchronousDailyChatUsage(activeUserId, todayDate);
     const effectiveCount = Math.max(dailyResponseCount, currentSyncUsage);
@@ -401,23 +401,13 @@ export const ChatroomLiveView: React.FC = () => {
       }
     }
 
-    // 2. Pre-record response in DB and check allowed status FIRST before message broadcast
+    // Synchronously increment local usage right away for 0ms UI update
     if (!isStaffOrAdmin) {
+      const nextCount = effectiveCount + 1;
+      setDailyResponseCount(nextCount);
       try {
-        const recordResult = await recordUserDailyChatResponse(activeUserId, todayDate, tierName);
-        setDailyResponseCount(recordResult.count);
-        if (!recordResult.allowed) {
-          handleOpenUpgrade();
-          return; // STOP! User has reached limit, do not send message
-        }
-      } catch (recErr) {
-        console.warn('Record allowance pre-flight notice:', recErr);
-        // If local sync check already met limit, stop
-        if (effectiveCount >= maxDailyLimit) {
-          handleOpenUpgrade();
-          return;
-        }
-      }
+        localStorage.setItem(`grobax_daily_qa_${activeUserId}_${todayDate}`, String(nextCount));
+      } catch {}
     }
 
     const newMessage: ChatroomLiveMessage = {
@@ -442,14 +432,31 @@ export const ChatroomLiveView: React.FC = () => {
       reactions: {},
     };
 
-    try {
-      await sendChatroomMessage(newMessage);
-    } catch (err) {
-      console.warn('Daily Q&A message sync notice:', err);
-    }
+    // Instant optimistic drop into the chat feed (0ms latency)
+    sendChatroomMessage(newMessage);
 
     if (soundEnabled) {
       playAudioTone();
+    }
+
+    // Direct instant snap to bottom
+    requestAnimationFrame(() => {
+      scrollToBottom(false);
+    });
+
+    // Background asynchronous server synchronization and limit recording
+    if (!isStaffOrAdmin) {
+      recordUserDailyChatResponse(activeUserId, todayDate, tierName)
+        .then((recordResult) => {
+          setDailyResponseCount(recordResult.count);
+          if (!recordResult.allowed) {
+            deleteChatroomMessage(newMessage.id);
+            handleOpenUpgrade();
+          }
+        })
+        .catch((recErr) => {
+          console.warn('Record allowance background notice:', recErr);
+        });
     }
   };
 

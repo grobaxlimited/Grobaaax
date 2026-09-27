@@ -160,7 +160,12 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         const map = new Map<string, SchoolDomeMessage>();
         msgs.forEach(m => map.set(m.id, m));
         prev.forEach(p => {
-          if (map.has(p.id)) {
+          if (!map.has(p.id)) {
+            // CRITICAL: Preserve recent optimistic in-flight messages so they never disappear when Firestore snapshot arrives!
+            if ((Date.now() - (p.timestamp || 0)) < 45000 && !p.isDeleted) {
+              map.set(p.id, p);
+            }
+          } else {
             const existing = map.get(p.id)!;
             const mergedReactions = { ...(existing.reactions || {}) };
             if (p.reactions) {
@@ -618,7 +623,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
       }
     }
 
-    // Optimistic message append so chat appears immediately like WhatsApp without refreshing
+    // Optimistic message append so chat appears immediately in 0ms like WhatsApp
     setMessages(prev => {
       const exists = prev.some(m => m.id === newMessage.id);
       if (exists) return prev;
@@ -629,15 +634,24 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
       return updated;
     });
 
-    try {
-      await sendSchoolDomeMessage(newMessage, currentSeason, activeQuestion, currentUser);
-    } catch (err) {
-      console.warn('School Dome message sync notice:', err);
-    }
-
     if (soundEnabled) {
       playAudioTone();
     }
+
+    // Direct instant snap to bottom so new post is immediately in view
+    requestAnimationFrame(() => {
+      scrollToBottom(false);
+    });
+
+    // Notify local listeners right away for instant drop across all tabs/modals
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('school_dome_message_posted', { detail: newMessage }));
+    }
+
+    // Background asynchronous sync to Firestore & competition evaluation without blocking the post drop
+    sendSchoolDomeMessage(newMessage, currentSeason, activeQuestion, currentUser).catch((err) => {
+      console.warn('School Dome message sync notice:', err);
+    });
   };
 
   const handleReactMessage = async (msgId: string, emoji: string) => {

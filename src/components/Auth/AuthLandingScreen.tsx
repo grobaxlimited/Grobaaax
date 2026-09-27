@@ -162,7 +162,7 @@ export const AuthLandingScreen: React.FC = () => {
             </h2>
 
             <p className="text-blue-600 dark:text-blue-400 text-base sm:text-lg font-bold tracking-tight max-w-xl mx-auto">
-              Represent your school title, conquer academic arenas, and connect with scholars nationwide.
+              REPRESENT YOUR SCHOOL
             </p>
 
             <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm font-medium leading-relaxed max-w-xl mx-auto">

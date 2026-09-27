@@ -112,7 +112,7 @@ export const HomeTab: React.FC = () => {
               </h1>
 
               <p className="text-sm sm:text-base lg:text-lg font-bold text-blue-600 dark:text-blue-400">
-                Represent your school title, conquer academic arenas, and connect with scholars nationwide.
+                REPRESENT YOUR SCHOOL
               </p>
 
               <p className="text-xs sm:text-sm lg:text-base text-slate-600 dark:text-slate-300 max-w-3xl leading-relaxed font-medium">

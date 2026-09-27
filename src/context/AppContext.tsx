@@ -3222,7 +3222,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const map = new Map<string, SchoolDomeMessage>();
           msgs.forEach((m) => map.set(m.id, m));
           prev.forEach((p) => {
-            if (map.has(p.id)) {
+            if (!map.has(p.id)) {
+              if ((Date.now() - (p.timestamp || 0)) < 45000 && !p.isDeleted) {
+                map.set(p.id, p);
+              }
+            } else {
               const existing = map.get(p.id)!;
               const mergedReactions = { ...(existing.reactions || {}) };
               if (p.reactions) {
@@ -5243,6 +5247,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       equippedBadge: message.equippedBadge || (message.userId === currentUser.id ? currentUser.equippedBadge : undefined),
     };
 
+    // 0ms instant optimistic drop into React state & localStorage
     setChatroomMessages(prev => {
       const exists = prev.some(m => m.id === finalMsg.id);
       const updated = exists ? prev.map(m => m.id === finalMsg.id ? finalMsg : m) : [...prev, finalMsg];
@@ -5252,11 +5257,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    try {
-      await sendChatroomMessageToFirestore(finalMsg);
-    } catch (err) {
+    // Background asynchronous sync to Firestore without delaying the post drop
+    sendChatroomMessageToFirestore(finalMsg).catch(err => {
       console.warn('Notice syncing chatroom message to Firestore:', err);
-    }
+    });
   };
 
   const deleteChatroomMessage = async (messageId: string): Promise<void> => {
