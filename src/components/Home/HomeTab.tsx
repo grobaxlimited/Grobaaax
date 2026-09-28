@@ -102,18 +102,30 @@ export const HomeTab: React.FC = () => {
         <div className="relative space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-2.5 max-w-2xl flex-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-gradient-to-r from-blue-500/15 via-amber-500/15 to-indigo-500/15 border border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <GraduationCap className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-                <span>Campus Academic Hub</span>
+                <span>Campus Academic Hub • Inter-School Arena</span>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
-                Welcome to Grobaax
-              </h1>
+              <div className="relative">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
+                  Welcome to{' '}
+                  <span className="bg-gradient-to-r from-blue-600 via-amber-500 to-indigo-600 dark:from-blue-400 dark:via-amber-400 dark:to-indigo-400 bg-clip-text text-transparent animate-shimmer-text">
+                    Grobaax
+                  </span>
+                </h1>
+                <div className="h-1 w-24 bg-gradient-to-r from-blue-600 via-amber-400 to-transparent rounded-full mt-2 animate-pulse" />
+              </div>
 
-              <p className="text-sm sm:text-base lg:text-lg font-bold text-blue-600 dark:text-blue-400">
-                REPRESENT YOUR SCHOOL
-              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm sm:text-base lg:text-lg font-black tracking-wider text-blue-600 dark:text-blue-400 uppercase">
+                  REPRESENT YOUR SCHOOL
+                </p>
+                <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-extrabold tracking-tight uppercase animate-pulse">
+                  🏆 Season Active
+                </span>
+              </div>
 
               <p className="text-xs sm:text-sm lg:text-base text-slate-600 dark:text-slate-300 max-w-3xl leading-relaxed font-medium">
                 Grobaax is an education-focused platform where students test knowledge through <strong>Daily GP Grab</strong>, represent their institution as the last school standing in the <strong>School Dome Arena</strong>, access 24/7 <strong>Airtime and Data Redemption</strong>, connect with fellow scholars via the <strong>Campus Mini Mart</strong>, build verified student networks on <strong>Campus</strong>, and unlock strategic competition intelligence in <strong>Hints</strong>.

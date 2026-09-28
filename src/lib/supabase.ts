@@ -337,6 +337,8 @@ export async function setDocToSupabase<T = any>(
   const isServerEnv = typeof window === 'undefined' || Boolean((globalThis as any)?.process?.versions?.node);
   const isAuthoritative = Boolean(options?.isServerAuthoritative || isServerEnv);
 
+  let isCallerSuperAdmin = false;
+
   if (!isAuthoritative) {
     let activeUser: any = null;
     try {
@@ -344,9 +346,18 @@ export async function setDocToSupabase<T = any>(
       activeUser = sessionRes?.data?.session?.user || null;
     } catch {}
 
-    const callerUid = activeUser?.id || '';
+    if (!activeUser && typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('grobax_cached_user_profile') || localStorage.getItem('currentUser');
+        if (cached) {
+          activeUser = JSON.parse(cached);
+        }
+      } catch {}
+    }
+
+    const callerUid = activeUser?.id || activeUser?.uid || '';
     const callerEmail = activeUser?.email || '';
-    const isCallerSuperAdmin = isSuperAdmin(callerUid, callerEmail);
+    isCallerSuperAdmin = isSuperAdmin(callerUid, callerEmail) || activeUser?.role === 'super_admin' || Boolean(activeUser?.isSuperAdmin);
 
     if (!isCallerSuperAdmin) {
       if (table === 'users') {
@@ -425,9 +436,10 @@ export async function setDocToSupabase<T = any>(
     updated_at: now,
   };
 
-  let { error } = await supabase.from(table).upsert(row, { onConflict: 'id' });
+  const clientToUse = (isAuthoritative || isCallerSuperAdmin) ? supabaseAdmin : supabase;
+  let { error } = await clientToUse.from(table).upsert(row, { onConflict: 'id' });
 
-  if (error) {
+  if (error && clientToUse === supabase) {
     console.warn(`[Supabase] Anon upsert notice in ${table}/${docId}, retrying with admin client:`, error.message);
     const adminRes = await supabaseAdmin.from(table).upsert(row, { onConflict: 'id' });
     error = adminRes.error;

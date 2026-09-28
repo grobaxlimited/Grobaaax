@@ -2991,7 +2991,7 @@ export interface CampusStudentCard {
 // SCHOOL DOME COMPETITION SYSTEM TYPES
 // ==========================================
 
-export type SchoolDomeSeasonStatus = 'upcoming' | 'registration_open' | 'active' | 'ended';
+export type SchoolDomeSeasonStatus = 'upcoming' | 'registration_open' | 'active' | 'paused' | 'ended';
 
 export interface SchoolDomeWinner {
   userId: string;
@@ -3019,6 +3019,8 @@ export interface SchoolDomeSeason {
   totalQuestionsLaunched: number;
   createdAt: number;
   startedAt?: number;
+  pausedAt?: number;
+  resumedAt?: number;
   endedAt?: number;
   winners?: SchoolDomeWinner[];
   rules?: string[];

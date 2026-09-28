@@ -15,6 +15,8 @@ import {
   extendSchoolDomeQuestionTime,
   endSchoolDomeSeasonAndDistributePrize,
   deleteAllSchoolDomeSeasons,
+  pauseSchoolDomeSeason,
+  resumeSchoolDomeSeason,
 } from '../../lib/schoolDomeService';
 import { CreateSchoolDomeQuestionModal } from '../SchoolDome/CreateSchoolDomeQuestionModal';
 import { SchoolDomeAdminSeasonModal } from '../SchoolDome/SchoolDomeAdminSeasonModal';
@@ -23,6 +25,7 @@ import {
   CheckCircle2,
   Settings,
   Play,
+  Pause,
   Square,
   Trophy,
   AlertCircle,
@@ -48,6 +51,7 @@ export const AdminSchoolDomeView: React.FC = () => {
   const [isAdminSeasonModalOpen, setIsAdminSeasonModalOpen] = useState(false);
   const [seasonModalInitialTab, setSeasonModalInitialTab] = useState<'edit' | 'manage' | 'new_season'>('edit');
   const [isEndingSeason, setIsEndingSeason] = useState(false);
+  const [isTogglingPause, setIsTogglingPause] = useState(false);
   const [isConfirmEndModalOpen, setIsConfirmEndModalOpen] = useState(false);
   const [endSeasonError, setEndSeasonError] = useState<string | null>(null);
   const [endSeasonSuccessResult, setEndSeasonSuccessResult] = useState<{
@@ -130,6 +134,22 @@ export const AdminSchoolDomeView: React.FC = () => {
   const prizePrefix = currency === 'NGN' ? '₦' : '';
   const prizeSuffix = currency === 'GP' ? ' GP' : '';
   const prizePerWinner = Math.floor(prizePool / Math.max(1, standingCount));
+
+  const handleTogglePause = async () => {
+    if (!currentSeason) return;
+    try {
+      setIsTogglingPause(true);
+      if (currentSeason.status === 'paused') {
+        await resumeSchoolDomeSeason(currentSeason.id, currentUser?.id, currentUser?.name);
+      } else {
+        await pauseSchoolDomeSeason(currentSeason.id, currentUser?.id, currentUser?.name);
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Failed to toggle season pause state.');
+    } finally {
+      setIsTogglingPause(false);
+    }
+  };
 
   const handleStartSeasonClick = () => {
     setSeasonModalInitialTab('new_season');
@@ -220,6 +240,37 @@ export const AdminSchoolDomeView: React.FC = () => {
               <Play className="w-4 h-4 fill-white" />
               <span>START SEASON</span>
             </button>
+
+            {/* PAUSE / RESUME SEASON Button */}
+            {currentSeason.status !== 'ended' && (
+              <button
+                type="button"
+                disabled={isTogglingPause}
+                onClick={handleTogglePause}
+                className={`px-3.5 py-2 text-xs font-black rounded-xl shadow-md transition hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 ${
+                  currentSeason.status === 'paused'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900 shadow-emerald-500/20 shadow-lg animate-pulse'
+                    : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black'
+                }`}
+                title={
+                  currentSeason.status === 'paused'
+                    ? 'Resume the competition: unlocks timers, questions, and contender answers'
+                    : 'Pause the season: freezes timers, countdowns, and contender responses'
+                }
+              >
+                {currentSeason.status === 'paused' ? (
+                  <>
+                    <Play className="w-4 h-4 fill-white" />
+                    <span>{isTogglingPause ? 'RESUMING...' : 'RESUME SEASON'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Pause className="w-4 h-4 fill-current" />
+                    <span>{isTogglingPause ? 'PAUSING...' : 'PAUSE SEASON'}</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {/* END SEASON Button */}
             <button
@@ -333,6 +384,37 @@ export const AdminSchoolDomeView: React.FC = () => {
             </div>
           )}
 
+          {/* Paused Season Alert Banner */}
+          {currentSeason.status === 'paused' && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/15 dark:bg-amber-950/40 border border-amber-500/40 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/40">
+                  <Pause className="w-5 h-5 fill-current" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-black text-sm uppercase tracking-wide">Season #{currentSeason.seasonNumber} Is Currently Paused</p>
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                  </div>
+                  <p className="text-slate-600 dark:text-slate-300 text-xs mt-0.5">
+                    Elimination questions, countdown timers, and contender answers are frozen on hold. Contenders currently standing remain completely safe. Click <strong>RESUME SEASON</strong> to restore live arena gameplay.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  disabled={isTogglingPause}
+                  onClick={handleTogglePause}
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-xs shadow-md transition hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>{isTogglingPause ? 'RESUMING...' : 'RESUME SEASON NOW'}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Concluded Season Alert Banner */}
           {currentSeason.status === 'ended' && (
             <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-sm">
@@ -383,11 +465,13 @@ export const AdminSchoolDomeView: React.FC = () => {
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
                 currentSeason.status === 'ended'
                   ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30'
+                  : currentSeason.status === 'paused'
+                  ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40'
                   : currentSeason.status === 'active'
                   ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
                   : 'bg-blue-500/15 text-blue-600 border-blue-500/30'
               }`}>
-                {currentSeason.status === 'ended' ? 'Concluded / Inactive' : currentSeason.status === 'active' ? 'Active' : 'Registration Open'}
+                {currentSeason.status === 'ended' ? 'Concluded / Inactive' : currentSeason.status === 'paused' ? '⏸️ Paused' : currentSeason.status === 'active' ? 'Active' : 'Registration Open'}
               </span>
               <button
                 type="button"

@@ -29,11 +29,11 @@ export const WelcomeVideoBox: React.FC<WelcomeVideoBoxProps> = ({
       <div
         id="home-welcome-youtube-box"
         onClick={() => setIsModalOpen(true)}
-        className="group relative cursor-pointer overflow-hidden rounded-2xl sm:rounded-3xl border border-red-500/30 dark:border-red-500/40 bg-gradient-to-br from-red-950/20 via-slate-900 to-slate-950 p-4 sm:p-5 shadow-lg hover:shadow-red-500/20 hover:border-red-500/60 transition-all duration-300 transform hover:-translate-y-1 w-full max-w-md shrink-0"
+        className="group relative cursor-pointer overflow-hidden rounded-2xl sm:rounded-3xl border border-red-500/40 bg-gradient-to-br from-red-950/30 via-slate-900 to-slate-950 p-4 sm:p-5 shadow-xl hover:shadow-red-500/25 transition-all duration-300 transform hover:-translate-y-1 w-full max-w-md shrink-0 animate-border-glow"
       >
         {/* Animated Background Glow Accent */}
-        <div className="absolute -top-12 -right-12 w-36 h-36 bg-red-600/20 rounded-full blur-2xl group-hover:bg-red-600/30 transition-all duration-500 pointer-events-none" />
-        <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-blue-600/15 rounded-full blur-2xl group-hover:bg-blue-600/25 transition-all duration-500 pointer-events-none" />
+        <div className="absolute -top-12 -right-12 w-40 h-40 bg-red-600/25 rounded-full blur-2xl group-hover:bg-red-600/35 transition-all duration-500 pointer-events-none" />
+        <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-amber-600/20 rounded-full blur-2xl group-hover:bg-amber-600/30 transition-all duration-500 pointer-events-none" />
 
         <div className="relative z-10 flex items-center gap-4">
           {/* Animated Play / Thumbnail Box */}

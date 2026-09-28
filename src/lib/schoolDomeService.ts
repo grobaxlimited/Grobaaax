@@ -891,6 +891,11 @@ export async function sendSchoolDomeMessage(
       return { outcome: 'normal' };
     }
 
+    // If season is currently paused by Arbiter, answers are frozen
+    if (currentSeason.status === 'paused') {
+      return { outcome: 'normal', reason: 'Season is paused' };
+    }
+
     // Check if there is an active question and if user is in competition
     if (activeQuestion && activeQuestion.status === 'active') {
       const userId = message.userId;
@@ -1603,36 +1608,42 @@ export async function endSchoolDomeSeasonAndDistributePrize(
                 totalGpEarned: newTotalGpEarned,
                 updatedAt: serverTimestamp(),
               },
-              { merge: true }
+              { merge: true, isServerAuthoritative: true }
             );
 
             // B. Record fully compliant wallet transaction
-            await setDoc(txDoc, {
-              id: txDoc.id,
-              transactionId: txRefId,
-              userId: uId,
-              userName,
-              type: 'gp_earned',
-              action: 'Credit',
-              category: 'School Dome Prize',
-              amount: prizePerWinner,
-              unit: 'GP',
-              currency: 'GP',
-              title: `🏆 School Dome Season #${seasonData.seasonNumber || 1} Champion Prize (+${prizePerWinner.toLocaleString()} GP)`,
-              description: `Equal share of ${totalPrize.toLocaleString()} GP prize pool for surviving Season #${seasonData.seasonNumber || 1}: ${seasonData.title}.`,
-              isCredit: true,
-              status: 'completed',
-              date: dateStr,
-              timestamp: Date.now(),
-              createdAt: serverTimestamp(),
-              source: 'School Dome Prize',
-            });
+            await setDoc(
+              txDoc,
+              {
+                id: txDoc.id,
+                transactionId: txRefId,
+                userId: uId,
+                userName,
+                type: 'gp_earned',
+                action: 'Credit',
+                category: 'School Dome Prize',
+                amount: prizePerWinner,
+                unit: 'GP',
+                currency: 'GP',
+                title: `🏆 School Dome Season #${seasonData.seasonNumber || 1} Champion Prize (+${prizePerWinner.toLocaleString()} GP)`,
+                description: `Equal share of ${totalPrize.toLocaleString()} GP prize pool for surviving Season #${seasonData.seasonNumber || 1}: ${seasonData.title}.`,
+                isCredit: true,
+                status: 'completed',
+                date: dateStr,
+                timestamp: Date.now(),
+                createdAt: serverTimestamp(),
+                source: 'School Dome Prize',
+              },
+              { isServerAuthoritative: true }
+            );
 
             // C. Send congratulatory in-app notification strictly targeted to the winner
-            await setDoc(notifDoc, {
-              id: notifDoc.id,
-              userId: uId,
-              targetUserId: uId,
+            await setDoc(
+              notifDoc,
+              {
+                id: notifDoc.id,
+                userId: uId,
+                targetUserId: uId,
               title: '🏆 School Dome Champion Prize Credited!',
               message: `Congratulations! You survived as a champion in ${seasonData.title}! Your equal share of ${prizePerWinner.toLocaleString()} GP has been deposited directly into your wallet.`,
               type: 'dome',
@@ -1831,6 +1842,10 @@ export async function updateSchoolDomeSeason(
       sanitizedUpdates.status = updates.status;
       if (updates.status === 'ended') {
         sanitizedUpdates.endedAt = Date.now();
+      } else if (updates.status === 'paused') {
+        sanitizedUpdates.pausedAt = Date.now();
+      } else if (updates.status === 'active') {
+        sanitizedUpdates.resumedAt = Date.now();
       }
     }
     if (updates.isRegistrationLocked !== undefined) {
@@ -1880,6 +1895,140 @@ export async function updateSchoolDomeSeason(
     } catch {}
   } catch (err) {
     console.error('Error updating School Dome season:', err);
+    throw err;
+  }
+}
+
+/**
+ * Admin / Arbiter: Pause the active School Dome Season.
+ * Puts competition, question timers, and contender answers/chat on hold.
+ */
+export async function pauseSchoolDomeSeason(
+  seasonId: string,
+  adminUid?: string,
+  adminName?: string
+): Promise<void> {
+  try {
+    const seasonRef = doc(db, 'school_dome_seasons', seasonId);
+    let seasonNumber = 1;
+    try {
+      const snap = await getDoc(seasonRef);
+      if (snap.exists()) {
+        const data = snap.data() as SchoolDomeSeason;
+        seasonNumber = data.seasonNumber || 1;
+      }
+    } catch {}
+
+    const pausedAtTime = Date.now();
+    const updates = {
+      status: 'paused' as SchoolDomeSeasonStatus,
+      pausedAt: pausedAtTime,
+      updatedAt: serverTimestamp(),
+    };
+
+    await setDoc(seasonRef, updates, { merge: true });
+
+    // Sync localStorage fallback active season and notify all subscribers
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('grobax_school_dome_active_season');
+        const currentObj = stored ? JSON.parse(stored) : { id: seasonId, ...DEFAULT_INITIAL_SEASON };
+        currentObj.status = 'paused';
+        currentObj.pausedAt = pausedAtTime;
+        localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(currentObj));
+        window.dispatchEvent(
+          new CustomEvent('school_dome_season_updated', {
+            detail: currentObj,
+          })
+        );
+      }
+    } catch {}
+
+    // Send official announcement into the arena chat
+    await sendSchoolDomeMessage(
+      {
+        id: 'sdm_paused_' + Date.now(),
+        seasonId,
+        userId: 'grobax_arbiter',
+        userName: 'School Dome Arbiter ⚖️',
+        userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        institution: 'Official Commission',
+        messageText: `⏸️ **ARENA NOTICE**: Season #${seasonNumber} has been PAUSED by ${adminName || 'Official Arbiter'}. Elimination questions, timer countdowns, and contender responses are on hold until resumed.`,
+        isStaff: true,
+        membershipTier: 'ARBITER',
+      } as any,
+      null,
+      null
+    ).catch(() => {});
+  } catch (err) {
+    console.error('Error pausing School Dome season:', err);
+    throw err;
+  }
+}
+
+/**
+ * Admin / Arbiter: Resume the paused School Dome Season.
+ * Unlocks the competition and restores live gameplay.
+ */
+export async function resumeSchoolDomeSeason(
+  seasonId: string,
+  adminUid?: string,
+  adminName?: string
+): Promise<void> {
+  try {
+    const seasonRef = doc(db, 'school_dome_seasons', seasonId);
+    let seasonNumber = 1;
+    try {
+      const snap = await getDoc(seasonRef);
+      if (snap.exists()) {
+        const data = snap.data() as SchoolDomeSeason;
+        seasonNumber = data.seasonNumber || 1;
+      }
+    } catch {}
+
+    const resumedAtTime = Date.now();
+    const updates = {
+      status: 'active' as SchoolDomeSeasonStatus,
+      resumedAt: resumedAtTime,
+      updatedAt: serverTimestamp(),
+    };
+
+    await setDoc(seasonRef, updates, { merge: true });
+
+    // Sync localStorage fallback active season and notify all subscribers
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('grobax_school_dome_active_season');
+        const currentObj = stored ? JSON.parse(stored) : { id: seasonId, ...DEFAULT_INITIAL_SEASON };
+        currentObj.status = 'active';
+        currentObj.resumedAt = resumedAtTime;
+        localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(currentObj));
+        window.dispatchEvent(
+          new CustomEvent('school_dome_season_updated', {
+            detail: currentObj,
+          })
+        );
+      }
+    } catch {}
+
+    // Send official announcement into the arena chat
+    await sendSchoolDomeMessage(
+      {
+        id: 'sdm_resumed_' + Date.now(),
+        seasonId,
+        userId: 'grobax_arbiter',
+        userName: 'School Dome Arbiter ⚖️',
+        userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        institution: 'Official Commission',
+        messageText: `▶️ **ARENA NOTICE**: Season #${seasonNumber} has been RESUMED by ${adminName || 'Official Arbiter'}. The School Dome battle is now LIVE!`,
+        isStaff: true,
+        membershipTier: 'ARBITER',
+      } as any,
+      null,
+      null
+    ).catch(() => {});
+  } catch (err) {
+    console.error('Error resuming School Dome season:', err);
     throw err;
   }
 }

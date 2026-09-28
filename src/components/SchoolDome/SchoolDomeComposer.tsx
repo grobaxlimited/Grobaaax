@@ -19,6 +19,7 @@ interface SchoolDomeComposerProps {
   replyToMessage?: SchoolDomeMessage | null;
   onCancelReply?: () => void;
   isChatMuted?: boolean;
+  isPaused?: boolean;
   channelName?: string;
   isManagerOrAdmin?: boolean;
   hasRepliedToTarget?: boolean;
@@ -36,6 +37,7 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
   replyToMessage,
   onCancelReply,
   isChatMuted,
+  isPaused = false,
   channelName = 'school-dome',
   isManagerOrAdmin = false,
   hasRepliedToTarget = false,
@@ -49,7 +51,9 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
   const [showEmojiBar, setShowEmojiBar] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isPausedForUser = Boolean(isPaused && !isManagerOrAdmin);
   const isQuestionReplyBlocked = Boolean(replyToMessage?.type === 'question' && hasRepliedToTarget);
+  const isInputDisabled = isQuestionReplyBlocked || isPausedForUser;
 
   useEffect(() => {
     if (replyToMessage && inputRef.current && !isQuestionReplyBlocked) {
@@ -149,18 +153,20 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
 
         {/* Input Box */}
         <div className={`relative flex-1 flex items-center rounded-2xl border px-3 py-1.5 transition-all ${
-          isQuestionReplyBlocked
+          isInputDisabled
             ? 'bg-slate-100/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
             : 'bg-slate-100 dark:bg-slate-800 border-slate-200/80 dark:border-slate-700/80 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20'
         }`}>
           <input
             ref={inputRef}
             type="text"
-            disabled={isQuestionReplyBlocked}
+            disabled={isInputDisabled}
             value={inputText}
             onChange={e => setInputText(e.target.value)}
             placeholder={
-              isQuestionReplyBlocked
+              isPausedForUser
+                ? '⏸️ Arena paused by Arbiter. Responses and chat are frozen...'
+                : isQuestionReplyBlocked
                 ? 'Answer submitted for this question (1 attempt limit)...'
                 : !isUserRegistered && !isManagerOrAdmin
                 ? `Enter spectator comment #${channelName}...`
@@ -169,7 +175,7 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
                 : `Enter arena chat #${channelName}...`
             }
             className={`w-full bg-transparent text-xs sm:text-sm focus:outline-hidden py-1 ${
-              isQuestionReplyBlocked
+              isInputDisabled
                 ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed placeholder-slate-400/80'
                 : 'text-slate-900 dark:text-slate-100 placeholder-slate-400'
             }`}
@@ -192,8 +198,9 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
 
             <button
               type="button"
+              disabled={isInputDisabled}
               onClick={() => setShowEmojiBar(!showEmojiBar)}
-              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               title="Emoji"
             >
               <Smile className="w-4 h-4" />
@@ -201,9 +208,9 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
 
             <button
               type="submit"
-              disabled={isQuestionReplyBlocked || !inputText.trim()}
+              disabled={isInputDisabled || !inputText.trim()}
               className={`p-1.5 rounded-xl transition-all ${
-                !isQuestionReplyBlocked && inputText.trim()
+                !isInputDisabled && inputText.trim()
                   ? 'text-blue-600 dark:text-blue-400 hover:scale-110 cursor-pointer'
                   : 'text-slate-400 opacity-40 cursor-not-allowed'
               }`}
