@@ -361,7 +361,13 @@ export const ChatroomMessageItem: React.FC<ChatroomMessageItemProps> = ({
   return (
     <div
       id={`chat-msg-${message.id}`}
-      className="group relative flex flex-col px-2 sm:px-3 py-1.5 hover:bg-slate-100/70 dark:hover:bg-slate-800/40 rounded-xl transition-colors"
+      className={`group relative flex flex-col transition-all ${
+        message.type === 'question'
+          ? 'px-0 py-1'
+          : isSelf
+          ? 'px-3 py-2.5 rounded-2xl bg-[#d9fdd3]/95 dark:bg-[#005c4b]/35 border border-emerald-500/25 shadow-xs'
+          : 'px-3 py-2.5 rounded-2xl bg-white/95 dark:bg-[#202c33]/95 border border-slate-200/70 dark:border-slate-800/80 shadow-xs hover:bg-white dark:hover:bg-[#202c33]'
+      }`}
     >
       {/* Discord-style Curved Reply Header */}
       {message.replyTo && (

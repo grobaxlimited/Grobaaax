@@ -12,6 +12,7 @@ import { SchoolDomeContendersModal } from './SchoolDomeContendersModal';
 import { ChatroomComposer } from '../Community/ChatroomLive/ChatroomComposer';
 import { CreateSchoolDomeQuestionModal } from './CreateSchoolDomeQuestionModal';
 import { SchoolDomeResultsTab } from './SchoolDomeResultsTab';
+import { WhatsAppChatBackground } from '../common/WhatsAppChatBackground';
 import {
   subscribeSchoolDomeActiveSeason,
   subscribeSchoolDomeActiveQuestion,
@@ -802,6 +803,12 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
               </span>
             </div>
           )}
+
+          {/* WhatsApp Authentic Wallpaper Theme Indicator */}
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 shadow-2xs" title="WhatsApp Authentic Doodle Wallpaper Theme Active">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span>WhatsApp Wallpaper</span>
+          </div>
         </div>
 
         {/* Right: Actions */}
@@ -1013,34 +1020,36 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         <SchoolDomeResultsTab currentSeason={currentSeason} />
       ) : (
         <>
-          {/* 2. MAIN MESSAGE STREAM */}
-          <div
-            ref={setScrollContainerRef}
-            onScroll={handleScroll}
-            style={{ scrollBehavior: 'auto' }}
-            className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-3 bg-slate-50/50 dark:bg-slate-950/40"
-          >
-            {filteredMessages.map((msg) => (
-              <SchoolDomeMessageItem
-                key={msg.id}
-                message={msg}
-                currentUserId={currentUser.id}
-                isManagerOrAdmin={isStaffOrAdmin}
-                hasRepliedToQuestion={hasUserRepliedToQuestionMessage(msg)}
-                isSpectator={isSpectator}
-                activeQuestion={activeQuestion}
-                questions={seasonQuestions}
-                onReply={(m) => setReplyTarget(m)}
-                onDelete={handleDeleteMessage}
-                onMuteUser={handleMuteUser}
-                onReact={handleReactMessage}
-                onCloseQuestion={isStaffOrAdmin ? (qId) => closeSchoolDomeQuestion(currentSeason?.id || 'season_dome_1', qId) : undefined}
-                onExtendTime={isStaffOrAdmin ? (qId, extra) => extendSchoolDomeQuestionTime(qId, extra) : undefined}
-              />
-            ))}
+          {/* 2. MAIN MESSAGE STREAM WITH WHATSAPP DOODLE WALLPAPER */}
+          <WhatsAppChatBackground className="flex-1">
+            <div
+              ref={setScrollContainerRef}
+              onScroll={handleScroll}
+              style={{ scrollBehavior: 'auto' }}
+              className="flex-1 h-full overflow-y-auto p-2 sm:p-4 space-y-3"
+            >
+              {filteredMessages.map((msg) => (
+                <SchoolDomeMessageItem
+                  key={msg.id}
+                  message={msg}
+                  currentUserId={currentUser.id}
+                  isManagerOrAdmin={isStaffOrAdmin}
+                  hasRepliedToQuestion={hasUserRepliedToQuestionMessage(msg)}
+                  isSpectator={isSpectator}
+                  activeQuestion={activeQuestion}
+                  questions={seasonQuestions}
+                  onReply={(m) => setReplyTarget(m)}
+                  onDelete={handleDeleteMessage}
+                  onMuteUser={handleMuteUser}
+                  onReact={handleReactMessage}
+                  onCloseQuestion={isStaffOrAdmin ? (qId) => closeSchoolDomeQuestion(currentSeason?.id || 'season_dome_1', qId) : undefined}
+                  onExtendTime={isStaffOrAdmin ? (qId, extra) => extendSchoolDomeQuestionTime(qId, extra) : undefined}
+                />
+              ))}
 
-            <div ref={messagesEndRef} />
-          </div>
+              <div ref={messagesEndRef} />
+            </div>
+          </WhatsAppChatBackground>
 
       {/* Floating Scroll To Bottom Button */}
       {showScrollBottom && (

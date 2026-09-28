@@ -8,6 +8,7 @@ import {
 import { normalizeDestinationUrl, safeOpenDestinationUrl } from '../../../lib/urlUtils';
 import { ChatroomMessageItem } from './ChatroomMessageItem';
 import { ChatroomComposer } from './ChatroomComposer';
+import { WhatsAppChatBackground } from '../../common/WhatsAppChatBackground';
 import { CreateLiveQuestionModal } from './CreateLiveQuestionModal';
 import { ChatroomRulesModal } from './ChatroomRulesModal';
 import {
@@ -502,6 +503,12 @@ export const ChatroomLiveView: React.FC = () => {
             <span>Live Feed</span>
           </div>
 
+          {/* WhatsApp Authentic Wallpaper Theme Indicator */}
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 shadow-2xs" title="WhatsApp Authentic Doodle Wallpaper Theme Active">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span>WhatsApp Wallpaper</span>
+          </div>
+
           {/* Response Counter Header Badge */}
           <div className={`hidden lg:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition ${
             isStaffOrAdmin
@@ -682,118 +689,120 @@ export const ChatroomLiveView: React.FC = () => {
         </div>
       )}
 
-      {/* 2. MAIN MESSAGE STREAM */}
-      <div
-        ref={setScrollContainerRef}
-        onScroll={handleScroll}
-        style={{ scrollBehavior: 'auto' }}
-        className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-3 bg-slate-50/50 dark:bg-slate-950/40"
-      >
-        {filteredMessages.map((msg, idx) => {
-          const adsAfterThisMsg = adsAfterMessageMap[idx] || [];
+      {/* 2. MAIN MESSAGE STREAM WITH WHATSAPP DOODLE WALLPAPER */}
+      <WhatsAppChatBackground className="flex-1">
+        <div
+          ref={setScrollContainerRef}
+          onScroll={handleScroll}
+          style={{ scrollBehavior: 'auto' }}
+          className="flex-1 h-full overflow-y-auto p-2 sm:p-4 space-y-3"
+        >
+          {filteredMessages.map((msg, idx) => {
+            const adsAfterThisMsg = adsAfterMessageMap[idx] || [];
 
-          return (
-            <React.Fragment key={msg.id}>
-              <ChatroomMessageItem
-                message={msg}
-                currentUserId={currentUser.id}
-                isManagerOrAdmin={isManagerOrAdmin}
-                hasRepliedToQuestion={hasUserRepliedToQuestionMessage(msg)}
-                onReply={m => setReplyTarget(m)}
-                onDelete={handleDeleteMessage}
-                onMuteUser={handleMuteUser}
-                onReact={handleReactMessage}
-                onOpenUpgradeModal={handleOpenUpgrade}
-              />
+            return (
+              <React.Fragment key={msg.id}>
+                <ChatroomMessageItem
+                  message={msg}
+                  currentUserId={currentUser.id}
+                  isManagerOrAdmin={isManagerOrAdmin}
+                  hasRepliedToQuestion={hasUserRepliedToQuestionMessage(msg)}
+                  onReply={m => setReplyTarget(m)}
+                  onDelete={handleDeleteMessage}
+                  onMuteUser={handleMuteUser}
+                  onReact={handleReactMessage}
+                  onOpenUpgradeModal={handleOpenUpgrade}
+                />
 
-              {/* Embedded Live Feed Ad Cards */}
-              {adsAfterThisMsg.map((ad, adIdx) => (
-                <div
-                  key={`feed_ad_${ad.id}_${idx}_${adIdx}`}
-                  className="my-3 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-950/20 via-white dark:via-slate-900 to-indigo-950/20 border-2 border-blue-500/30 dark:border-blue-500/30 shadow-md space-y-3 transition-all hover:border-blue-400/50"
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-blue-600/10 dark:bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-lg shrink-0 overflow-hidden">
-                        {ad.logo && (ad.logo.startsWith('http') || ad.logo.startsWith('data:')) ? (
-                          <img src={ad.logo} alt={ad.sponsorName} className="w-full h-full object-cover" />
-                        ) : (
-                          <span>{ad.logo || '📢'}</span>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
-                            {ad.sponsorName}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 uppercase tracking-wider flex items-center gap-1 shrink-0">
-                            <Sparkles className="w-2.5 h-2.5 text-amber-500" />
-                            {ad.badgeLabel || 'Sponsored'}
+                {/* Embedded Live Feed Ad Cards */}
+                {adsAfterThisMsg.map((ad, adIdx) => (
+                  <div
+                    key={`feed_ad_${ad.id}_${idx}_${adIdx}`}
+                    className="my-3 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-950/20 via-white dark:via-slate-900 to-indigo-950/20 border-2 border-blue-500/30 dark:border-blue-500/30 shadow-md space-y-3 transition-all hover:border-blue-400/50"
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-blue-600/10 dark:bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-lg shrink-0 overflow-hidden">
+                          {ad.logo && (ad.logo.startsWith('http') || ad.logo.startsWith('data:')) ? (
+                            <img src={ad.logo} alt={ad.sponsorName} className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{ad.logo || '📢'}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                              {ad.sponsorName}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 uppercase tracking-wider flex items-center gap-1 shrink-0">
+                              <Sparkles className="w-2.5 h-2.5 text-amber-500" />
+                              {ad.badgeLabel || 'Sponsored'}
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 block truncate">
+                            Official Partner Initiative • Promoted
                           </span>
                         </div>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 block truncate">
-                          Official Partner Initiative • Promoted
-                        </span>
                       </div>
+
+                      {ad.tag && (
+                        <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                          #{ad.tag}
+                        </span>
+                      )}
                     </div>
 
-                    {ad.tag && (
-                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
-                        #{ad.tag}
+                    {/* Title & Body */}
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                        {ad.title}
+                      </h4>
+                      <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {ad.text}
+                      </p>
+                    </div>
+
+                    {/* Banner */}
+                    {ad.banner && (
+                      <div className="rounded-xl overflow-hidden max-h-56 border border-slate-200 dark:border-slate-800 shadow-xs">
+                        <img src={ad.banner} alt={ad.title} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                        <Shield className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        <span className="truncate">Verified Grobaax Institutional Ad</span>
                       </span>
-                    )}
-                  </div>
 
-                  {/* Title & Body */}
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
-                      {ad.title}
-                    </h4>
-                    <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                      {ad.text}
-                    </p>
-                  </div>
-
-                  {/* Banner */}
-                  {ad.banner && (
-                    <div className="rounded-xl overflow-hidden max-h-56 border border-slate-200 dark:border-slate-800 shadow-xs">
-                      <img src={ad.banner} alt={ad.title} className="w-full h-full object-cover" />
+                      {ad.destinationUrl && (
+                        <a
+                          href={normalizeDestinationUrl(ad.destinationUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            safeOpenDestinationUrl(ad.destinationUrl);
+                          }}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-blue-500/20 cursor-pointer shrink-0"
+                        >
+                          <span>{ad.ctaText || 'Learn More'}</span>
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </a>
+                      )}
                     </div>
-                  )}
-
-                  {/* Footer */}
-                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                      <Shield className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                      <span className="truncate">Verified Grobaax Institutional Ad</span>
-                    </span>
-
-                    {ad.destinationUrl && (
-                      <a
-                        href={normalizeDestinationUrl(ad.destinationUrl)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          safeOpenDestinationUrl(ad.destinationUrl);
-                        }}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-blue-500/20 cursor-pointer shrink-0"
-                      >
-                        <span>{ad.ctaText || 'Learn More'}</span>
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                      </a>
-                    )}
                   </div>
-                </div>
-              ))}
-            </React.Fragment>
-          );
-        })}
+                ))}
+              </React.Fragment>
+            );
+          })}
 
-        <div ref={messagesEndRef} />
-      </div>
+          <div ref={messagesEndRef} />
+        </div>
+      </WhatsAppChatBackground>
 
       {/* Floating Scroll To Bottom Button */}
       {showScrollBottom && (
