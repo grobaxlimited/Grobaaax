@@ -829,8 +829,14 @@ export const ChatroomLiveView: React.FC = () => {
           onClose={() => setIsCreateQuestionModalOpen(false)}
           adminUid={currentUser.id}
           adminName={currentUser.name}
-          onQuestionCreated={(_newQ) => {
+          onQuestionCreated={(_newQ, questionMsg) => {
             setIsCreateQuestionModalOpen(false);
+            if (questionMsg) {
+              sendChatroomMessage(questionMsg);
+            }
+            requestAnimationFrame(() => {
+              scrollToBottom(true);
+            });
           }}
         />
       )}

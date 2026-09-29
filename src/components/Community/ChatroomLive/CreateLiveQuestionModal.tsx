@@ -11,7 +11,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { createChatroomLiveQuestionInFirestore } from '../../../lib/firebase';
-import { ChatroomLiveQuestion } from '../../../types';
+import { ChatroomLiveQuestion, ChatroomLiveMessage } from '../../../types';
 
 interface CreateLiveQuestionModalProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ interface CreateLiveQuestionModalProps {
   defaultWinnerCount?: number;
   defaultGpReward?: number;
   defaultTimeLimitSeconds?: number;
-  onQuestionCreated?: (question: ChatroomLiveQuestion) => void;
+  onQuestionCreated?: (question: ChatroomLiveQuestion, questionMessage?: ChatroomLiveMessage) => void;
 }
 
 export const CreateLiveQuestionModal: React.FC<CreateLiveQuestionModalProps> = ({
@@ -45,7 +45,7 @@ export const CreateLiveQuestionModal: React.FC<CreateLiveQuestionModalProps> = (
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!questionText.trim()) {
       setErrorMsg('Please enter a valid question.');
@@ -74,36 +74,100 @@ export const CreateLiveQuestionModal: React.FC<CreateLiveQuestionModalProps> = (
         .filter(Boolean);
 
       const rewardVal = Math.max(1, Number(gpReward));
+      const timeLimitSecs = Number(timeLimitMinutes) * 60;
+      const winnerLimitNum = Math.max(1, Number(winnerLimit));
+      const now = Date.now();
+      const endAt = now + timeLimitSecs * 1000;
+      const qId = 'clq_' + now + '_' + Math.random().toString(36).substring(2, 6);
 
-      const createdQ = await createChatroomLiveQuestionInFirestore(
-        {
-          questionText: questionText.trim(),
-          correctAnswer: correctAnswer.trim(),
-          acceptedAlternativeAnswers: altArray,
-          winnerLimit: Number(winnerLimit),
+      // Instant optimistic Question object
+      const createdQ: ChatroomLiveQuestion = {
+        id: qId,
+        questionNumber: 1,
+        questionText: questionText.trim(),
+        correctAnswer: correctAnswer.trim(),
+        acceptedAlternativeAnswers: altArray,
+        timeLimitSeconds: timeLimitSecs,
+        startAt: now,
+        endAt,
+        status: 'active',
+        winnerLimit: winnerLimitNum,
+        gpRewardPerWinner: rewardVal,
+        allowFreeParticipation: true,
+        premiumRequiredForRewards: false,
+        selectedWinners: [],
+        totalSubmissionsCount: 0,
+        createdAt: now,
+      };
+
+      // Instant optimistic live question message
+      const questionMessage: ChatroomLiveMessage = {
+        id: 'msg_q_' + qId,
+        userId: adminUid || 'admin_mod',
+        userName: adminName ? `${adminName} 🛡️` : 'Community Manager 🛡️',
+        userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        institution: 'Grobaax Community Management',
+        department: 'Head Moderator',
+        level: 'Admin',
+        isPremium: true,
+        messageText: `🎯 LIVE QUESTION: ${createdQ.questionText}\n\n🏆 Reward: +${rewardVal} GP each for the first ${winnerLimitNum} correct scholars!\n⏱️ Time Limit: ${Math.round(timeLimitSecs / 60)} minutes. Type your answer directly in the chat below!`,
+        timestamp: now,
+        type: 'question',
+        competitionRef: {
+          competitionId: 'daily_live_chat',
+          questionId: qId,
+          questionNumber: 1,
+          totalQuestions: 10,
+          questionText: createdQ.questionText,
+          correctAnswer: createdQ.correctAnswer,
+          acceptedAlternativeAnswers: createdQ.acceptedAlternativeAnswers,
+          status: 'active',
           gpRewardPerWinner: rewardVal,
           gpReward: rewardVal,
           rewardAmount: rewardVal,
-          timeLimitSeconds: Number(timeLimitMinutes) * 60,
+          winnerCountLimit: winnerLimitNum,
           allowFreeParticipation: true,
-        } as any,
-        adminUid,
-        adminName
-      );
+          timeLimitSeconds: timeLimitSecs,
+          startAt: now,
+          endAt: endAt,
+        },
+        reactions: { '🎯': 1, '⚡': 1 },
+      };
 
+      // 1. Instantly deliver question to chatroom UI (0ms latency)
       if (onQuestionCreated) {
-        onQuestionCreated(createdQ);
+        onQuestionCreated(createdQ, questionMessage);
       }
 
-      // Reset & Close
+      // 2. Instantly reset & close modal so admin is not kept waiting
       setQuestionText('');
       setCorrectAnswer('');
       setAlternativeAnswers('');
       onClose();
+
+      // 3. Persist to Firestore in the background
+      createChatroomLiveQuestionInFirestore(
+        {
+          questionText: createdQ.questionText,
+          correctAnswer: createdQ.correctAnswer,
+          acceptedAlternativeAnswers: altArray,
+          winnerLimit: winnerLimitNum,
+          gpRewardPerWinner: rewardVal,
+          gpReward: rewardVal,
+          rewardAmount: rewardVal,
+          timeLimitSeconds: timeLimitSecs,
+          allowFreeParticipation: true,
+        } as any,
+        adminUid,
+        adminName,
+        createdQ,
+        questionMessage
+      ).catch(err => {
+        console.warn('Background notice saving live question:', err);
+      });
     } catch (err: any) {
       console.error('Error creating question:', err);
       setErrorMsg(err?.message || 'Failed to post live question. Please try again.');
-    } finally {
       setIsSubmitting(false);
     }
   };

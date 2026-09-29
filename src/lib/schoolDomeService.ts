@@ -1083,71 +1083,23 @@ export async function createSchoolDomeQuestion(
     gpRewardPerWinner?: number;
   },
   adminUid?: string,
-  adminName?: string
+  adminName?: string,
+  precomputedQuestion?: SchoolDomeQuestion,
+  precomputedMessage?: SchoolDomeMessage
 ): Promise<SchoolDomeQuestion> {
   try {
-    const now = Date.now();
-    const timeLimit = Math.max(15, Number(questionData.timeLimitSeconds) || 300);
-    const endAt = now + timeLimit * 1000;
-    const qId = 'sdq_' + now + '_' + Math.random().toString(36).substring(2, 6);
+    const now = precomputedQuestion?.startAt || Date.now();
+    const timeLimit = precomputedQuestion?.timeLimitSeconds || Math.max(15, Number(questionData.timeLimitSeconds) || 300);
+    const endAt = precomputedQuestion?.endAt || (now + timeLimit * 1000);
+    const qId = precomputedQuestion?.id || ('sdq_' + now + '_' + Math.random().toString(36).substring(2, 6));
     const winnerLimit = Number(questionData.winnerLimit) || 1;
     const gpReward = Number(questionData.gpRewardPerWinner) || 500;
     const targetTier = questionData.targetTier || 'free';
     const allowedPlanIds = questionData.allowedPlanIds;
     const targetPlanName = questionData.targetPlanName;
+    const nextQNumber = precomputedQuestion?.questionNumber || questionData.questionNumber || 1;
 
-    const seasonRef = doc(db, 'school_dome_seasons', seasonId);
-    const seasonSnap = await getDoc(seasonRef);
-    let seasonNumber = 1;
-    let nextQNumber = questionData.questionNumber || 1;
-
-    if (seasonSnap.exists()) {
-      const sData = seasonSnap.data() as SchoolDomeSeason;
-      if (sData.status === 'ended') {
-        throw new Error('This season has concluded. Please click "START SEASON" to start the next competition season before launching questions.');
-      }
-      seasonNumber = sData.seasonNumber || 1;
-      nextQNumber = questionData.questionNumber || (sData.totalQuestionsLaunched || 0) + 1;
-
-      // CRITICAL RULE: When admin launches the FIRST question, lock registration permanently!
-      await updateDoc(seasonRef, {
-        isRegistrationLocked: true,
-        firstQuestionLaunched: true,
-        status: 'active',
-        currentQuestionNumber: nextQNumber,
-        totalQuestionsLaunched: nextQNumber,
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      // If season does not exist in Firestore yet, initialize it
-      const fallbackSeason: SchoolDomeSeason = {
-        ...DEFAULT_INITIAL_SEASON,
-        id: seasonId,
-        isRegistrationLocked: true,
-        firstQuestionLaunched: true,
-        status: 'active',
-        currentQuestionNumber: nextQNumber,
-        totalQuestionsLaunched: nextQNumber,
-      };
-      await setDoc(seasonRef, fallbackSeason, { merge: true });
-    }
-
-    // Auto-close any previous active questions in this season and eliminate non-responders
-    try {
-      const activeQQuery = query(
-        collection(db, 'school_dome_questions'),
-        where('seasonId', '==', seasonId),
-        where('status', '==', 'active')
-      );
-      const activeSnap = await getDocs(activeQQuery);
-      for (const d of activeSnap.docs) {
-        await closeSchoolDomeQuestion(seasonId, d.id);
-      }
-    } catch (e) {
-      console.warn('Notice closing prior questions:', e);
-    }
-
-    const newQuestion: SchoolDomeQuestion = {
+    const newQuestion: SchoolDomeQuestion = precomputedQuestion || {
       id: qId,
       seasonId,
       questionNumber: nextQNumber,
@@ -1171,17 +1123,9 @@ export async function createSchoolDomeQuestion(
       createdByName: adminName || 'Dome Arbiter',
     };
 
-    // Save to Firestore with graceful permission fallback
-    try {
-      await setDoc(doc(db, 'school_dome_questions', qId), newQuestion);
-    } catch (dbErr) {
-      console.warn('Firestore set question notice (fallback enabled):', dbErr);
-    }
-
-    // Post official question message to feed
     const targetLabel = targetPlanName || (targetTier === 'vip' ? 'VIP Only' : targetTier === 'premium' ? 'Premium & VIP' : 'Open to All');
     const allowFree = targetTier === 'free' || targetTier === 'all';
-    const qMessage: SchoolDomeMessage = {
+    const qMessage: SchoolDomeMessage = precomputedMessage || {
       id: 'msg_sdq_' + qId,
       seasonId,
       userId: adminUid || PRIMARY_SUPER_ADMIN_UID,
@@ -1222,32 +1166,73 @@ export async function createSchoolDomeQuestion(
 
     // Notify local runtime listeners immediately for 0ms question drop into arena feed
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('school_dome_message_posted', { detail: qMessage }));
+      try {
+        window.dispatchEvent(new CustomEvent('school_dome_message_posted', { detail: qMessage }));
+      } catch {}
     }
 
-    try {
-      await setDoc(doc(db, 'school_dome_messages', qMessage.id), qMessage);
-    } catch (msgErr) {
-      console.warn('Firestore set question message notice (fallback enabled):', msgErr);
-    }
+    const seasonRef = doc(db, 'school_dome_seasons', seasonId);
 
-    // Broadcast live question notification to all scholars
-    try {
-      const notifDoc = doc(collection(db, 'notifications'));
-      await setDoc(notifDoc, {
-        id: notifDoc.id,
-        title: `⚡ Live School Dome Question #${nextQNumber}!`,
-        message: `Question #${nextQNumber} is now live in the School Dome Arena (${targetLabel}). Answer before time runs out!`,
-        type: 'dome',
-        isRead: false,
-        timestamp: Date.now(),
-        createdAt: serverTimestamp(),
-        actionUrl: 'school_dome',
-      });
-      grobaxNotificationService.incrementSection('school_dome', 1);
-    } catch (notifErr) {
-      console.warn('Could not dispatch live question notification:', notifErr);
-    }
+    // Ultra-fast parallel writes to Firestore
+    await Promise.all([
+      setDoc(doc(db, 'school_dome_questions', qId), newQuestion).catch(err => {
+        console.warn('Notice saving question doc:', err);
+      }),
+      setDoc(doc(db, 'school_dome_messages', qMessage.id), qMessage).catch(err => {
+        console.warn('Notice saving question message:', err);
+      }),
+      setDoc(
+        seasonRef,
+        {
+          id: seasonId,
+          isRegistrationLocked: true,
+          firstQuestionLaunched: true,
+          status: 'active',
+          currentQuestionNumber: nextQNumber,
+          totalQuestionsLaunched: nextQNumber,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      ).catch(err => {
+        console.warn('Notice updating season doc:', err);
+      }),
+    ]);
+
+    // Auto-close previous active questions & dispatch notification in the background (non-blocking)
+    (async () => {
+      try {
+        const activeQQuery = query(
+          collection(db, 'school_dome_questions'),
+          where('seasonId', '==', seasonId),
+          where('status', '==', 'active')
+        );
+        const activeSnap = await getDocs(activeQQuery);
+        for (const d of activeSnap.docs) {
+          if (d.id !== qId) {
+            closeSchoolDomeQuestion(seasonId, d.id).catch(() => {});
+          }
+        }
+      } catch (e) {
+        console.warn('Notice background closing prior questions:', e);
+      }
+
+      try {
+        const notifDoc = doc(collection(db, 'notifications'));
+        await setDoc(notifDoc, {
+          id: notifDoc.id,
+          title: `⚡ Live School Dome Question #${nextQNumber}!`,
+          message: `Question #${nextQNumber} is now live in the School Dome Arena (${targetLabel}). Answer before time runs out!`,
+          type: 'dome',
+          isRead: false,
+          timestamp: Date.now(),
+          createdAt: serverTimestamp(),
+          actionUrl: 'school_dome',
+        });
+        grobaxNotificationService.incrementSection('school_dome', 1);
+      } catch (notifErr) {
+        console.warn('Could not dispatch live question notification in background:', notifErr);
+      }
+    })().catch(() => {});
 
     return newQuestion;
   } catch (err: any) {

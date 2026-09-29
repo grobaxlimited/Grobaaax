@@ -11,7 +11,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { createSchoolDomeQuestion } from '../../lib/schoolDomeService';
-import { SchoolDomeQuestion, SchoolDomeSeason } from '../../types';
+import { SchoolDomeQuestion, SchoolDomeSeason, SchoolDomeMessage, PRIMARY_SUPER_ADMIN_UID } from '../../types';
 
 interface CreateSchoolDomeQuestionModalProps {
   isOpen: boolean;
@@ -22,7 +22,7 @@ interface CreateSchoolDomeQuestionModalProps {
   defaultWinnerCount?: number;
   defaultGpReward?: number;
   defaultTimeLimitSeconds?: number;
-  onQuestionCreated?: (question: SchoolDomeQuestion) => void;
+  onQuestionCreated?: (question: SchoolDomeQuestion, questionMessage?: SchoolDomeMessage) => void;
 }
 
 export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionModalProps> = ({
@@ -58,7 +58,7 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!questionText.trim()) {
       setErrorMsg('Please enter a valid question.');
@@ -102,34 +102,116 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
         targetPlanName = 'VIP / Titan Only';
       }
 
-      const createdQ = await createSchoolDomeQuestion(
-        seasonId,
-        {
-          questionText: questionText.trim(),
-          correctAnswer: correctAnswer.trim(),
-          acceptedAlternativeAnswers: altArray,
-          timeLimitSeconds: Number(timeLimitSeconds),
-          targetTier,
-          allowedPlanIds,
-          targetPlanName,
-        },
-        adminUid,
-        adminName
-      );
+      const now = Date.now();
+      const timeLimitSecs = Math.max(15, Number(timeLimitSeconds));
+      const endAt = now + timeLimitSecs * 1000;
+      const qId = 'sdq_' + now + '_' + Math.random().toString(36).substring(2, 6);
+      const nextQNumber = (season?.totalQuestionsLaunched || season?.currentQuestionNumber || 0) + 1;
 
+      // Optimistic Question Object (0ms creation)
+      const createdQ: SchoolDomeQuestion = {
+        id: qId,
+        seasonId,
+        questionNumber: nextQNumber,
+        questionText: questionText.trim(),
+        correctAnswer: correctAnswer.trim(),
+        acceptedAlternativeAnswers: altArray,
+        timeLimitSeconds: timeLimitSecs,
+        targetTier,
+        allowedPlanIds,
+        targetPlanName,
+        startAt: now,
+        endAt,
+        status: 'active',
+        survivorUserIds: [],
+        eliminatedUserIds: [],
+        totalSubmissionsCount: 0,
+        repliedUserIds: [],
+        repliedUsernames: [],
+        createdAt: now,
+        createdByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
+        createdByName: adminName || 'Dome Arbiter',
+      };
+
+      const targetLabel = targetPlanName || (targetTier === 'vip' ? 'VIP Only' : targetTier === 'premium' ? 'Premium & VIP' : 'Open to All');
+      const allowFree = targetTier === 'free' || targetTier === 'all';
+
+      // Optimistic Arena Feed Message (0ms creation)
+      const qMessage: SchoolDomeMessage = {
+        id: 'msg_sdq_' + qId,
+        seasonId,
+        userId: adminUid || PRIMARY_SUPER_ADMIN_UID,
+        userName: adminName ? `${adminName} 🛡️ (Arbiter)` : 'Grobaax Arbiter 🛡️',
+        userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        institution: 'Grobaax Arena HQ',
+        department: 'Chief Moderator',
+        level: 'Master',
+        isPremium: true,
+        isVip: true,
+        subscriptionPlan: targetLabel,
+        targetTier,
+        targetPlanName,
+        allowedPlanIds,
+        messageText: `⚡ ELIMINATION QUESTION #${createdQ.questionNumber}: ${createdQ.questionText}\n\n⏱️ Time Limit: ${Math.round(timeLimitSecs / 60)} min. Answer correctly to survive!`,
+        timestamp: now,
+        type: 'question',
+        questionId: createdQ.id,
+        competitionRef: {
+          competitionId: 'school_dome',
+          questionId: qId,
+          questionNumber: createdQ.questionNumber,
+          totalQuestions: 20,
+          questionText: createdQ.questionText,
+          status: 'active',
+          gpRewardPerWinner: 500,
+          winnerCountLimit: 1,
+          allowFreeParticipation: allowFree,
+          targetTier,
+          targetPlanName,
+          allowedPlanIds,
+          timeLimitSeconds: timeLimitSecs,
+          startAt: now,
+          endAt,
+          repliedUserIds: [],
+        },
+        reactions: { '⚡': 1, '🎯': 1 },
+      };
+
+      // 1. Instantly deliver question to School Dome UI feed (0ms latency)
       if (onQuestionCreated) {
-        onQuestionCreated(createdQ);
+        onQuestionCreated(createdQ, qMessage);
       }
 
+      // 2. Instantly reset & close modal so admin is not kept waiting
       setQuestionText('');
       setCorrectAnswer('');
       setAlternativeAnswers('');
       setSelectedPlanFilter('all');
       onClose();
+
+      // 3. Persist to Firestore asynchronously in background
+      createSchoolDomeQuestion(
+        seasonId,
+        {
+          questionText: createdQ.questionText,
+          correctAnswer: createdQ.correctAnswer,
+          acceptedAlternativeAnswers: altArray,
+          timeLimitSeconds: timeLimitSecs,
+          targetTier,
+          allowedPlanIds,
+          targetPlanName,
+          questionNumber: nextQNumber,
+        },
+        adminUid,
+        adminName,
+        createdQ,
+        qMessage
+      ).catch(err => {
+        console.warn('Background notice saving School Dome question:', err);
+      });
     } catch (err: any) {
       console.error('Error creating School Dome question:', err);
       setErrorMsg(err?.message || 'Failed to post live question. Please try again.');
-    } finally {
       setIsSubmitting(false);
     }
   };

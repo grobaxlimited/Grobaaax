@@ -5851,49 +5851,27 @@ export const createChatroomLiveQuestionInFirestore = async (
     questionNumber?: number;
   },
   adminUid?: string,
-  adminName?: string
+  adminName?: string,
+  precomputedQuestion?: ChatroomLiveQuestion,
+  precomputedMessage?: ChatroomLiveMessage
 ): Promise<ChatroomLiveQuestion> => {
   try {
-    const qId = 'clq_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-    const now = Date.now();
-    const timeLimit = Math.max(15, Number(questionData.timeLimitSeconds) || 300);
-    const endAt = now + timeLimit * 1000;
-    const winnerLimit = Math.max(1, Number(questionData.winnerLimit) || 5);
+    const qId = precomputedQuestion?.id || ('clq_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+    const now = precomputedQuestion?.startAt || Date.now();
+    const timeLimit = precomputedQuestion?.timeLimitSeconds || Math.max(15, Number(questionData.timeLimitSeconds) || 300);
+    const endAt = precomputedQuestion?.endAt || (now + timeLimit * 1000);
+    const winnerLimit = precomputedQuestion?.winnerLimit || Math.max(1, Number(questionData.winnerLimit) || 5);
     const rawInputReward =
       questionData.gpRewardPerWinner ??
       (questionData as any).gpReward ??
       (questionData as any).rewardAmount ??
       (questionData as any).gpAward ??
       50;
-    const gpReward = Math.max(1, Number(rawInputReward) || 50);
+    const gpReward = precomputedQuestion?.gpRewardPerWinner || Math.max(1, Number(rawInputReward) || 50);
 
-    // 0. Auto-close any prior active questions to ensure only this newly launched challenge is active
-    try {
-      const activeQuery = query(collection(db, 'chatroom_live_questions'), where('status', '==', 'active'));
-      const activeSnap = await getDocs(activeQuery);
-      if (!activeSnap.empty) {
-        const batch = writeBatch(db);
-        activeSnap.docs.forEach(d => {
-          batch.update(d.ref, { status: 'closed', updatedAt: serverTimestamp() });
-        });
-        await batch.commit();
-      }
-    } catch (e) {
-      console.warn('Notice closing prior active questions:', e);
-    }
+    const questionNumber = precomputedQuestion?.questionNumber || Number(questionData.questionNumber) || 1;
 
-    // Auto-compute question number if not provided
-    let questionNumber = Number(questionData.questionNumber);
-    if (!questionNumber || isNaN(questionNumber)) {
-      try {
-        const allQuestionsSnap = await getDocs(query(collection(db, 'chatroom_live_questions'), limit(100)));
-        questionNumber = allQuestionsSnap.size + 1;
-      } catch {
-        questionNumber = 1;
-      }
-    }
-
-    const newQ: ChatroomLiveQuestion = {
+    const newQ: ChatroomLiveQuestion = precomputedQuestion || {
       id: qId,
       questionNumber,
       questionText: questionData.questionText.trim(),
@@ -5912,19 +5890,27 @@ export const createChatroomLiveQuestionInFirestore = async (
       createdAt: now,
     };
 
-    // 1. Save question doc in Firestore with complete reward field aliases
-    await setDoc(doc(db, 'chatroom_live_questions', qId), {
-      ...newQ,
-      gpRewardPerWinner: gpReward,
-      gpReward: gpReward,
-      rewardAmount: gpReward,
-      createdAtServer: serverTimestamp(),
-      createdByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
-      createdByName: adminName || 'Community Manager',
-    });
+    // 0. Auto-close any prior active questions in the background (fire-and-forget, non-blocking)
+    (async () => {
+      try {
+        const activeQuery = query(collection(db, 'chatroom_live_questions'), where('status', '==', 'active'));
+        const activeSnap = await getDocs(activeQuery);
+        if (!activeSnap.empty) {
+          const batch = writeBatch(db);
+          activeSnap.docs.forEach(d => {
+            if (d.id !== qId) {
+              batch.update(d.ref, { status: 'closed', updatedAt: serverTimestamp() });
+            }
+          });
+          await batch.commit();
+        }
+      } catch (e) {
+        console.warn('Notice background closing prior active questions:', e);
+      }
+    })().catch(() => {});
 
-    // 2. Post the official Question card message to the live chat feed
-    const questionMessage: ChatroomLiveMessage = {
+    // 1. Prepare Question Card Message
+    const questionMessage: ChatroomLiveMessage = precomputedMessage || {
       id: 'msg_q_' + qId,
       userId: adminUid || 'admin_mod',
       userName: adminName ? `${adminName} 🛡️` : 'Community Manager 🛡️',
@@ -5957,14 +5943,26 @@ export const createChatroomLiveQuestionInFirestore = async (
       reactions: { '🎯': 1, '⚡': 1 },
     };
 
-    await sendChatroomMessageToFirestore(questionMessage);
+    // 2. Parallel ultra-fast write to Firestore for instant availability
+    await Promise.all([
+      setDoc(doc(db, 'chatroom_live_questions', qId), {
+        ...newQ,
+        gpRewardPerWinner: gpReward,
+        gpReward: gpReward,
+        rewardAmount: gpReward,
+        createdAtServer: serverTimestamp(),
+        createdByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
+        createdByName: adminName || 'Community Manager',
+      }),
+      sendChatroomMessageToFirestore(questionMessage),
+    ]);
 
     if (adminUid) {
-      await logAdminAuditAction(adminUid, adminName || 'Admin', 'CREATE_CHATROOM_QUESTION', qId, {
+      logAdminAuditAction(adminUid, adminName || 'Admin', 'CREATE_CHATROOM_QUESTION', qId, {
         questionText: newQ.questionText,
         winnerLimit,
         gpReward,
-      });
+      }).catch(() => {});
     }
 
     return newQ;

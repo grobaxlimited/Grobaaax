@@ -1239,7 +1239,8 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
           adminName={currentUser.name}
           defaultWinnerCount={1}
           defaultGpReward={500}
-          onQuestionCreated={(createdQ) => {
+          onQuestionCreated={(createdQ, qMsgOpt) => {
+            setIsCreateQuestionModalOpen(false);
             setActiveQuestion(createdQ);
             setSeasonQuestions((prev) => {
               const filtered = prev.filter((q) => q.id !== createdQ.id);
@@ -1256,7 +1257,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                 : prev
             );
 
-            const qMsg: SchoolDomeMessage = {
+            const qMsg: SchoolDomeMessage = qMsgOpt || {
               id: 'dome_msg_q_' + createdQ.id,
               seasonId: currentSeason?.id || 'season_dome_1',
               userId: currentUser.id || PRIMARY_SUPER_ADMIN_UID,
@@ -1295,7 +1296,9 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
               return exists ? prev : [...prev, qMsg];
             });
 
-            setIsCreateQuestionModalOpen(false);
+            requestAnimationFrame(() => {
+              scrollToBottom(true);
+            });
           }}
         />
       )}
