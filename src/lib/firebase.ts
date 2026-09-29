@@ -5515,42 +5515,75 @@ export const getUserDailyChatUsage = async (
 export const recordUserDailyChatResponse = async (
   userId: string,
   dateString: string,
-  tierName: 'free' | 'premium' | 'vip' | 'admin'
+  tierName: 'free' | 'premium' | 'vip' | 'admin',
+  options?: { targetCount?: number; alreadyIncrementedLocally?: boolean }
 ): Promise<{ count: number; allowed: boolean; limit: number; remaining: number }> => {
   const targetDate = dateString || getTodayLocalDateString();
   const limit = getDailyChatLimitForTier(tierName);
   const localKey = `grobax_daily_qa_${userId}_${targetDate}`;
 
-  // 1. Instant Synchronous Pre-flight check to prevent race condition leaks
+  // 1. Instant Synchronous Pre-flight check to prevent race conditions
   const syncCount = getSynchronousDailyChatUsage(userId, targetDate);
-  if (tierName !== 'admin' && syncCount >= limit) {
-    return {
-      count: syncCount,
-      allowed: false,
-      limit,
-      remaining: 0,
-    };
+
+  if (tierName !== 'admin') {
+    if (options?.alreadyIncrementedLocally) {
+      const currentTarget = options?.targetCount !== undefined ? options.targetCount : syncCount;
+      if (currentTarget > limit) {
+        const clamped = Math.min(currentTarget, limit);
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(localKey, String(clamped));
+          }
+        } catch {}
+        return {
+          count: clamped,
+          allowed: false,
+          limit,
+          remaining: 0,
+        };
+      }
+    } else {
+      if (syncCount >= limit) {
+        return {
+          count: syncCount,
+          allowed: false,
+          limit,
+          remaining: 0,
+        };
+      }
+    }
   }
 
   // 2. Read server usage
   const currentUsage = await getUserDailyChatUsage(userId, targetDate);
-  const currentCount = currentUsage.date === targetDate ? Math.max(currentUsage.count, syncCount) : 0;
+  const serverCount = currentUsage.date === targetDate ? currentUsage.count : 0;
 
-  if (tierName !== 'admin' && currentCount >= limit) {
+  // 3. Authoritatively resolve nextCount: exactly +1 per response, no double-counting!
+  let nextCount: number;
+  if (options?.alreadyIncrementedLocally) {
+    const candidate = options?.targetCount !== undefined ? options.targetCount : Math.max(1, syncCount);
+    // If the server doc already recorded a count >= candidate (e.g. concurrent device), respect serverCount + 1
+    nextCount = serverCount >= candidate ? serverCount + 1 : candidate;
+  } else {
+    const baseCount = Math.max(serverCount, syncCount);
+    nextCount = baseCount + 1;
+  }
+
+  if (tierName !== 'admin' && nextCount > limit) {
+    const clamped = Math.min(nextCount, limit);
     try {
       if (typeof window !== 'undefined') {
-        localStorage.setItem(localKey, String(currentCount));
+        localStorage.setItem(localKey, String(clamped));
       }
     } catch {}
     return {
-      count: currentCount,
+      count: clamped,
       allowed: false,
       limit,
       remaining: 0,
     };
   }
 
-  const nextCount = currentCount + 1;
   const nowMillis = Date.now();
 
   // 1. Update localStorage immediately for 0ms reactivity
@@ -5562,7 +5595,7 @@ export const recordUserDailyChatResponse = async (
       const profStr = localStorage.getItem(`grobax_user_profile_${userId}`);
       if (profStr) {
         const parsedProf = JSON.parse(profStr);
-        parsedProf.dailyQaUsage = { date: targetDate, count: nextCount, lastSubmittedAt: nowMillis };
+        parsedProf.dailyQaUsage = { date: targetDate, count: nextCount, lastSubmittedAt: nowMillis, tier: tierName };
         localStorage.setItem(`grobax_user_profile_${userId}`, JSON.stringify(parsedProf));
       }
 
@@ -5715,6 +5748,12 @@ export const DEFAULT_ULTIMATE_SEARCH_RULES: UltimateSearchRulesData = {
       title: 'Countdown Timer & Speed Window',
       description: 'Each challenge has an active countdown timer set by the Admin. Once the timer expires or all winner slots are filled, submissions are locked and the round concludes.',
       icon: 'Clock',
+    },
+    {
+      id: 'rule_6',
+      title: 'Daily Response Allowance Limits',
+      description: 'Daily responses are accurately measured on a daily basis: Free Scholar (2 responses/day), Premium Scholar (15 responses/day), and VIP Scholar (20 responses/day). Each response increments by exactly 1.',
+      icon: 'HelpCircle',
     },
   ],
 };
@@ -6595,6 +6634,23 @@ export const evaluateAndProcessLiveAnswer = async (
       }
     } catch (apiErr) {
       console.warn('Notice from backend live reward credit call:', apiErr);
+    }
+
+    // Direct Firestore instant balance update (guarantees zero delay in real-time snapshot)
+    try {
+      const userDocRef = doc(db, 'users', user.id);
+      await setDoc(
+        userDocRef,
+        {
+          gpBalance: increment(gpAward),
+          walletBalance: increment(gpAward),
+          totalGpEarned: increment(gpAward),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (fErr) {
+      console.warn('Notice updating Firestore balance for live reward:', fErr);
     }
 
     // Immediately sync local storage cache

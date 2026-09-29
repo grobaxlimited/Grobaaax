@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
-import { useApp, checkIsUserSubscribed } from '../../../context/AppContext';
+import { useApp, checkIsUserSubscribed, resolveUserSubscriptionStatus } from '../../../context/AppContext';
 import {
   ChatroomLiveMessage,
   SponsorshipCampaign,
@@ -80,9 +80,7 @@ export const ChatroomLiveView: React.FC = () => {
   } = useApp();
 
   // Grobaax central subscription source of truth
-  const membership = (currentUser?.membershipTier || '').toLowerCase();
-  const subTier = (currentUser?.subscriptionTier || '').toLowerCase();
-  const plan = (((currentUser as any)?.subscriptionPlan || (currentUser as any)?.planId || (currentUser as any)?.tier || (currentUser as any)?.activePlanId) + '').toLowerCase();
+  const resolvedSub = resolveUserSubscriptionStatus(currentUser);
 
   const isStaffOrAdmin =
     role === 'admin' ||
@@ -96,35 +94,20 @@ export const ChatroomLiveView: React.FC = () => {
     currentUser?.name?.toLowerCase().includes('admin') ||
     currentUser?.name?.toLowerCase().includes('staff');
 
-  const isActivelySubscribed = isUserSubscribed || checkIsUserSubscribed(currentUser);
-  const isUserExpired = !isStaffOrAdmin && isSubscriptionExpired(currentUser);
-
   const isVIP =
     !isStaffOrAdmin &&
-    !isUserExpired &&
-    Boolean(
-      currentUser?.isVip ||
+    !resolvedSub.isExpired &&
+    (resolvedSub.tierType === 'vip' ||
       currentUser?.gusTier === 'Titan' ||
-      membership.includes('vip') ||
-      membership.includes('titan') ||
-      subTier.includes('vip') ||
-      subTier.includes('titan') ||
-      plan.includes('vip') ||
-      plan.includes('titan') ||
-      plan.includes('annual')
-    );
+      currentUser?.isVip === true);
 
   const isPremium =
     !isStaffOrAdmin &&
-    !isUserExpired &&
+    !resolvedSub.isExpired &&
     !isVIP &&
-    Boolean(
-      isActivelySubscribed ||
-      currentUser?.isPremium ||
-      (membership && !membership.includes('free') && membership.trim().length > 0) ||
-      (subTier && !subTier.includes('free') && subTier.trim().length > 0) ||
-      (plan && !plan.includes('free') && plan.trim().length > 0)
-    );
+    (resolvedSub.tierType === 'premium' ||
+      resolvedSub.isPremium === true ||
+      currentUser?.isPremium === true);
 
   const tierName: 'free' | 'premium' | 'vip' | 'admin' = isStaffOrAdmin
     ? 'admin'
@@ -134,7 +117,7 @@ export const ChatroomLiveView: React.FC = () => {
     ? 'premium'
     : 'free';
 
-  // Daily Limits: Free (2), Premium (15), VIP (20), Admin/Manager (Unlimited)
+  // Daily Limits: Free (2 responses/day), Premium (15 responses/day), VIP (20 responses/day), Admin/Manager (Unlimited)
   const maxDailyLimit = isStaffOrAdmin ? Infinity : isVIP ? 20 : isPremium ? 15 : 2;
 
   // Consistent daily date basis (YYYY-MM-DD in local time)
@@ -145,8 +128,12 @@ export const ChatroomLiveView: React.FC = () => {
   const [dailyResponseCount, setDailyResponseCount] = useState<number>(() => {
     try {
       const syncVal = getSynchronousDailyChatUsage(activeUserId, todayDate);
-      if (currentUser?.dailyQaUsage && currentUser.dailyQaUsage.date === todayDate) {
-        return Math.max(syncVal, currentUser.dailyQaUsage.count || 0);
+      if (currentUser?.dailyQaUsage) {
+        if (currentUser.dailyQaUsage.date === todayDate) {
+          return Math.max(syncVal, currentUser.dailyQaUsage.count || 0);
+        } else {
+          return 0;
+        }
       }
       return syncVal;
     } catch {
@@ -403,8 +390,8 @@ export const ChatroomLiveView: React.FC = () => {
     }
 
     // Synchronously increment local usage right away for 0ms UI update
+    const nextCount = effectiveCount + 1;
     if (!isStaffOrAdmin) {
-      const nextCount = effectiveCount + 1;
       setDailyResponseCount(nextCount);
       try {
         localStorage.setItem(`grobax_daily_qa_${activeUserId}_${todayDate}`, String(nextCount));
@@ -447,7 +434,10 @@ export const ChatroomLiveView: React.FC = () => {
 
     // Background asynchronous server synchronization and limit recording
     if (!isStaffOrAdmin) {
-      recordUserDailyChatResponse(activeUserId, todayDate, tierName)
+      recordUserDailyChatResponse(activeUserId, todayDate, tierName, {
+        targetCount: nextCount,
+        alreadyIncrementedLocally: true,
+      })
         .then((recordResult) => {
           setDailyResponseCount(recordResult.count);
           if (!recordResult.allowed) {
