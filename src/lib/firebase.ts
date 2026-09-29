@@ -5480,13 +5480,15 @@ export const getUserDailyChatUsage = async (
         } catch {}
         return { date: targetDate, count: resolvedCount, lastSubmittedAt: data.dailyQaUsage.lastSubmittedAt };
       } else if (data.dailyQaUsage && data.dailyQaUsage.date !== targetDate) {
-        // Different date (e.g. yesterday) -> Allowance refreshed for new day
+        // Different date on server (e.g. yesterday). If user has not chatted today, count is 0.
+        // If user already chatted in this session today, preserve syncCount!
+        const resolvedCount = syncCount > 0 ? syncCount : 0;
         try {
           if (typeof window !== 'undefined') {
-            localStorage.setItem(localKey, '0');
+            localStorage.setItem(localKey, String(resolvedCount));
           }
         } catch {}
-        return { date: targetDate, count: 0 };
+        return { date: targetDate, count: resolvedCount };
       }
     }
 
@@ -5561,9 +5563,8 @@ export const recordUserDailyChatResponse = async (
   // 3. Authoritatively resolve nextCount: exactly +1 per response, no double-counting!
   let nextCount: number;
   if (options?.alreadyIncrementedLocally) {
-    const candidate = options?.targetCount !== undefined ? options.targetCount : Math.max(1, syncCount);
-    // If the server doc already recorded a count >= candidate (e.g. concurrent device), respect serverCount + 1
-    nextCount = serverCount >= candidate ? serverCount + 1 : candidate;
+    // Local client already accurately incremented by exactly 1 (e.g., from 0 to 1, or 1 to 2)
+    nextCount = options?.targetCount !== undefined ? options.targetCount : Math.max(1, syncCount);
   } else {
     const baseCount = Math.max(serverCount, syncCount);
     nextCount = baseCount + 1;

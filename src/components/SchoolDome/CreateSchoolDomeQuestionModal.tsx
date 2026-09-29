@@ -182,6 +182,28 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
         onQuestionCreated(createdQ, qMessage);
       }
 
+      // Broadcast globally for 0ms multi-tab and multi-view visibility
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(
+            new CustomEvent('school_dome_message_posted', {
+              detail: qMessage,
+            })
+          );
+          window.dispatchEvent(
+            new CustomEvent('school_dome_question_launched', {
+              detail: { question: createdQ, message: qMessage },
+            })
+          );
+          const rawMsgs = localStorage.getItem('grobax_school_dome_messages');
+          const parsed = rawMsgs ? JSON.parse(rawMsgs) : [];
+          if (!parsed.some((m: any) => m.id === qMessage.id)) {
+            parsed.push(qMessage);
+            localStorage.setItem('grobax_school_dome_messages', JSON.stringify(parsed));
+          }
+        } catch {}
+      }
+
       // 2. Instantly reset & close modal so admin is not kept waiting
       setQuestionText('');
       setCorrectAnswer('');

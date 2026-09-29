@@ -29,7 +29,7 @@ export const CreateLiveQuestionModal: React.FC<CreateLiveQuestionModalProps> = (
   onClose,
   adminUid,
   adminName,
-  defaultWinnerCount = 5,
+  defaultWinnerCount = 1,
   defaultGpReward = 200,
   defaultTimeLimitSeconds = 300,
   onQuestionCreated,
@@ -137,6 +137,23 @@ export const CreateLiveQuestionModal: React.FC<CreateLiveQuestionModalProps> = (
       // 1. Instantly deliver question to chatroom UI (0ms latency)
       if (onQuestionCreated) {
         onQuestionCreated(createdQ, questionMessage);
+      }
+
+      // Broadcast globally for 0ms multi-tab and multi-view visibility
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(
+            new CustomEvent('chatroom_question_launched', {
+              detail: { question: createdQ, message: questionMessage },
+            })
+          );
+          const rawMsgs = localStorage.getItem('grobax_chatroom_messages');
+          const parsed = rawMsgs ? JSON.parse(rawMsgs) : [];
+          if (!parsed.some((m: any) => m.id === questionMessage.id)) {
+            parsed.push(questionMessage);
+            localStorage.setItem('grobax_chatroom_messages', JSON.stringify(parsed));
+          }
+        } catch {}
       }
 
       // 2. Instantly reset & close modal so admin is not kept waiting

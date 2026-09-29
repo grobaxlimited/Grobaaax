@@ -351,6 +351,12 @@ export const AdminCommunityView: React.FC<AdminCommunityViewProps> = ({
               onClose={() => setIsCreateQuestionModalOpen(false)}
               adminUid={userProfile?.id || currentUser?.id}
               adminName={userProfile?.name || currentUser?.name || 'Community Manager'}
+              onQuestionCreated={(_q, qMsg) => {
+                setIsCreateQuestionModalOpen(false);
+                if (qMsg) {
+                  sendChatroomMessage(qMsg);
+                }
+              }}
             />
           )}
         </div>

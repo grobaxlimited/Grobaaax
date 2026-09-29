@@ -120,10 +120,37 @@ export const AdminSchoolDomeView: React.FC = () => {
     const unsubMsg = subscribeSchoolDomeMessages(currentSeason.id, (msgs) => {
       setMessages(msgs);
     });
+
+    const handleMessagePosted = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.id) {
+        setMessages(prev => {
+          const exists = prev.some(m => m.id === detail.id);
+          return exists ? prev : [...prev, detail];
+        });
+      }
+    };
+    const handleQuestionLaunched = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.question) {
+        setActiveQuestion(detail.question);
+        if (detail.message) {
+          setMessages(prev => {
+            const exists = prev.some(m => m.id === detail.message.id);
+            return exists ? prev : [...prev, detail.message];
+          });
+        }
+      }
+    };
+    window.addEventListener('school_dome_message_posted', handleMessagePosted);
+    window.addEventListener('school_dome_question_launched', handleQuestionLaunched);
+
     return () => {
       unsubQ();
       unsubAllQ();
       unsubMsg();
+      window.removeEventListener('school_dome_message_posted', handleMessagePosted);
+      window.removeEventListener('school_dome_question_launched', handleQuestionLaunched);
     };
   }, [currentSeason?.id]);
 
@@ -510,8 +537,14 @@ export const AdminSchoolDomeView: React.FC = () => {
             season={currentSeason}
             adminUid={currentUser?.id}
             adminName={currentUser?.name}
-            onQuestionCreated={(q) => {
+            onQuestionCreated={(q, qMsg) => {
               setActiveQuestion(q);
+              if (qMsg) {
+                setMessages(prev => {
+                  const exists = prev.some(m => m.id === qMsg.id);
+                  return exists ? prev : [...prev, qMsg];
+                });
+              }
             }}
           />
 

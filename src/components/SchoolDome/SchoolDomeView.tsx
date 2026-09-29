@@ -149,10 +149,41 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     };
     window.addEventListener('school_dome_message_reacted', handleMessageReacted);
 
+    const handleMessagePosted = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.id) {
+        setMessages(prev => {
+          const exists = prev.some(m => m.id === detail.id);
+          return exists ? prev : [...prev, detail];
+        });
+      }
+    };
+    window.addEventListener('school_dome_message_posted', handleMessagePosted);
+
+    const handleQuestionLaunched = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.question) {
+        setActiveQuestion(detail.question);
+        setSeasonQuestions(prev => {
+          const filtered = prev.filter(q => q.id !== detail.question.id);
+          return [...filtered, detail.question].sort((a, b) => a.questionNumber - b.questionNumber);
+        });
+        if (detail.message) {
+          setMessages(prev => {
+            const exists = prev.some(m => m.id === detail.message.id);
+            return exists ? prev : [...prev, detail.message];
+          });
+        }
+      }
+    };
+    window.addEventListener('school_dome_question_launched', handleQuestionLaunched);
+
     return () => {
       unsubSeason();
       window.removeEventListener('school_dome_season_updated', handleSeasonUpdated);
       window.removeEventListener('school_dome_message_reacted', handleMessageReacted);
+      window.removeEventListener('school_dome_message_posted', handleMessagePosted);
+      window.removeEventListener('school_dome_question_launched', handleQuestionLaunched);
     };
   }, []);
 

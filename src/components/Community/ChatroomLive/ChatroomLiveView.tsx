@@ -128,12 +128,8 @@ export const ChatroomLiveView: React.FC = () => {
   const [dailyResponseCount, setDailyResponseCount] = useState<number>(() => {
     try {
       const syncVal = getSynchronousDailyChatUsage(activeUserId, todayDate);
-      if (currentUser?.dailyQaUsage) {
-        if (currentUser.dailyQaUsage.date === todayDate) {
-          return Math.max(syncVal, currentUser.dailyQaUsage.count || 0);
-        } else {
-          return 0;
-        }
+      if (currentUser?.dailyQaUsage && currentUser.dailyQaUsage.date === todayDate) {
+        return Math.max(syncVal, currentUser.dailyQaUsage.count || 0);
       }
       return syncVal;
     } catch {
@@ -146,13 +142,8 @@ export const ChatroomLiveView: React.FC = () => {
     if (activeUserId && activeUserId !== 'guest') {
       const syncVal = getSynchronousDailyChatUsage(activeUserId, todayDate);
       let latestCount = syncVal;
-      if (currentUser?.dailyQaUsage) {
-        if (currentUser.dailyQaUsage.date === todayDate) {
-          latestCount = Math.max(syncVal, currentUser.dailyQaUsage.count || 0);
-        } else {
-          // Date is from previous day -> Allowance renewed
-          latestCount = 0;
-        }
+      if (currentUser?.dailyQaUsage && currentUser.dailyQaUsage.date === todayDate) {
+        latestCount = Math.max(syncVal, currentUser.dailyQaUsage.count || 0);
       }
       setDailyResponseCount(latestCount);
 
@@ -160,12 +151,8 @@ export const ChatroomLiveView: React.FC = () => {
       let isMounted = true;
       getUserDailyChatUsage(activeUserId, todayDate)
         .then(usage => {
-          if (isMounted) {
-            if (usage.date === todayDate) {
-              setDailyResponseCount(prev => Math.max(prev, usage.count));
-            } else {
-              setDailyResponseCount(0);
-            }
+          if (isMounted && usage.date === todayDate) {
+            setDailyResponseCount(prev => Math.max(prev, usage.count));
           }
         })
         .catch(() => {});
@@ -266,6 +253,24 @@ export const ChatroomLiveView: React.FC = () => {
     }
     setShowScrollBottom(false);
   }, []);
+
+  // Listen for instant live question broadcasts from admin modal or other tabs
+  useEffect(() => {
+    const handleQuestionLaunched = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.message) {
+        sendChatroomMessage(detail.message);
+        requestAnimationFrame(() => {
+          scrollToBottom(true);
+        });
+      }
+    };
+
+    window.addEventListener('chatroom_question_launched', handleQuestionLaunched);
+    return () => {
+      window.removeEventListener('chatroom_question_launched', handleQuestionLaunched);
+    };
+  }, [sendChatroomMessage, scrollToBottom]);
 
   // Instant positioning callback ref: directly snaps to the bottom as soon as container mounts
   const setScrollContainerRef = useCallback((node: HTMLDivElement | null) => {

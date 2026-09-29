@@ -330,17 +330,15 @@ export const ChatroomMessageItem: React.FC<ChatroomMessageItemProps> = ({
       );
 
       if (isCorrect) {
-        // Free scholars are correct but do not earn GP
-        const isEligibleForGp = (hasPremium || isStaffOrAdmin);
-        const withinTime = message.timestamp <= (comp.endAt || comp.startAt || message.timestamp + 300000);
+        // If question already has full winners or is closed, submissions are concluded - no unnecessary reward distribution!
         const currentWinnersCount = (comp.selectedWinners || []).length;
-        const maxWinners = comp.winnerCountLimit || 5;
-        const slotsAvailable = currentWinnersCount < maxWinners;
+        const maxWinners = comp.winnerCountLimit || 1;
+        const isRoundConcluded = comp.status === 'closed' || currentWinnersCount >= maxWinners;
 
-        const earned = (isEligibleForGp && withinTime && slotsAvailable) ? compReward : 0;
+        // If the scholar was NOT officially confirmed in selectedWinners, do not showcase uncredited GP distribution
         return {
-          answerStatus: 'correct',
-          gpEarned: earned,
+          answerStatus: isRoundConcluded ? null : 'correct',
+          gpEarned: 0,
         };
       }
 
