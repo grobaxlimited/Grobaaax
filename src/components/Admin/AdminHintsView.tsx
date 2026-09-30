@@ -50,7 +50,7 @@ interface HintFormData {
 }
 
 const DEFAULT_FORM_DATA: HintFormData = {
-  competitionType: 'daily_qa',
+  competitionType: 'school_dome',
   roundLabel: '',
   possibleQuestions: [''],
   accessLevel: 'both',
@@ -111,10 +111,9 @@ export function AdminHintsView() {
     const published = hints.filter((h) => h.status === 'published').length;
     const drafts = hints.filter((h) => h.status === 'draft').length;
     const hidden = hints.filter((h) => h.status === 'hidden').length;
-    const dailyQA = hints.filter((h) => h.competitionType === 'daily_qa').length;
-    const schoolDome = hints.filter((h) => h.competitionType === 'school_dome').length;
+    const schoolDome = hints.length;
 
-    return { total, published, drafts, hidden, dailyQA, schoolDome };
+    return { total, published, drafts, hidden, schoolDome };
   }, [hints]);
 
   // Helper to extract questions from hint safely
@@ -273,7 +272,7 @@ export function AdminHintsView() {
           grobaxNotificationService.emitSectionNotification({
             section: 'hints',
             title: 'New Competition Hint',
-            message: `Strategic hints published for ${formData.competitionType === 'daily_qa' ? 'Daily GP Grab' : 'School Dome'} (${formData.roundLabel}).`,
+            message: `Strategic hints published for School Dome (${formData.roundLabel || 'Arena'}).`,
             targetRole: 'ALL',
           });
         }
@@ -298,7 +297,7 @@ export function AdminHintsView() {
         grobaxNotificationService.emitSectionNotification({
           section: 'hints',
           title: 'Competition Hint Published',
-          message: `Strategic hints are now live for ${hint.competitionType === 'daily_qa' ? 'Daily GP Grab' : 'School Dome'}.`,
+          message: 'Strategic hints are now live for School Dome Arena.',
           targetRole: 'ALL',
         });
       }
@@ -345,7 +344,7 @@ export function AdminHintsView() {
             HINT MANAGEMENT
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl">
-            Create, publish, and manage strategic preparation hints for Daily GP Grab and School Dome competitions. Protect content for eligible subscribers.
+            Create, publish, and manage strategic preparation hints for School Dome competitions. Protect content for eligible subscribers.
           </p>
         </div>
 
@@ -359,7 +358,7 @@ export function AdminHintsView() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             Total Hints
@@ -373,16 +372,6 @@ export function AdminHintsView() {
           </span>
           <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
             {stats.published}
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 shadow-xs space-y-1">
-          <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
-            <Trophy className="w-3 h-3" />
-            Daily GP Grab
-          </span>
-          <div className="text-2xl font-black text-amber-700 dark:text-amber-400">
-            {stats.dailyQA}
           </div>
         </div>
 
@@ -422,18 +411,7 @@ export function AdminHintsView() {
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              All Competitions
-            </button>
-            <button
-              onClick={() => setCompetitionFilter('daily_qa')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                competitionFilter === 'daily_qa'
-                  ? 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Trophy className="w-3 h-3 text-amber-500" />
-              <span>Daily Search</span>
+              All Hints
             </button>
             <button
               onClick={() => setCompetitionFilter('school_dome')}
@@ -487,8 +465,6 @@ export function AdminHintsView() {
       ) : (
         <div className="space-y-3">
           {filteredHints.map((hint) => {
-            const isDailyQA = hint.competitionType === 'daily_qa';
-
             return (
               <div
                 key={hint.id}
@@ -498,19 +474,9 @@ export function AdminHintsView() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center gap-2.5 flex-wrap">
                     {/* Competition Badge */}
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${
-                        isDailyQA
-                          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
-                          : 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30'
-                      }`}
-                    >
-                      {isDailyQA ? (
-                        <Trophy className="w-3 h-3 text-amber-500" />
-                      ) : (
-                        <Swords className="w-3 h-3 text-blue-500" />
-                      )}
-                      <span>{isDailyQA ? 'Daily GP Grab' : 'School Dome'}</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30">
+                      <Swords className="w-3 h-3 text-blue-500" />
+                      <span>School Dome</span>
                     </span>
 
                     {/* Access Level Badge */}
@@ -599,7 +565,7 @@ export function AdminHintsView() {
                 {/* Round Label / Title */}
                 <div className="space-y-1">
                   <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                    {hint.roundLabel || hint.title || (isDailyQA ? 'Daily GP Grab Hint' : 'School Dome Hint')}
+                    {hint.roundLabel || hint.title || 'School Dome Hint'}
                   </h4>
                   <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -674,64 +640,18 @@ export function AdminHintsView() {
               {/* 1. Competition Type Selection */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Target Competition *
+                  Target Competition
                 </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer flex items-center gap-3 transition ${
-                      formData.competitionType === 'daily_qa'
-                        ? 'border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="competitionType"
-                      value="daily_qa"
-                      checked={formData.competitionType === 'daily_qa'}
-                      onChange={() =>
-                        setFormData((prev) => ({ ...prev, competitionType: 'daily_qa' }))
-                      }
-                      className="sr-only"
-                    />
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                      <Trophy className="w-4 h-4" />
+                <div className="p-3.5 rounded-2xl border-2 border-blue-500 bg-blue-500/10 text-slate-900 dark:text-white flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <Swords className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-extrabold">School Dome</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Institutional arena
                     </div>
-                    <div>
-                      <div className="text-xs font-extrabold">Daily GP Grab</div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Daily challenge arena
-                      </div>
-                    </div>
-                  </label>
-
-                  <label
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer flex items-center gap-3 transition ${
-                      formData.competitionType === 'school_dome'
-                        ? 'border-blue-500 bg-blue-500/10 text-slate-900 dark:text-white'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="competitionType"
-                      value="school_dome"
-                      checked={formData.competitionType === 'school_dome'}
-                      onChange={() =>
-                        setFormData((prev) => ({ ...prev, competitionType: 'school_dome' }))
-                      }
-                      className="sr-only"
-                    />
-                    <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                      <Swords className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-extrabold">School Dome</div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Institutional arena
-                      </div>
-                    </div>
-                  </label>
+                  </div>
                 </div>
               </div>
 
@@ -915,7 +835,7 @@ export function AdminHintsView() {
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Are you sure you want to permanently delete{' '}
                 <span className="font-bold text-slate-800 dark:text-slate-200">
-                  "{hintToDelete.roundLabel || hintToDelete.title || (hintToDelete.competitionType === 'daily_qa' ? 'Daily GP Grab Hint' : 'School Dome Hint')}"
+                  "{hintToDelete.roundLabel || hintToDelete.title || 'School Dome Hint'}"
                 </span>
                 ? This action cannot be undone.
               </p>

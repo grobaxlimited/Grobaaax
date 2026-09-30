@@ -3,7 +3,6 @@ import { useApp } from '../../context/AppContext';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { EventDetailsModal } from './EventDetailsModal';
-import { CampusCard } from './CampusCard';
 import {
   PlatformEventItem,
   PlatformEventCategory,
@@ -102,12 +101,6 @@ export const HomeTab: React.FC = () => {
         <div className="relative space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-2.5 max-w-2xl flex-1">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-gradient-to-r from-blue-500/15 via-amber-500/15 to-indigo-500/15 border border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider shadow-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <GraduationCap className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-                <span>Campus Academic Hub • Inter-School Arena</span>
-              </div>
-
               <div className="relative">
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
                   Welcome to{' '}
@@ -128,7 +121,7 @@ export const HomeTab: React.FC = () => {
               </div>
 
               <p className="text-xs sm:text-sm lg:text-base text-slate-600 dark:text-slate-300 max-w-3xl leading-relaxed font-medium">
-                Grobaax is an education-focused platform where students test knowledge through <strong>Daily GP Grab</strong>, represent their institution as the last school standing in the <strong>School Dome Arena</strong>, access 24/7 <strong>Airtime and Data Redemption</strong>, connect with fellow scholars via the <strong>Campus Mini Mart</strong>, build verified student networks on <strong>Campus</strong>, and unlock strategic competition intelligence in <strong>Hints</strong>.
+                Grobaax is an education-focused platform where students represent their institution as the last school standing in the <strong>School Dome Arena</strong>, access 24/7 <strong>Airtime and Data Redemption</strong>, connect with fellow scholars via the <strong>Campus Mini Mart</strong>, build verified student networks on <strong>Campus</strong>, and unlock strategic competition intelligence in <strong>Hints</strong>.
               </p>
             </div>
 
@@ -181,45 +174,7 @@ export const HomeTab: React.FC = () => {
               </div>
             </div>
 
-            {/* 2. Daily GP Grab Pillar */}
-            <div
-              id="home-pillar-gus-card"
-              onClick={() => setActiveTab('daily_qa')}
-              className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 group-hover:scale-105 transition-transform">
-                  <Trophy className="w-5 h-5" />
-                </div>
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      Daily GP Grab
-                    </h2>
-                    <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 text-[9px] font-black border border-amber-500/30">
-                      LIVE
-                    </span>
-                  </div>
-
-                  {/* Starting Schedule Badge */}
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/15 dark:bg-blue-500/25 border border-blue-500/40 text-blue-800 dark:text-blue-200 text-[10.5px] font-extrabold tracking-tight">
-                    <Clock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                    <span>Monday to Friday • 5:00 PM</span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Participate in daily real-time search queries and challenge questions to boost your knowledge and earn GP points.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-blue-600 dark:text-blue-400">
-                <span>Enter Daily GP Grab</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* 3. Airtime & Data Redemption Pillar Card */}
+            {/* 2. Airtime & Data Redemption Pillar Card */}
             <div
               id="home-pillar-airtime-data-card"
               onClick={() => openWalletModal('airtime_data')}
@@ -339,7 +294,7 @@ export const HomeTab: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Access official competition hints, syllabus breakdowns, and tactical question clues for Daily GP Grab and School Dome Arena.
+                    Access official competition hints, syllabus breakdowns, and tactical question clues for School Dome Arena.
                   </p>
                 </div>
               </div>
@@ -351,13 +306,6 @@ export const HomeTab: React.FC = () => {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* ======================================================== */}
-      {/* 1.5 OFFICIAL CAMPUS CARD (STUDENT SCHOLAR IDENTITY)     */}
-      {/* ======================================================== */}
-      <section id="home-campus-card-section">
-        <CampusCard />
       </section>
 
       {/* ======================================================== */}

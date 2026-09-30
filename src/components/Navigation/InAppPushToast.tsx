@@ -153,10 +153,10 @@ export const InAppPushToast: React.FC = () => {
         openWalletModal('profile');
       } else if (target.includes('wallet')) {
         openWalletModal('history');
-      } else if (target.includes('gus')) {
-        setActiveTab('gus');
-      } else if (target.includes('chat') || target.includes('daily')) {
-        setActiveTab('daily_qa');
+      } else if (target.includes('gus') || target.includes('dome') || target.includes('arena') || target.includes('daily')) {
+        setActiveTab('school_dome');
+      } else if (target.includes('chat')) {
+        setActiveTab('community');
       } else if (target.includes('campus') || target.includes('connection')) {
         setActiveTab('community');
         if (setCommunitySubTab) {

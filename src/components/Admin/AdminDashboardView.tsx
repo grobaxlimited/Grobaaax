@@ -211,7 +211,6 @@ export function AdminDashboardView({ onNavigateTab }: AdminDashboardProps) {
             { label: 'Events Catalog', tab: 'events', icon: Calendar, color: 'text-cyan-500 bg-cyan-500/10' },
             { label: 'Subscriptions (₦)', tab: 'subscriptions', icon: Zap, color: 'text-amber-500 bg-amber-500/10' },
             { label: 'Sponsorship & Ads', tab: 'sponsorship', icon: Sparkles, color: 'text-amber-500 bg-amber-500/10' },
-            { label: 'Live Search Chat', tab: 'chatroom_live', icon: Trophy, color: 'text-purple-500 bg-purple-500/10' },
             { label: 'Withdrawals', tab: 'withdrawals', icon: Wallet, color: 'text-rose-500 bg-rose-500/10' },
             { label: 'Airtime & Data', tab: 'airtime_data', icon: Activity, color: 'text-slate-500 bg-slate-500/10' },
             { label: 'Transactions Log', tab: 'transactions', icon: Receipt, color: 'text-emerald-500 bg-emerald-500/10' },

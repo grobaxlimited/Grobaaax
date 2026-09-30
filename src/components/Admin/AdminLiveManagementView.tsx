@@ -55,7 +55,7 @@ export function AdminLiveManagementView() {
             <Radio className="w-7 h-7 text-rose-500 animate-pulse" /> Live Competition Controller
           </h1>
           <p className="text-xs text-blue-200 mt-1">
-            Real-time monitoring and administrative oversight of live GUS quiz rounds and Chatroom Live sessions.
+            Real-time monitoring and administrative oversight of live School Dome Arena rounds.
           </p>
         </div>
       </div>
@@ -68,7 +68,7 @@ export function AdminLiveManagementView() {
             <Clock className="w-8 h-8 text-slate-500 mx-auto" />
             <p className="font-bold text-slate-700 dark:text-slate-200">No active live competition rooms currently running.</p>
             <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-              When students or admins launch a GUS tournament round or Chatroom Live session, live telemetry and controls will appear here.
+              When tournament rounds launch in the School Dome Arena, live telemetry and controls will appear here.
             </p>
           </Card>
         ) : (

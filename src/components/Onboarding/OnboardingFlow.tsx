@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { WelcomeVisual } from './visuals/WelcomeVisual';
 import { SchoolDomeVisual } from './visuals/SchoolDomeVisual';
-import { DailyGPGrabVisual } from './visuals/DailyGPGrabVisual';
 import { CampusNetworkVisual } from './visuals/CampusNetworkVisual';
 import { MiniMartVisual } from './visuals/MiniMartVisual';
 import { GPRedemptionVisual } from './visuals/GPRedemptionVisual';
@@ -114,43 +113,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
       ],
     },
     {
-      id: 'daily-gp',
-      shortTitle: 'Daily GP Grab',
-      stepNumber: 3,
-      badge: 'INDIVIDUAL DAILY CHALLENGE',
-      title: 'Daily GP Grab: Answer & Earn Daily',
-      highlightText: 'Daily GP Grab',
-      tagline: 'Answer. Earn GP. Repeat.',
-      description:
-        'Every Monday to Friday, take part in Daily GP Grab by answering quick academic questions. Correct answers earn you GP instantly into your wallet with guaranteed 1 GP = ₦1 valuation.',
-      visual: <DailyGPGrabVisual />,
-      featureCards: [
-        {
-          icon: <Calendar className="w-4 h-4 text-cyan-400" />,
-          title: 'Monday – Friday',
-          text: 'Daily question drops available in your scholar feed.',
-        },
-        {
-          icon: <Zap className="w-4 h-4 text-amber-400" />,
-          title: '15s Speed Rounds',
-          text: 'Rapid-fire assessments designed to test sharp minds.',
-        },
-        {
-          icon: <CheckCircle2 className="w-4 h-4 text-emerald-400" />,
-          title: 'Instant GP Credit',
-          text: 'Earn points immediately upon correct answer submission.',
-        },
-        {
-          icon: <Coins className="w-4 h-4 text-blue-400" />,
-          title: '1 GP = ₦1 Value',
-          text: 'Full transparency with direct cashout & airtime options.',
-        },
-      ],
-    },
-    {
       id: 'campus',
       shortTitle: 'Campus Arena',
-      stepNumber: 4,
+      stepNumber: 3,
       badge: 'INTER-INSTITUTIONAL NETWORK',
       title: 'Campus Arena: Connect Across 100+ Schools',
       highlightText: 'Campus Arena',
@@ -184,7 +149,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
     {
       id: 'minimart',
       shortTitle: 'MiniMart',
-      stepNumber: 5,
+      stepNumber: 4,
       badge: 'STUDENT MARKETPLACE',
       title: 'Campus MiniMart: Student Commerce Hub',
       highlightText: 'Campus MiniMart',
@@ -218,7 +183,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
     {
       id: 'redemption',
       shortTitle: 'GP Value',
-      stepNumber: 6,
+      stepNumber: 5,
       badge: 'INSTANT REWARDS PIPELINE',
       title: 'Turn Your GP Into Airtime, Data & Cash',
       highlightText: 'Airtime, Data & Cash',

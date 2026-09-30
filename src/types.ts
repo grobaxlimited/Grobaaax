@@ -201,7 +201,7 @@ export type HintStatus = 'draft' | 'published' | 'hidden';
 
 export interface CompetitionHint {
   id: string;
-  competitionType: CompetitionHintType; // 'daily_qa' (Daily GP Grab) | 'school_dome' (School Dome)
+  competitionType: CompetitionHintType; // 'school_dome' (School Dome Arena)
   possibleQuestions: string[]; // Possible questions that admin will ask in the competition
   roundLabel?: string; // e.g. "Round 1" or "Today's Challenge" (optional)
   title?: string; // Legacy / optional title
@@ -1076,9 +1076,9 @@ export const PLATFORM_EVENT_CATEGORIES: {
   subTab?: 'minimart' | 'announcements' | 'campus';
 }[] = [
   { id: 'school_dome', label: 'School Dome Arena', shortLabel: 'School Dome', tabKey: 'school_dome', channelName: 'School Dome Arena' },
-  { id: 'gus', label: 'GUS Championship Event', shortLabel: 'GUS Tournament', tabKey: 'daily_qa', channelName: 'Daily GP Grab' },
-  { id: 'academic_olympiad', label: 'Academic Olympiad Event', shortLabel: 'Academic Olympiad', tabKey: 'daily_qa', channelName: 'Daily GP Grab' },
-  { id: 'chatroom_live', label: 'Chatroom Live Event', shortLabel: 'Chatroom Live', tabKey: 'daily_qa', channelName: 'Daily GP Grab Live' },
+  { id: 'gus', label: 'GUS Championship Event', shortLabel: 'GUS Tournament', tabKey: 'school_dome', channelName: 'School Dome Arena' },
+  { id: 'academic_olympiad', label: 'Academic Olympiad Event', shortLabel: 'Academic Olympiad', tabKey: 'school_dome', channelName: 'School Dome Arena' },
+  { id: 'chatroom_live', label: 'Chatroom Live Event', shortLabel: 'Chatroom Live', tabKey: 'community', subTab: 'campus', channelName: 'Campus Network' },
   { id: 'campus_hackathon', label: 'Campus Hackathon & Quiz', shortLabel: 'Campus Hackathon', tabKey: 'community', subTab: 'campus', channelName: 'Campus Network' },
   { id: 'others', label: 'General Student Event', shortLabel: 'Campus Event', tabKey: 'community', subTab: 'campus', channelName: 'Campus Network' },
 ];

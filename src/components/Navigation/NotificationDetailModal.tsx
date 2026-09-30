@@ -94,12 +94,8 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
         openWalletModal('history');
         return;
       }
-      if (target.includes('gus')) {
-        setActiveTab('gus');
-        return;
-      }
-      if (target.includes('daily_qa') || target.includes('daily')) {
-        setActiveTab('daily_qa');
+      if (target.includes('gus') || target.includes('daily_qa') || target.includes('daily') || target.includes('dome')) {
+        setActiveTab('school_dome');
         return;
       }
       if (target.includes('campus') || target.includes('connection')) {
@@ -199,7 +195,7 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
       case 'gus':
         return {
           icon: <Trophy className="w-5 h-5 text-amber-500 dark:text-amber-400" />,
-          label: 'Daily GP Grab',
+          label: 'Championship Tournament',
           style: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
         };
       case 'league':

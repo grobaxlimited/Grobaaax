@@ -19,7 +19,6 @@ import { AdminAnnouncementsView } from './AdminAnnouncementsView';
 import { AdminSponsorshipView } from './AdminSponsorshipView';
 import { AdminWalletView } from './AdminWalletView';
 import { AdminWithdrawalsView } from './AdminWithdrawalsView';
-import { AdminChatroomLiveView } from './AdminChatroomLiveView';
 import { AdminNotificationsView } from './AdminNotificationsView';
 import { AdminSettingsView } from './AdminSettingsView';
 import { AdminAirtimeDataView } from './AdminAirtimeDataView';
@@ -150,7 +149,6 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
     {
       title: 'COMMUNITY & MARKETING',
       items: [
-        { id: 'chatroom_live' as AdminTabType, label: 'Daily GP Grab Chat', icon: Trophy, badge: 'Live' },
         { id: 'announcements' as AdminTabType, label: 'Admin Announcements', icon: MessageSquare },
         { id: 'sponsorship' as AdminTabType, label: 'Sponsorship & Ticker', icon: Tag },
       ],
@@ -216,8 +214,6 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
         return <AdminAirtimeDataView />;
       case 'withdrawals':
         return <AdminWithdrawalsView />;
-      case 'chatroom_live':
-        return <AdminChatroomLiveView />;
       case 'notifications':
         return <AdminNotificationsView />;
       case 'settings':

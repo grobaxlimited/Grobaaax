@@ -42,8 +42,8 @@ export const AdvertisementTicker: React.FC = () => {
     safeOpenDestinationUrl(target, (tabId) => setActiveTab(tabId as any));
   };
 
-  // Hide sponsored ticker on Community tab and Daily GP Grab (daily_qa / gus tab)
-  if (!isVisible || activeTab === 'community' || activeTab === 'daily_qa' || activeTab === 'gus') return null;
+  // Hide sponsored ticker on Community tab
+  if (!isVisible || activeTab === 'community') return null;
 
   // Active ticker campaigns created by admin
   const activeTickerItems = (sponsorshipCampaigns || []).filter(

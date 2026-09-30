@@ -172,7 +172,7 @@ export function AdminEventsView() {
     setImageUrl(ev.imageUrl || ev.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80');
     setImageStoragePath(ev.imageStoragePath || '');
     setStatus(ev.status || 'Published');
-    setTargetTab(ev.targetTab || (resolvedCat === 'school_dome' ? 'school_dome' : 'daily_qa'));
+    setTargetTab(ev.targetTab || 'school_dome');
     setTargetSubTab(ev.targetSubTab || '');
     setFormError(null);
     setUploadProgressMsg('');
@@ -251,7 +251,7 @@ export function AdminEventsView() {
 
     const finalStatus: PlatformEventStatus = targetStatus || status;
 
-    const resolvedTargetTab: TabType = (targetTab as TabType) || (category === 'school_dome' ? 'school_dome' : 'daily_qa');
+    const resolvedTargetTab: TabType = (targetTab as TabType) || 'school_dome';
 
     const payload: Partial<PlatformEventItem> = {
       id: editingEvent?.id,
@@ -719,13 +719,10 @@ export function AdminEventsView() {
                     onChange={(e) => {
                       const newCat = e.target.value as PlatformEventCategory;
                       setCategory(newCat);
-                      if (newCat === 'school_dome') {
+                      if (newCat === 'school_dome' || newCat === 'gus' || newCat === 'academic_olympiad') {
                         setTargetTab('school_dome');
                         setTargetSubTab('');
-                      } else if (newCat === 'gus' || newCat === 'academic_olympiad' || newCat === 'chatroom_live') {
-                        setTargetTab('daily_qa');
-                        setTargetSubTab('');
-                      } else if (newCat === 'campus_hackathon' || newCat === 'others') {
+                      } else if (newCat === 'chatroom_live' || newCat === 'campus_hackathon' || newCat === 'others') {
                         setTargetTab('community');
                         setTargetSubTab('campus');
                       }
@@ -785,7 +782,6 @@ export function AdminEventsView() {
                       className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white text-xs focus:border-blue-500 focus:outline-hidden"
                     >
                       <option value="school_dome">School Dome Arena</option>
-                      <option value="daily_qa">Daily GP Grab</option>
                       <option value="community">Community / Campus / Mini Mart</option>
                       <option value="home">Home Hub</option>
                       <option value="profile">Student Profile Hub</option>

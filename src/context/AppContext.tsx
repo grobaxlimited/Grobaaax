@@ -510,7 +510,7 @@ export const DEFAULT_FREE_SCHOLAR_PLAN: SubscriptionPlan = {
   durationValue: 1,
   durationUnit: 'Years',
   benefits: [
-    'Daily GP Grab — 2 Responses',
+    'School Dome Arena Access',
     'Browse Campus Minimart (Discovery Only)',
     'Withdrawal Eligibility — Not Available',
     'SchoolDome',
@@ -533,7 +533,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     planId: 'plan_basic_naira',
     name: 'Scholar Starter Plan',
     shortDescription: 'Essential premium academic privileges & competition access',
-    fullDescription: 'Essential premium plan for scholars wanting daily GP grab, withdrawal eligibility, AI library handouts, and minimart listings.',
+    fullDescription: 'Essential premium plan for scholars wanting arena competitions, withdrawal eligibility, AI library handouts, and minimart listings.',
     priceNaira: 1000,
     currency: 'NGN',
     targetTier: 'premium',
@@ -541,7 +541,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     durationValue: 30,
     durationUnit: 'Days',
     benefits: [
-      'Daily GP Grab — 15 Responses',
+      'School Dome Arena — Active Participation',
       'Withdrawal Eligibility — Available',
       'AI Library — 5 Handout Generations',
       'Campus Minimart Products Listing (3 / Day)',
@@ -549,7 +549,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       'Profile Verification Badge — Available',
       'Premium Badge — Available',
     ],
-    features: ['30 Days Validity', '15 Daily Searches', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'No Pop-up Ads', 'Premium Badge'],
+    features: ['30 Days Validity', 'Arena Battles', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'No Pop-up Ads', 'Premium Badge'],
     badgeLabel: 'POPULAR',
     featured: false,
     active: true,
@@ -570,7 +570,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     durationValue: 30,
     durationUnit: 'Days',
     benefits: [
-      'Daily GP Grab — 15 Responses',
+      'School Dome Arena — Active Participation',
       'Withdrawal Eligibility — Available',
       'AI Library — 5 Handout Generations',
       'Campus Minimart Products Listing (3 / Day)',
@@ -579,7 +579,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       'Profile Badge & Premium Badge — Available',
       'Priority Live Match Queue & Arena Access',
     ],
-    features: ['30 Days Validity', '15 Daily Searches', '2x GP Multiplier', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'Premium Badge'],
+    features: ['30 Days Validity', 'Arena Battles', '2x GP Multiplier', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'Premium Badge'],
     badgeLabel: 'RECOMMENDED',
     featured: true,
     active: true,
@@ -592,7 +592,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     planId: 'plan_titan_naira',
     name: 'Grobaax Titan Annual VIP',
     shortDescription: 'Ultimate academic VIP access for 1 Full Year',
-    fullDescription: 'Comprehensive annual subscription for institution representatives and top scholars with full VIP status, 20 searches, unlimited handouts, 6 listings/day, and maximum rewards.',
+    fullDescription: 'Comprehensive annual subscription for institution representatives and top scholars with full VIP status, unlimited handouts, 6 listings/day, and maximum rewards.',
     priceNaira: 25000,
     currency: 'NGN',
     targetTier: 'vip',
@@ -600,16 +600,16 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     durationValue: 365,
     durationUnit: 'Days',
     benefits: [
-      'Daily GP Grab — 20 Responses',
+      'School Dome Arena — Priority VIP Access',
       'Withdrawal Eligibility — Available (Zero Processing Fees)',
       'AI Library — Unlimited Handouts Generation',
       'Campus Minimart Products Listing (6 / Day)',
       'No Grobaax Pop-up Upgrade Ads',
       'Profile Badge & VIP Gold Crown Badge — Available',
-      '3x GP Reward Multiplier across all League & GUS Rounds',
+      '3x GP Reward Multiplier across all League Rounds',
       'Instant Representative Fast-Track Review',
     ],
-    features: ['365 Days Validity', '20 Daily Searches', 'Unlimited AI Handouts', '6 Minimart Listings/Day', '3x GP Multiplier', 'Gold VIP Crown'],
+    features: ['365 Days Validity', 'VIP Arena Battles', 'Unlimited AI Handouts', '6 Minimart Listings/Day', '3x GP Multiplier', 'Gold VIP Crown'],
     badgeLabel: 'VIP ANNUAL',
     featured: false,
     active: true,
@@ -2751,10 +2751,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const data = docSnap.data();
             const resolvedTargetTab: TabType =
               data.targetTab ||
-              (data.category === 'school_dome'
+              (data.category === 'school_dome' || data.category === 'gus' || data.category === 'academic_olympiad'
                 ? 'school_dome'
-                : data.category === 'gus' || data.category === 'academic_olympiad' || data.category === 'chatroom_live'
-                ? 'daily_qa'
                 : 'community');
 
             return {
@@ -2814,10 +2812,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               const data = docSnap.data();
               const resolvedTargetTab: TabType =
                 data.targetTab ||
-                (data.category === 'school_dome'
+                (data.category === 'school_dome' || data.category === 'gus' || data.category === 'academic_olympiad'
                   ? 'school_dome'
-                  : data.category === 'gus' || data.category === 'academic_olympiad' || data.category === 'chatroom_live'
-                  ? 'daily_qa'
                   : 'community');
 
               return {
@@ -5035,7 +5031,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const catObj = PLATFORM_EVENT_CATEGORIES.find((c) => c.id === eventData.category);
     const resolvedTargetTab: TabType =
-      eventData.targetTab || (eventData.category === 'school_dome' ? 'school_dome' : catObj?.tabKey || 'daily_qa');
+      eventData.targetTab || (eventData.category === 'school_dome' ? 'school_dome' : catObj?.tabKey || 'school_dome');
     const fullEvent: EventItem = {
       id: eventId,
       eventId,

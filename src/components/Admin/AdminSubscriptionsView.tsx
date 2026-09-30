@@ -128,7 +128,7 @@ export function AdminSubscriptionsView() {
         planId: 'plan_basic_naira',
         name: 'Scholar Starter Plan',
         shortDescription: 'Essential premium academic privileges & competition access',
-        fullDescription: 'Essential premium plan for scholars wanting daily GP grab, withdrawal eligibility, AI library handouts, and minimart listings.',
+        fullDescription: 'Essential premium plan for scholars wanting School Dome arena access, withdrawal eligibility, AI library handouts, and minimart listings.',
         priceNaira: 1000,
         currency: 'NGN',
         targetTier: 'premium',
@@ -136,7 +136,7 @@ export function AdminSubscriptionsView() {
         durationValue: 30,
         durationUnit: 'Days',
         benefits: [
-          'Daily GP Grab — 15 Responses',
+          'School Dome Arena Access',
           'Withdrawal Eligibility — Available',
           'AI Library — 5 Handout Generations',
           'Campus Minimart Products Listing (3 / Day)',
@@ -144,7 +144,7 @@ export function AdminSubscriptionsView() {
           'Profile Verification Badge — Available',
           'Premium Badge — Available',
         ],
-        features: ['30 Days Validity', '15 Daily Searches', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'No Pop-up Ads', 'Premium Badge'],
+        features: ['30 Days Validity', 'School Dome Access', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'No Pop-up Ads', 'Premium Badge'],
         badgeLabel: 'POPULAR',
         featured: false,
         active: true,
@@ -156,7 +156,7 @@ export function AdminSubscriptionsView() {
         planId: 'plan_pro_naira',
         name: 'Champions Pro Scholar',
         shortDescription: 'Enhanced privileges, 2x GP boost & exclusive arena access',
-        fullDescription: 'Designed for high-performing scholars competing in the Institutional Champions League and Global Ultimate Search.',
+        fullDescription: 'Designed for high-performing scholars competing in the Institutional Champions League and School Dome Arena.',
         priceNaira: 2500,
         currency: 'NGN',
         targetTier: 'premium',
@@ -164,7 +164,7 @@ export function AdminSubscriptionsView() {
         durationValue: 30,
         durationUnit: 'Days',
         benefits: [
-          'Daily GP Grab — 15 Responses',
+          'School Dome Arena Priority Access',
           'Withdrawal Eligibility — Available',
           'AI Library — 5 Handout Generations',
           'Campus Minimart Products Listing (3 / Day)',
@@ -173,7 +173,7 @@ export function AdminSubscriptionsView() {
           'Profile Badge & Premium Badge — Available',
           'Priority Live Match Queue & Arena Access',
         ],
-        features: ['30 Days Validity', '15 Daily Searches', '2x GP Multiplier', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'Premium Badge'],
+        features: ['30 Days Validity', '2x GP Multiplier', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'Premium Badge'],
         badgeLabel: 'RECOMMENDED',
         featured: true,
         active: true,
@@ -185,7 +185,7 @@ export function AdminSubscriptionsView() {
         planId: 'plan_titan_naira',
         name: 'Grobaax Titan Annual VIP',
         shortDescription: 'Ultimate academic VIP access for 1 Full Year',
-        fullDescription: 'Comprehensive annual subscription for institution representatives and top scholars with full VIP status, 20 searches, unlimited handouts, 6 listings/day, and maximum rewards.',
+        fullDescription: 'Comprehensive annual subscription for institution representatives and top scholars with full VIP status, unlimited handouts, 6 listings/day, and maximum rewards.',
         priceNaira: 25000,
         currency: 'NGN',
         targetTier: 'vip',
@@ -193,16 +193,16 @@ export function AdminSubscriptionsView() {
         durationValue: 365,
         durationUnit: 'Days',
         benefits: [
-          'Daily GP Grab — 20 Responses',
+          'School Dome Arena VIP Access',
           'Withdrawal Eligibility — Available (Zero Processing Fees)',
           'AI Library — Unlimited Handouts Generation',
           'Campus Minimart Products Listing (6 / Day)',
           'No Grobaax Pop-up Upgrade Ads',
           'Profile Badge & VIP Gold Crown Badge — Available',
-          '3x GP Reward Multiplier across all League & GUS Rounds',
+          '3x GP Reward Multiplier across all League & Dome Rounds',
           'Instant Representative Fast-Track Review',
         ],
-        features: ['365 Days Validity', '20 Daily Searches', 'Unlimited AI Handouts', '6 Minimart Listings/Day', '3x GP Multiplier', 'Gold VIP Crown'],
+        features: ['365 Days Validity', 'Unlimited AI Handouts', '6 Minimart Listings/Day', '3x GP Multiplier', 'Gold VIP Crown'],
         badgeLabel: 'VIP ANNUAL',
         featured: false,
         active: true,
@@ -1210,7 +1210,7 @@ export function AdminSubscriptionsView() {
                   rows={4}
                   value={formBenefitsText}
                   onChange={(e) => setFormBenefitsText(e.target.value)}
-                  placeholder="Daily GP Grab — 2 Responses&#10;Campus Minimart Browsing&#10;Withdrawal Eligibility — Not Available"
+                  placeholder="School Dome Arena Access&#10;Campus Minimart Browsing&#10;Withdrawal Eligibility — Not Available"
                   className="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
                 />
               </div>

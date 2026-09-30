@@ -5116,7 +5116,7 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   announcementBannerActive: false,
   welcomeVideoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
   welcomeVideoTitle: 'How Grobaax Works: Complete Platform Guide & Walkthrough',
-  welcomeVideoDescription: 'Watch this comprehensive guide to understand all features of Grobaax: earn GP in Daily GP Grab, represent your institution in School Dome, generate academic handouts in Library, recharge VTU airtime & data, trade in Mini Mart, and connect with campus peers.',
+  welcomeVideoDescription: 'Watch this comprehensive guide to understand all features of Grobaax: represent your institution in School Dome, generate academic handouts in Library, recharge VTU airtime & data, trade in Mini Mart, and connect with campus peers.',
   welcomeVideoActive: true,
 };
 
@@ -5715,7 +5715,7 @@ export const saveChatroomLiveSettingsToFirestore = async (
 };
 
 export const DEFAULT_ULTIMATE_SEARCH_RULES: UltimateSearchRulesData = {
-  title: 'Daily GP Grab — Official Rules & Fair Play Guidelines',
+  title: 'Live Academic Challenge — Official Rules & Fair Play Guidelines',
   scheduleNotice: 'Competitions are hosted live in this chatroom every Monday through Friday at 7:00 PM (WAT). Questions are published directly by Community Management.',
   generalGuidelines: 'Fast-paced academic typed-answer speed rounds with instant GP wallet rewards. Answer with the exact word, name, or number in the chatbox below as soon as each challenge appears.',
   freeScholarPolicy: 'Free scholars are fully eligible to answer and earn verified correct status (✓). However, instant cash GP reward prizes are exclusive to registered Premium & VIP scholars. Free scholars can upgrade at any time to claim GP rewards.',
@@ -6061,7 +6061,7 @@ export const ensureActiveDailySearchQuestion = async (): Promise<ChatroomLiveQue
         questionNumber: (dayIndex + 1),
       },
       'grobax_arbiter',
-      'Daily GP Grab 🎯'
+      'Live Challenge 🎯'
     );
     return newQuestion;
   } catch (err) {
@@ -6691,11 +6691,11 @@ export const evaluateAndProcessLiveAnswer = async (
       await sendBroadcastNotificationToFirestore(
         {
           title: `🏆 +${gpAward} GP Reward Claimed!`,
-          message: `Congratulations! You answered Question #${question.questionNumber} correctly and earned +${gpAward} GP in Daily GP Grab Live! (Winner #${winnerRank} of ${maxWinners})`,
+          message: `Congratulations! You answered Question #${question.questionNumber} correctly and earned +${gpAward} GP! (Winner #${winnerRank} of ${maxWinners})`,
           type: 'gus',
           userId: user.id,
           targetUserId: user.id,
-          actionUrl: '#daily_qa',
+          actionUrl: '#school_dome',
         },
         'grobax_arbiter',
         'Grobaax Arbiter 🎯'
@@ -6940,7 +6940,7 @@ export const savePlatformEventToFirestore = async (
   const finalImg = eventData.imageUrl || eventData.image || defaultImg;
   const finalPrize = eventData.prizeReward ? eventData.prizeReward.trim() : '';
 
-  const resolvedTargetTab = eventData.targetTab || (eventData.category === 'school_dome' ? 'school_dome' : catObj?.tabKey || 'daily_qa');
+  const resolvedTargetTab = eventData.targetTab || (eventData.category === 'school_dome' ? 'school_dome' : catObj?.tabKey || 'school_dome');
   const resolvedTargetSubTab = eventData.targetSubTab || catObj?.subTab || '';
   const resolvedChannelName = eventData.channelName || catObj?.channelName || '';
 

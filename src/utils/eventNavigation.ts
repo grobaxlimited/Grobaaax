@@ -69,14 +69,6 @@ export function resolveEventChannel(event: PlatformEventItem): EventTargetChanne
             : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
       };
     }
-    if (event.targetTab === 'daily_qa' || (event.targetTab as string) === 'gus') {
-      return {
-        tab: 'daily_qa',
-        label: 'Daily GP Grab',
-        actionText: 'Enter Daily GP Grab',
-        badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-      };
-    }
     if (event.targetTab === 'hints') {
       return {
         tab: 'hints',
@@ -90,16 +82,11 @@ export function resolveEventChannel(event: PlatformEventItem): EventTargetChanne
   // 3. Category metadata lookup
   const categoryMeta = PLATFORM_EVENT_CATEGORIES.find((c) => c.id === event.category);
   if (categoryMeta) {
-    if (categoryMeta.tabKey === 'daily_qa' || (categoryMeta.tabKey as string) === 'gus') {
+    if (categoryMeta.tabKey === 'school_dome') {
       return {
-        tab: 'daily_qa',
-        label: categoryMeta.channelName || 'Daily GP Grab',
-        actionText:
-          event.category === 'gus'
-            ? 'Enter Daily GP Grab'
-            : event.category === 'chatroom_live'
-            ? 'Enter Daily GP Grab Live'
-            : 'Enter Academic Olympiad',
+        tab: 'school_dome',
+        label: categoryMeta.channelName || 'School Dome Arena',
+        actionText: 'Enter School Dome Arena',
         badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
       };
     }
@@ -117,7 +104,7 @@ export function resolveEventChannel(event: PlatformEventItem): EventTargetChanne
 
   // 4. Fallback checking title and description content
   const lower = `${event.title} ${event.description || ''}`.toLowerCase();
-  if (lower.includes('dome') || lower.includes('school dome')) {
+  if (lower.includes('dome') || lower.includes('school dome') || lower.includes('tournament') || lower.includes('olympiad') || lower.includes('competition')) {
     return {
       tab: 'school_dome',
       label: 'School Dome Arena',
@@ -153,11 +140,11 @@ export function resolveEventChannel(event: PlatformEventItem): EventTargetChanne
     };
   }
 
-  // Default: Daily GP Grab
+  // Default: School Dome Arena
   return {
-    tab: 'daily_qa',
-    label: 'Daily GP Grab',
-    actionText: 'Enter Daily GP Grab',
+    tab: 'school_dome',
+    label: 'School Dome Arena',
+    actionText: 'Enter School Dome Arena',
     badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
   };
 }

@@ -4,7 +4,6 @@ import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Navigation/Header';
 import { Navbar } from './components/Navigation/Navbar';
 import { HomeTab } from './components/Home/HomeTab';
-import { ChatroomLiveView } from './components/Community/ChatroomLive/ChatroomLiveView';
 import { SchoolDomeView } from './components/SchoolDome/SchoolDomeView';
 import { CommunityTab } from './components/Community/CommunityTab';
 import { HintsView } from './components/Hints/HintsView';
@@ -110,11 +109,6 @@ function MainLayout() {
         }
       >
         {activeTab === 'home' && <HomeTab />}
-        {activeTab === 'daily_qa' && (
-          <div className="max-w-7xl mx-auto px-1.5 sm:px-4 lg:px-6 pt-1.5 sm:pt-3 pb-1.5 sm:pb-3">
-            <ChatroomLiveView />
-          </div>
-        )}
         {activeTab === 'school_dome' && (
           <div className="max-w-7xl mx-auto px-1.5 sm:px-4 lg:px-6 pt-1.5 sm:pt-3 pb-1.5 sm:pb-3">
             <SchoolDomeView initialTab="arena" />

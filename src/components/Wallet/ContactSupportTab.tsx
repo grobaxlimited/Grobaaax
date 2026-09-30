@@ -395,7 +395,6 @@ export const ContactSupportTab: React.FC<ContactSupportTabProps> = ({
                 <option value="GP Wallet & Withdrawal">GP Wallet & Cash Out</option>
                 <option value="VTU Airtime / Mobile Data">VTU Airtime / Mobile Data Delivery</option>
                 <option value="School Dome Elimination Arena">School Dome Elimination Arena</option>
-                <option value="Daily GP Grab">Daily GP Grab</option>
                 <option value="Student ID & Scholarship Verification">Student ID Verification</option>
                 <option value="Account & Security Access">Account & Security Access</option>
                 <option value="Campus Academic League">Campus Academic League</option>

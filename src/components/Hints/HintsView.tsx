@@ -175,10 +175,6 @@ export function HintsView() {
   }, [hints]);
 
   // Counts for competition tabs
-  const dailyQACount = useMemo(
-    () => publishedHints.filter((h) => h.competitionType === 'daily_qa').length,
-    [publishedHints]
-  );
   const schoolDomeCount = useMemo(
     () => publishedHints.filter((h) => h.competitionType === 'school_dome').length,
     [publishedHints]
@@ -195,10 +191,6 @@ export function HintsView() {
 
   const recentHintsCount = useMemo(
     () => publishedHints.filter((h) => isRecentHint(h)).length,
-    [publishedHints]
-  );
-  const dailyNewCount = useMemo(
-    () => publishedHints.filter((h) => h.competitionType === 'daily_qa' && isRecentHint(h)).length,
     [publishedHints]
   );
   const schoolDomeNewCount = useMemo(
@@ -233,7 +225,7 @@ export function HintsView() {
         const q = searchQuery.toLowerCase();
         const matchRound = (h.roundLabel || '').toLowerCase().includes(q);
         const matchTitle = (h.title || '').toLowerCase().includes(q);
-        const matchComp = (h.competitionType === 'daily_qa' ? 'daily gp grab' : 'school dome').includes(q);
+        const matchComp = 'school dome'.includes(q);
         const questions = getHintQuestions(h);
         const matchQuestions = questions.some((ques) => ques.toLowerCase().includes(q));
         return matchRound || matchTitle || matchComp || matchQuestions;
@@ -295,7 +287,7 @@ export function HintsView() {
           </h1>
 
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
-            Gain strategic preparation insights for <span className="font-bold text-amber-400">Daily GP Grab</span> and <span className="font-bold text-blue-400">School Dome</span>. Review likely topics, key subjects, and critical areas before the competition questions drop.
+            Gain strategic preparation insights for <span className="font-bold text-amber-400">School Dome Arena</span>. Review likely topics, key subjects, and critical areas before the competition questions drop.
           </p>
 
           {/* User Tier Identification & Quick Action */}
@@ -493,26 +485,6 @@ export function HintsView() {
           </button>
 
           <button
-            onClick={() => setSelectedCompetition('daily_qa')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-              selectedCompetition === 'daily_qa'
-                ? 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Trophy className="w-3.5 h-3.5 text-amber-500" />
-            <span>Daily GP Grab</span>
-            <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400">
-              {dailyQACount}
-            </span>
-            {dailyNewCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-xs animate-pulse">
-                +{dailyNewCount} new
-              </span>
-            )}
-          </button>
-
-          <button
             onClick={() => setSelectedCompetition('school_dome')}
             className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
               selectedCompetition === 'school_dome'
@@ -600,7 +572,7 @@ export function HintsView() {
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
               {searchQuery || accessFilter !== 'all'
                 ? 'Try adjusting your search query or switching access filter tabs.'
-                : 'Hints will be published here ahead of upcoming Daily GP Grab and School Dome rounds. Check back soon!'}
+                : 'Hints will be published here ahead of upcoming School Dome rounds. Check back soon!'}
             </p>
           </div>
         </div>
@@ -608,37 +580,22 @@ export function HintsView() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {filteredHints.map((hint) => {
             const hasAccess = canAccessHint(hint);
-            const isDailyQA = hint.competitionType === 'daily_qa';
             const questions = getHintQuestions(hint);
             const questionCount = questions.length;
 
             return (
               <div
                 key={hint.id}
-                className={`relative rounded-3xl border transition-all overflow-hidden flex flex-col justify-between ${
-                  isDailyQA
-                    ? 'bg-gradient-to-br from-white via-amber-50/20 to-white dark:from-slate-900 dark:via-amber-950/10 dark:to-slate-900 border-amber-200/60 dark:border-amber-900/30'
-                    : 'bg-gradient-to-br from-white via-blue-50/20 to-white dark:from-slate-900 dark:via-blue-950/10 dark:to-slate-900 border-blue-200/60 dark:border-blue-900/30'
-                } shadow-sm hover:shadow-md`}
+                className="relative rounded-3xl border transition-all overflow-hidden flex flex-col justify-between bg-gradient-to-br from-white via-blue-50/20 to-white dark:from-slate-900 dark:via-blue-950/10 dark:to-slate-900 border-blue-200/60 dark:border-blue-900/30 shadow-sm hover:shadow-md"
               >
                 {/* Card Header */}
                 <div className="p-5 sm:p-6 space-y-4">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     {/* Competition Badge & Round Badge */}
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <div
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                          isDailyQA
-                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
-                            : 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30'
-                        }`}
-                      >
-                        {isDailyQA ? (
-                          <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                        ) : (
-                          <Swords className="w-3.5 h-3.5 text-blue-500" />
-                        )}
-                        <span>{isDailyQA ? 'Daily GP Grab' : 'School Dome'}</span>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30">
+                        <Swords className="w-3.5 h-3.5 text-blue-500" />
+                        <span>School Dome</span>
                       </div>
 
                       {hint.roundLabel && (
@@ -831,14 +788,14 @@ export function HintsView() {
                 {/* Card Footer: Quick Jump to Competition */}
                 <div className="p-4 sm:p-5 pt-3 bg-slate-50/70 dark:bg-slate-900/60 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between gap-3">
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                    {isDailyQA ? 'Daily GP Grab' : 'School Dome Arena'}
+                    School Dome Arena
                   </span>
 
                   <button
-                    onClick={() => setActiveTab(isDailyQA ? 'daily_qa' : 'school_dome')}
+                    onClick={() => setActiveTab('school_dome')}
                     className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition cursor-pointer"
                   >
-                    <span>{isDailyQA ? 'Go to Daily GP Grab' : 'Enter Arena'}</span>
+                    <span>Enter Arena</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -881,7 +838,7 @@ export function HintsView() {
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30">
-                  {selectedHintToUnlock.competitionType === 'daily_qa' ? 'Daily GP Grab' : 'School Dome'}
+                  School Dome
                 </span>
                 {selectedHintToUnlock.roundLabel && (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">

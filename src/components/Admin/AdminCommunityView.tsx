@@ -1,131 +1,43 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Announcement,
-  ChatroomLiveMessage,
 } from '../../types';
-import { ChatroomMessageItem } from '../Community/ChatroomLive/ChatroomMessageItem';
-import { ChatroomComposer } from '../Community/ChatroomLive/ChatroomComposer';
-import { CreateLiveQuestionModal } from '../Community/ChatroomLive/CreateLiveQuestionModal';
 import { AdminMinimartManager } from './AdminMinimartManager';
 import {
-  MessageSquare,
   ShoppingBag,
   Megaphone,
   Shield,
-  Search,
   Plus,
   Trash2,
   Pin,
-  Volume2,
-  VolumeX,
   X,
   Edit3,
-  Hash,
-  Flame,
 } from 'lucide-react';
 
 interface AdminCommunityViewProps {
-  defaultSubTab?: 'chatroom' | 'minimart' | 'announcements';
+  defaultSubTab?: 'minimart' | 'announcements';
 }
 
 export const AdminCommunityView: React.FC<AdminCommunityViewProps> = ({
-  defaultSubTab = 'chatroom',
+  defaultSubTab = 'minimart',
 }) => {
   const {
     currentUser,
-    userProfile,
     announcements,
     minimartProducts,
-    chatroomMessages,
-    sendChatroomMessage,
-    deleteChatroomMessage,
-    reactChatroomMessage,
     addAnnouncement,
     updateAnnouncement,
     deleteAnnouncement,
     pinAnnouncement,
   } = useApp();
 
-  const [activeSubTab, setActiveSubTab] = useState<'chatroom' | 'minimart' | 'announcements'>(defaultSubTab);
+  const [activeSubTab, setActiveSubTab] = useState<'minimart' | 'announcements'>(
+    defaultSubTab === ('chatroom' as any) ? 'minimart' : defaultSubTab
+  );
 
   // -------------------------------------------------------------
-  // 1. CHATROOM LIVE STATE & HANDLERS
-  // -------------------------------------------------------------
-  const [chatSearch, setChatSearch] = useState('');
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [replyTarget, setReplyTarget] = useState<ChatroomLiveMessage | null>(null);
-  const [isCreateQuestionModalOpen, setIsCreateQuestionModalOpen] = useState(false);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (activeSubTab === 'chatroom') {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [chatroomMessages.length, activeSubTab]);
-
-  // Admin post message to Live Chatroom
-  const handleAdminSendMessage = async (text: string, replyTo?: ChatroomLiveMessage['replyTo']) => {
-    const managerName = userProfile?.name || currentUser?.name || 'Community Manager';
-    const managerId = userProfile?.id || currentUser?.id || 'mgr_admin';
-
-    const newMessage: ChatroomLiveMessage = {
-      id: 'msg_adm_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      userId: managerId,
-      userName: `${managerName} 🛡️`,
-      userAvatar:
-        userProfile?.avatar ||
-        currentUser?.avatar ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      institution: 'Grobaax Community Management',
-      department: 'Head Moderator',
-      level: 'Admin',
-      isPremium: true,
-      membershipTier: 'VIP SCHOLAR',
-      equippedBadge: (currentUser as any)?.equippedBadge || (userProfile as any)?.equippedBadge,
-      messageText: text,
-      timestamp: Date.now(),
-      type: 'normal',
-      replyTo,
-      reactions: {},
-    };
-
-    try {
-      await sendChatroomMessage(newMessage);
-    } catch (err) {
-      console.warn('Admin chatroom send notice:', err);
-    }
-  };
-
-  const handleAdminDeleteMessage = async (msgId: string) => {
-    try {
-      await deleteChatroomMessage(msgId);
-    } catch (err) {
-      console.warn('Admin delete message notice:', err);
-    }
-  };
-
-  const handleAdminReactMessage = async (msgId: string, emoji: string) => {
-    try {
-      await reactChatroomMessage(msgId, emoji);
-    } catch (err) {
-      console.warn('Admin react message notice:', err);
-    }
-  };
-
-  const filteredChatMessages = chatroomMessages.filter(m => {
-    if (!chatSearch) return true;
-    const q = chatSearch.toLowerCase();
-    return (
-      m.messageText.toLowerCase().includes(q) ||
-      m.userName.toLowerCase().includes(q) ||
-      m.institution?.toLowerCase().includes(q)
-    );
-  });
-
-  // -------------------------------------------------------------
-  // 2. ANNOUNCEMENTS STATE & HANDLERS
+  // ANNOUNCEMENTS STATE & HANDLERS
   // -------------------------------------------------------------
   const [isAnnounceModalOpen, setIsAnnounceModalOpen] = useState(false);
   const [editingAnnounce, setEditingAnnounce] = useState<Announcement | null>(null);
@@ -173,11 +85,11 @@ export const AdminCommunityView: React.FC<AdminCommunityViewProps> = ({
         priority: annPriority,
         content: annContent,
         isPinned: annIsPinned,
-        author: userProfile?.name || currentUser?.name || 'Community Manager',
+        author: currentUser?.name || currentUser?.displayName || 'Community Manager',
         authorRole: 'Community Manager',
         authorAvatar:
-          userProfile?.avatar ||
           currentUser?.avatar ||
+          currentUser?.profileImage ||
           'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
         important: annPriority === 'High' || annPriority === 'Urgent',
         status: 'Published',
@@ -202,19 +114,6 @@ export const AdminCommunityView: React.FC<AdminCommunityViewProps> = ({
 
         {/* Sub-Navigation Tabs */}
         <div className="flex items-center gap-1.5 p-1 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
-          {/* Chatroom Live Tab */}
-          <button
-            onClick={() => setActiveSubTab('chatroom')}
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'chatroom'
-                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
-                : 'text-blue-200 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-            <span>Chatroom Live</span>
-          </button>
-
           {/* Minimart Marketplace Tab */}
           <button
             onClick={() => setActiveSubTab('minimart')}
@@ -244,126 +143,7 @@ export const AdminCommunityView: React.FC<AdminCommunityViewProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* TAB 1: CHATROOM LIVE (DISCORD-STYLE REAL-TIME MODERATION & POSTING)       */}
-      {/* ========================================================================= */}
-      {activeSubTab === 'chatroom' && (
-        <div className="w-full animate-in fade-in duration-150">
-          {/* Main Live Discord Chat Window */}
-          <div className="w-full flex flex-col h-[calc(100vh-140px)] min-h-[640px] max-h-[960px] bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            {/* Top Discord Channel Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 shrink-0">
-              <div className="flex items-center gap-2">
-                <Hash className="w-5 h-5 text-slate-400" />
-                <span className="font-bold text-slate-900 dark:text-white text-base">live-chat</span>
-                <span className="text-xs text-slate-400 hidden sm:inline">| Community Chat Stream</span>
-                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 ml-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  <span>Live Active Feed</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Launch Live Q&A Question Challenge Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsCreateQuestionModalOpen(true)}
-                  className="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer border border-amber-300"
-                  title="Launch Live Q&A Question Challenge"
-                >
-                  <Flame className="w-3.5 h-3.5" />
-                  <span>Launch Live Q&A</span>
-                </button>
-
-                {/* Search Bar */}
-                <div className="relative flex items-center">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search chat..."
-                    value={chatSearch}
-                    onChange={e => setChatSearch(e.target.value)}
-                    className="w-32 sm:w-48 pl-8 pr-3 py-1 bg-slate-100 dark:bg-slate-800 text-xs rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  />
-                  {chatSearch && (
-                    <button
-                      onClick={() => setChatSearch('')}
-                      className="absolute right-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                {/* Sound Toggle */}
-                <button
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  className="p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                  title={soundEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
-                >
-                  {soundEnabled ? <Volume2 className="w-4 h-4 text-blue-600 dark:text-blue-400" /> : <VolumeX className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Message Stream */}
-            <div
-              ref={chatScrollRef}
-              className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1 bg-slate-50/50 dark:bg-slate-950/40"
-            >
-              {filteredChatMessages.map(msg => (
-                <ChatroomMessageItem
-                  key={msg.id}
-                  message={msg}
-                  currentUserId={userProfile?.id || currentUser?.id || 'admin_user'}
-                  isManagerOrAdmin={true}
-                  onReply={m => setReplyTarget(m)}
-                  onDelete={handleAdminDeleteMessage}
-                  onReact={handleAdminReactMessage}
-                />
-              ))}
-              <div ref={chatEndRef} />
-            </div>
-
-            {/* Discord Bottom Composer with Manager Badge */}
-            <div className="bg-amber-500/10 dark:bg-amber-500/5 px-4 py-1.5 border-t border-amber-500/20 flex items-center justify-between text-xs text-amber-700 dark:text-amber-300">
-              <span className="font-bold flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-amber-500" />
-                <span>Posting as: <strong className="text-amber-600 dark:text-amber-400">{userProfile?.name || currentUser?.name || 'Community Manager'} [Community Manager 🛡️]</strong></span>
-              </span>
-              <span className="text-[10px] text-slate-400">Posts render with official Community Manager badge for all scholars</span>
-            </div>
-
-            <ChatroomComposer
-              onSendMessage={handleAdminSendMessage}
-              replyToMessage={replyTarget}
-              onCancelReply={() => setReplyTarget(null)}
-              channelName="live-chat"
-              tierName="admin"
-              isManagerOrAdmin={true}
-              onOpenCreateQuestion={() => setIsCreateQuestionModalOpen(true)}
-            />
-          </div>
-
-          {/* Admin Live Question Modal */}
-          {isCreateQuestionModalOpen && (
-            <CreateLiveQuestionModal
-              isOpen={isCreateQuestionModalOpen}
-              onClose={() => setIsCreateQuestionModalOpen(false)}
-              adminUid={userProfile?.id || currentUser?.id}
-              adminName={userProfile?.name || currentUser?.name || 'Community Manager'}
-              onQuestionCreated={(_q, qMsg) => {
-                setIsCreateQuestionModalOpen(false);
-                if (qMsg) {
-                  sendChatroomMessage(qMsg);
-                }
-              }}
-            />
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 2: MINIMART STUDENT MARKETPLACE MODERATION & CATEGORIES               */}
+      {/* TAB 1: MINIMART STUDENT MARKETPLACE MODERATION & CATEGORIES               */}
       {/* ========================================================================= */}
       {activeSubTab === 'minimart' && (
         <div className="animate-in fade-in duration-150">
