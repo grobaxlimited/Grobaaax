@@ -61,6 +61,13 @@ export const SchoolDomeRegistrationModal: React.FC<SchoolDomeRegistrationModalPr
   };
 
   const prizeText = `${season.prizeCurrency === 'NGN' ? '₦' : ''}${season.prizePool.toLocaleString()} ${season.prizeCurrency === 'GP' ? 'GP' : ''}`;
+  const isRegistrationLocked = Boolean(
+    season.firstQuestionLaunched ||
+    season.isRegistrationLocked ||
+    (season.totalQuestionsLaunched || 0) > 0 ||
+    (season.currentQuestionNumber || 0) > 0 ||
+    season.status === 'ended'
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in">
@@ -145,10 +152,22 @@ export const SchoolDomeRegistrationModal: React.FC<SchoolDomeRegistrationModalPr
           )}
 
           {/* Important Lock Notice */}
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 rounded-2xl text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
-            <Lock className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+          <div className={`p-3 rounded-2xl text-xs flex items-start gap-2 border ${
+            isRegistrationLocked
+              ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'
+              : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/80 text-amber-800 dark:text-amber-300'
+          }`}>
+            <Lock className={`w-4 h-4 shrink-0 mt-0.5 ${isRegistrationLocked ? 'text-rose-500' : 'text-amber-500'}`} />
             <p className="leading-relaxed">
-              <strong>Registration Window:</strong> Free entry is open right now. Once Question #1 is launched by the Arbiter, registration locks permanently for this entire season.
+              {isRegistrationLocked ? (
+                <span>
+                  <strong>Registration Closed:</strong> Question #1 has already launched. Users cannot participate or register any longer after the first question has been launched.
+                </span>
+              ) : (
+                <span>
+                  <strong>Registration Window:</strong> Free entry is open right now. Once Question #1 is launched by the Arbiter, registration locks permanently for this entire season.
+                </span>
+              )}
             </p>
           </div>
 
@@ -156,7 +175,7 @@ export const SchoolDomeRegistrationModal: React.FC<SchoolDomeRegistrationModalPr
           <div className="pt-2">
             <button
               type="button"
-              disabled={isSubmitting || Boolean(successMsg)}
+              disabled={isSubmitting || Boolean(successMsg) || isRegistrationLocked}
               onClick={handleRegister}
               className="w-full py-3 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm rounded-2xl shadow-lg cursor-pointer transition hover:scale-101 active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
             >
@@ -164,6 +183,8 @@ export const SchoolDomeRegistrationModal: React.FC<SchoolDomeRegistrationModalPr
                 <span>Registering...</span>
               ) : successMsg ? (
                 <span>Registered Successfully!</span>
+              ) : isRegistrationLocked ? (
+                <span>Registration Closed (Question #1 Launched)</span>
               ) : (
                 <>
                   <Swords className="w-4 h-4" />

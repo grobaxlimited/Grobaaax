@@ -219,7 +219,7 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <HelpCircle className="w-3.5 h-3.5 text-blue-400" />
-              <span>Answer correctly to survive • 1 attempt per scholar</span>
+              <span>Survive by answering correctly before timer expires • Wrong answer or timeout eliminates</span>
             </div>
             <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
               <span>⚡ {activeStandingCount} Contenders In The Running</span>
@@ -259,11 +259,11 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
                 </span>
               ) : !isUserRegistered ? (
                 <span>
-                  <span className="font-bold text-amber-400">Spectator Mode:</span> You are viewing the live arena. Register next season to compete for cash prizes!
+                  <span className="font-bold text-amber-400">Spectator Mode:</span> Registration closed when Question #1 launched. Users cannot participate or register after the first question has been launched.
                 </span>
               ) : !isUserStanding ? (
                 <span className="text-rose-300">
-                  <span className="font-bold text-rose-400">Knocked Out:</span> You were eliminated in an earlier round. Enjoy spectating the finale!
+                  <span className="font-bold text-rose-400">Eliminated:</span> You were eliminated (wrong answer or time expired). Spectator Mode active.
                 </span>
               ) : !isUserPlanEligible ? (
                 <div className="flex items-center gap-2 text-amber-300">

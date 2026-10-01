@@ -567,27 +567,6 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
           ) : (
             <div className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed break-words font-normal whitespace-pre-wrap mt-1 flex items-center flex-wrap gap-2">
               <span>{message.messageText}</span>
-              {/* Automated Marking Sign: Green check (✓) = Qualified/Survived, Red cross (✕) = Eliminated */}
-              {answerStatus === 'correct' && (
-                <span
-                  id={`dome-mark-correct-${message.id}`}
-                  title="Marked Correct (Qualified & Survived)"
-                  aria-label="Marked Correct"
-                  className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 shadow-xs shrink-0 select-none animate-in zoom-in-75 duration-200"
-                >
-                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                </span>
-              )}
-              {answerStatus === 'wrong' && (
-                <span
-                  id={`dome-mark-wrong-${message.id}`}
-                  title="Marked Wrong (Eliminated)"
-                  aria-label="Marked Wrong"
-                  className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/40 shadow-xs shrink-0 select-none animate-in zoom-in-75 duration-200"
-                >
-                  <X className="w-3.5 h-3.5 stroke-[3]" />
-                </span>
-              )}
             </div>
           )}
 

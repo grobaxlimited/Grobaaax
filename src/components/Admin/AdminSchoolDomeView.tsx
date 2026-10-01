@@ -160,7 +160,7 @@ export const AdminSchoolDomeView: React.FC = () => {
   const currency = currentSeason?.prizeCurrency || 'GP';
   const prizePrefix = currency === 'NGN' ? '₦' : '';
   const prizeSuffix = currency === 'GP' ? ' GP' : '';
-  const prizePerWinner = Math.floor(prizePool / Math.max(1, standingCount));
+  const prizePerWinner = standingCount > 0 ? Math.floor(prizePool / standingCount) : 0;
 
   const handleTogglePause = async () => {
     if (!currentSeason) return;
@@ -588,7 +588,9 @@ export const AdminSchoolDomeView: React.FC = () => {
                         Season #{endSeasonSuccessResult.seasonNumber} Concluded!
                       </h3>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Prizes have been successfully split and distributed directly into scholars' wallets.
+                        {endSeasonSuccessResult.winnersCount > 0
+                          ? "Prizes have been successfully split and distributed directly into scholars' wallets."
+                          : "Season concluded with 0 survivors. Prize pool was not distributed."}
                       </p>
                     </div>
 
@@ -669,13 +671,17 @@ export const AdminSchoolDomeView: React.FC = () => {
                       <div className="flex justify-between items-center text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-200 dark:border-slate-700">
                         <span>Equal Share Per Scholar:</span>
                         <strong className="text-blue-500 font-black text-sm">
-                          {prizePrefix}{prizePerWinner.toLocaleString()}{prizeSuffix} each
+                          {standingCount > 0
+                            ? `${prizePrefix}${prizePerWinner.toLocaleString()}${prizeSuffix} each`
+                            : '0 GP (No survivors)'}
                         </strong>
                       </div>
                     </div>
 
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Concluded seasons freeze competition questions, lock survival statuses, credit winners' Grobaax wallets immediately, and post celebratory announcements in the Results tab.
+                      {standingCount > 0
+                        ? "Concluded seasons freeze competition questions, lock survival statuses, credit winners' Grobaax wallets immediately, and post celebratory announcements in the Results tab."
+                        : "Concluded seasons freeze competition questions, lock survival statuses, and announce conclusion with 0 survivors. Prize pool will not be distributed."}
                     </p>
 
                     <div className="flex items-center gap-2 pt-2">
@@ -695,12 +701,12 @@ export const AdminSchoolDomeView: React.FC = () => {
                         {isEndingSeason ? (
                           <>
                             <span className="animate-spin text-xs">↻</span>
-                            <span>Splitting Prize...</span>
+                            <span>{standingCount > 0 ? 'Splitting Prize...' : 'Ending Season...'}</span>
                           </>
                         ) : (
                           <>
                             <ShieldCheck className="w-4 h-4" />
-                            <span>Confirm & Distribute</span>
+                            <span>{standingCount > 0 ? 'Confirm & Distribute' : 'Confirm & End Season'}</span>
                           </>
                         )}
                       </button>

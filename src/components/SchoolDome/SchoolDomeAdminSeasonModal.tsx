@@ -54,10 +54,10 @@ export const SchoolDomeAdminSeasonModal: React.FC<SchoolDomeAdminSeasonModalProp
   const [editRules, setEditRules] = useState(
     (season.rules && season.rules.length > 0 ? season.rules : [
       'Registration is completely free and open to all verified scholars before Question #1 begins.',
-      'Once Question #1 is launched by the Arbiter, registration is permanently locked for the season.',
-      'Each scholar receives exactly ONE attempt per live question challenge.',
-      'Submitting the correct answer within the time limit secures advancement to the next question.',
-      'Failing to answer or submitting an incorrect answer results in immediate elimination.',
+      'Users cannot participate or register any longer after the first question has been launched.',
+      'Each scholar receives exactly ONE attempt per live elimination question challenge.',
+      'Elimination Criteria: Users are eliminated by: 1) Not answering a particular question before the time expired, 2) Answering wrong.',
+      'Submitting the correct answer within the time limit secures survival and advancement to the next question.',
       'The entire GP prize pool is divided equally among the Last Scholars Standing when the season concludes.',
     ]).join('\n')
   );
@@ -73,7 +73,7 @@ export const SchoolDomeAdminSeasonModal: React.FC<SchoolDomeAdminSeasonModalProp
   const [newCurrency, setNewCurrency] = useState<'NGN' | 'GP'>('GP');
   const [newDescription, setNewDescription] = useState('');
   const [newRules, setNewRules] = useState(
-    '1. Answer correctly before time expires to survive.\n2. Wrong answers or expiring timers eliminate you immediately.\n3. Only scholars registered before Question #1 can participate.\n4. Surviving scholars split the entire prize pool equally at season end.'
+    '1. Users cannot participate or register any longer after the first question has been launched.\n2. Users are eliminated by not answering a particular question before the time expired.\n3. Users are eliminated by answering wrong.\n4. Answer correctly before time expires to survive each question.\n5. Surviving scholars split the entire prize pool equally at season end.'
   );
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -93,10 +93,10 @@ export const SchoolDomeAdminSeasonModal: React.FC<SchoolDomeAdminSeasonModalProp
       setEditRules(
         (season.rules && season.rules.length > 0 ? season.rules : [
           'Registration is completely free and open to all verified scholars before Question #1 begins.',
-          'Once Question #1 is launched by the Arbiter, registration is permanently locked for the season.',
-          'Each scholar receives exactly ONE attempt per live question challenge.',
-          'Submitting the correct answer within the time limit secures advancement to the next question.',
-          'Failing to answer or submitting an incorrect answer results in immediate elimination.',
+          'Users cannot participate or register any longer after the first question has been launched.',
+          'Each scholar receives exactly ONE attempt per live elimination question challenge.',
+          'Elimination Criteria: Users are eliminated by: 1) Not answering a particular question before the time expired, 2) Answering wrong.',
+          'Submitting the correct answer within the time limit secures survival and advancement to the next question.',
           'The entire GP prize pool is divided equally among the Last Scholars Standing when the season concludes.',
         ]).join('\n')
       );
@@ -153,8 +153,10 @@ export const SchoolDomeAdminSeasonModal: React.FC<SchoolDomeAdminSeasonModalProp
   const handleEndSeasonAndSplitPrize = async () => {
     const standingCount = (season.activeUserIds && season.activeUserIds.length > 0)
       ? season.activeUserIds.length
-      : (season.registeredUserIds?.length || 0);
-    const confirmText = `Are you sure you want to end ${season.title}?\n\nThe ${season.prizeCurrency === 'NGN' ? '₦' : ''}${season.prizePool.toLocaleString()} prize pool will be divided EQUALLY among the last scholar(s) standing (${standingCount > 0 ? `${season.prizeCurrency === 'NGN' ? '₦' : ''}${Math.floor(season.prizePool / standingCount).toLocaleString()} each` : 'equal split'}).`;
+      : 0;
+    const confirmText = standingCount > 0
+      ? `Are you sure you want to end ${season.title}?\n\nThe ${season.prizeCurrency === 'NGN' ? '₦' : ''}${season.prizePool.toLocaleString()} prize pool will be divided EQUALLY among the last scholar(s) standing (${season.prizeCurrency === 'NGN' ? '₦' : ''}${Math.floor(season.prizePool / standingCount).toLocaleString()} each).`
+      : `Are you sure you want to end ${season.title}?\n\n0 scholars survived (0 Standing). The prize pool will NOT be distributed to anybody.`;
 
     if (!window.confirm(confirmText)) return;
 
@@ -165,7 +167,9 @@ export const SchoolDomeAdminSeasonModal: React.FC<SchoolDomeAdminSeasonModalProp
       const result = await endSchoolDomeSeasonAndDistributePrize(season.id, adminUid, adminName);
       setFeedback({
         type: 'success',
-        text: `Season successfully concluded! ${result.winners.length} winner(s) credited with ${season.prizeCurrency === 'NGN' ? '₦' : ''}${result.prizePerWinner.toLocaleString()} each!`,
+        text: result.winners.length > 0
+          ? `Season successfully concluded! ${result.winners.length} winner(s) credited with ${season.prizeCurrency === 'NGN' ? '₦' : ''}${result.prizePerWinner.toLocaleString()} each!`
+          : 'Season successfully concluded with 0 survivors. Prize pool was not distributed.',
       });
 
       if (onSeasonUpdated) onSeasonUpdated();

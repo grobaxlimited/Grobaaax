@@ -21,11 +21,11 @@ interface SchoolDomeRulesModalProps {
 
 const DEFAULT_STANDARD_RULES = [
   'Registration is completely free and open to all verified scholars before Question #1 begins.',
-  'Once Question #1 is launched by the Arbiter, registration is permanently locked for the entire season.',
+  'Users cannot participate or register any longer after the first question has been launched.',
   'Each scholar receives exactly ONE attempt per live elimination question.',
-  'The Arbiter sets a strict countdown timer for each question; submissions after the timer expires will be rejected.',
-  'Submitting the correct answer within the time limit secures your survival and advancement to the next question.',
-  'Submitting an incorrect answer or failing to answer in time results in immediate elimination to Spectator Mode.',
+  'Elimination Condition 1: Users are eliminated by not answering a particular question before the time expires.',
+  'Elimination Condition 2: Users are eliminated by answering wrong.',
+  'Submitting the correct answer within the ticking countdown timer secures survival and advancement to the next question.',
   'When the Admin clicks "End Season", the entire prize pool is distributed EQUALLY to all last scholars standing directly into their wallets.',
 ];
 
@@ -96,27 +96,27 @@ export const SchoolDomeRulesModal: React.FC<SchoolDomeRulesModalProps> = ({
                 <span>Equal Prize Pool</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                <strong>{prizePoolText}</strong> split equally among all last scholars standing.
+                <strong>{prizePoolText}</strong> split equally among all last scholars standing at season conclusion.
               </p>
             </div>
 
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/70 space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-black text-blue-600 dark:text-blue-400">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Countdown Clock</span>
-              </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                Admin sets a ticking timer for each question. Answers after 0s are rejected.
-              </p>
-            </div>
-
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/70 space-y-1">
+            <div className="p-3 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-black text-rose-600 dark:text-rose-400">
                 <Shield className="w-3.5 h-3.5" />
-                <span>1 Attempt Only</span>
+                <span>Elimination Criteria</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                1 answer per scholar. Correct survives; incorrect or timeout eliminates.
+                Scholars are eliminated by: <strong>1) Not answering before timer expires</strong>, or <strong>2) Answering wrong</strong>.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-black text-blue-600 dark:text-blue-400">
+                <Lock className="w-3.5 h-3.5" />
+                <span>No Late Participation</span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                Users <strong>cannot participate or register</strong> after Question #1 has been launched.
               </p>
             </div>
           </div>

@@ -268,17 +268,53 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     if (!activeQuestion || activeQuestion.status !== 'active') return;
     if (closingQuestionRef.current === activeQuestion.id) return;
     const diff = activeQuestion.endAt - Date.now();
-    if (diff <= 0) {
+
+    const handleTimeout = () => {
       closingQuestionRef.current = activeQuestion.id;
+
+      // Rule: Users are eliminated by not answering a particular question before the time expired
+      const isStanding = currentSeason?.activeUserIds?.includes(currentUser.id);
+      const hasSurvived = activeQuestion.survivorUserIds?.includes(currentUser.id);
+
+      if (isStanding && !hasSurvived && !isStaffOrAdmin) {
+        setCurrentSeason((prev) => {
+          if (!prev) return prev;
+          const newActive = (prev.activeUserIds || []).filter((id) => id !== currentUser.id);
+          const newEliminated = Array.from(new Set([...(prev.eliminatedUserIds || []), currentUser.id]));
+          const updated = { ...prev, activeUserIds: newActive, eliminatedUserIds: newEliminated };
+          try {
+            localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(updated));
+          } catch {}
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('school_dome_season_updated', { detail: updated }));
+          }
+          return updated;
+        });
+      }
+
+      // Mark activeQuestion closed locally
+      setActiveQuestion((prev) => (prev && prev.id === activeQuestion.id ? { ...prev, status: 'closed' } : prev));
+
+      // Close question and record elimination reasons in Firestore
       closeSchoolDomeQuestion(currentSeason?.id || 'season_dome_1', activeQuestion.id).catch(() => {});
+    };
+
+    if (diff <= 0) {
+      handleTimeout();
       return;
     }
-    const timer = setTimeout(() => {
-      closingQuestionRef.current = activeQuestion.id;
-      closeSchoolDomeQuestion(currentSeason?.id || 'season_dome_1', activeQuestion.id).catch(() => {});
-    }, Math.max(100, diff));
+    const timer = setTimeout(handleTimeout, Math.max(100, diff));
     return () => clearTimeout(timer);
-  }, [activeQuestion?.id, activeQuestion?.status, activeQuestion?.endAt, currentSeason?.id]);
+  }, [
+    activeQuestion?.id,
+    activeQuestion?.status,
+    activeQuestion?.endAt,
+    activeQuestion?.survivorUserIds,
+    currentSeason?.id,
+    currentSeason?.activeUserIds,
+    currentUser.id,
+    isStaffOrAdmin,
+  ]);
 
   const isActivelySubscribed = isUserSubscribed || checkIsUserSubscribed(currentUser);
   const isUserExpired = !isStaffOrAdmin && isSubscriptionExpired(currentUser);
@@ -374,11 +410,14 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
   const [isRegistering, setIsRegistering] = useState(false);
 
-  // Participation & Spectator Status
+  // Participation & Spectator Status (Users cannot participate or register any longer after the first question has been launched)
   const isRegistrationOpen = Boolean(
     currentSeason &&
     !currentSeason.isRegistrationLocked &&
     !currentSeason.firstQuestionLaunched &&
+    (currentSeason.totalQuestionsLaunched || 0) === 0 &&
+    (currentSeason.currentQuestionNumber || 0) === 0 &&
+    !activeQuestion &&
     currentSeason.status !== 'ended'
   );
   const isUserRegistered = Boolean(currentSeason?.registeredUserIds?.includes(currentUser.id));
@@ -388,6 +427,10 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
   const handleRegister = async () => {
     if (!currentSeason?.id || isRegistering) return;
+    if (!isRegistrationOpen) {
+      alert('Registration is permanently closed. Users cannot participate or register any longer after the first question has been launched.');
+      return;
+    }
     try {
       setIsRegistering(true);
       const res = await registerUserForSchoolDome(currentSeason.id, currentUser);
@@ -678,6 +721,32 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         newMessage.evalStatus = isCorr ? 'correct' : 'wrong';
         newMessage.questionId = activeQuestion.id;
         newMessage.questionNumber = activeQuestion.questionNumber;
+
+        // Rule: Users are eliminated by answering wrong
+        if (!isCorr) {
+          setCurrentSeason((prev) => {
+            if (!prev) return prev;
+            const newActive = (prev.activeUserIds || []).filter((id) => id !== currentUser.id);
+            const newEliminated = Array.from(new Set([...(prev.eliminatedUserIds || []), currentUser.id]));
+            const updated = { ...prev, activeUserIds: newActive, eliminatedUserIds: newEliminated };
+            try {
+              localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(updated));
+            } catch {}
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('school_dome_season_updated', { detail: updated }));
+            }
+            return updated;
+          });
+        } else {
+          setActiveQuestion((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              survivorUserIds: Array.from(new Set([...(prev.survivorUserIds || []), currentUser.id])),
+              repliedUserIds: Array.from(new Set([...(prev.repliedUserIds || []), currentUser.id])),
+            };
+          });
+        }
       }
     }
 
@@ -980,17 +1049,17 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
             ) : isUserEliminated ? (
               <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-medium">
                 <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                <span>You were eliminated from Season #{currentSeason.seasonNumber}. Spectator Mode active (watching live).</span>
+                <span>You were eliminated from Season #{currentSeason.seasonNumber} (wrong answer or time expired). Spectator Mode active (watching live).</span>
               </div>
             ) : isUserStanding ? (
               <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
                 <Shield className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Active Contender • {currentSeason.activeUserIds?.length || 0} scholars standing for {currentSeason.prizePool.toLocaleString()} {currentSeason.prizeCurrency || 'GP'}!</span>
+                <span>Active Contender • {currentSeason.activeUserIds?.length || 0} scholars standing for {currentSeason.prizePool.toLocaleString()} {currentSeason.prizeCurrency || 'GP'}! (Answer correctly before time expires to survive)</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-medium">
                 <Eye className="w-4 h-4 text-slate-400 shrink-0" />
-                <span>Registration closed upon Question #1 launch. Spectator Mode active (watching live).</span>
+                <span>Registration closed upon Question #1 launch. Users cannot participate or register after Question #1 (Spectator Mode active).</span>
               </div>
             )}
           </div>
@@ -1172,8 +1241,8 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                 <Eye className="w-4 h-4 text-amber-500 shrink-0" />
                 <span className="truncate">
                   {isUserEliminated
-                    ? `You have been eliminated from Season #${currentSeason?.seasonNumber || 1}. You can watch all questions and answers in real-time, but cannot participate.`
-                    : `Registration for Season #${currentSeason?.seasonNumber || 1} closed when Question #1 launched. Spectators can watch all questions and answers in real-time.`}
+                    ? `You were eliminated from Season #${currentSeason?.seasonNumber || 1} (wrong answer or time expired). You can watch all live questions as a spectator.`
+                    : `Registration closed when Question #1 launched. Users cannot participate or register after Question #1 has been launched (Spectator Mode active).`}
                 </span>
               </div>
               <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 font-black text-[11px] border border-amber-500/30 shrink-0 uppercase tracking-wider">

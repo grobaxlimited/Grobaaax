@@ -74,9 +74,9 @@ export const SchoolDomeContendersModal: React.FC<SchoolDomeContendersModalProps>
   const currency = season.prizeCurrency || 'GP';
   const prizePoolDisplay = `${prizePool.toLocaleString()} ${currency}`;
 
-  // Estimate payout per standing scholar
-  const prizePerStanding = standingCount > 0 ? Math.floor(prizePool / standingCount) : prizePool;
-  const survivalRate = registeredCount > 0 ? Math.round((standingCount / registeredCount) * 100) : 100;
+  // Estimate payout per standing scholar (0 if no scholars are standing)
+  const prizePerStanding = standingCount > 0 ? Math.floor(prizePool / standingCount) : 0;
+  const survivalRate = registeredCount > 0 ? Math.round((standingCount / registeredCount) * 100) : 0;
 
   // Filter list based on roster tab
   let currentRosterIds: string[] = [];
@@ -226,7 +226,7 @@ export const SchoolDomeContendersModal: React.FC<SchoolDomeContendersModalProps>
                 <span>Projected Prize Per Survivor:</span>
               </div>
               <span className="font-black text-amber-600 dark:text-amber-400 text-sm">
-                ~{prizePerStanding.toLocaleString()} {currency}
+                {standingCount > 0 ? `~${prizePerStanding.toLocaleString()} ${currency}` : `0 ${currency}`}
               </span>
             </div>
 
@@ -299,10 +299,10 @@ export const SchoolDomeContendersModal: React.FC<SchoolDomeContendersModalProps>
                   {isUserStanding
                     ? 'You are active in this season. Submitting correct answers within each timer keeps you standing for the grand prize pool!'
                     : isUserEliminated
-                    ? 'You submitted an incorrect answer or the countdown timer expired. You can continue spectating questions and participating in chat.'
+                    ? 'You were eliminated by either answering wrong or not answering before the timer expired. You can continue spectating live questions.'
                     : isRegistrationOpen
                     ? `Registration is currently open for Season #${season.seasonNumber || 1}. Claim your contender slot now to battle for the ${prizePoolDisplay} prize pool!`
-                    : 'Registration permanently locked when Question #1 launched. Spectators can follow all live questions in real-time.'}
+                    : 'Registration closed when Question #1 launched. Users cannot participate or register any longer after the first question has been launched (Spectator Mode active).'}
                 </p>
               </div>
             </div>
@@ -459,7 +459,7 @@ export const SchoolDomeContendersModal: React.FC<SchoolDomeContendersModalProps>
         {/* Footer with Big Close Button for Mobile Phones */}
         <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
           <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
-            All contenders must submit correct answers before timers expire to survive.
+            Elimination Rules: 1) Answering wrong, or 2) Not answering before the time expires.
           </div>
           <button
             type="button"

@@ -300,10 +300,10 @@ export const DEFAULT_INITIAL_SEASON: SchoolDomeSeason = {
   winners: [],
   rules: [
     'Registration is completely free and open to all verified scholars before Question #1 begins.',
-    'Once Question #1 is launched by the Arbiter, registration is permanently locked for the season.',
+    'Users cannot participate or register any longer after the first question has been launched.',
     'Each scholar receives exactly ONE attempt per live question challenge.',
-    'Submitting the correct answer within the time limit secures advancement to the next question.',
-    'Failing to answer or submitting an incorrect answer results in immediate elimination.',
+    'Submitting the correct answer within the time limit secures survival and advancement to the next question.',
+    'Elimination Criteria: Users are eliminated by: 1) Not answering a particular question before the time expired, 2) Answering wrong.',
     'The entire GP prize pool is divided equally among the Last Scholars Standing when the season concludes.',
   ],
 };
@@ -800,10 +800,15 @@ export async function registerUserForSchoolDome(
     const seasonData = seasonSnap.data() as SchoolDomeSeason;
 
     // RULE: Registration locks permanently once first question is launched
-    if (seasonData.isRegistrationLocked || seasonData.firstQuestionLaunched) {
+    if (
+      seasonData.isRegistrationLocked ||
+      seasonData.firstQuestionLaunched ||
+      (seasonData.totalQuestionsLaunched && seasonData.totalQuestionsLaunched > 0) ||
+      (seasonData.currentQuestionNumber && seasonData.currentQuestionNumber > 0)
+    ) {
       return {
         success: false,
-        message: 'Registration is permanently locked for this season because the first question has already launched.',
+        message: 'Registration is permanently closed. Users cannot participate or register any longer after the first question has been launched.',
       };
     }
 
@@ -973,6 +978,23 @@ export async function sendSchoolDomeMessage(
         const partRef = doc(db, 'school_dome_registrations', `${currentSeason.id}_${userId}`);
 
         // Fast parallel execution without Arbiter spam writes
+        if (typeof window !== 'undefined') {
+          try {
+            window.dispatchEvent(
+              new CustomEvent('school_dome_season_updated', {
+                detail: { activeUserIds: newActive, eliminatedUserIds: newEliminated },
+              })
+            );
+            const cachedSeasonStr = localStorage.getItem('grobax_school_dome_active_season');
+            if (cachedSeasonStr) {
+              const cachedObj = JSON.parse(cachedSeasonStr);
+              cachedObj.activeUserIds = newActive;
+              cachedObj.eliminatedUserIds = newEliminated;
+              localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(cachedObj));
+            }
+          } catch {}
+        }
+
         await Promise.all([
           updateDoc(qRef, {
             eliminatedUserIds: [...(activeQuestion.eliminatedUserIds || []), userId],
@@ -990,6 +1012,7 @@ export async function sendSchoolDomeMessage(
             status: 'eliminated',
             eliminatedAtQuestionNumber: activeQuestion.questionNumber,
             eliminatedAt: Date.now(),
+            eliminationReason: 'incorrect_answer',
             updatedAt: serverTimestamp(),
           }).catch(() => {}),
           updateDoc(msgRef, {
@@ -1311,6 +1334,23 @@ export async function closeSchoolDomeQuestion(
       const allQEliminated = Array.from(new Set([...(qData.eliminatedUserIds || []), ...newlyEliminated]));
 
       // Update question eliminated user list and season active standing
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(
+            new CustomEvent('school_dome_season_updated', {
+              detail: { activeUserIds: updatedActive, eliminatedUserIds: updatedEliminated },
+            })
+          );
+          const cachedSeasonStr = localStorage.getItem('grobax_school_dome_active_season');
+          if (cachedSeasonStr) {
+            const cachedObj = JSON.parse(cachedSeasonStr);
+            cachedObj.activeUserIds = updatedActive;
+            cachedObj.eliminatedUserIds = updatedEliminated;
+            localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(cachedObj));
+          }
+        } catch {}
+      }
+
       closeOps.push(
         updateDoc(qRef, {
           eliminatedUserIds: allQEliminated,
@@ -1451,7 +1491,7 @@ export async function endSchoolDomeSeasonAndDistributePrize(
 
     const seasonData = seasonSnap.data() as SchoolDomeSeason;
 
-    // 1. Resolve Last Standing Scholars with complete fallbacks
+    // 1. Resolve Last Standing Scholars (ONLY those currently standing/active!)
     let lastStandingIds: string[] = Array.isArray(seasonData.activeUserIds)
       ? [...seasonData.activeUserIds].filter(Boolean)
       : [];
@@ -1474,47 +1514,14 @@ export async function endSchoolDomeSeasonAndDistributePrize(
       }
     }
 
-    // Fallback 2: If all contenders were eliminated (e.g. final question expired or all wrong),
-    // find the contenders who reached the highest question number (the top finalists who survived longest)
-    if (lastStandingIds.length === 0) {
-      try {
-        const allRegsSnap = await getDocs(
-          query(
-            collection(db, 'school_dome_registrations'),
-            where('seasonId', '==', seasonId)
-          )
-        );
-        if (!allRegsSnap.empty) {
-          const regs = allRegsSnap.docs.map((d) => d.data() as SchoolDomeParticipant);
-          const maxQ = Math.max(...regs.map((r) => r.eliminatedAtQuestionNumber || 0), 0);
-          if (maxQ > 0) {
-            const finalists = regs.filter((r) => (r.eliminatedAtQuestionNumber || 0) === maxQ);
-            if (finalists.length > 0) {
-              lastStandingIds = finalists.map((r) => r.userId).filter(Boolean);
-            }
-          }
-          // If still empty (e.g. no questions numbers recorded), award all registered scholars
-          if (lastStandingIds.length === 0 && regs.length > 0) {
-            lastStandingIds = regs.map((r) => r.userId).filter(Boolean);
-          }
-        }
-      } catch (err) {
-        console.warn('[School Dome] Notice: Could not query fallback registrations:', err);
-      }
-    }
-
-    // Fallback 3: Use registeredUserIds from season document
-    if (lastStandingIds.length === 0 && Array.isArray(seasonData.registeredUserIds) && seasonData.registeredUserIds.length > 0) {
-      lastStandingIds = seasonData.registeredUserIds.filter(Boolean);
-    }
-
     // Deduplicate IDs
     lastStandingIds = Array.from(new Set(lastStandingIds));
 
-    // 2. Calculate prize pool distribution
+    // CRITICAL USER RULE:
+    // If standing is 0, GP must NOT be distributed to anybody! All of them were knocked out.
+    // If we have 1 or more standing, that is when the GP split is effective.
     const totalPrize = Math.max(0, Number(seasonData.prizePool) || 0);
-    const winnerCount = Math.max(1, lastStandingIds.length);
-    const prizePerWinner = lastStandingIds.length > 0 ? Math.floor(totalPrize / winnerCount) : 0;
+    const prizePerWinner = lastStandingIds.length > 0 ? Math.floor(totalPrize / lastStandingIds.length) : 0;
 
     // 3. Concurrently credit each winner's user document and record compliant transaction
     const winners: SchoolDomeWinner[] = await Promise.all(
@@ -1728,7 +1735,9 @@ export async function endSchoolDomeSeasonAndDistributePrize(
       userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       institution: 'Grobaax Arena HQ',
       isPremium: true,
-      messageText: `🏆 ${seasonData.title.toUpperCase()} HAS CONCLUDED!\n\n👑 THE LAST SCHOLARS STANDING:\n${winnerNames || 'None survived to the finale'}\n\n💰 PRIZE POOL SPLIT:\nThe ${totalPrize.toLocaleString()} GP prize pool has been divided equally! Each survivor receives ${prizePerWinner.toLocaleString()} GP credited directly to their GROBAAX wallet!\nCongratulations to our champions!`,
+      messageText: lastStandingIds.length > 0
+        ? `🏆 ${seasonData.title.toUpperCase()} HAS CONCLUDED!\n\n👑 THE LAST SCHOLARS STANDING:\n${winnerNames}\n\n💰 PRIZE POOL SPLIT:\nThe ${totalPrize.toLocaleString()} GP prize pool has been divided equally! Each survivor receives ${prizePerWinner.toLocaleString()} GP credited directly to their GROBAAX wallet!\nCongratulations to our champions!`
+        : `🏆 ${seasonData.title.toUpperCase()} HAS CONCLUDED!\n\n👑 THE LAST SCHOLARS STANDING:\nNo scholars survived this season (0 Standing).\n\n💰 PRIZE POOL:\nAll contenders were knocked out. The ${totalPrize.toLocaleString()} GP prize pool was not distributed.`,
       timestamp: Date.now(),
       type: 'announcement',
       reactions: { '👑': 10, '🏆': 8, '🎉': 12 },
