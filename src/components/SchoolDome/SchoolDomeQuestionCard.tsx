@@ -254,8 +254,11 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
             <div className="flex items-center gap-2 text-slate-300">
               <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
               {hasRepliedToQuestion ? (
-                <span className="text-emerald-400 font-bold">
-                  ✓ Your answer has been submitted for Question #{question.questionNumber}.
+                <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>
+                    ✓ Answer submitted for Question #{question.questionNumber} (1 attempt used). You can continue texting for other purposes in the chat below.
+                  </span>
                 </span>
               ) : !isUserRegistered ? (
                 <span>

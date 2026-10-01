@@ -294,6 +294,11 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
           qId)
     );
 
+    // If message is not an answer and not explicitly replying to a question, it is normal chat
+    if (!message.isAnswer && !isReplyToQuestion && !message.questionId) {
+      return null;
+    }
+
     let targetQuestion: SchoolDomeQuestion | null | undefined = null;
     if (qId) {
       targetQuestion = questions?.find((q) => q.id === qId) || (activeQuestion?.id === qId ? activeQuestion : null);
@@ -307,11 +312,6 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
             (message.replyTo.messageSnippet.includes(q.questionText.slice(0, 15)) ||
               q.questionText.includes(message.replyTo.messageSnippet.slice(0, 15)))
         ) || activeQuestion;
-    }
-    if (!targetQuestion && activeQuestion && activeQuestion.status === 'active') {
-      if (message.type === 'normal' && message.timestamp >= activeQuestion.startAt && message.timestamp <= activeQuestion.endAt + 5000) {
-        targetQuestion = activeQuestion;
-      }
     }
 
     if (targetQuestion) {
@@ -536,13 +536,15 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
               <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
                 <span className="text-[11px] text-blue-200/80 flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-blue-300" />
-                  Type your answer in the chat (Correct = Survive • Wrong = Eliminated)
+                  {hasRepliedToQuestion
+                    ? '1 attempt used. You can continue texting for other purposes in the arena below.'
+                    : 'Reply to this question card to submit your answer (1 attempt only • Normal chat does not count as an answer)'}
                 </span>
 
                 {hasRepliedToQuestion ? (
                   <div className="px-3 py-1 bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Answer Submitted (Evaluating Survival)</span>
+                    <span>✓ Answer Submitted (1 attempt used)</span>
                   </div>
                 ) : isSpectator ? (
                   <div className="px-3 py-1 bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold rounded-xl flex items-center gap-1.5">

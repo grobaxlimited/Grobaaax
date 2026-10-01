@@ -912,6 +912,24 @@ export async function sendSchoolDomeMessage(
         return { outcome: 'spectating' };
       }
 
+      // RULE: Messages are ONLY evaluated as answers if the user is explicitly replying to the question card!
+      // If standing users are texting for another purpose (chatting, encouragement, etc.), it is NOT an answer and NEVER eliminates them.
+      const isTargetingActiveQuestion = Boolean(
+        message.isAnswer ||
+        (message.replyTo?.id && (
+          message.replyTo.id === `msg_sdq_${activeQuestion.id}` ||
+          message.replyTo.id === `dome_msg_q_${activeQuestion.id}` ||
+          message.replyTo.id === activeQuestion.id ||
+          (message.replyTo as any)?.questionId === activeQuestion.id ||
+          message.replyTo.messageSnippet?.includes(activeQuestion.questionText.slice(0, 15))
+        ))
+      );
+
+      // If the message is NOT a reply to the question card, treat as normal chat
+      if (!isTargetingActiveQuestion) {
+        return { outcome: 'normal' };
+      }
+
       // Check subscription plan eligibility for this question using full profile if available
       const subjectUser = userProfile || message;
       const planEligibility = checkScholarSchoolDomePlanEligibility(subjectUser, activeQuestion);
@@ -924,7 +942,8 @@ export async function sendSchoolDomeMessage(
         };
       }
 
-      // Check if user already attempted this question
+      // RULE: Users are only meant to reply ONCE to a question card.
+      // If user already attempted this question card, reject duplicate reply attempts.
       const alreadyAttempted =
         activeQuestion.repliedUserIds?.includes(userId) ||
         activeQuestion.survivorUserIds?.includes(userId) ||

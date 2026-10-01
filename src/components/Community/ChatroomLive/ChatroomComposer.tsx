@@ -176,19 +176,21 @@ export const ChatroomComposer: React.FC<ChatroomComposerProps> = ({
 
       {/* Question Reply Already Submitted Notice */}
       {replyToMessage?.type === 'question' && !isQuestionPlanIneligible && hasRepliedToTarget && (
-        <div className="mb-2.5 p-2.5 sm:p-3 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/30 flex items-center justify-between gap-2 text-xs text-rose-700 dark:text-rose-300 animate-in fade-in duration-150">
+        <div className="mb-2.5 p-2.5 sm:p-3 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 flex items-center justify-between gap-2 text-xs text-amber-800 dark:text-amber-300 animate-in fade-in duration-150">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
             <span>
-              You have already submitted an answer for this question. <strong>Only 1 attempt is allowed per scholar.</strong>
+              You have already submitted an answer for this question (1 attempt used). <strong>Cancel reply to text normally for other purposes below.</strong>
             </span>
           </div>
           {onCancelReply && (
             <button
               type="button"
               onClick={onCancelReply}
-              className="p-1 hover:bg-rose-500/20 rounded-lg text-rose-500 hover:text-rose-700 dark:hover:text-rose-200 cursor-pointer"
+              className="px-2 py-0.5 hover:bg-amber-500/20 rounded-lg text-amber-700 dark:text-amber-300 border border-amber-500/30 cursor-pointer flex items-center gap-1 font-bold text-[11px] shrink-0"
+              title="Cancel reply and text normally"
             >
+              <span>Cancel Reply</span>
               <X className="w-3.5 h-3.5" />
             </button>
           )}

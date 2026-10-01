@@ -586,29 +586,46 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     setShowScrollBottom(!isNearBottom);
   };
 
-  const hasUserRepliedToQuestionMessage = (msg: SchoolDomeMessage): boolean => {
+  const hasUserRepliedToQuestionMessage = useCallback((msg: SchoolDomeMessage): boolean => {
     if (msg.type !== 'question') return false;
-    const qId = msg.competitionRef?.questionId || msg.id.replace(/^dome_msg_q_/, '').replace(/^sdq_/, '');
+    const qId = msg.competitionRef?.questionId || msg.questionId || msg.id.replace(/^dome_msg_q_/, '').replace(/^msg_sdq_/, '').replace(/^sdq_/, '');
     const normName = (currentUser?.name || '').toLowerCase().trim();
 
     if (msg.competitionRef?.repliedUserIds?.includes(currentUser.id)) return true;
     if (normName && (msg.competitionRef as any)?.repliedUsernames?.includes(normName)) return true;
     if (msg.competitionRef?.selectedWinners?.some((w) => w.userId === currentUser.id)) return true;
 
-    const hasUserRepliedInChat = messages.some(
+    if (activeQuestion && (activeQuestion.id === qId || activeQuestion.questionNumber === msg.competitionRef?.questionNumber)) {
+      if (activeQuestion.repliedUserIds?.includes(currentUser.id)) return true;
+      if (activeQuestion.survivorUserIds?.includes(currentUser.id)) return true;
+      if (activeQuestion.eliminatedUserIds?.includes(currentUser.id)) return true;
+    }
+
+    const matchingQ = seasonQuestions.find((q) => q.id === qId || q.questionNumber === msg.competitionRef?.questionNumber);
+    if (matchingQ) {
+      if (matchingQ.repliedUserIds?.includes(currentUser.id)) return true;
+      if (matchingQ.survivorUserIds?.includes(currentUser.id)) return true;
+      if (matchingQ.eliminatedUserIds?.includes(currentUser.id)) return true;
+    }
+
+    const hasUserAnswerInChat = messages.some(
       (m) =>
         m.userId === currentUser.id &&
-        (m.replyTo?.id === msg.id || (qId && m.replyTo?.id === qId) || (qId && m.replyTo?.id === `dome_msg_q_${qId}`))
+        (
+          (m.isAnswer && (m.questionId === qId || m.questionNumber === msg.competitionRef?.questionNumber)) ||
+          m.replyTo?.id === msg.id ||
+          (qId && (m.replyTo?.id === qId || m.replyTo?.id === `dome_msg_q_${qId}` || m.replyTo?.id === `msg_sdq_${qId}`))
+        )
     );
-    if (hasUserRepliedInChat) return true;
+    if (hasUserAnswerInChat) return true;
 
     return false;
-  };
+  }, [currentUser.id, currentUser?.name, activeQuestion, seasonQuestions, messages]);
 
   const hasRepliedToTarget = useMemo(() => {
     if (!replyTarget || replyTarget.type !== 'question') return false;
     return hasUserRepliedToQuestionMessage(replyTarget);
-  }, [replyTarget, messages, currentUser.id, currentUser?.name]);
+  }, [replyTarget, hasUserRepliedToQuestionMessage]);
 
   // Subscription plan eligibility for the active question
   const questionPlanEligibility = useMemo(() => {
@@ -643,14 +660,34 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
       return;
     }
 
+    // Check if this message is specifically targeting a question card
+    const isTargetingActiveQuestion = Boolean(
+      activeQuestion &&
+      activeQuestion.status === 'active' &&
+      replyTo?.id &&
+      (
+        replyTo.id === `msg_sdq_${activeQuestion.id}` ||
+        replyTo.id === `dome_msg_q_${activeQuestion.id}` ||
+        replyTo.id === activeQuestion.id ||
+        (replyTo as any)?.questionId === activeQuestion.id ||
+        messages.some(
+          (m) =>
+            m.id === replyTo.id &&
+            m.type === 'question' &&
+            (m.questionId === activeQuestion.id || m.competitionRef?.questionId === activeQuestion.id)
+        )
+      )
+    );
+
     // Prevent replying twice to a question challenge
     if (replyTo?.id) {
-      const isTargetingQuestion =
+      const isTargetingAnyQuestion =
+        isTargetingActiveQuestion ||
         replyTo.id.startsWith('dome_msg_q_') ||
         replyTo.id.startsWith('msg_sdq_') ||
         messages.some((m) => m.id === replyTo.id && m.type === 'question');
 
-      if (isTargetingQuestion) {
+      if (isTargetingAnyQuestion) {
         if (!replyTargetPlanEligibility.isEligible && !isStaffOrAdmin) {
           alert(
             `Your subscription plan (${replyTargetPlanEligibility.userPlanName}) is not eligible to answer this question. Required: ${replyTargetPlanEligibility.requiredPlanText}. Your tournament standing is safe.`
@@ -664,8 +701,13 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
             (m.competitionRef?.questionId &&
               (`dome_msg_q_${m.competitionRef.questionId}` === replyTo.id ||
                 `msg_sdq_${m.competitionRef.questionId}` === replyTo.id))
-        );
+        ) || (activeQuestion ? { id: `msg_sdq_${activeQuestion.id}`, type: 'question', competitionRef: { questionId: activeQuestion.id } } as any : null);
+
         if (targetQMsg && hasUserRepliedToQuestionMessage(targetQMsg)) {
+          alert(
+            `You have already submitted an answer for Question #${activeQuestion?.questionNumber || 1}. Each scholar is only allowed 1 attempt per question card. You can continue chatting normally for other purposes without replying to the question card.`
+          );
+          setReplyTarget(null);
           return;
         }
       }
@@ -706,8 +748,9 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
       reactions: {},
     };
 
-    // If answering active question in standing, stamp marking sign fields immediately
-    if (activeQuestion && activeQuestion.status === 'active') {
+    // RULE: Only messages specifically replying to the question card are treated and evaluated as answers!
+    // If standing users are texting for other purposes, it is normal chat and does NOT evaluate as an answer or eliminate them.
+    if (isTargetingActiveQuestion && activeQuestion && activeQuestion.status === 'active') {
       const isRegistered = currentSeason?.registeredUserIds?.includes(currentUser.id);
       const isStanding = currentSeason?.activeUserIds?.includes(currentUser.id);
       if (isRegistered && isStanding) {
