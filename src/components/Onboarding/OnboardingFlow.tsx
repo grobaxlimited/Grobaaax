@@ -42,8 +42,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
-  const totalSteps = 6;
-
   const stepsMeta = [
     {
       id: 'welcome',
@@ -216,7 +214,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
     },
   ];
 
-  const currentMeta = stepsMeta[currentStep];
+  const totalSteps = stepsMeta.length;
+  const currentMeta = stepsMeta[currentStep] || stepsMeta[stepsMeta.length - 1];
 
   // Touch gesture swipe handling
   const handleTouchStart = (e: React.TouchEvent) => {
