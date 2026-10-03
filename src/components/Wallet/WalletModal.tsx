@@ -2177,6 +2177,7 @@ export const WalletModal: React.FC = () => {
 
                   if (ledgerTypeFilter !== 'all') {
                     if (ledgerTypeFilter === 'quiz' && tx.type !== 'gp_earned') return false;
+                    if (ledgerTypeFilter === 'spin' && tx.type !== 'spin_reward') return false;
                     if (ledgerTypeFilter === 'vtu' && tx.type !== 'vtu_purchase' && tx.type !== 'vtu_redemption') return false;
                     if (ledgerTypeFilter === 'withdrawal' && tx.type !== 'gp_withdrawal' && tx.type !== 'withdrawal') return false;
                     if (ledgerTypeFilter === 'badge' && tx.type !== 'badge_purchase') return false;
@@ -2195,6 +2196,12 @@ export const WalletModal: React.FC = () => {
                         label: 'Speed Quiz',
                         icon: Award,
                         bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+                      };
+                    case 'spin_reward':
+                      return {
+                        label: 'Spin Reward',
+                        icon: Sparkles,
+                        bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
                       };
                     case 'GUS_PRIZE':
                     case 'reward':
@@ -2349,6 +2356,7 @@ export const WalletModal: React.FC = () => {
                           className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         >
                           <option value="all">All Categories</option>
+                          <option value="spin">🎡 Daily Spin Rewards</option>
                           <option value="quiz">Speed Quizzes (Earnings)</option>
                           <option value="reward">Prizes & Grants</option>
                           <option value="vtu">Airtime & Data VTU</option>

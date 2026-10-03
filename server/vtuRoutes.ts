@@ -135,46 +135,8 @@ vtuRouter.post('/purchase', async (req: Request, res: Response) => {
     }
     processedIdempotencyKeys.add(idempotencyKey);
 
-    // 2. Authoritative Static Airtime/Data Redemption Schedule Enforcement (Free users only)
-    // - PREMIUM and VIP users are completely exempt and can redeem airtime/data anytime.
-    // - FREE users can only redeem during the first 15 minutes of each hour (:00 to :15).
-    const mTier = String(membershipTier || '').toLowerCase();
-    const sTier = String(subscriptionTier || '').toLowerCase();
-    const uPlan = String(userPlan || '').toLowerCase();
-    const isExempt = Boolean(
-      isPremium === true ||
-      mTier.includes('premium') ||
-      mTier.includes('vip') ||
-      mTier.includes('titan') ||
-      mTier.includes('pro') ||
-      mTier.includes('annual') ||
-      sTier.includes('premium') ||
-      sTier.includes('vip') ||
-      sTier.includes('titan') ||
-      sTier.includes('pro') ||
-      sTier.includes('annual') ||
-      uPlan.includes('premium') ||
-      uPlan.includes('vip') ||
-      uPlan.includes('titan') ||
-      uPlan.includes('pro') ||
-      uPlan.includes('annual') ||
-      userRole === 'admin' ||
-      userRole === 'super_admin' ||
-      userRole === 'staff' ||
-      userRole === 'community_manager'
-    );
-
-    if (!isExempt) {
-      const windowStatus = getAirtimeRedemptionWindowStatus();
-      if (!windowStatus.isOpen) {
-        return res.status(403).json({
-          success: false,
-          code: 'REDEMPTION_WINDOW_CLOSED',
-          message: 'Redemption window is closed. Free users can redeem only during the first 15 minutes of each hour. Upgrade to Premium or VIP to redeem airtime & data anytime.',
-          windowStatus,
-        });
-      }
-    }
+    // 2. Airtime & Data Redemption 24/7 Availability
+    // All users can redeem Airtime and Data 24/7 with zero time-based or hourly restrictions.
 
     // 3. Validate Service & Network Settings
     if (serviceType === 'airtime' && !currentSettings.airtimeEnabled) {

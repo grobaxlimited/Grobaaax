@@ -8,6 +8,7 @@ import { libraryRouter } from './libraryRouter';
 import { campusRouter } from './campusRouter';
 import { walletRouter } from './walletRouter';
 import { supabaseRouter } from './supabaseRouter';
+import { spinRouter } from './spinRouter';
 import {
   enrichHandoutWithFullChaptersAndImages,
   getAcademicPhotoForChapter,
@@ -830,6 +831,9 @@ apiApp.use('/wallet', walletRouter);
 
 apiApp.use('/api/supabase', supabaseRouter);
 apiApp.use('/supabase', supabaseRouter);
+
+apiApp.use('/api/spin', spinRouter);
+apiApp.use('/spin', spinRouter);
 
 // AI Academic Library Handout Generation Route
 const libraryGenerateHandler = async (req: Request, res: Response) => {

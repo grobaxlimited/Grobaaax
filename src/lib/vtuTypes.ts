@@ -2145,35 +2145,21 @@ export interface RedemptionWindowStatus {
 }
 
 export function getAirtimeRedemptionWindowStatus(date: Date = new Date()): RedemptionWindowStatus {
-  const minutes = date.getMinutes();
-  const seconds = date.getSeconds();
-  const totalSecondsInHour = minutes * 60 + seconds;
-  const windowLimitSeconds = 15 * 60; // 15 minutes = 900 seconds
-  const isOpen = totalSecondsInHour < windowLimitSeconds;
-
-  const secondsRemainingInWindow = isOpen ? (windowLimitSeconds - totalSecondsInHour) : 0;
-  const minutesRemainingInWindow = Math.ceil(secondsRemainingInWindow / 60);
-
-  const secondsUntilNextWindow = isOpen ? 0 : (3600 - totalSecondsInHour);
-  const minutesUntilNextWindow = Math.ceil(secondsUntilNextWindow / 60);
-
-  // Next window calculation: start of the next hour
-  const nextHourDate = new Date(date.getTime() + (secondsUntilNextWindow * 1000));
   const formatTime = (d: Date) => {
     return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
   return {
-    isOpen,
-    minutesIntoHour: minutes,
-    secondsIntoHour: seconds,
-    minutesRemainingInWindow,
-    secondsRemainingInWindow,
-    minutesUntilNextWindow,
-    secondsUntilNextWindow,
+    isOpen: true,
+    minutesIntoHour: date.getMinutes(),
+    secondsIntoHour: date.getSeconds(),
+    minutesRemainingInWindow: 60,
+    secondsRemainingInWindow: 3600,
+    minutesUntilNextWindow: 0,
+    secondsUntilNextWindow: 0,
     formattedCurrentTime: formatTime(date),
-    formattedNextWindowTime: formatTime(nextHourDate),
-    scheduleDescription: 'Free users can redeem only during the first 15 minutes of each hour (:00 - :15).',
+    formattedNextWindowTime: formatTime(date),
+    scheduleDescription: 'All users can redeem Airtime and Data 24/7 with zero time restrictions.',
   };
 }
 

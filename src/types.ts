@@ -1895,6 +1895,7 @@ export interface Transaction {
     | 'vtu_redemption'
     | 'refund'
     | 'welcome_bonus'
+    | 'spin_reward'
     | string;
   amount: number;
   unit: 'GRBX' | 'GP' | string;

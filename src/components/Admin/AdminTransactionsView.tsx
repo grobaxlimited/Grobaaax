@@ -94,6 +94,7 @@ export function AdminTransactionsView() {
       // Type filter
       if (selectedType !== 'all') {
         if (selectedType === 'quiz' && tx.type !== 'gp_earned') return false;
+        if (selectedType === 'spin' && tx.type !== 'spin_reward') return false;
         if (selectedType === 'vtu' && tx.type !== 'vtu_purchase' && tx.type !== 'vtu_redemption') return false;
         if (selectedType === 'withdrawal' && tx.type !== 'gp_withdrawal' && tx.type !== 'withdrawal') return false;
         if (selectedType === 'badge' && tx.type !== 'badge_purchase') return false;
@@ -262,6 +263,12 @@ export function AdminTransactionsView() {
           label: 'Dome Speed Quiz',
           icon: Award,
           bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+        };
+      case 'spin_reward':
+        return {
+          label: 'Spin Reward',
+          icon: Sparkles,
+          bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
         };
       case 'GUS_PRIZE':
       case 'reward':
@@ -483,6 +490,7 @@ export function AdminTransactionsView() {
               className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
             >
               <option value="all">All Types</option>
+              <option value="spin">🎡 Daily Spin Rewards (spin_reward)</option>
               <option value="quiz">Dome Speed Quizzes (gp_earned)</option>
               <option value="vtu">Airtime & Mobile Data (VTU)</option>
               <option value="withdrawal">Cash Out Withdrawals</option>
