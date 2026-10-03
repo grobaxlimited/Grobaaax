@@ -239,11 +239,11 @@ export function AdminAirtimeDataView() {
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase().trim();
       return (
-        t.transactionId.toLowerCase().includes(q) ||
-        (t.providerTransactionId && t.providerTransactionId.toLowerCase().includes(q)) ||
-        t.phoneNumber.includes(q) ||
-        t.userName.toLowerCase().includes(q) ||
-        t.userId.toLowerCase().includes(q)
+        Boolean(t.transactionId && t.transactionId.toLowerCase().includes(q)) ||
+        Boolean(t.providerTransactionId && t.providerTransactionId.toLowerCase().includes(q)) ||
+        Boolean(t.phoneNumber && t.phoneNumber.includes(q)) ||
+        Boolean(t.userName && t.userName.toLowerCase().includes(q)) ||
+        Boolean(t.userId && t.userId.toLowerCase().includes(q))
       );
     }
     return true;

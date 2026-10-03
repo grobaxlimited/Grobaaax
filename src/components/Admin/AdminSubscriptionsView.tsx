@@ -524,11 +524,14 @@ export function AdminSubscriptionsView() {
   const filteredPlans = sortSubscriptionPlans(
     plans
       .filter((p) => p.planId !== 'plan_free_scholar' && p.id !== 'plan_free_scholar' && p.priceNaira > 0)
-      .filter((p) =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.shortDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.planId.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      .filter((p) => {
+        const s = searchTerm.toLowerCase();
+        return (
+          Boolean(p.name && p.name.toLowerCase().includes(s)) ||
+          Boolean(p.shortDescription && p.shortDescription.toLowerCase().includes(s)) ||
+          Boolean(p.planId && p.planId.toLowerCase().includes(s))
+        );
+      })
   );
 
   return (

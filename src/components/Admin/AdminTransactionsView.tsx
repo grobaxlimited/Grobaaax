@@ -72,14 +72,14 @@ export function AdminTransactionsView() {
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
         const matchesSearch =
-          tx.title.toLowerCase().includes(query) ||
-          tx.description.toLowerCase().includes(query) ||
-          tx.transactionId.toLowerCase().includes(query) ||
-          (tx.userName && tx.userName.toLowerCase().includes(query)) ||
-          (tx.userEmail && tx.userEmail.toLowerCase().includes(query)) ||
-          (tx.userId && tx.userId.toLowerCase().includes(query)) ||
-          (tx.institutionName && tx.institutionName.toLowerCase().includes(query)) ||
-          (tx.adminName && tx.adminName.toLowerCase().includes(query));
+          Boolean(tx.title && tx.title.toLowerCase().includes(query)) ||
+          Boolean(tx.description && tx.description.toLowerCase().includes(query)) ||
+          Boolean(tx.transactionId && tx.transactionId.toLowerCase().includes(query)) ||
+          Boolean(tx.userName && tx.userName.toLowerCase().includes(query)) ||
+          Boolean(tx.userEmail && tx.userEmail.toLowerCase().includes(query)) ||
+          Boolean(tx.userId && tx.userId.toLowerCase().includes(query)) ||
+          Boolean(tx.institutionName && tx.institutionName.toLowerCase().includes(query)) ||
+          Boolean(tx.adminName && tx.adminName.toLowerCase().includes(query));
 
         if (!matchesSearch) return false;
       }

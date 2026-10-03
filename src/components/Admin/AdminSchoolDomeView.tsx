@@ -510,9 +510,9 @@ export const AdminSchoolDomeView: React.FC = () => {
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="font-bold text-slate-500 dark:text-slate-400">Current Season:</span>
               <span className="font-black text-slate-900 dark:text-white text-sm">
-                {currentSeason.title?.toLowerCase().startsWith('season #')
+                {String(currentSeason.title || '').toLowerCase().startsWith('season #')
                   ? currentSeason.title
-                  : `Season #${currentSeason.seasonNumber} — ${currentSeason.title}`}
+                  : `Season #${currentSeason.seasonNumber || 1} — ${currentSeason.title || 'School Dome'}`}
               </span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
                 currentSeason.status === 'ended'

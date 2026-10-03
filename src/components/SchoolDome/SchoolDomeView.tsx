@@ -335,8 +335,8 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     firebaseUser?.uid === PRIMARY_SUPER_ADMIN_UID ||
     firebaseUser?.email === 'grobaxycompany@gmail.com' ||
     currentUser?.email === 'grobaxycompany@gmail.com' ||
-    currentUser?.name?.toLowerCase().includes('admin') ||
-    currentUser?.name?.toLowerCase().includes('staff');
+    Boolean(currentUser?.name && currentUser.name.toLowerCase().includes('admin')) ||
+    Boolean(currentUser?.name && currentUser.name.toLowerCase().includes('staff'));
 
   // Real-time ticking sensor to instantly remove the pinned question card when its time expires
   const [nowTick, setNowTick] = useState<number>(Date.now());
@@ -522,7 +522,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     !currentSeason.firstQuestionLaunched &&
     (currentSeason.totalQuestionsLaunched || 0) === 0 &&
     (currentSeason.currentQuestionNumber || 0) === 0 &&
-    !activeQuestion
+    (!activeQuestion || activeQuestion.status === 'closed' || activeQuestion.seasonId !== currentSeason.id)
   );
   const currentUid = currentUser?.id || (currentUser as any)?.uid || '';
   const currentAltUid = (currentUser as any)?.uid || currentUser?.id || '';
@@ -607,10 +607,15 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
   // Filter messages by search query and completely hide automated Arbiter question conclusion & verification spam
   const filteredMessages = useMemo(() => {
     return messages.filter((m) => {
+      if (!m || typeof m !== 'object') return false;
+      // Filter out empty/corrupt messages
+      if (!m.messageText && !m.competitionRef && m.type !== 'question') return false;
+
       // 1. Hide automated Arbiter question conclusion, answer verification, and elimination notifications
+      const mUserName = String(m.userName || '').toLowerCase();
       const isArbiter =
         m.userId === 'grobax_arbiter' ||
-        (m.userName && m.userName.toLowerCase().includes('arbiter'));
+        mUserName.includes('arbiter');
 
       if (isArbiter) {
         const text = m.messageText || '';
@@ -633,9 +638,9 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       return (
-        m.messageText?.toLowerCase().includes(q) ||
-        m.userName?.toLowerCase().includes(q) ||
-        m.institution?.toLowerCase().includes(q)
+        Boolean(m.messageText && String(m.messageText).toLowerCase().includes(q)) ||
+        Boolean(m.userName && String(m.userName).toLowerCase().includes(q)) ||
+        Boolean(m.institution && String(m.institution).toLowerCase().includes(q))
       );
     });
   }, [messages, searchQuery]);

@@ -348,17 +348,18 @@ export function AdminManagersView() {
     if (!userSearchQuery.trim()) return false;
     const q = userSearchQuery.toLowerCase();
     return (
-      u.name.toLowerCase().includes(q) ||
-      u.username.toLowerCase().includes(q) ||
-      u.id.toLowerCase().includes(q)
+      Boolean(u.name && u.name.toLowerCase().includes(q)) ||
+      Boolean(u.username && u.username.toLowerCase().includes(q)) ||
+      Boolean(u.id && u.id.toLowerCase().includes(q))
     );
   });
 
   const filteredManagers = managers.filter((m) => {
+    const sTerm = searchTerm.toLowerCase();
     const matchesSearch =
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.uid.toLowerCase().includes(searchTerm.toLowerCase());
+      Boolean(m.name && m.name.toLowerCase().includes(sTerm)) ||
+      Boolean(m.email && m.email.toLowerCase().includes(sTerm)) ||
+      Boolean(m.uid && m.uid.toLowerCase().includes(sTerm));
 
     const matchesRole = roleFilter === 'ALL' ? true : m.role === roleFilter;
 

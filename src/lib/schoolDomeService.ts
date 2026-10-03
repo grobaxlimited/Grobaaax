@@ -107,9 +107,9 @@ export function checkScholarSchoolDomePlanEligibility(
 
   const userPlanName = isExpired
     ? 'Free Scholar'
-    : (user?.subscriptionPlan && !user.subscriptionPlan.toLowerCase().includes('free') && user.subscriptionPlan) ||
-      (user?.subscriptionTier && !user.subscriptionTier.toLowerCase().includes('free') && user.subscriptionTier) ||
-      (user?.membershipTier && !user.membershipTier.toLowerCase().includes('free') && user.membershipTier) ||
+    : (user?.subscriptionPlan && !String(user.subscriptionPlan).toLowerCase().includes('free') && user.subscriptionPlan) ||
+      (user?.subscriptionTier && !String(user.subscriptionTier).toLowerCase().includes('free') && user.subscriptionTier) ||
+      (user?.membershipTier && !String(user.membershipTier).toLowerCase().includes('free') && user.membershipTier) ||
       (rawPlanId === 'plan_titan_naira' ? 'Grobaax Titan Annual VIP' :
        rawPlanId === 'plan_pro_naira' ? 'Champions Pro Scholar' :
        rawPlanId === 'plan_basic_naira' ? 'Scholar Starter Plan' :
@@ -1323,7 +1323,12 @@ export async function closeSchoolDomeQuestion(
     const survivors = qData.survivorUserIds || [];
 
     // Parallelize closing question and question message
-    const msgRef = doc(db, 'school_dome_messages', 'msg_sdq_' + questionId);
+    const targetMsgId = questionId.startsWith('msg_')
+      ? questionId
+      : questionId.startsWith('sdq_')
+      ? 'msg_' + questionId
+      : 'msg_sdq_' + questionId;
+    const msgRef = doc(db, 'school_dome_messages', targetMsgId);
     const closeOps: Promise<any>[] = [
       updateDoc(qRef, {
         status: 'closed',

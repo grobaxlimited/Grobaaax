@@ -216,10 +216,10 @@ export function AdminSponsorshipView() {
     // Search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchName = camp.sponsorName.toLowerCase().includes(q);
-      const matchTitle = camp.title.toLowerCase().includes(q);
-      const matchText = camp.text.toLowerCase().includes(q);
-      const matchTag = camp.tag?.toLowerCase().includes(q);
+      const matchName = Boolean(camp.sponsorName && camp.sponsorName.toLowerCase().includes(q));
+      const matchTitle = Boolean(camp.title && camp.title.toLowerCase().includes(q));
+      const matchText = Boolean(camp.text && camp.text.toLowerCase().includes(q));
+      const matchTag = Boolean(camp.tag && camp.tag.toLowerCase().includes(q));
       return matchName || matchTitle || matchText || matchTag;
     }
     return true;

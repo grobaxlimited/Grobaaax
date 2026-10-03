@@ -94,7 +94,7 @@ export function AdminWithdrawalsView() {
   };
 
   const filtered = withdrawals.filter((w) =>
-    statusFilter === 'ALL' ? true : w.status.toLowerCase() === statusFilter.toLowerCase()
+    statusFilter === 'ALL' ? true : String(w.status || '').toLowerCase() === statusFilter.toLowerCase()
   );
 
   return (

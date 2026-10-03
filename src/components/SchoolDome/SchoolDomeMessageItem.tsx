@@ -209,43 +209,48 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
   }, [message.userId, (message as any).equippedBadge, isSelf, currentUser?.equippedBadge]);
 
   const effectiveEquippedBadge =
-    (message as any).equippedBadge ||
+    (message as any)?.equippedBadge ||
     (isSelf ? currentUser?.equippedBadge : resolvedBadge);
+
+  const uName = String(message?.userName || '').toLowerCase();
+  const uId = String(message?.userId || '');
+  const uInst = String(message?.institution || '').toLowerCase();
+
   const isArbiter =
-    message.userId === 'grobax_arbiter' ||
-    message.userName.toLowerCase().includes('arbiter');
+    uId === 'grobax_arbiter' ||
+    uName.includes('arbiter');
 
   const isCommunityManager =
-    message.userName.toLowerCase().includes('manager') ||
-    message.institution?.toLowerCase().includes('management') ||
-    message.userName.toLowerCase().includes('community manager');
+    uName.includes('manager') ||
+    uInst.includes('management') ||
+    uName.includes('community manager');
 
   const isStaffOrAdmin =
     isArbiter ||
     isCommunityManager ||
-    message.userName.toLowerCase().includes('support') ||
-    message.userName.toLowerCase().includes('staff') ||
-    message.userName.toLowerCase().includes('admin') ||
-    message.userId.includes('admin') ||
-    message.userId.includes('barns');
+    uName.includes('support') ||
+    uName.includes('staff') ||
+    uName.includes('admin') ||
+    uId.includes('admin') ||
+    uId.includes('barns');
 
-  const tierString = (
-    (message as any).membershipTier ||
-    (message as any).tierName ||
-    (message as any).subscriptionTier ||
-    (message as any).subscriptionPlan ||
+  const tierString = String(
+    (message as any)?.membershipTier ||
+    (message as any)?.tierName ||
+    (message as any)?.subscriptionTier ||
+    (message as any)?.subscriptionPlan ||
     ''
   ).toLowerCase();
 
   const isMessageUserExpired = !isStaffOrAdmin && (
-    Boolean((message as any).isExpired) ||
-    Boolean((message as any).subscriptionExpiry && new Date((message as any).subscriptionExpiry).getTime() <= Date.now())
+    Boolean((message as any)?.isExpired) ||
+    Boolean((message as any)?.subscriptionExpiry && new Date((message as any).subscriptionExpiry).getTime() <= Date.now())
   );
 
   const isVip =
     !isMessageUserExpired &&
     !tierString.includes('free') &&
-    (Boolean((message as any).isVip) ||
+    (Boolean((message as any)?.isVip) ||
       tierString.includes('vip') ||
       tierString.includes('titan') ||
       tierString.includes('annual'));
@@ -254,10 +259,10 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
     !isMessageUserExpired &&
     !tierString.includes('free') &&
     (isVip ||
-      Boolean(message.isPremium) ||
+      Boolean(message?.isPremium) ||
       Boolean(
-        (message as any).membershipTier &&
-          !(message as any).membershipTier.toLowerCase().includes('free')
+        (message as any)?.membershipTier &&
+          !String((message as any).membershipTier).toLowerCase().includes('free')
       ) ||
       (tierString.length > 0 && !tierString.includes('free')));
 
@@ -298,13 +303,15 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
           ? replyMsgId.replace('dome_msg_q_', '')
           : null));
 
+    const replyUserName = String(message.replyTo?.userName || '').toLowerCase();
+    const replySnippet = String(message.replyTo?.messageSnippet || '').toLowerCase();
     const isReplyToQuestion = Boolean(
       message.replyTo &&
-        (message.replyTo.messageSnippet?.includes('?') ||
-          message.replyTo.userName?.toLowerCase().includes('arbiter') ||
-          message.replyTo.userName?.toLowerCase().includes('moderator') ||
-          message.replyTo.userName?.toLowerCase().includes('grobax') ||
-          message.replyTo.messageSnippet?.toLowerCase().includes('challenge') ||
+        (replySnippet.includes('?') ||
+          replyUserName.includes('arbiter') ||
+          replyUserName.includes('moderator') ||
+          replyUserName.includes('grobax') ||
+          replySnippet.includes('challenge') ||
           qId)
     );
 

@@ -351,10 +351,10 @@ export function AdminEventsView() {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
       !q ||
-      ev.title?.toLowerCase().includes(q) ||
-      ev.host?.toLowerCase().includes(q) ||
-      ev.category?.toLowerCase().includes(q) ||
-      ev.description?.toLowerCase().includes(q);
+      Boolean(ev.title && ev.title.toLowerCase().includes(q)) ||
+      Boolean(ev.host && ev.host.toLowerCase().includes(q)) ||
+      Boolean(ev.category && ev.category.toLowerCase().includes(q)) ||
+      Boolean(ev.description && ev.description.toLowerCase().includes(q));
 
     const matchesCategory =
       categoryFilter === 'All' ||

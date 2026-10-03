@@ -360,6 +360,11 @@ export async function updateDoc<T = any>(
   options?: { isServerAuthoritative?: boolean }
 ): Promise<void> {
   const existing = await getDocFromSupabase(docRef.collection, docRef.id);
+  if (!existing || Object.keys(existing).length === 0) {
+    // In Firestore semantics, updateDoc requires the document to exist first.
+    // Prevent creating orphan partial documents with missing schema fields.
+    return;
+  }
   const resolved = resolveFieldUpdates(existing, data);
   await setDocToSupabase(docRef.collection, docRef.id, resolved, true, options);
 }
@@ -720,10 +725,10 @@ export async function signInWithEmailAndPassword(authInstance: any, email: strin
   });
 
   // If Supabase returns an error mentioning email confirmation, auto-confirm using admin API and retry
+  const errMsg = String(error?.message || '').toLowerCase();
   if (
     error &&
-    (error.message?.toLowerCase().includes('email not confirmed') ||
-      error.message?.toLowerCase().includes('not confirmed'))
+    (errMsg.includes('email not confirmed') || errMsg.includes('not confirmed'))
   ) {
     try {
       const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
@@ -766,11 +771,12 @@ export async function createUserWithEmailAndPassword(authInstance: any, email: s
     email_confirm: true,
   });
 
+  const adminErrMsg = String(adminErr?.message || '').toLowerCase();
   if (!adminErr && adminData?.user) {
     user = adminData.user;
   } else if (
     adminErr &&
-    (adminErr.message?.toLowerCase().includes('already') || adminErr.message?.toLowerCase().includes('exists'))
+    (adminErrMsg.includes('already') || adminErrMsg.includes('exists'))
   ) {
     throw new Error('An account with this email already exists. Please log in instead.');
   } else {

@@ -832,10 +832,11 @@ export const AdminGusManager: React.FC<AdminGusManagerProps> = ({ onClose }) => 
 
   // Filtered lists
   const filteredParticipants = participants.filter(p => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      p.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.institution?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.department?.toLowerCase().includes(searchQuery.toLowerCase());
+      Boolean(p.userName && p.userName.toLowerCase().includes(q)) ||
+      Boolean(p.institution && p.institution.toLowerCase().includes(q)) ||
+      Boolean(p.department && p.department.toLowerCase().includes(q));
     if (statusFilter === 'ALL') return matchesSearch;
     return matchesSearch && p.status === statusFilter;
   });

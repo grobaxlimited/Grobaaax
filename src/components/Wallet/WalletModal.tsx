@@ -724,8 +724,8 @@ export const WalletModal: React.FC = () => {
               {(() => {
                 const userInstitutionName = currentUser.institution || currentUser.academicProfile?.institutionName || 'Federal Polytechnic, Ado-Ekiti';
                 const matchedInstitution = masterInstitutions.find(
-                  inst => inst.name?.toLowerCase().trim() === userInstitutionName.toLowerCase().trim() ||
-                          inst.shortName?.toLowerCase().trim() === userInstitutionName.toLowerCase().trim()
+                  inst => (inst.name && inst.name.toLowerCase().trim() === userInstitutionName.toLowerCase().trim()) ||
+                          (inst.shortName && inst.shortName.toLowerCase().trim() === userInstitutionName.toLowerCase().trim())
                 );
                 const rawGp = typeof currentUser.gpBalance === 'number' ? currentUser.gpBalance : Number(currentUser.gpBalance || 0);
                 const estimatedNaira = (rawGp * effectiveRate).toLocaleString();

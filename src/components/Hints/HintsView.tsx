@@ -227,7 +227,7 @@ export function HintsView() {
         const matchTitle = (h.title || '').toLowerCase().includes(q);
         const matchComp = 'school dome'.includes(q);
         const questions = getHintQuestions(h);
-        const matchQuestions = questions.some((ques) => ques.toLowerCase().includes(q));
+        const matchQuestions = questions.some((ques) => Boolean(ques && ques.toLowerCase().includes(q)));
         return matchRound || matchTitle || matchComp || matchQuestions;
       }
       return true;

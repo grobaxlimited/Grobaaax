@@ -217,7 +217,7 @@ export function deduplicateTransactionList(txList: Transaction[]): Transaction[]
     const payRef = extractTxPaymentReference(t);
     const uId = String(t.userId || '');
     if (payRef) {
-      const pKey = `${uId}_${payRef.toLowerCase()}`;
+      const pKey = `${uId}_${String(payRef).toLowerCase()}`;
       if (seenPaymentRefs.has(pKey)) continue;
       seenPaymentRefs.add(pKey);
     }
@@ -642,10 +642,11 @@ export const checkIsUserSubscribed = (user: UserProfile | null | undefined): boo
   }
 
   // Active plan ID present and valid
+  const planIdStr = String(user.activePlanId || '').toLowerCase();
   if (
     user.activePlanId &&
-    user.activePlanId.trim().length > 0 &&
-    !user.activePlanId.toLowerCase().includes('free')
+    planIdStr.trim().length > 0 &&
+    !planIdStr.includes('free')
   ) {
     return true;
   }
@@ -659,7 +660,7 @@ export const checkIsUserSubscribed = (user: UserProfile | null | undefined): boo
   if ((user as any).isSubscribed) return true;
 
   if (user.membershipTier) {
-    const tier = user.membershipTier.toLowerCase().trim();
+    const tier = String(user.membershipTier).toLowerCase().trim();
     if (
       tier &&
       !tier.includes('free') &&
@@ -671,7 +672,7 @@ export const checkIsUserSubscribed = (user: UserProfile | null | undefined): boo
   }
 
   if (user.subscriptionTier) {
-    const tier = user.subscriptionTier.toLowerCase().trim();
+    const tier = String(user.subscriptionTier).toLowerCase().trim();
     if (tier && !tier.includes('free') && tier !== 'starter scholar' && !tier.includes('scholar (starter)')) {
       return true;
     }
@@ -788,7 +789,7 @@ export const resolveUserSubscriptionStatus = (user: Partial<UserProfile> | null 
     userTargetTier === 'premium' ||
     user.isPremium ||
     (user as any).isSubscribed ||
-    (user.activePlanId && !user.activePlanId.toLowerCase().includes('free')) ||
+    (user.activePlanId && !String(user.activePlanId).toLowerCase().includes('free')) ||
     (user.subscription && user.subscription.status === 'active') ||
     (membership && !membership.includes('free') && membership !== 'starter scholar' && !membership.includes('scholar (starter)') && membership.trim().length > 0) ||
     (subTier && !subTier.includes('free') && subTier !== 'starter scholar' && !subTier.includes('scholar (starter)') && subTier.trim().length > 0) ||
@@ -797,9 +798,9 @@ export const resolveUserSubscriptionStatus = (user: Partial<UserProfile> | null 
 
   if (isPrem) {
     const resolvedTier =
-      (user.membershipTier && !user.membershipTier.toLowerCase().includes('free') && user.membershipTier) ||
-      (user.subscriptionTier && !user.subscriptionTier.toLowerCase().includes('free') && user.subscriptionTier) ||
-      ((user as any).subscriptionPlan && !(user as any).subscriptionPlan.toLowerCase().includes('free') && (user as any).subscriptionPlan) ||
+      (user.membershipTier && !String(user.membershipTier).toLowerCase().includes('free') && user.membershipTier) ||
+      (user.subscriptionTier && !String(user.subscriptionTier).toLowerCase().includes('free') && user.subscriptionTier) ||
+      ((user as any).subscriptionPlan && !String((user as any).subscriptionPlan).toLowerCase().includes('free') && (user as any).subscriptionPlan) ||
       (user.activePlanId && (DEFAULT_SUBSCRIPTION_PLANS.find(p => p.planId === user.activePlanId)?.name)) ||
       'PREMIUM SCHOLAR';
 
@@ -1377,7 +1378,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   const resolvedName = data.fullName || data.name || (isSameUser ? prev.name : fallbackName);
                   const resolvedFullName = data.fullName || data.name || (isSameUser ? prev.fullName : fallbackName);
                   const resolvedEmail = data.email || user.email || (isSameUser ? prev.email : '');
-                  const resolvedUsername = data.username || (isSameUser ? prev.username : (user.displayName ? user.displayName.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 20) : (user.email ? user.email.split('@')[0] : `scholar_${user.uid.substring(0, 5)}`)));
+                  const resolvedUsername = data.username || (isSameUser ? prev.username : (user.displayName ? String(user.displayName).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 20) : (user.email ? user.email.split('@')[0] : `scholar_${user.uid.substring(0, 5)}`)));
                   const resolvedAvatar = data.profileImage || data.avatar || user.photoURL || (isSameUser ? prev.avatar : `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`);
                   const resolvedRole = data.role || (isSuper ? 'admin' : (isSameUser ? prev.role : 'student'));
                   const userIsExpired = !isSuper && isSubscriptionExpired(data);
@@ -1388,8 +1389,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     (data.isSubscribed ||
                       data.isPremium ||
                       data.isVip ||
-                      (data.membershipTier && !data.membershipTier.toLowerCase().includes('free')) ||
-                      (data.subscriptionTier && !data.subscriptionTier.toLowerCase().includes('free')) ||
+                      (data.membershipTier && !String(data.membershipTier).toLowerCase().includes('free')) ||
+                      (data.subscriptionTier && !String(data.subscriptionTier).toLowerCase().includes('free')) ||
                       data.activePlanId ||
                       data.targetTier === 'premium' ||
                       data.targetTier === 'vip' ||
@@ -1507,18 +1508,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     ),
                     isSubscribed: isSuper || Boolean(
                       !userIsExpired &&
-                      (data.isSubscribed || data.isPremium || (data.activePlanId && !data.activePlanId.toLowerCase().includes('free')) || (data.membershipTier && !data.membershipTier.toLowerCase().includes('free') && data.membershipTier.toLowerCase() !== 'starter scholar') || (isSameUser && prev.isSubscribed))
+                      (data.isSubscribed || data.isPremium || (data.activePlanId && !String(data.activePlanId).toLowerCase().includes('free')) || (data.membershipTier && !String(data.membershipTier).toLowerCase().includes('free') && String(data.membershipTier).toLowerCase() !== 'starter scholar') || (isSameUser && prev.isSubscribed))
                     ),
                     isPremium: isSuper || Boolean(
                       !userIsExpired &&
-                      (data.isPremium || (data.activePlanId && !data.activePlanId.toLowerCase().includes('free')) || (data.membershipTier && !data.membershipTier.toLowerCase().includes('free') && data.membershipTier.toLowerCase() !== 'starter scholar') || (isSameUser && prev.isPremium))
+                      (data.isPremium || (data.activePlanId && !String(data.activePlanId).toLowerCase().includes('free')) || (data.membershipTier && !String(data.membershipTier).toLowerCase().includes('free') && String(data.membershipTier).toLowerCase() !== 'starter scholar') || (isSameUser && prev.isPremium))
                     ),
                     isVip: isSuper || Boolean(
                       !userIsExpired &&
                       (data.isVip === true ||
-                       (data.membershipTier && (data.membershipTier.toLowerCase().includes('vip') || data.membershipTier.toLowerCase().includes('titan') || data.membershipTier.toLowerCase().includes('annual'))) ||
-                       (data.activePlanId && (data.activePlanId.toLowerCase().includes('titan') || data.activePlanId.toLowerCase().includes('vip'))) ||
-                       (data.subscriptionTier && (data.subscriptionTier.toLowerCase().includes('vip') || data.subscriptionTier.toLowerCase().includes('titan'))) ||
+                       (data.membershipTier && (String(data.membershipTier).toLowerCase().includes('vip') || String(data.membershipTier).toLowerCase().includes('titan') || String(data.membershipTier).toLowerCase().includes('annual'))) ||
+                       (data.activePlanId && (String(data.activePlanId).toLowerCase().includes('titan') || String(data.activePlanId).toLowerCase().includes('vip'))) ||
+                       (data.subscriptionTier && (String(data.subscriptionTier).toLowerCase().includes('vip') || String(data.subscriptionTier).toLowerCase().includes('titan'))) ||
                        data.gusTier === 'Titan' ||
                        (isSameUser && prev.isVip))
                     ),
@@ -1527,7 +1528,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                       data.isManualVerified ||
                       data.role === 'admin' ||
                       data.role === 'super_admin' ||
-                      (!userIsExpired && (data.verified || data.isVip || data.isPremium || (data.activePlanId && !data.activePlanId.toLowerCase().includes('free'))))
+                      (!userIsExpired && (data.verified || data.isVip || data.isPremium || (data.activePlanId && !String(data.activePlanId).toLowerCase().includes('free'))))
                     ),
                     gusTier: isSuper ? 'Grandmaster' : (
                       userIsExpired
@@ -1634,8 +1635,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser.planId ||
         (currentUser.targetTier && currentUser.targetTier !== 'free') ||
         (currentUser.tierType && currentUser.tierType !== 'free') ||
-        (currentUser.membershipTier && !currentUser.membershipTier.toLowerCase().includes('free')) ||
-        (currentUser.subscriptionTier && !currentUser.subscriptionTier.toLowerCase().includes('free')) ||
+        (currentUser.membershipTier && !String(currentUser.membershipTier).toLowerCase().includes('free')) ||
+        (currentUser.subscriptionTier && !String(currentUser.subscriptionTier).toLowerCase().includes('free')) ||
         (currentUser.subscription && currentUser.subscription.status === 'active')
       );
 
@@ -2988,19 +2989,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               const authData = data.author || {};
               const isPrem = Boolean(
                 authData.isPremium ||
-                (authData.membershipTier && !authData.membershipTier.toLowerCase().includes('free')) ||
-                (authData.subscriptionTier && !authData.subscriptionTier.toLowerCase().includes('free'))
+                (authData.membershipTier && !String(authData.membershipTier).toLowerCase().includes('free')) ||
+                (authData.subscriptionTier && !String(authData.subscriptionTier).toLowerCase().includes('free'))
               );
               const isCm = Boolean(
                 authData.isCommunityManager ||
                 authData.role === 'community_manager' ||
-                (authData.name && authData.name.toLowerCase().includes('community manager'))
+                (authData.name && String(authData.name).toLowerCase().includes('community manager'))
               );
               const isStaff = Boolean(
                 authData.isStaffOrAdmin ||
                 authData.role === 'admin' ||
                 authData.role === 'super_admin' ||
-                (authData.name && (authData.name.toLowerCase().includes('admin') || authData.name.toLowerCase().includes('staff')))
+                (authData.name && (String(authData.name).toLowerCase().includes('admin') || String(authData.name).toLowerCase().includes('staff')))
               );
 
               const createdAtMillis =
@@ -3575,7 +3576,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           const merged = [...loadedBadges];
           MOCK_BADGES_STORE.forEach((defBadge) => {
-            if (!merged.some((b) => b.id === defBadge.id || b.name.toLowerCase() === defBadge.name.toLowerCase())) {
+            if (!merged.some((b) => b.id === defBadge.id || (b.name && defBadge.name && String(b.name).toLowerCase() === String(defBadge.name).toLowerCase()))) {
               merged.push(defBadge);
             }
           });
@@ -3755,7 +3756,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } else if (
           isActivelySubscribed ||
           currentUser.isPremium ||
-          (currentUser.activePlanId && !currentUser.activePlanId.toLowerCase().includes('free')) ||
+          (currentUser.activePlanId && !String(currentUser.activePlanId).toLowerCase().includes('free')) ||
           (membership && !membership.includes('free') && membership !== 'starter scholar' && !membership.includes('scholar (starter)') && membership.trim().length > 0) ||
           (subTier && !subTier.includes('free') && subTier !== 'starter scholar' && !subTier.includes('scholar (starter)') && subTier.trim().length > 0) ||
           (planStr && !planStr.includes('free') && planStr !== 'starter scholar' && planStr.trim().length > 0)
@@ -3866,12 +3867,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isStaffOrAdmin =
       currentUser.role === 'admin' ||
       currentUser.role === 'super_admin' ||
-      currentUser.name.toLowerCase().includes('admin') ||
-      currentUser.name.toLowerCase().includes('staff');
+      (currentUser.name && currentUser.name.toLowerCase().includes('admin')) ||
+      (currentUser.name && currentUser.name.toLowerCase().includes('staff'));
 
     const isCommunityManager =
       currentUser.role === 'community_manager' ||
-      currentUser.name.toLowerCase().includes('community manager');
+      (currentUser.name && currentUser.name.toLowerCase().includes('community manager'));
 
     const nowMillis = Date.now();
     const newPost: Post = {
@@ -4430,7 +4431,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userRole === 'super_admin' ||
       userRole === 'community_manager' ||
       userRole === 'staff' ||
-      currentUser.name?.toLowerCase().includes('admin')
+      Boolean(currentUser.name && currentUser.name.toLowerCase().includes('admin'))
     ) {
       const todayListings = minimartProducts.filter(p => {
         if (p.sellerId !== uid) return false;
@@ -4506,7 +4507,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } else if (
           isActivelySubscribed ||
           currentUser.isPremium ||
-          (currentUser.activePlanId && !currentUser.activePlanId.toLowerCase().includes('free')) ||
+          (currentUser.activePlanId && !String(currentUser.activePlanId).toLowerCase().includes('free')) ||
           (membership && !membership.includes('free') && membership !== 'starter scholar' && !membership.includes('scholar (starter)') && membership.trim().length > 0) ||
           (subTier && !subTier.includes('free') && subTier !== 'starter scholar' && !subTier.includes('scholar (starter)') && subTier.trim().length > 0) ||
           (planStr && !planStr.includes('free') && planStr !== 'starter scholar' && planStr.trim().length > 0)
@@ -5136,12 +5137,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isStaffOrAdmin =
       currentUser.role === 'admin' ||
       currentUser.role === 'super_admin' ||
-      currentUser.name.toLowerCase().includes('admin') ||
-      currentUser.name.toLowerCase().includes('staff');
+      (currentUser.name && currentUser.name.toLowerCase().includes('admin')) ||
+      (currentUser.name && currentUser.name.toLowerCase().includes('staff'));
 
     const isCommunityManager =
       currentUser.role === 'community_manager' ||
-      currentUser.name.toLowerCase().includes('community manager');
+      (currentUser.name && currentUser.name.toLowerCase().includes('community manager'));
 
     let updatedCommentsList: PostComment[] = [];
     setPosts(prev => prev.map(p => {
@@ -5313,9 +5314,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const isDuplicate = transactions.some((existing) => {
         const existingRef = extractTxPaymentReference(existing);
         return (
-          (existingRef && existingRef.toLowerCase() === payRef.toLowerCase()) ||
+          Boolean(existingRef && payRef && String(existingRef).toLowerCase() === String(payRef).toLowerCase()) ||
           existing.transactionId === payRef ||
-          (existing.meta?.paymentReference && String(existing.meta.paymentReference).toLowerCase() === payRef.toLowerCase())
+          Boolean(existing.meta?.paymentReference && payRef && String(existing.meta.paymentReference).toLowerCase() === String(payRef).toLowerCase())
         );
       });
       if (isDuplicate) {
@@ -5627,7 +5628,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setNotifications(prev => {
       const updated = prev.map(n => {
-        const matchesId = n.id === trimmedId || n.id.toLowerCase() === trimmedId.toLowerCase();
+        const matchesId = n.id === trimmedId || (Boolean(n.id) && String(n.id).toLowerCase() === trimmedId.toLowerCase());
         const matchesFp = targetNotif && (n.title || n.message) &&
           normalizeNotifFp(n.title, n.message) === normalizeNotifFp(targetNotif.title, targetNotif.message);
         return matchesId || matchesFp ? { ...n, isRead: true } : n;
@@ -6083,8 +6084,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const alreadyHasTx = transactions.some((existing) => {
         const ref = extractTxPaymentReference(existing);
         return (
-          (ref && ref.toLowerCase() === finalReference.toLowerCase()) ||
-          (existing.meta?.paymentReference && String(existing.meta.paymentReference).toLowerCase() === finalReference.toLowerCase())
+          Boolean(ref && finalReference && String(ref).toLowerCase() === String(finalReference).toLowerCase()) ||
+          Boolean(existing.meta?.paymentReference && finalReference && String(existing.meta.paymentReference).toLowerCase() === String(finalReference).toLowerCase())
         );
       });
 
@@ -6114,11 +6115,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Determine new tier attributes
+      const planIdLower = String(plan.planId || '').toLowerCase();
+      const planNameLower = String(plan.name || '').toLowerCase();
       const resolvedTargetTier: 'free' | 'premium' | 'vip' =
         plan.targetTier ||
         plan.tierType ||
-        ((plan.planId && (plan.planId.toLowerCase().includes('titan') || plan.planId.toLowerCase().includes('vip'))) ||
-        (plan.name && (plan.name.toLowerCase().includes('titan') || plan.name.toLowerCase().includes('vip') || plan.name.toLowerCase().includes('annual'))) ||
+        (planIdLower.includes('titan') || planIdLower.includes('vip') ||
+        planNameLower.includes('titan') || planNameLower.includes('vip') || planNameLower.includes('annual') ||
         plan.priceNaira >= 20000
           ? 'vip'
           : 'premium');
@@ -6415,13 +6418,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
             let matchedPlan = subscriptionPlansRef.current.find(
               p => (matchedPlanId && (p.planId === matchedPlanId || p.id === matchedPlanId)) ||
-                   (matchedPlanName && p.name.toLowerCase() === matchedPlanName.toLowerCase())
+                   Boolean(matchedPlanName && p.name && String(p.name).toLowerCase() === String(matchedPlanName).toLowerCase())
             );
 
             if (!matchedPlan) {
               matchedPlan = DEFAULT_SUBSCRIPTION_PLANS.find(
                 p => (matchedPlanId && (p.planId === matchedPlanId || p.id === matchedPlanId)) ||
-                     (matchedPlanName && p.name.toLowerCase() === matchedPlanName.toLowerCase())
+                     Boolean(matchedPlanName && p.name && String(p.name).toLowerCase() === String(matchedPlanName).toLowerCase())
               );
             }
 

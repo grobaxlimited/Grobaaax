@@ -57,8 +57,8 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({ post, onCl
     currentUser.role === 'admin' ||
     currentUser.role === 'super_admin' ||
     currentUser.role === 'community_manager' ||
-    currentUser.name?.toLowerCase().includes('admin') ||
-    currentUser.name?.toLowerCase().includes('manager')
+    (currentUser.name && currentUser.name.toLowerCase().includes('admin')) ||
+    (currentUser.name && currentUser.name.toLowerCase().includes('manager'))
   );
 
   // Auto-focus input when replying

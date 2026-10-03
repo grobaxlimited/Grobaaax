@@ -78,11 +78,11 @@ export function resolveUserSubscriptionTier(user: any): 'free' | 'premium' | 'vi
     return 'free';
   }
 
-  const membership = (user.membershipTier || '').toLowerCase().trim();
-  const subTier = (user.subscriptionTier || '').toLowerCase().trim();
-  const plan = (user.subscriptionPlan || user.planId || user.tier || user.activePlanId || user.plan || '').toLowerCase().trim();
-  const planName = (user.planNameSnapshot || user.subscription?.name || user.subscription?.planId || '').toLowerCase().trim();
-  const targetTier = (user.targetTier || user.tierType || '').toLowerCase().trim();
+  const membership = String(user.membershipTier || '').toLowerCase().trim();
+  const subTier = String(user.subscriptionTier || '').toLowerCase().trim();
+  const plan = String(user.subscriptionPlan || user.planId || user.tier || user.activePlanId || user.plan || '').toLowerCase().trim();
+  const planName = String(user.planNameSnapshot || user.subscription?.name || user.subscription?.planId || '').toLowerCase().trim();
+  const targetTier = String(user.targetTier || user.tierType || '').toLowerCase().trim();
 
   // 1. VIP Check (Check before free checks so active VIP accounts are always granted VIP limits)
   const isVipCandidate = Boolean(
@@ -181,7 +181,10 @@ export function isUserBlueBadge(user: any): boolean {
   if (user.hasBlueBadge || user.isVerified || user.verifiedBadge || user.blueBadge) return true;
 
   // Check equipped badge
-  if (user.equippedBadge?.id?.toLowerCase().includes('verified') || user.equippedBadge?.name?.toLowerCase().includes('verified')) {
+  if (
+    (user.equippedBadge?.id && user.equippedBadge.id.toLowerCase().includes('verified')) ||
+    (user.equippedBadge?.name && user.equippedBadge.name.toLowerCase().includes('verified'))
+  ) {
     return true;
   }
   return false;
@@ -422,10 +425,10 @@ export async function fetchCampusStudents(params: {
         if (search && search.trim()) {
           const s = search.trim().toLowerCase();
           matchesSearch =
-            uName.toLowerCase().includes(s) ||
-            uUsername.toLowerCase().includes(s) ||
-            uDept.toLowerCase().includes(s) ||
-            uFaculty.toLowerCase().includes(s);
+            Boolean(uName && String(uName).toLowerCase().includes(s)) ||
+            Boolean(uUsername && String(uUsername).toLowerCase().includes(s)) ||
+            Boolean(uDept && String(uDept).toLowerCase().includes(s)) ||
+            Boolean(uFaculty && String(uFaculty).toLowerCase().includes(s));
         }
 
         if (matchesFaculty && matchesDepartment && matchesSearch) {
@@ -481,8 +484,8 @@ export async function fetchCampusStudents(params: {
           if (search && search.trim()) {
             const s = search.trim().toLowerCase();
             matchesSearch =
-              mDept.toLowerCase().includes(s) ||
-              mFaculty.toLowerCase().includes(s);
+              Boolean(mDept && String(mDept).toLowerCase().includes(s)) ||
+              Boolean(mFaculty && String(mFaculty).toLowerCase().includes(s));
           }
 
           if (matchesFaculty && matchesDepartment && matchesSearch) {
@@ -868,7 +871,7 @@ export async function respondCampusChatRequest(
         ].filter(Boolean).join(' â€¢ ');
 
         await addDoc(collection(db, 'notifications'), {
-          title: 'Campus Connection Accepted! í ¼í¾‰',
+          title: 'Campus Connection Accepted! ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½',
           message: originDetails
             ? `${recipientNameForNotif} (${originDetails}) accepted your Campus connection request. You can now chat on WhatsApp!`
             : `${recipientNameForNotif} accepted your Campus connection request. You can now chat on WhatsApp!`,

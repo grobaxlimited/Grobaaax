@@ -217,13 +217,13 @@ export function AdminUsersView() {
   const filteredUsers = users.filter((u) => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
-      u.name.toLowerCase().includes(term) ||
-      u.username.toLowerCase().includes(term) ||
-      (u.email || '').toLowerCase().includes(term) ||
-      u.id.toLowerCase().includes(term) ||
-      u.institution.toLowerCase().includes(term) ||
-      u.department.toLowerCase().includes(term) ||
-      u.level.toLowerCase().includes(term);
+      Boolean(u.name && u.name.toLowerCase().includes(term)) ||
+      Boolean(u.username && u.username.toLowerCase().includes(term)) ||
+      Boolean((u.email || '').toLowerCase().includes(term)) ||
+      Boolean(u.id && u.id.toLowerCase().includes(term)) ||
+      Boolean(u.institution && u.institution.toLowerCase().includes(term)) ||
+      Boolean(u.department && u.department.toLowerCase().includes(term)) ||
+      Boolean(u.level && u.level.toLowerCase().includes(term));
 
     const matchesRole =
       roleFilter === 'ALL'

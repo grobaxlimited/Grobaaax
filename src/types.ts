@@ -106,6 +106,7 @@ export interface SubscriptionPlan {
  * 3. VIP (₦599 / 30 Days) - rendered BELOW Premium
  */
 export const getSubscriptionPlanTierRank = (p: SubscriptionPlan): number => {
+  if (!p) return 0;
   const name = (p.name || '').toLowerCase();
   const id = (p.id || p.planId || '').toLowerCase();
   const tier = (p.targetTier || p.tierType || '').toLowerCase();

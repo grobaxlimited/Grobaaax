@@ -1600,23 +1600,23 @@ export const ensureUserInFirestore = async (
         !isSubscriptionExpired(existing) && !isSubscriptionExpired(fallbackDetails) && (
           existing?.isSubscribed ||
           fallbackDetails?.isSubscribed ||
-          (existing?.activePlanId && !existing.activePlanId.toLowerCase().includes('free')) ||
-          (existing?.membershipTier && !existing.membershipTier.toLowerCase().includes('free') && existing.membershipTier.toLowerCase() !== 'starter scholar')
+          (existing?.activePlanId && !String(existing.activePlanId).toLowerCase().includes('free')) ||
+          (existing?.membershipTier && !String(existing.membershipTier).toLowerCase().includes('free') && String(existing.membershipTier).toLowerCase() !== 'starter scholar')
         )
       ),
       isPremium: isSuper ? true : Boolean(
         !isSubscriptionExpired(existing) && !isSubscriptionExpired(fallbackDetails) && (
           existing?.isPremium ||
           fallbackDetails?.isPremium ||
-          (existing?.activePlanId && !existing.activePlanId.toLowerCase().includes('free')) ||
-          (existing?.membershipTier && !existing.membershipTier.toLowerCase().includes('free') && existing.membershipTier.toLowerCase() !== 'starter scholar')
+          (existing?.activePlanId && !String(existing.activePlanId).toLowerCase().includes('free')) ||
+          (existing?.membershipTier && !String(existing.membershipTier).toLowerCase().includes('free') && String(existing.membershipTier).toLowerCase() !== 'starter scholar')
         )
       ),
       isVip: isSuper ? true : Boolean(
         !isSubscriptionExpired(existing) && !isSubscriptionExpired(fallbackDetails) && (
           existing?.isVip ||
           fallbackDetails?.isVip ||
-          (existing?.membershipTier && (existing.membershipTier.toLowerCase().includes('vip') || existing.membershipTier.toLowerCase().includes('titan')))
+          (existing?.membershipTier && (String(existing.membershipTier).toLowerCase().includes('vip') || String(existing.membershipTier).toLowerCase().includes('titan')))
         )
       ),
       subscriptionExpiry: isSuper ? '2099-12-31T23:59:59.999Z' : (existing?.subscriptionExpiry || fallbackDetails?.subscriptionExpiry || ''),
@@ -1960,15 +1960,15 @@ export const getUserProfileDoc = async (uid: string): Promise<UserProfile | null
           : (isSubscriptionExpired(data) ? 'free' : (data.tierType || data.targetTier || 'free')),
         isSubscribed: Boolean(
           data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin ||
-          (!isSubscriptionExpired(data) && (data.isSubscribed || data.isPremium || (data.activePlanId && !data.activePlanId.toLowerCase().includes('free'))))
+          (!isSubscriptionExpired(data) && (data.isSubscribed || data.isPremium || (data.activePlanId && !String(data.activePlanId).toLowerCase().includes('free'))))
         ),
         isPremium: Boolean(
           data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin ||
-          (!isSubscriptionExpired(data) && (data.isPremium || (data.activePlanId && !data.activePlanId.toLowerCase().includes('free')) || (data.membershipTier && !data.membershipTier.toLowerCase().includes('free'))))
+          (!isSubscriptionExpired(data) && (data.isPremium || (data.activePlanId && !String(data.activePlanId).toLowerCase().includes('free')) || (data.membershipTier && !String(data.membershipTier).toLowerCase().includes('free'))))
         ),
         isVip: Boolean(
           data.role === 'admin' || data.role === 'super_admin' || data.isSuperAdmin ||
-          (!isSubscriptionExpired(data) && (data.isVip || (data.membershipTier && (data.membershipTier.toLowerCase().includes('vip') || data.membershipTier.toLowerCase().includes('titan')))))
+          (!isSubscriptionExpired(data) && (data.isVip || (data.membershipTier && (String(data.membershipTier).toLowerCase().includes('vip') || String(data.membershipTier).toLowerCase().includes('titan')))))
         ),
         subscriptionExpiry: data.subscriptionExpiry || '',
         subscription: isSubscriptionExpired(data) && data.subscription
@@ -6372,6 +6372,15 @@ export const evaluateAndProcessLiveAnswer = async (
       return { isCorrect: false, isWinner: false, isAttemptConsumed: false };
     }
 
+    if (!user) {
+      return { isCorrect: false, isWinner: false, isAttemptConsumed: false };
+    }
+
+    const uNameLower = String(user.name || '').toLowerCase();
+    const uMemTier = String(user.membershipTier || '').toLowerCase();
+    const uSubTier = String(user.subscriptionTier || '').toLowerCase();
+    const uSubPlan = String(user.subscriptionPlan || '').toLowerCase();
+
     // MATCH FOUND! Check if user is Premium/VIP or Free Scholar
     // Only Premium and VIP scholars (and staff/admins) receive cash GP rewards
     let isStaffOrAdmin = Boolean(
@@ -6382,12 +6391,12 @@ export const evaluateAndProcessLiveAnswer = async (
       user.id === 'aGZBTsB4BBNvlY1A69hwfAb5DCJ3' ||
       user.id === 'iH02BTcB4B0BV2YLA60WwFAi50CJ3' ||
       user.id === 'grobax_arbiter' ||
-      (user.name && (
-        user.name.toLowerCase().includes('admin') ||
-        user.name.toLowerCase().includes('moderator') ||
-        user.name.toLowerCase().includes('staff') ||
-        user.name.toLowerCase().includes('arbiter') ||
-        user.name.toLowerCase().includes('barns')
+      (uNameLower && (
+        uNameLower.includes('admin') ||
+        uNameLower.includes('moderator') ||
+        uNameLower.includes('staff') ||
+        uNameLower.includes('arbiter') ||
+        uNameLower.includes('barns')
       ))
     );
 
@@ -6395,10 +6404,10 @@ export const evaluateAndProcessLiveAnswer = async (
 
     let isUserVip = !isMemoryExpired && (isStaffOrAdmin || Boolean(
       user.isVip ||
-      (user.membershipTier && (user.membershipTier.toLowerCase().includes('vip') || user.membershipTier.toLowerCase().includes('titan'))) ||
+      uMemTier.includes('vip') || uMemTier.includes('titan') ||
       user.gusTier === 'Titan' ||
-      (user.subscriptionTier && (user.subscriptionTier.toLowerCase().includes('vip') || user.subscriptionTier.toLowerCase().includes('titan'))) ||
-      (user.subscriptionPlan && (user.subscriptionPlan.toLowerCase().includes('vip') || user.subscriptionPlan.toLowerCase().includes('titan')))
+      uSubTier.includes('vip') || uSubTier.includes('titan') ||
+      uSubPlan.includes('vip') || uSubPlan.includes('titan')
     ));
     let isUserPremium = !isMemoryExpired && (isStaffOrAdmin || isUserVip || Boolean(user.isPremium));
 
