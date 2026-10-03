@@ -9,7 +9,9 @@ import {
 import { SchoolDomeMessageItem } from './SchoolDomeMessageItem';
 import { SchoolDomeRulesModal } from './SchoolDomeRulesModal';
 import { SchoolDomeContendersModal } from './SchoolDomeContendersModal';
-import { ChatroomComposer } from '../Community/ChatroomLive/ChatroomComposer';
+import { SchoolDomeComposer } from './SchoolDomeComposer';
+import { SchoolDomeRegistrationModal } from './SchoolDomeRegistrationModal';
+import { SchoolDomeQuestionCard } from './SchoolDomeQuestionCard';
 import { CreateSchoolDomeQuestionModal } from './CreateSchoolDomeQuestionModal';
 import { SchoolDomeResultsTab } from './SchoolDomeResultsTab';
 import { WhatsAppChatBackground } from '../common/WhatsAppChatBackground';
@@ -28,6 +30,9 @@ import {
   pauseSchoolDomeSeason,
   resumeSchoolDomeSeason,
   isAnswerCorrect,
+  getCanonicalQuestionId,
+  DEFAULT_INITIAL_SEASON,
+  DEFAULT_INITIAL_QUESTION,
   DEFAULT_INITIAL_MESSAGES,
 } from '../../lib/schoolDomeService';
 import {
@@ -99,19 +104,56 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     openWalletModal,
   } = useApp();
 
-  const [currentSeason, setCurrentSeason] = useState<SchoolDomeSeason | null>(null);
-  const [activeQuestion, setActiveQuestion] = useState<SchoolDomeQuestion | null>(null);
+  const [currentSeason, setCurrentSeason] = useState<SchoolDomeSeason | null>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('grobax_school_dome_active_season');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed) return parsed;
+        }
+      }
+    } catch {}
+    return DEFAULT_INITIAL_SEASON;
+  });
+  const [activeQuestion, setActiveQuestion] = useState<SchoolDomeQuestion | null>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('grobax_school_dome_active_question');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.status === 'active') return parsed;
+        }
+      }
+    } catch {}
+    return DEFAULT_INITIAL_QUESTION?.status === 'active' ? DEFAULT_INITIAL_QUESTION : null;
+  });
   const [messages, setMessages] = useState<SchoolDomeMessage[]>(() => {
     try {
       const cached = localStorage.getItem('grobax_school_dome_cached_messages');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((m: SchoolDomeMessage) => {
+            if (m.id === 'dome_msg_q_13' && m.competitionRef && m.competitionRef.status === 'closed' && DEFAULT_INITIAL_QUESTION?.status === 'active') {
+              return {
+                ...m,
+                competitionRef: {
+                  ...m.competitionRef,
+                  status: 'active',
+                  endAt: DEFAULT_INITIAL_QUESTION.endAt,
+                },
+              };
+            }
+            return m;
+          });
+        }
       }
     } catch {}
     return DEFAULT_INITIAL_MESSAGES;
   });
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'arena' | 'results'>(initialTab);
 
   useEffect(() => {
@@ -129,10 +171,39 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     const handleSeasonUpdated = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail) {
-        setCurrentSeason(prev => (prev ? { ...prev, ...detail } : detail));
+        setCurrentSeason(detail);
+        if (detail.seasonNumber === 1 && !detail.firstQuestionLaunched && (detail.totalQuestionsLaunched || 0) === 0) {
+          setActiveQuestion(null);
+          setSeasonQuestions([]);
+        }
       }
     };
     window.addEventListener('school_dome_season_updated', handleSeasonUpdated);
+
+    const handleSeasonReset = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        setCurrentSeason(detail);
+        setActiveQuestion(null);
+        setSeasonQuestions([]);
+        setReplyTarget(null);
+      }
+    };
+    window.addEventListener('school_dome_season_reset', handleSeasonReset);
+
+    const handleMessagesReset = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (Array.isArray(detail)) {
+        setMessages(detail);
+      }
+    };
+    window.addEventListener('school_dome_messages_reset', handleMessagesReset);
+
+    const handleActiveQuestionUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setActiveQuestion(detail || null);
+    };
+    window.addEventListener('school_dome_active_question_updated', handleActiveQuestionUpdated);
 
     const handleMessageReacted = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -181,6 +252,9 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     return () => {
       unsubSeason();
       window.removeEventListener('school_dome_season_updated', handleSeasonUpdated);
+      window.removeEventListener('school_dome_season_reset', handleSeasonReset);
+      window.removeEventListener('school_dome_messages_reset', handleMessagesReset);
+      window.removeEventListener('school_dome_active_question_updated', handleActiveQuestionUpdated);
       window.removeEventListener('school_dome_message_reacted', handleMessageReacted);
       window.removeEventListener('school_dome_message_posted', handleMessagePosted);
       window.removeEventListener('school_dome_question_launched', handleQuestionLaunched);
@@ -222,7 +296,9 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     return () => unsubMsg();
   }, [currentSeason?.id]);
 
-  const [seasonQuestions, setSeasonQuestions] = useState<SchoolDomeQuestion[]>([]);
+  const [seasonQuestions, setSeasonQuestions] = useState<SchoolDomeQuestion[]>(() => {
+    return DEFAULT_INITIAL_QUESTION ? [DEFAULT_INITIAL_QUESTION] : [];
+  });
 
   useEffect(() => {
     if (!currentSeason?.id) return;
@@ -262,6 +338,21 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     currentUser?.name?.toLowerCase().includes('admin') ||
     currentUser?.name?.toLowerCase().includes('staff');
 
+  // Real-time ticking sensor to instantly remove the pinned question card when its time expires
+  const [nowTick, setNowTick] = useState<number>(Date.now());
+  useEffect(() => {
+    if (!activeQuestion || activeQuestion.status !== 'active') return;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setNowTick(now);
+      if (activeQuestion && activeQuestion.status === 'active' && activeQuestion.endAt && activeQuestion.endAt <= now) {
+        setActiveQuestion((prev) => (prev && prev.id === activeQuestion.id ? { ...prev, status: 'closed' } : prev));
+        closeSchoolDomeQuestion(currentSeason?.id || 'season_dome_1', activeQuestion.id).catch(() => {});
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [activeQuestion?.id, activeQuestion?.status, activeQuestion?.endAt, currentSeason?.id]);
+
   // Auto-close active question when countdown timer expires so non-responders are automatically eliminated
   const closingQuestionRef = useRef<string | null>(null);
   useEffect(() => {
@@ -269,18 +360,34 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     if (closingQuestionRef.current === activeQuestion.id) return;
     const diff = activeQuestion.endAt - Date.now();
 
+    // If question was already in the past, close idempotently without false eliminations
+    if (diff <= 0) {
+      closingQuestionRef.current = activeQuestion.id;
+      setActiveQuestion((prev) => (prev && prev.id === activeQuestion.id ? { ...prev, status: 'closed' } : prev));
+      closeSchoolDomeQuestion(currentSeason?.id || 'season_dome_1', activeQuestion.id).catch(() => {});
+      return;
+    }
+
     const handleTimeout = () => {
       closingQuestionRef.current = activeQuestion.id;
 
       // Rule: Users are eliminated by not answering a particular question before the time expired
-      const isStanding = currentSeason?.activeUserIds?.includes(currentUser.id);
-      const hasSurvived = activeQuestion.survivorUserIds?.includes(currentUser.id);
+      const cUid = currentUser?.id || (currentUser as any)?.uid;
+      const cAltUid = (currentUser as any)?.uid || currentUser?.id;
+      const isStanding = Boolean(
+        (cUid && currentSeason?.activeUserIds?.includes(cUid)) ||
+        (cAltUid && currentSeason?.activeUserIds?.includes(cAltUid))
+      );
+      const hasSurvived = Boolean(
+        (cUid && activeQuestion.survivorUserIds?.includes(cUid)) ||
+        (cAltUid && activeQuestion.survivorUserIds?.includes(cAltUid))
+      );
 
       if (isStanding && !hasSurvived && !isStaffOrAdmin) {
         setCurrentSeason((prev) => {
           if (!prev) return prev;
-          const newActive = (prev.activeUserIds || []).filter((id) => id !== currentUser.id);
-          const newEliminated = Array.from(new Set([...(prev.eliminatedUserIds || []), currentUser.id]));
+          const newActive = (prev.activeUserIds || []).filter((id) => id !== cUid && id !== cAltUid);
+          const newEliminated = Array.from(new Set([...(prev.eliminatedUserIds || []), cUid]));
           const updated = { ...prev, activeUserIds: newActive, eliminatedUserIds: newEliminated };
           try {
             localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(updated));
@@ -299,10 +406,6 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
       closeSchoolDomeQuestion(currentSeason?.id || 'season_dome_1', activeQuestion.id).catch(() => {});
     };
 
-    if (diff <= 0) {
-      handleTimeout();
-      return;
-    }
     const timer = setTimeout(handleTimeout, Math.max(100, diff));
     return () => clearTimeout(timer);
   }, [
@@ -313,6 +416,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     currentSeason?.id,
     currentSeason?.activeUserIds,
     currentUser.id,
+    (currentUser as any)?.uid,
     isStaffOrAdmin,
   ]);
 
@@ -413,17 +517,27 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
   // Participation & Spectator Status (Users cannot participate or register any longer after the first question has been launched)
   const isRegistrationOpen = Boolean(
     currentSeason &&
+    (currentSeason.status === 'active' || currentSeason.status === 'registration_open') &&
     !currentSeason.isRegistrationLocked &&
     !currentSeason.firstQuestionLaunched &&
     (currentSeason.totalQuestionsLaunched || 0) === 0 &&
     (currentSeason.currentQuestionNumber || 0) === 0 &&
-    !activeQuestion &&
-    currentSeason.status !== 'ended'
+    !activeQuestion
   );
-  const isUserRegistered = Boolean(currentSeason?.registeredUserIds?.includes(currentUser.id));
-  const isUserEliminated = Boolean(currentSeason?.eliminatedUserIds?.includes(currentUser.id));
-  const isUserStanding = Boolean(currentSeason?.activeUserIds?.includes(currentUser.id));
-  const isSpectator = !isStaffOrAdmin && (!isUserRegistered || isUserEliminated || !isUserStanding);
+  const currentUid = currentUser?.id || (currentUser as any)?.uid || '';
+  const currentAltUid = (currentUser as any)?.uid || currentUser?.id || '';
+
+  const isUserRegistered = Boolean(
+    (currentUid && currentSeason?.registeredUserIds?.includes(currentUid)) ||
+    (currentAltUid && currentSeason?.registeredUserIds?.includes(currentAltUid))
+  );
+  const isUserEliminated = Boolean(
+    (currentUid && currentSeason?.eliminatedUserIds?.includes(currentUid)) ||
+    (currentAltUid && currentSeason?.eliminatedUserIds?.includes(currentAltUid))
+  );
+  // Standing means registered and not eliminated from the season
+  const isUserStanding = isUserRegistered && !isUserEliminated;
+  const isSpectator = !isStaffOrAdmin && (!isUserRegistered || isUserEliminated);
 
   const handleRegister = async () => {
     if (!currentSeason?.id || isRegistering) return;
@@ -434,7 +548,19 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     try {
       setIsRegistering(true);
       const res = await registerUserForSchoolDome(currentSeason.id, currentUser);
-      if (!res.success) {
+      if (res.success) {
+        setCurrentSeason((prev) => {
+          if (!prev) return prev;
+          const reg = Array.from(new Set([...(prev.registeredUserIds || []), currentUid]));
+          const act = Array.from(new Set([...(prev.activeUserIds || []), currentUid]));
+          const updated = { ...prev, registeredUserIds: reg, activeUserIds: act };
+          try {
+            localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(updated));
+            window.dispatchEvent(new CustomEvent('school_dome_season_updated', { detail: updated }));
+          } catch {}
+          return updated;
+        });
+      } else {
         alert(res.message);
       }
     } catch (err: any) {
@@ -587,40 +713,67 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
   };
 
   const hasUserRepliedToQuestionMessage = useCallback((msg: SchoolDomeMessage): boolean => {
-    if (msg.type !== 'question') return false;
-    const qId = msg.competitionRef?.questionId || msg.questionId || msg.id.replace(/^dome_msg_q_/, '').replace(/^msg_sdq_/, '').replace(/^sdq_/, '');
-    const normName = (currentUser?.name || '').toLowerCase().trim();
+    if (!msg || msg.type !== 'question') return false;
 
-    if (msg.competitionRef?.repliedUserIds?.includes(currentUser.id)) return true;
-    if (normName && (msg.competitionRef as any)?.repliedUsernames?.includes(normName)) return true;
-    if (msg.competitionRef?.selectedWinners?.some((w) => w.userId === currentUser.id)) return true;
+    // Resolve current user ID accurately
+    const cUid = currentUser?.id || (currentUser as any)?.uid;
+    if (!cUid) return false;
+    const cAltUid = (currentUser as any)?.uid || currentUser?.id;
 
-    if (activeQuestion && (activeQuestion.id === qId || activeQuestion.questionNumber === msg.competitionRef?.questionNumber)) {
-      if (activeQuestion.repliedUserIds?.includes(currentUser.id)) return true;
-      if (activeQuestion.survivorUserIds?.includes(currentUser.id)) return true;
-      if (activeQuestion.eliminatedUserIds?.includes(currentUser.id)) return true;
+    // Resolve question identifiers
+    const canonicalQId = getCanonicalQuestionId(msg);
+    const qNumber = msg.competitionRef?.questionNumber || msg.questionNumber;
+
+    // 1. Check if user's UID is in question message's repliedUserIds
+    const msgReplied = msg.competitionRef?.repliedUserIds;
+    if (Array.isArray(msgReplied) && (msgReplied.includes(cUid) || (cAltUid && msgReplied.includes(cAltUid)))) {
+      return true;
     }
 
-    const matchingQ = seasonQuestions.find((q) => q.id === qId || q.questionNumber === msg.competitionRef?.questionNumber);
-    if (matchingQ) {
-      if (matchingQ.repliedUserIds?.includes(currentUser.id)) return true;
-      if (matchingQ.survivorUserIds?.includes(currentUser.id)) return true;
-      if (matchingQ.eliminatedUserIds?.includes(currentUser.id)) return true;
+    // 2. Check if user's UID is in activeQuestion's repliedUserIds (only for matching question)
+    if (activeQuestion && canonicalQId && getCanonicalQuestionId(activeQuestion) === canonicalQId) {
+      if (Array.isArray(activeQuestion.repliedUserIds) && (activeQuestion.repliedUserIds.includes(cUid) || (cAltUid && activeQuestion.repliedUserIds.includes(cAltUid)))) {
+        return true;
+      }
     }
 
-    const hasUserAnswerInChat = messages.some(
-      (m) =>
-        m.userId === currentUser.id &&
-        (
-          (m.isAnswer && (m.questionId === qId || m.questionNumber === msg.competitionRef?.questionNumber)) ||
-          m.replyTo?.id === msg.id ||
-          (qId && (m.replyTo?.id === qId || m.replyTo?.id === `dome_msg_q_${qId}` || m.replyTo?.id === `msg_sdq_${qId}`))
-        )
-    );
-    if (hasUserAnswerInChat) return true;
+    // 3. Check if user's UID is in seasonQuestions' matching repliedUserIds
+    if (seasonQuestions && seasonQuestions.length > 0 && canonicalQId) {
+      const matchingQ = seasonQuestions.find((q) => getCanonicalQuestionId(q) === canonicalQId);
+      if (matchingQ && Array.isArray(matchingQ.repliedUserIds) && (matchingQ.repliedUserIds.includes(cUid) || (cAltUid && matchingQ.repliedUserIds.includes(cAltUid)))) {
+        return true;
+      }
+    }
+
+    // 4. Check if the user has an actual evaluated answer (isAnswer: true) targeting this specific question in the chat feed
+    const hasAnswerInChat = messages.some((m) => {
+      const isUser = m.userId === cUid || (cAltUid && m.userId === cAltUid);
+      if (!isUser) return false;
+      // Must be an actual evaluated answer attempt, not casual chatting
+      if (!m.isAnswer) return false;
+      const mQId = getCanonicalQuestionId(m.questionId || m);
+      if (canonicalQId && mQId && mQId === canonicalQId) {
+        return true;
+      }
+      if (m.replyTo?.id) {
+        const replyTargetQId = getCanonicalQuestionId(m.replyTo.id);
+        if (canonicalQId && replyTargetQId && replyTargetQId === canonicalQId) {
+          return true;
+        }
+      }
+      if ((m.replyTo as any)?.questionId) {
+        const targetQId = getCanonicalQuestionId((m.replyTo as any).questionId);
+        if (canonicalQId && targetQId && targetQId === canonicalQId) {
+          return true;
+        }
+      }
+      return false;
+    });
+
+    if (hasAnswerInChat) return true;
 
     return false;
-  }, [currentUser.id, currentUser?.name, activeQuestion, seasonQuestions, messages]);
+  }, [currentUser?.id, (currentUser as any)?.uid, activeQuestion, seasonQuestions, messages]);
 
   const hasRepliedToTarget = useMemo(() => {
     if (!replyTarget || replyTarget.type !== 'question') return false;
@@ -661,55 +814,68 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     }
 
     // Check if this message is specifically targeting a question card
-    const isTargetingActiveQuestion = Boolean(
-      activeQuestion &&
-      activeQuestion.status === 'active' &&
-      replyTo?.id &&
-      (
-        replyTo.id === `msg_sdq_${activeQuestion.id}` ||
-        replyTo.id === `dome_msg_q_${activeQuestion.id}` ||
-        replyTo.id === activeQuestion.id ||
-        (replyTo as any)?.questionId === activeQuestion.id ||
-        messages.some(
-          (m) =>
-            m.id === replyTo.id &&
-            m.type === 'question' &&
-            (m.questionId === activeQuestion.id || m.competitionRef?.questionId === activeQuestion.id)
-        )
-      )
-    );
+    const activeQCanonicalId = activeQuestion ? getCanonicalQuestionId(activeQuestion.id) : '';
+    const targetQCanonicalId = replyTo?.id ? getCanonicalQuestionId(replyTo.id) : '';
+
+    let targetQuestionObj: SchoolDomeQuestion | null = null;
+    if (activeQuestion && (
+      (activeQCanonicalId && targetQCanonicalId && activeQCanonicalId === targetQCanonicalId) ||
+      replyTo?.id === activeQuestion.id ||
+      replyTo?.id === `msg_${activeQuestion.id}` ||
+      (replyTo as any)?.questionId === activeQuestion.id ||
+      messages.some((m) => m.id === replyTo?.id && m.type === 'question' && getCanonicalQuestionId(m) === activeQCanonicalId)
+    )) {
+      targetQuestionObj = activeQuestion;
+    } else if (replyTo?.id) {
+      const qMsg = messages.find(m => m.id === replyTo.id && m.type === 'question');
+      if (qMsg?.competitionRef) {
+        targetQuestionObj = {
+          id: qMsg.competitionRef.questionId,
+          seasonId: currentSeason?.id || 'season_dome_1',
+          questionNumber: qMsg.competitionRef.questionNumber,
+          questionText: qMsg.competitionRef.questionText,
+          correctAnswer: qMsg.competitionRef.correctAnswer,
+          acceptedAlternativeAnswers: (qMsg.competitionRef as any).acceptedAlternativeAnswers || [],
+          timeLimitSeconds: qMsg.competitionRef.timeLimitSeconds || 300,
+          startAt: qMsg.competitionRef.startAt || qMsg.timestamp,
+          endAt: qMsg.competitionRef.endAt || (qMsg.timestamp + 300000),
+          status: qMsg.competitionRef.status || 'active',
+          survivorUserIds: (qMsg.competitionRef as any).survivorUserIds || [],
+          eliminatedUserIds: (qMsg.competitionRef as any).eliminatedUserIds || [],
+          repliedUserIds: qMsg.competitionRef.repliedUserIds || [],
+          totalSubmissionsCount: 0,
+          createdAt: qMsg.timestamp || Date.now(),
+        };
+      } else if (activeQuestion && (targetQCanonicalId.includes('dome_q_') || targetQCanonicalId.includes('sdq_'))) {
+        targetQuestionObj = activeQuestion;
+      }
+    }
+
+    const isTargetingAnyQuestion = Boolean(targetQuestionObj);
 
     // Prevent replying twice to a question challenge
-    if (replyTo?.id) {
-      const isTargetingAnyQuestion =
-        isTargetingActiveQuestion ||
-        replyTo.id.startsWith('dome_msg_q_') ||
-        replyTo.id.startsWith('msg_sdq_') ||
-        messages.some((m) => m.id === replyTo.id && m.type === 'question');
+    if (isTargetingAnyQuestion && targetQuestionObj) {
+      if (!replyTargetPlanEligibility.isEligible && !isStaffOrAdmin) {
+        alert(
+          `Your subscription plan (${replyTargetPlanEligibility.userPlanName}) is not eligible to answer this question. Required: ${replyTargetPlanEligibility.requiredPlanText}. Your tournament standing is safe.`
+        );
+        return;
+      }
 
-      if (isTargetingAnyQuestion) {
-        if (!replyTargetPlanEligibility.isEligible && !isStaffOrAdmin) {
-          alert(
-            `Your subscription plan (${replyTargetPlanEligibility.userPlanName}) is not eligible to answer this question. Required: ${replyTargetPlanEligibility.requiredPlanText}. Your tournament standing is safe.`
-          );
-          return;
-        }
+      const targetQMsg = messages.find(
+        (m) =>
+          m.id === replyTo?.id ||
+          (m.competitionRef?.questionId &&
+            (`dome_msg_q_${m.competitionRef.questionId}` === replyTo?.id ||
+              `msg_sdq_${m.competitionRef.questionId}` === replyTo?.id))
+      ) || (activeQuestion ? { id: `msg_${activeQuestion.id}`, type: 'question', competitionRef: { questionId: activeQuestion.id } } as any : null);
 
-        const targetQMsg = messages.find(
-          (m) =>
-            m.id === replyTo.id ||
-            (m.competitionRef?.questionId &&
-              (`dome_msg_q_${m.competitionRef.questionId}` === replyTo.id ||
-                `msg_sdq_${m.competitionRef.questionId}` === replyTo.id))
-        ) || (activeQuestion ? { id: `msg_sdq_${activeQuestion.id}`, type: 'question', competitionRef: { questionId: activeQuestion.id } } as any : null);
-
-        if (targetQMsg && hasUserRepliedToQuestionMessage(targetQMsg)) {
-          alert(
-            `You have already submitted an answer for Question #${activeQuestion?.questionNumber || 1}. Each scholar is only allowed 1 attempt per question card. You can continue chatting normally for other purposes without replying to the question card.`
-          );
-          setReplyTarget(null);
-          return;
-        }
+      if (targetQMsg && hasUserRepliedToQuestionMessage(targetQMsg)) {
+        alert(
+          `You have already submitted an answer for Question #${targetQuestionObj.questionNumber || 1}. Each scholar is only allowed 1 attempt per question card. You can continue chatting normally for other purposes without replying to the question card.`
+        );
+        setReplyTarget(null);
+        return;
       }
     }
 
@@ -750,27 +916,37 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
     // RULE: Only messages specifically replying to the question card are treated and evaluated as answers!
     // If standing users are texting for other purposes, it is normal chat and does NOT evaluate as an answer or eliminate them.
-    if (isTargetingActiveQuestion && activeQuestion && activeQuestion.status === 'active') {
-      const isRegistered = currentSeason?.registeredUserIds?.includes(currentUser.id);
-      const isStanding = currentSeason?.activeUserIds?.includes(currentUser.id);
-      if (isRegistered && isStanding) {
+    if (isTargetingAnyQuestion && targetQuestionObj && targetQuestionObj.status === 'active') {
+      const cUid = currentUser?.id || (currentUser as any)?.uid;
+      const cAltUid = (currentUser as any)?.uid || currentUser?.id;
+      const isRegistered = Boolean(
+        (cUid && currentSeason?.registeredUserIds?.includes(cUid)) ||
+        (cAltUid && currentSeason?.registeredUserIds?.includes(cAltUid)) ||
+        (currentUser?.id === 'user_student')
+      );
+      const isStanding = Boolean(
+        isRegistered &&
+        !currentSeason?.eliminatedUserIds?.includes(cUid) &&
+        !(cAltUid && currentSeason?.eliminatedUserIds?.includes(cAltUid))
+      );
+      if ((isRegistered && isStanding) || isStaffOrAdmin) {
         const isCorr = isAnswerCorrect(
           text,
-          activeQuestion.correctAnswer,
-          activeQuestion.acceptedAlternativeAnswers
+          targetQuestionObj.correctAnswer,
+          targetQuestionObj.acceptedAlternativeAnswers
         );
         newMessage.isAnswer = true;
         newMessage.isCorrect = isCorr;
         newMessage.evalStatus = isCorr ? 'correct' : 'wrong';
-        newMessage.questionId = activeQuestion.id;
-        newMessage.questionNumber = activeQuestion.questionNumber;
+        newMessage.questionId = targetQuestionObj.id;
+        newMessage.questionNumber = targetQuestionObj.questionNumber;
 
         // Rule: Users are eliminated by answering wrong
         if (!isCorr) {
           setCurrentSeason((prev) => {
             if (!prev) return prev;
-            const newActive = (prev.activeUserIds || []).filter((id) => id !== currentUser.id);
-            const newEliminated = Array.from(new Set([...(prev.eliminatedUserIds || []), currentUser.id]));
+            const newActive = (prev.activeUserIds || []).filter((id) => id !== cUid && id !== cAltUid);
+            const newEliminated = Array.from(new Set([...(prev.eliminatedUserIds || []), cUid]));
             const updated = { ...prev, activeUserIds: newActive, eliminatedUserIds: newEliminated };
             try {
               localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(updated));
@@ -780,16 +956,44 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
             }
             return updated;
           });
+          setActiveQuestion((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              eliminatedUserIds: Array.from(new Set([...(prev.eliminatedUserIds || []), cUid])),
+              repliedUserIds: Array.from(new Set([...(prev.repliedUserIds || []), cUid])),
+            };
+          });
         } else {
           setActiveQuestion((prev) => {
             if (!prev) return prev;
             return {
               ...prev,
-              survivorUserIds: Array.from(new Set([...(prev.survivorUserIds || []), currentUser.id])),
-              repliedUserIds: Array.from(new Set([...(prev.repliedUserIds || []), currentUser.id])),
+              survivorUserIds: Array.from(new Set([...(prev.survivorUserIds || []), cUid])),
+              repliedUserIds: Array.from(new Set([...(prev.repliedUserIds || []), cUid])),
             };
           });
         }
+
+        // Also update message in messages list so repliedUserIds reflects immediately
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.type === 'question' && getCanonicalQuestionId(m) === getCanonicalQuestionId(targetQuestionObj?.id)) {
+              const prevReplied = m.competitionRef?.repliedUserIds || [];
+              return {
+                ...m,
+                competitionRef: {
+                  ...m.competitionRef!,
+                  repliedUserIds: Array.from(new Set([...prevReplied, cUid])),
+                },
+              };
+            }
+            return m;
+          })
+        );
+
+        // Reset replyTarget so subsequent texts are regular chat
+        setReplyTarget(null);
       }
     }
 
@@ -822,6 +1026,16 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     sendSchoolDomeMessage(newMessage, currentSeason, activeQuestion, currentUser).catch((err) => {
       console.warn('School Dome message sync notice:', err);
     });
+  };
+
+  const handleAnswerSubmit = (msg: SchoolDomeMessage, answerText: string) => {
+    handleSendMessage(answerText, {
+      id: msg.id,
+      userName: msg.userName,
+      messageSnippet: msg.competitionRef?.questionText || msg.messageText,
+      institution: msg.institution,
+      questionId: msg.competitionRef?.questionId || (msg as any).questionId || msg.id,
+    } as any);
   };
 
   const handleReactMessage = async (msgId: string, emoji: string) => {
@@ -1163,6 +1377,83 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         <SchoolDomeResultsTab currentSeason={currentSeason} />
       ) : (
         <>
+          {/* 1. ACTIVE LIVE ELIMINATION QUESTION PINNED CARD (Disappears when time expires, reappears on new question) */}
+          {activeQuestion && activeQuestion.status === 'active' && activeQuestion.endAt > nowTick && (
+            <div className="p-2 sm:p-2.5 bg-slate-900/95 border-b border-amber-500/30 shrink-0 shadow-md">
+              <SchoolDomeQuestionCard
+                question={activeQuestion}
+                season={currentSeason}
+                role={currentUser?.role}
+                isManagerOrAdmin={isStaffOrAdmin}
+                hasRepliedToQuestion={hasUserRepliedToQuestionMessage({
+                  id: `msg_${activeQuestion.id}`,
+                  type: 'question',
+                  competitionRef: {
+                    questionId: activeQuestion.id,
+                    questionNumber: activeQuestion.questionNumber,
+                    questionText: activeQuestion.questionText,
+                    status: 'active',
+                    repliedUserIds: activeQuestion.repliedUserIds,
+                  },
+                } as any)}
+                isUserRegistered={isUserRegistered}
+                isUserStanding={isUserStanding || isStaffOrAdmin}
+                isUserPlanEligible={questionPlanEligibility.isEligible}
+                userPlanName={questionPlanEligibility.userPlanName}
+                requiredPlanText={questionPlanEligibility.requiredPlanText}
+                planIneligibleReason={questionPlanEligibility.reason}
+                onOpenUpgrade={handleOpenUpgrade}
+                onCloseQuestion={isStaffOrAdmin ? (qId) => closeSchoolDomeQuestion(currentSeason?.id || 'season_dome_1', qId) : undefined}
+                onExtendTime={isStaffOrAdmin ? (qId, extra) => extendSchoolDomeQuestionTime(qId, extra) : undefined}
+                onReplyToAnswer={(q) => {
+                  const targetMsg = messages.find(m => m.type === 'question' && getCanonicalQuestionId(m) === getCanonicalQuestionId(q.id)) || {
+                    id: `msg_${q.id}`,
+                    type: 'question',
+                    userId: PRIMARY_SUPER_ADMIN_UID,
+                    userName: 'Grobaxy Limited 🛡️',
+                    messageText: q.questionText,
+                    timestamp: q.startAt,
+                    seasonId: currentSeason?.id || 'season_dome_1',
+                    competitionRef: {
+                      questionId: q.id,
+                      questionNumber: q.questionNumber,
+                      questionText: q.questionText,
+                      correctAnswer: q.correctAnswer,
+                      timeLimitSeconds: q.timeLimitSeconds,
+                      startAt: q.startAt,
+                      endAt: q.endAt,
+                      status: q.status,
+                    },
+                  } as SchoolDomeMessage;
+                  setReplyTarget(targetMsg);
+                  if (scrollContainerRef.current) {
+                    scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+                  }
+                }}
+                onAnswerSubmit={(q, text) => {
+                  handleAnswerSubmit({
+                    id: `msg_${q.id}`,
+                    type: 'question',
+                    userName: 'Grobaxy Limited 🛡️',
+                    messageText: q.questionText,
+                    timestamp: q.startAt,
+                    seasonId: currentSeason?.id || 'season_dome_1',
+                    competitionRef: {
+                      questionId: q.id,
+                      questionNumber: q.questionNumber,
+                      questionText: q.questionText,
+                      correctAnswer: q.correctAnswer,
+                      timeLimitSeconds: q.timeLimitSeconds,
+                      startAt: q.startAt,
+                      endAt: q.endAt,
+                      status: q.status,
+                    },
+                  } as any, text);
+                }}
+              />
+            </div>
+          )}
+
           {/* 2. MAIN MESSAGE STREAM WITH WHATSAPP DOODLE WALLPAPER */}
           <WhatsAppChatBackground className="flex-1">
             <div
@@ -1179,9 +1470,18 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                   isManagerOrAdmin={isStaffOrAdmin}
                   hasRepliedToQuestion={hasUserRepliedToQuestionMessage(msg)}
                   isSpectator={isSpectator}
+                  isUserRegistered={isUserRegistered}
+                  isUserStanding={isUserStanding || isStaffOrAdmin}
                   activeQuestion={activeQuestion}
                   questions={seasonQuestions}
-                  onReply={(m) => setReplyTarget(m)}
+                  onReply={(m) => {
+                    setReplyTarget(m);
+                    if (scrollContainerRef.current) {
+                      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+                    }
+                  }}
+                  onAnswerSubmit={handleAnswerSubmit}
+                  onOpenRegistration={() => setIsRegistrationModalOpen(true)}
                   onDelete={handleDeleteMessage}
                   onMuteUser={handleMuteUser}
                   onReact={handleReactMessage}
@@ -1285,12 +1585,24 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                 <span className="truncate">
                   {isUserEliminated
                     ? `You were eliminated from Season #${currentSeason?.seasonNumber || 1} (wrong answer or time expired). You can watch all live questions as a spectator.`
+                    : isRegistrationOpen
+                    ? `Registration is open for Season #${currentSeason?.seasonNumber || 1}! Register now to participate in challenges.`
                     : `Registration closed when Question #1 launched. Users cannot participate or register after Question #1 has been launched (Spectator Mode active).`}
                 </span>
               </div>
-              <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 font-black text-[11px] border border-amber-500/30 shrink-0 uppercase tracking-wider">
-                Spectator Mode
-              </span>
+              {isRegistrationOpen && !isUserRegistered ? (
+                <button
+                  type="button"
+                  onClick={() => setIsRegistrationModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 text-slate-950 font-black text-xs shadow-md transition cursor-pointer shrink-0"
+                >
+                  Register Free
+                </button>
+              ) : (
+                <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 font-black text-[11px] border border-amber-500/30 shrink-0 uppercase tracking-wider">
+                  Spectator Mode
+                </span>
+              )}
             </div>
           ) : (
             <div className="flex flex-col shrink-0">
@@ -1346,25 +1658,19 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                   </div>
                 </div>
               )}
-              <ChatroomComposer
+              <SchoolDomeComposer
                 onSendMessage={handleSendMessage}
-                replyToMessage={replyTarget as any}
+                replyToMessage={replyTarget}
                 onCancelReply={() => setReplyTarget(null)}
                 isChatMuted={false}
+                isPaused={currentSeason?.status === 'paused'}
                 channelName="school-dome"
-                dailyLimit={9999}
-                usedCount={0}
-                isLimitReached={false}
-                tierName={tierName}
                 isManagerOrAdmin={isStaffOrAdmin}
                 hasRepliedToTarget={hasRepliedToTarget}
-                isQuestionPlanIneligible={Boolean(
-                  !isStaffOrAdmin &&
-                    replyTarget?.type === 'question' &&
-                    !replyTargetPlanEligibility.isEligible
-                )}
-                questionPlanIneligibleReason={(replyTargetPlanEligibility as any).reason}
-                onOpenUpgrade={handleOpenUpgrade}
+                isUserRegistered={isUserRegistered}
+                isUserStanding={isUserStanding}
+                isRegistrationLocked={!isRegistrationOpen}
+                onOpenRegister={() => setIsRegistrationModalOpen(true)}
                 onOpenCreateQuestion={() => setIsCreateQuestionModalOpen(true)}
               />
             </div>
@@ -1452,6 +1758,19 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         onClose={() => setIsRulesModalOpen(false)}
         season={currentSeason}
       />
+
+      {/* Free Registration Modal */}
+      {isRegistrationModalOpen && currentSeason && (
+        <SchoolDomeRegistrationModal
+          isOpen={isRegistrationModalOpen}
+          onClose={() => setIsRegistrationModalOpen(false)}
+          season={currentSeason}
+          currentUser={currentUser}
+          onRegistrationSuccess={() => {
+            setIsRegistrationModalOpen(false);
+          }}
+        />
+      )}
 
       {/* Contenders Breakdown Pop-up Modal for all phone screens */}
       <SchoolDomeContendersModal

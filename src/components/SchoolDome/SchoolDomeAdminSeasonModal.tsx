@@ -14,11 +14,13 @@ import {
   Coins,
   Pencil,
   Save,
+  Trash2,
 } from 'lucide-react';
 import {
   startNewSchoolDomeSeason,
   endSchoolDomeSeasonAndDistributePrize,
   updateSchoolDomeSeason,
+  deleteAllSchoolDomeSeasons,
 } from '../../lib/schoolDomeService';
 import { SchoolDomeSeason, SchoolDomeWinner, SchoolDomeSeasonStatus } from '../../types';
 
@@ -224,6 +226,32 @@ export const SchoolDomeAdminSeasonModal: React.FC<SchoolDomeAdminSeasonModalProp
       }, 1200);
     } catch (err: any) {
       setFeedback({ type: 'error', text: err.message || 'Failed to start new season.' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteAllSeasonsModal = async () => {
+    if (!window.confirm('⚠️ DANGER: Delete ALL seasons, wipe past questions and champions, and restart the School Dome Arena completely fresh from Season #1?\n\nThis will open Season #1 with registration open for all scholars.')) {
+      return;
+    }
+    try {
+      setIsProcessing(true);
+      setFeedback(null);
+      await deleteAllSchoolDomeSeasons(adminUid, adminName);
+      setFeedback({
+        type: 'success',
+        text: 'All seasons have been deleted! School Dome has restarted fresh from Season #1 with registration open.',
+      });
+      if (onSeasonUpdated) onSeasonUpdated();
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      setFeedback({
+        type: 'error',
+        text: err?.message || 'Failed to delete all seasons.',
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -565,6 +593,26 @@ export const SchoolDomeAdminSeasonModal: React.FC<SchoolDomeAdminSeasonModalProp
                     ✓ This season has ended and prizes have already been distributed.
                   </div>
                 )}
+              </div>
+
+              {/* Danger Zone: Delete All Seasons & Reset to Season 1 */}
+              <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl space-y-2.5">
+                <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-bold text-xs">
+                  <Trash2 className="w-4 h-4 text-rose-500" />
+                  <span>Danger Zone: Reset Arena to Season 1</span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Permanently delete all previous seasons, wipe previous questions and contender records, and restart the School Dome Arena fresh from Season #1 with registration open for all scholars.
+                </p>
+                <button
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={handleDeleteAllSeasonsModal}
+                  className="w-full py-2 px-3 bg-rose-600/10 hover:bg-rose-600 text-rose-700 hover:text-white dark:text-rose-400 dark:hover:text-white border border-rose-500/30 hover:border-rose-600 font-extrabold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete All Seasons & Reset to Season 1</span>
+                </button>
               </div>
             </div>
           )}

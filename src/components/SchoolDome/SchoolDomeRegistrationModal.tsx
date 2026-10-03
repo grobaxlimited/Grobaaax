@@ -46,10 +46,20 @@ export const SchoolDomeRegistrationModal: React.FC<SchoolDomeRegistrationModalPr
       const res = await registerUserForSchoolDome(season.id, currentUser);
       if (res.success) {
         setSuccessMsg(res.message);
+        if (typeof window !== 'undefined') {
+          try {
+            const currentUid = currentUser?.id || (currentUser as any)?.uid;
+            const updatedReg = Array.from(new Set([...(season.registeredUserIds || []), currentUid]));
+            const updatedAct = Array.from(new Set([...(season.activeUserIds || []), currentUid]));
+            const updatedSeason = { ...season, registeredUserIds: updatedReg, activeUserIds: updatedAct };
+            localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(updatedSeason));
+            window.dispatchEvent(new CustomEvent('school_dome_season_updated', { detail: updatedSeason }));
+          } catch {}
+        }
         if (onRegistrationSuccess) onRegistrationSuccess();
         setTimeout(() => {
           onClose();
-        }, 1500);
+        }, 1200);
       } else {
         setErrorMsg(res.message);
       }

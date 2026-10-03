@@ -78,6 +78,7 @@ export const AdminSchoolDomeView: React.FC = () => {
       setCurrentSeason(freshSeason);
       setActiveQuestion(null);
       setQuestions([]);
+      setMessages([]);
       setDeleteAllSuccessMsg('All seasons and past champions have been permanently deleted! School Dome has restarted fresh from Season 1.');
       setTimeout(() => {
         setIsConfirmDeleteAllModalOpen(false);
@@ -98,14 +99,38 @@ export const AdminSchoolDomeView: React.FC = () => {
     const handleSeasonUpdated = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail) {
-        setCurrentSeason(prev => (prev ? { ...prev, ...detail } : detail));
+        setCurrentSeason(detail);
+        if (detail.seasonNumber === 1 && !detail.firstQuestionLaunched && (detail.totalQuestionsLaunched || 0) === 0) {
+          setActiveQuestion(null);
+          setQuestions([]);
+        }
       }
     };
     window.addEventListener('school_dome_season_updated', handleSeasonUpdated);
 
+    const handleSeasonReset = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        setCurrentSeason(detail);
+        setActiveQuestion(null);
+        setQuestions([]);
+      }
+    };
+    window.addEventListener('school_dome_season_reset', handleSeasonReset);
+
+    const handleMessagesReset = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (Array.isArray(detail)) {
+        setMessages(detail);
+      }
+    };
+    window.addEventListener('school_dome_messages_reset', handleMessagesReset);
+
     return () => {
       unsub();
       window.removeEventListener('school_dome_season_updated', handleSeasonUpdated);
+      window.removeEventListener('school_dome_season_reset', handleSeasonReset);
+      window.removeEventListener('school_dome_messages_reset', handleMessagesReset);
     };
   }, []);
 

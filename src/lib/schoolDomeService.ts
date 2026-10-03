@@ -16,6 +16,7 @@ import {
   writeBatch,
   deleteDoc,
   isSubscriptionExpired,
+  supabaseAdmin,
 } from './firebase';
 import {
   SchoolDomeSeason,
@@ -308,26 +309,7 @@ export const DEFAULT_INITIAL_SEASON: SchoolDomeSeason = {
   ],
 };
 
-export const DEFAULT_INITIAL_QUESTION: SchoolDomeQuestion = {
-  id: 'dome_q_13',
-  seasonId: 'season_dome_1',
-  questionNumber: 13,
-  questionText: 'What is 13 × 7?',
-  correctAnswer: '91',
-  acceptedAlternativeAnswers: ['91', 'Ninety one', 'ninety-one'],
-  timeLimitSeconds: 600,
-  startAt: Date.now() - 1000 * 60 * 2,
-  endAt: Date.now() + 1000 * 60 * 8, // 8 mins remaining
-  status: 'active',
-  survivorUserIds: ['user_lawal_1'],
-  eliminatedUserIds: [],
-  totalSubmissionsCount: 1,
-  repliedUserIds: ['user_lawal_1'],
-  repliedUsernames: ['Lawal Faizah'],
-  createdAt: Date.now() - 1000 * 60 * 2,
-  createdByUid: PRIMARY_SUPER_ADMIN_UID,
-  createdByName: 'Grobaxy Limited 🛡️',
-};
+export const DEFAULT_INITIAL_QUESTION: SchoolDomeQuestion | null = null;
 
 export const DEFAULT_INITIAL_MESSAGES: SchoolDomeMessage[] = [
   {
@@ -341,93 +323,10 @@ export const DEFAULT_INITIAL_MESSAGES: SchoolDomeMessage[] = [
     level: 'Master',
     isPremium: true,
     isVip: true,
-    messageText: '🏛️ Welcome to School Dome!\n\nReal-time competitive academic arena. Live challenges and discussions appear instantly for all scholars across campuses.',
-    timestamp: Date.now() - 1000 * 60 * 25,
+    messageText: '🏛️ Welcome to School Dome Season #1!\n\nRegistration is now open! Compete for the 50,000 GP prize pool. All scholars standing when the tournament concludes will share the prize pool equally.',
+    timestamp: Date.now(),
     type: 'announcement',
-    reactions: { '🔥': 14, '⚡': 9 },
-  },
-  {
-    id: 'dome_msg_q_13',
-    seasonId: 'season_dome_1',
-    userId: PRIMARY_SUPER_ADMIN_UID,
-    userName: 'Grobaxy Limited 🛡️',
-    userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    institution: 'Grobaax Arena HQ',
-    department: 'Chief Moderator',
-    level: 'Master',
-    isPremium: true,
-    isVip: true,
-    messageText: 'What is 13 × 7?',
-    timestamp: Date.now() - 1000 * 60 * 12,
-    type: 'question',
-    competitionRef: {
-      competitionId: 'school_dome',
-      questionId: 'dome_q_13',
-      questionNumber: 13,
-      totalQuestions: 20,
-      questionText: 'What is 13 × 7?',
-      status: 'active',
-      gpRewardPerWinner: 500,
-      winnerCountLimit: 1,
-      allowFreeParticipation: true,
-      timeLimitSeconds: 600,
-      startAt: Date.now() - 1000 * 60 * 2,
-      endAt: Date.now() + 1000 * 60 * 8,
-      repliedUserIds: ['user_lawal_1'],
-    },
-    reactions: { '⚡': 1, '🎯': 1 },
-  },
-  {
-    id: 'dome_msg_user_1',
-    seasonId: 'season_dome_1',
-    userId: 'user_abdul_1',
-    userName: 'Abdulgaffar',
-    userAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    institution: 'Yaba College of Technology',
-    department: 'Electrical Eng',
-    level: 'HND2',
-    isPremium: true,
-    messageText: 'Morning to us. Is there any Questions opened this morning?',
-    timestamp: Date.now() - 1000 * 60 * 5,
-    type: 'normal',
-    reactions: { '❤️': 1 },
-  },
-  {
-    id: 'dome_msg_user_2',
-    seasonId: 'season_dome_1',
-    userId: 'user_lawal_1',
-    userName: 'Lawal Faizah',
-    userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    institution: 'Lagos State University of Education, Ijanikin',
-    department: 'Science Education (Mathematics)',
-    level: '300L',
-    isPremium: true,
-    isVip: true,
-    messageText: '91',
-    timestamp: Date.now() - 1000 * 60 * 3,
-    type: 'normal',
-    replyTo: {
-      id: 'dome_msg_q_13',
-      userName: 'Grobaxy Limited 🛡️',
-      messageSnippet: 'What is 13 × 7?',
-      institution: 'Grobaax Arena HQ',
-    },
-    reactions: { '👏': 2, '🔥': 1 },
-  },
-  {
-    id: 'dome_msg_user_3',
-    seasonId: 'season_dome_1',
-    userId: 'user_okunola_1',
-    userName: 'Okunola',
-    userAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    institution: 'Kwara State Polytechnic',
-    department: 'Computer Science',
-    level: 'ND2',
-    isPremium: false,
-    messageText: 'We wait for the next challenge!',
-    timestamp: Date.now() - 1000 * 60 * 1,
-    type: 'normal',
-    reactions: { '🔥': 2 },
+    reactions: { '🔥': 5, '⚔️': 3 },
   },
 ];
 
@@ -521,6 +420,32 @@ export function isAnswerCorrect(
   }
 
   return false;
+}
+
+/**
+ * Resolves a normalized, canonical question ID across all formats:
+ * - 'sdq_1728...'
+ * - 'msg_sdq_1728...'
+ * - 'msg_sdq_sdq_1728...'
+ * - 'dome_q_13'
+ * - 'dome_msg_q_13'
+ * - Objects with competitionRef.questionId or questionId
+ */
+export function getCanonicalQuestionId(idOrMsg: any): string {
+  if (!idOrMsg) return '';
+  if (typeof idOrMsg === 'object') {
+    const raw =
+      idOrMsg.competitionRef?.questionId ||
+      idOrMsg.questionId ||
+      idOrMsg.id ||
+      '';
+    return getCanonicalQuestionId(raw);
+  }
+  const str = String(idOrMsg).trim();
+  let clean = str.replace(/^msg_/, '');
+  clean = clean.replace(/^dome_msg_q_/, 'dome_q_');
+  clean = clean.replace(/^sdq_sdq_/, 'sdq_');
+  return clean;
 }
 
 // Subscribe to latest/active season
@@ -729,20 +654,52 @@ export function subscribeSchoolDomeActiveQuestion(
       (snapshot) => {
         if (!snapshot.empty) {
           const qData = snapshot.docs[0].data() as SchoolDomeQuestion;
-          callback({ ...qData, id: snapshot.docs[0].id });
+          const fullQ = { ...qData, id: snapshot.docs[0].id };
+          try {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('grobax_school_dome_active_question', JSON.stringify(fullQ));
+            }
+          } catch {}
+          callback(fullQ);
         } else {
-          callback(null);
+          let fallback: SchoolDomeQuestion | null = null;
+          try {
+            if (typeof window !== 'undefined') {
+              const stored = localStorage.getItem('grobax_school_dome_active_question');
+              if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed && parsed.status === 'active') fallback = parsed;
+              }
+            }
+          } catch {}
+          if (!fallback && (!seasonId || seasonId === 'season_dome_1') && DEFAULT_INITIAL_QUESTION?.status === 'active') {
+            fallback = DEFAULT_INITIAL_QUESTION;
+          }
+          callback(fallback);
         }
       },
       (err) => {
         console.warn('School Dome active question snapshot notice:', err);
-        callback(null);
+        let fallback: SchoolDomeQuestion | null = null;
+        try {
+          if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem('grobax_school_dome_active_question');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (parsed && parsed.status === 'active') fallback = parsed;
+            }
+          }
+        } catch {}
+        if (!fallback && (!seasonId || seasonId === 'season_dome_1') && DEFAULT_INITIAL_QUESTION?.status === 'active') {
+          fallback = DEFAULT_INITIAL_QUESTION;
+        }
+        callback(fallback);
       }
     );
 
     return unsubscribe;
   } catch {
-    callback(null);
+    callback(DEFAULT_INITIAL_QUESTION?.status === 'active' ? DEFAULT_INITIAL_QUESTION : null);
     return () => {};
   }
 }
@@ -769,17 +726,17 @@ export function subscribeSchoolDomeQuestions(
           }));
           callback(list);
         } else {
-          callback([]);
+          callback(DEFAULT_INITIAL_QUESTION ? [DEFAULT_INITIAL_QUESTION] : []);
         }
       },
       () => {
-        callback([]);
+        callback(DEFAULT_INITIAL_QUESTION ? [DEFAULT_INITIAL_QUESTION] : []);
       }
     );
 
     return unsubscribe;
   } catch {
-    callback([]);
+    callback(DEFAULT_INITIAL_QUESTION ? [DEFAULT_INITIAL_QUESTION] : []);
     return () => {};
   }
 }
@@ -790,14 +747,34 @@ export async function registerUserForSchoolDome(
   user: UserProfile
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const seasonRef = doc(db, 'school_dome_seasons', seasonId);
-    const seasonSnap = await getDoc(seasonRef);
-
-    if (!seasonSnap.exists()) {
-      return { success: false, message: 'Season not found.' };
+    const userId = user?.id || (user as any)?.uid || (user as any)?.userId || '';
+    if (!userId) {
+      return { success: false, message: 'Please sign in or complete your profile to register for School Dome.' };
     }
 
-    const seasonData = seasonSnap.data() as SchoolDomeSeason;
+    const seasonRef = doc(db, 'school_dome_seasons', seasonId);
+    let seasonSnap = await getDoc(seasonRef);
+    let seasonData: SchoolDomeSeason;
+
+    if (!seasonSnap.exists()) {
+      // Auto-bootstrap Season 1 or restore from local cache if database record was just reset
+      let fallbackSeason: SchoolDomeSeason = { ...DEFAULT_INITIAL_SEASON, id: seasonId };
+      try {
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('grobax_school_dome_active_season');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && parsed.id === seasonId) {
+              fallbackSeason = parsed;
+            }
+          }
+        }
+      } catch {}
+      await setDoc(seasonRef, fallbackSeason, { merge: false });
+      seasonData = fallbackSeason;
+    } else {
+      seasonData = seasonSnap.data() as SchoolDomeSeason;
+    }
 
     // RULE: Registration locks permanently once first question is launched
     if (
@@ -817,18 +794,18 @@ export async function registerUserForSchoolDome(
     }
 
     const regList = seasonData.registeredUserIds || [];
-    if (regList.includes(user.id)) {
+    if (regList.includes(userId)) {
       return { success: true, message: 'You are already registered for this season!' };
     }
 
     // Add participant with full subscription plan tracking
     const planEligibility = checkScholarSchoolDomePlanEligibility(user, null);
-    const partRef = doc(db, 'school_dome_registrations', `${seasonId}_${user.id}`);
+    const partRef = doc(db, 'school_dome_registrations', `${seasonId}_${userId}`);
     const participant: SchoolDomeParticipant = {
-      id: `${seasonId}_${user.id}`,
+      id: `${seasonId}_${userId}`,
       seasonId,
-      userId: user.id,
-      userName: user.name,
+      userId,
+      userName: user.name || (user as any).username || 'Scholar',
       userAvatar: user.avatar,
       institution: user.institution,
       department: user.department,
@@ -845,16 +822,30 @@ export async function registerUserForSchoolDome(
     };
 
     // Update season registered & active lists in parallel with participant record
-    const updatedRegistered = [...regList, user.id];
-    const updatedActive = [...(seasonData.activeUserIds || []), user.id];
+    const updatedRegistered = Array.from(new Set([...regList, userId]));
+    const updatedActive = Array.from(new Set([...(seasonData.activeUserIds || []), userId]));
+
+    const updatedSeason: SchoolDomeSeason = {
+      ...seasonData,
+      registeredUserIds: updatedRegistered,
+      activeUserIds: updatedActive,
+      status: seasonData.status === 'registration_open' ? 'registration_open' : 'active',
+    };
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(updatedSeason));
+        window.dispatchEvent(new CustomEvent('school_dome_season_updated', { detail: updatedSeason }));
+      } catch {}
+    }
 
     await Promise.all([
-      setDoc(partRef, participant),
-      updateDoc(seasonRef, {
+      setDoc(partRef, participant, { merge: true }),
+      setDoc(seasonRef, {
         registeredUserIds: updatedRegistered,
         activeUserIds: updatedActive,
-        updatedAt: serverTimestamp(),
-      }),
+        updatedAt: Date.now(),
+      }, { merge: true }),
     ]);
 
     return { success: true, message: 'Registered successfully! Good luck in the Arena.' };
@@ -914,14 +905,15 @@ export async function sendSchoolDomeMessage(
 
       // RULE: Messages are ONLY evaluated as answers if the user is explicitly replying to the question card!
       // If standing users are texting for another purpose (chatting, encouragement, etc.), it is NOT an answer and NEVER eliminates them.
+      const canonicalActiveQId = getCanonicalQuestionId(activeQuestion.id);
       const isTargetingActiveQuestion = Boolean(
         message.isAnswer ||
         (message.replyTo?.id && (
-          message.replyTo.id === `msg_sdq_${activeQuestion.id}` ||
-          message.replyTo.id === `dome_msg_q_${activeQuestion.id}` ||
-          message.replyTo.id === activeQuestion.id ||
+          getCanonicalQuestionId(message.replyTo.id) === canonicalActiveQId ||
           (message.replyTo as any)?.questionId === activeQuestion.id ||
-          message.replyTo.messageSnippet?.includes(activeQuestion.questionText.slice(0, 15))
+          message.replyTo.id === activeQuestion.id ||
+          message.replyTo.id === `msg_${activeQuestion.id}` ||
+          (message.replyTo.messageSnippet && activeQuestion.questionText && message.replyTo.messageSnippet.includes(activeQuestion.questionText.slice(0, 15)))
         ))
       );
 
@@ -1168,7 +1160,7 @@ export async function createSchoolDomeQuestion(
     const targetLabel = targetPlanName || (targetTier === 'vip' ? 'VIP Only' : targetTier === 'premium' ? 'Premium & VIP' : 'Open to All');
     const allowFree = targetTier === 'free' || targetTier === 'all';
     const qMessage: SchoolDomeMessage = precomputedMessage || {
-      id: 'msg_sdq_' + qId,
+      id: 'msg_' + qId,
       seasonId,
       userId: adminUid || PRIMARY_SUPER_ADMIN_UID,
       userName: adminName ? `${adminName} 🛡️` : 'Grobaxy Limited 🛡️',
@@ -1185,6 +1177,7 @@ export async function createSchoolDomeQuestion(
       messageText: newQuestion.questionText,
       timestamp: now,
       type: 'question',
+      questionId: qId,
       competitionRef: {
         competitionId: 'school_dome',
         questionId: qId,
@@ -1457,7 +1450,7 @@ export async function startNewSchoolDomeSeason(
       description: config.description || 'Inter-campus elimination tournament. Last scholars standing split the prize pool equally!',
       prizePool: Number(config.prizePool) || 50000,
       prizeCurrency: config.prizeCurrency || 'GP',
-      status: 'registration_open',
+      status: 'active',
       registeredUserIds: [],
       activeUserIds: [],
       eliminatedUserIds: [],
@@ -1467,26 +1460,46 @@ export async function startNewSchoolDomeSeason(
       totalQuestionsLaunched: 0,
       createdAt: Date.now(),
       startedAt: Date.now(),
+      winners: [],
       rules: config.rules && config.rules.length > 0 ? config.rules : DEFAULT_INITIAL_SEASON.rules,
     };
 
-    await setDoc(doc(db, 'school_dome_seasons', seasonId), newSeason);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('grobax_school_dome_active_question');
+        localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(newSeason));
+        window.dispatchEvent(new CustomEvent('school_dome_season_updated', { detail: newSeason }));
+        window.dispatchEvent(new CustomEvent('school_dome_active_question_updated', { detail: null }));
+      } catch {}
+    }
+
+    await setDoc(doc(db, 'school_dome_seasons', seasonId), newSeason, { merge: false });
 
     // Announce opening of registration
-    const annRef = doc(db, 'school_dome_messages', `ann_${Date.now()}`);
-    await setDoc(annRef, {
-      id: annRef.id,
+    const annMsg: SchoolDomeMessage = {
+      id: `ann_${Date.now()}`,
       seasonId,
       userId: adminUid || 'grobax_arbiter',
       userName: adminName ? `${adminName} 🛡️` : 'School Dome Arbiter 🛡️',
       userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       institution: 'Grobaax Arena HQ',
       isPremium: true,
-      messageText: `📢 REGISTRATION IS NOW OPEN FOR ${newSeason.title}!\n\nPrize Pool: ${newSeason.prizePool.toLocaleString()} GP.\nRegister now to claim your battle slot before Question #1 launches!`,
+      isVip: true,
+      messageText: `📢 REGISTRATION IS NOW OPEN FOR ${newSeason.title}!\n\nPrize Pool: ${newSeason.prizeCurrency === 'NGN' ? '₦' : ''}${newSeason.prizePool.toLocaleString()} ${newSeason.prizeCurrency === 'GP' ? 'GP' : ''}.\nRegister now to claim your battle slot before Question #1 launches!`,
       timestamp: Date.now(),
       type: 'announcement',
       reactions: { '🔥': 5, '⚡': 4 },
-    });
+    };
+
+    await setDoc(doc(db, 'school_dome_messages', annMsg.id), annMsg, { merge: false });
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('grobax_school_dome_cached_messages', JSON.stringify([annMsg]));
+        window.dispatchEvent(new CustomEvent('school_dome_message_posted', { detail: annMsg }));
+        window.dispatchEvent(new CustomEvent('school_dome_messages_reset', { detail: [annMsg] }));
+      } catch {}
+    }
 
     return newSeason;
   } catch (err) {
@@ -2055,7 +2068,7 @@ export async function deleteAllSchoolDomeSeasons(
   adminName?: string
 ): Promise<SchoolDomeSeason> {
   try {
-    // Fresh Season 1 specification
+    // Fresh pristine Season 1 specification
     const freshSeason1: SchoolDomeSeason = {
       id: 'season_dome_1',
       seasonNumber: 1,
@@ -2076,88 +2089,101 @@ export async function deleteAllSchoolDomeSeasons(
       winners: [],
       rules: [
         'Registration is completely free and open to all verified scholars before Question #1 begins.',
-        'Once Question #1 is launched by the Arbiter, registration is permanently locked for the season.',
+        'Users cannot participate or register any longer after the first question has been launched.',
         'Each scholar receives exactly ONE attempt per live question challenge.',
-        'Submitting the correct answer within the time limit secures advancement to the next question.',
-        'Failing to answer or submitting an incorrect answer results in immediate elimination.',
+        'Submitting the correct answer within the time limit secures survival and advancement to the next question.',
+        'Elimination Criteria: Users are eliminated by: 1) Not answering a particular question before the time expired, 2) Answering wrong.',
         'The entire GP prize pool is divided equally among the Last Scholars Standing when the season concludes.',
       ],
     };
 
-    // 1. Immediately wipe local storage cache and dispatch update event so UI updates synchronously
-    try {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('grobax_school_dome_active_season');
-        localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(freshSeason1));
-        localStorage.removeItem('grobax_school_dome_cached_messages');
-        window.dispatchEvent(
-          new CustomEvent('school_dome_season_updated', {
-            detail: freshSeason1,
-          })
-        );
-      }
-    } catch {}
-
-    // 2. Set fresh Season 1 document in Firestore FIRST so collection is never empty (prevents snapshot empty-fallback races)
-    await setDoc(doc(db, 'school_dome_seasons', freshSeason1.id), freshSeason1);
-
-    // 3. Fetch and delete all other season documents from Firestore
-    const seasonsCol = collection(db, 'school_dome_seasons');
-    const seasonsSnap = await getDocs(seasonsCol);
-    const deleteSeasonPromises: Promise<void>[] = [];
-    seasonsSnap.forEach((d) => {
-      if (d.id !== freshSeason1.id) {
-        deleteSeasonPromises.push(deleteDoc(doc(db, 'school_dome_seasons', d.id)));
-      }
-    });
-    await Promise.all(deleteSeasonPromises);
-
-    // 4. Wipe all previous registrations completely so all users can register fresh for Season 1
-    const regsCol = collection(db, 'school_dome_registrations');
-    const regsSnap = await getDocs(regsCol);
-    const deleteRegPromises: Promise<void>[] = [];
-    regsSnap.forEach((d) => {
-      deleteRegPromises.push(deleteDoc(doc(db, 'school_dome_registrations', d.id)));
-    });
-    await Promise.all(deleteRegPromises);
-
-    // 5. Delete all questions from Firestore
-    const questionsCol = collection(db, 'school_dome_questions');
-    const questionsSnap = await getDocs(questionsCol);
-    const deleteQPromises: Promise<void>[] = [];
-    questionsSnap.forEach((d) => {
-      deleteQPromises.push(deleteDoc(doc(db, 'school_dome_questions', d.id)));
-    });
-    await Promise.all(deleteQPromises);
-
-    // 6. Send official announcement in Arena messages
-    const annRef = doc(db, 'school_dome_messages', `ann_reset_${Date.now()}`);
-    await setDoc(annRef, {
-      id: annRef.id,
+    const freshWelcomeMsg: SchoolDomeMessage = {
+      id: `dome_msg_welcome_${Date.now()}`,
       seasonId: freshSeason1.id,
       userId: adminUid || 'grobax_arbiter',
       userName: adminName ? `${adminName} 🛡️` : 'School Dome Arbiter 🛡️',
       userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       institution: 'Grobaax Arena HQ',
+      department: 'Chief Arbiter',
+      level: 'Master',
       isPremium: true,
       isVip: true,
-      messageText: `⚡ ARENA RESET: All previous seasons and champion records have been deleted by the Arbiter. School Dome has officially restarted from Season #1! Registration is now open to all scholars!`,
+      messageText: '🏛️ Welcome to School Dome Season #1!\n\nRegistration is now officially open! Compete for the 50,000 GP prize pool. Register now to claim your battle slot before Question #1 begins!',
       timestamp: Date.now(),
       type: 'announcement',
-      reactions: { '🔥': 5, '⚔️': 4 },
-    });
+      reactions: { '🔥': 5, '⚔️': 3 },
+    };
 
-    // 7. Ensure local cache and broadcast remain synced
-    try {
-      if (typeof window !== 'undefined') {
+    // 1. Instant local storage purge & event dispatch for 0ms UI reaction
+    if (typeof window !== 'undefined') {
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.toLowerCase().includes('school_dome') || k.startsWith('grobax_school_dome_') || k.startsWith('grobaax_table_fallback_school_dome_'))) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+
         localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(freshSeason1));
-        window.dispatchEvent(
-          new CustomEvent('school_dome_season_updated', {
-            detail: freshSeason1,
-          })
-        );
+        localStorage.setItem('grobax_school_dome_cached_messages', JSON.stringify([freshWelcomeMsg]));
+
+        window.dispatchEvent(new CustomEvent('school_dome_season_updated', { detail: freshSeason1 }));
+        window.dispatchEvent(new CustomEvent('school_dome_season_reset', { detail: freshSeason1 }));
+        window.dispatchEvent(new CustomEvent('school_dome_active_question_updated', { detail: null }));
+        window.dispatchEvent(new CustomEvent('school_dome_messages_reset', { detail: [freshWelcomeMsg] }));
+      } catch {}
+    }
+
+    // 2. Direct Supabase bulk wipe for speed and completeness
+    try {
+      if (supabaseAdmin) {
+        await Promise.allSettled([
+          supabaseAdmin.from('school_dome_messages').delete().neq('id', '___keep_none___'),
+          supabaseAdmin.from('school_dome_questions').delete().neq('id', '___keep_none___'),
+          supabaseAdmin.from('school_dome_registrations').delete().neq('id', '___keep_none___'),
+          supabaseAdmin.from('school_dome_seasons').delete().neq('id', '___keep_none___'),
+        ]);
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Notice in bulk table clean:', e);
+    }
+
+    // 3. Fallback Firestore document wipes
+    try {
+      const collectionsToWipe = ['school_dome_messages', 'school_dome_questions', 'school_dome_registrations', 'school_dome_seasons'];
+      for (const colName of collectionsToWipe) {
+        try {
+          const snap = await getDocs(collection(db, colName));
+          const deletes: Promise<void>[] = [];
+          snap.forEach(d => {
+            deletes.push(deleteDoc(doc(db, colName, d.id)).catch(() => {}));
+          });
+          await Promise.all(deletes);
+        } catch {}
+      }
+    } catch (e) {
+      console.warn('Notice in document cleanup:', e);
+    }
+
+    // 4. Save clean Season 1 and initial welcome message (merge: false ensures complete reset)
+    await Promise.all([
+      setDoc(doc(db, 'school_dome_seasons', freshSeason1.id), freshSeason1, { merge: false }),
+      setDoc(doc(db, 'school_dome_messages', freshWelcomeMsg.id), freshWelcomeMsg, { merge: false }),
+    ]);
+
+    // 5. Final local cache sync
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(freshSeason1));
+        localStorage.setItem('grobax_school_dome_cached_messages', JSON.stringify([freshWelcomeMsg]));
+        window.dispatchEvent(new CustomEvent('school_dome_season_updated', { detail: freshSeason1 }));
+        window.dispatchEvent(new CustomEvent('school_dome_season_reset', { detail: freshSeason1 }));
+        window.dispatchEvent(new CustomEvent('school_dome_active_question_updated', { detail: null }));
+        window.dispatchEvent(new CustomEvent('school_dome_messages_reset', { detail: [freshWelcomeMsg] }));
+      } catch {}
+    }
 
     return freshSeason1;
   } catch (err) {

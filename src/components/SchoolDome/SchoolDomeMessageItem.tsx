@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   SchoolDomeMessage,
   SchoolDomeQuestion,
@@ -16,11 +16,14 @@ import {
   ShieldAlert,
   Check,
   X,
+  Zap,
+  Send,
+  UserCheck,
 } from 'lucide-react';
 import { UserBadgeItem } from '../ui/UserBadgeItem';
 import { useApp } from '../../context/AppContext';
 import { getUserProfileDoc } from '../../lib/firebase';
-import { isAnswerCorrect } from '../../lib/schoolDomeService';
+import { isAnswerCorrect, getCanonicalQuestionId } from '../../lib/schoolDomeService';
 
 interface SchoolDomeMessageItemProps {
   message: SchoolDomeMessage;
@@ -28,9 +31,13 @@ interface SchoolDomeMessageItemProps {
   isManagerOrAdmin?: boolean;
   hasRepliedToQuestion?: boolean;
   isSpectator?: boolean;
+  isUserRegistered?: boolean;
+  isUserStanding?: boolean;
   activeQuestion?: SchoolDomeQuestion | null;
   questions?: SchoolDomeQuestion[];
   onReply?: (message: SchoolDomeMessage) => void;
+  onAnswerSubmit?: (message: SchoolDomeMessage, answerText: string) => void;
+  onOpenRegistration?: () => void;
   onDelete?: (messageId: string) => void;
   onMuteUser?: (userId: string, userName: string) => void;
   onReact?: (messageId: string, emoji: string) => void;
@@ -129,9 +136,13 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
   isManagerOrAdmin,
   hasRepliedToQuestion,
   isSpectator = false,
+  isUserRegistered = false,
+  isUserStanding = false,
   activeQuestion,
   questions,
   onReply,
+  onAnswerSubmit,
+  onOpenRegistration,
   onDelete,
   onMuteUser,
   onReact,
@@ -139,6 +150,9 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
   onExtendTime,
 }) => {
   const { currentUser } = useApp();
+  const [isInlineReplying, setIsInlineReplying] = useState(false);
+  const [inlineAnswerText, setInlineAnswerText] = useState('');
+  const [isInlineSubmitting, setIsInlineSubmitting] = useState(false);
 
   if (message.isDeleted) {
     return (
@@ -533,34 +547,139 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                 timestamp={message.timestamp}
               />
 
-              <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                <span className="text-[11px] text-blue-200/80 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-blue-300" />
-                  {hasRepliedToQuestion
-                    ? '1 attempt used. You can continue texting for other purposes in the arena below.'
-                    : 'Reply to this question card to submit your answer (1 attempt only • Normal chat does not count as an answer)'}
-                </span>
+              {(() => {
+                const canonicalQId = getCanonicalQuestionId(message);
+                const foundQuestion = questions?.find((q) => getCanonicalQuestionId(q) === canonicalQId) ||
+                  (activeQuestion && getCanonicalQuestionId(activeQuestion) === canonicalQId ? activeQuestion : null);
+                const isExplicitClosed = message.competitionRef?.status === 'closed' || foundQuestion?.status === 'closed';
+                const officialAnswer = foundQuestion?.correctAnswer || (message.competitionRef as any)?.correctAnswer;
 
-                {hasRepliedToQuestion ? (
-                  <div className="px-3 py-1 bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>✓ Answer Submitted (1 attempt used)</span>
+                return (
+                  <div className="space-y-2 pt-1">
+                    {/* Revealed Answer when Closed */}
+                    {isExplicitClosed && officialAnswer && (
+                      <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/30 flex items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-slate-300">Official Correct Answer:</span>
+                          <span className="font-black text-emerald-400 underline decoration-emerald-500/40">
+                            {officialAnswer}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-[11px] text-blue-200/80 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-blue-300" />
+                        {hasRepliedToQuestion
+                          ? '✓ 1 attempt used. You can continue texting for other purposes in the arena below.'
+                          : isExplicitClosed
+                          ? 'This question challenge has concluded.'
+                          : !isUserRegistered && !isManagerOrAdmin
+                          ? 'Register free to participate in this challenge.'
+                          : !isUserStanding && !isManagerOrAdmin
+                          ? 'Spectator Mode: you were eliminated from this season.'
+                          : 'Reply to this question card to submit your official answer (1 attempt only • Normal chat does not count as an answer)'}
+                      </span>
+
+                      {hasRepliedToQuestion ? (
+                        <div className="px-3 py-1 bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>✓ Answer Submitted (1 attempt used)</span>
+                        </div>
+                      ) : isExplicitClosed ? (
+                        <div className="px-3 py-1 bg-slate-800 border border-slate-700 text-slate-400 text-xs font-bold rounded-xl flex items-center gap-1.5">
+                          <span>⌛ Concluded</span>
+                        </div>
+                      ) : !isUserRegistered && !isManagerOrAdmin && onOpenRegistration ? (
+                        <button
+                          type="button"
+                          onClick={onOpenRegistration}
+                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          <span>Register to Compete</span>
+                        </button>
+                      ) : !isUserStanding && !isManagerOrAdmin ? (
+                        <div className="px-3 py-1 bg-slate-800 border border-slate-700 text-slate-400 text-xs font-bold rounded-xl flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Spectator Mode</span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsInlineReplying((prev) => !prev);
+                            if (onReply) onReply(message);
+                          }}
+                          className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 text-xs font-black rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95 animate-pulse"
+                          title="Reply to submit your official answer (1 attempt limit)"
+                        >
+                          <Reply className="w-3.5 h-3.5 -scale-x-100 stroke-[2.5]" />
+                          <span>{isInlineReplying ? 'Close Reply' : 'Reply with Answer'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Inline Quick Answer Form on Question Card */}
+                    {isInlineReplying && !hasRepliedToQuestion && !isExplicitClosed && (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const trimmed = inlineAnswerText.trim();
+                          if (!trimmed || isInlineSubmitting) return;
+                          setIsInlineSubmitting(true);
+                          if (onAnswerSubmit) {
+                            onAnswerSubmit(message, trimmed);
+                          } else if (onReply) {
+                            onReply(message);
+                          }
+                          setInlineAnswerText('');
+                          setIsInlineReplying(false);
+                          setIsInlineSubmitting(false);
+                        }}
+                        className="mt-2.5 p-3 bg-slate-950/90 rounded-2xl border border-amber-500/50 shadow-inner space-y-2 text-left animate-in fade-in zoom-in-95"
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-black text-amber-400 flex items-center gap-1">
+                            <Zap className="w-3.5 h-3.5" />
+                            <span>Official Answer (1 Attempt Limit)</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsInlineReplying(false)}
+                            className="text-slate-400 hover:text-white text-xs px-2 py-0.5 rounded-md hover:bg-white/10 cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={inlineAnswerText}
+                            onChange={(e) => setInlineAnswerText(e.target.value)}
+                            placeholder="Type your exact answer here..."
+                            autoFocus
+                            className="flex-1 bg-slate-900 border border-amber-500/40 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-white rounded-xl px-3 py-2 text-xs sm:text-sm font-medium outline-hidden placeholder-slate-400"
+                          />
+                          <button
+                            type="submit"
+                            disabled={!inlineAnswerText.trim() || isInlineSubmitting}
+                            className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-md cursor-pointer disabled:opacity-40 transition active:scale-95 shrink-0 flex items-center gap-1"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>{isInlineSubmitting ? 'Submitting...' : 'Submit'}</span>
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400">
+                          ⚠️ Submitting correctly secures survival to the next challenge. Wrong answer or timeout eliminates. Normal chat below does NOT count as an answer.
+                        </p>
+                      </form>
+                    )}
                   </div>
-                ) : isSpectator ? (
-                  <div className="px-3 py-1 bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold rounded-xl flex items-center gap-1.5">
-                    <Eye className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Spectator Mode</span>
-                  </div>
-                ) : onReply ? (
-                  <button
-                    onClick={() => onReply(message)}
-                    className="px-3 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black rounded-xl transition cursor-pointer flex items-center gap-1 shadow-md active:scale-95"
-                  >
-                    <Reply className="w-3.5 h-3.5 -scale-x-100" />
-                    <span>Reply to Answer</span>
-                  </button>
-                ) : null}
-              </div>
+                );
+              })()}
             </div>
           ) : message.type === 'announcement' || message.type === 'system' ? (
             <div className="mt-1 p-2.5 bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-amber-100 leading-relaxed font-medium">

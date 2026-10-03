@@ -138,7 +138,7 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
 
       // Optimistic Arena Feed Message (0ms creation)
       const qMessage: SchoolDomeMessage = {
-        id: 'msg_sdq_' + qId,
+        id: 'msg_' + qId,
         seasonId,
         userId: adminUid || PRIMARY_SUPER_ADMIN_UID,
         userName: adminName ? `${adminName} 🛡️ (Arbiter)` : 'Grobaax Arbiter 🛡️',
@@ -195,11 +195,12 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
               detail: { question: createdQ, message: qMessage },
             })
           );
-          const rawMsgs = localStorage.getItem('grobax_school_dome_messages');
+          localStorage.setItem('grobax_school_dome_active_question', JSON.stringify(createdQ));
+          const rawMsgs = localStorage.getItem('grobax_school_dome_cached_messages');
           const parsed = rawMsgs ? JSON.parse(rawMsgs) : [];
           if (!parsed.some((m: any) => m.id === qMessage.id)) {
             parsed.push(qMessage);
-            localStorage.setItem('grobax_school_dome_messages', JSON.stringify(parsed));
+            localStorage.setItem('grobax_school_dome_cached_messages', JSON.stringify(parsed));
           }
         } catch {}
       }
