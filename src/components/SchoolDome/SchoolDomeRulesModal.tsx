@@ -154,7 +154,7 @@ export const SchoolDomeRulesModal: React.FC<SchoolDomeRulesModalProps> = ({
           <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
             <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="font-bold">Season End & Payout Guarantee:</p>
+              <p className="font-bold">Season End & Prize Pool Distribution:</p>
               <p className="leading-relaxed text-[11px] opacity-90">
                 The moment the Admin clicks <strong>End Season</strong>, typing becomes permanently unavailable in this arena. The entire prize pool is instantaneously distributed to each surviving scholar&apos;s wallet balance with an authoritative transaction receipt.
               </p>

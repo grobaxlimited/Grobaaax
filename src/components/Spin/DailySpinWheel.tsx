@@ -44,7 +44,7 @@ interface DailySpinWheelProps {
 }
 
 export const DailySpinWheel: React.FC<DailySpinWheelProps> = ({ onOpenWallet, className = '' }) => {
-  const { currentUser, transactions, setCurrentUser, openWalletModal } = useApp();
+  const { currentUser, transactions, setCurrentUser, openWalletModal, addTransaction } = useApp();
 
   const [canSpin, setCanSpin] = useState<boolean | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState<number>(0);
@@ -296,6 +296,28 @@ export const DailySpinWheel: React.FC<DailySpinWheelProps> = ({ onOpenWallet, cl
             lastSpinDate: result.transaction?.meta?.spinDate || new Date().toISOString().split('T')[0],
           }));
 
+          // Record authoritative transaction in wallet transactions log
+          if (addTransaction) {
+            addTransaction({
+              type: 'spin_reward',
+              amount: result.rewardAmount,
+              unit: 'GP',
+              title: result.transaction?.title || 'Daily Spin Wheel Reward',
+              description: result.transaction?.description || `Daily Lucky Wheel Reward (+${result.rewardAmount} GP credited)`,
+              isCredit: true,
+              transactionId: result.transaction?.transactionId || result.transaction?.id,
+              userId: activeUserId,
+              userName: currentUser?.name || (currentUser as any)?.username || 'Scholar',
+              userEmail: currentUser?.email || '',
+              institutionName: currentUser?.institutionName || '',
+              meta: result.transaction?.meta || {
+                feature: 'daily_spin_wheel',
+                rewardAmount: result.rewardAmount,
+                spinDate: result.transaction?.meta?.spinDate || new Date().toISOString().split('T')[0],
+              },
+            });
+          }
+
           // Dispatch event so all components update immediately
           if (typeof window !== 'undefined') {
             window.dispatchEvent(
@@ -407,7 +429,7 @@ export const DailySpinWheel: React.FC<DailySpinWheelProps> = ({ onOpenWallet, cl
           </h2>
 
           <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-            Every registered scholar receives <strong>1 free spin every calendar day</strong>. Spin the wheel to claim guaranteed GP rewards added directly to your wallet!
+            Every registered scholar receives <strong>1 free spin every calendar day</strong>. Spin the wheel to claim bonus GP rewards added directly to your wallet!
           </p>
         </div>
 
@@ -699,9 +721,9 @@ export const DailySpinWheel: React.FC<DailySpinWheelProps> = ({ onOpenWallet, cl
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs text-slate-300 font-semibold px-1">
               <span>Wheel Reward Amounts (8 Slices)</span>
-              <span className="text-[11px] text-amber-400 flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5" />
-                Guaranteed GP Payout
+              <span className="text-[11px] text-amber-400 flex items-center gap-1 font-bold">
+                <Sparkles className="w-3.5 h-3.5" />
+                Daily GP Payout
               </span>
             </div>
 

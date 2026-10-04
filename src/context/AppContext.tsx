@@ -442,7 +442,7 @@ interface AppContextType {
 
   // Wallet, Transactions & Conversion Admin
   transactions: Transaction[];
-  addTransaction: (tx: Omit<Transaction, 'id' | 'date' | 'status' | 'transactionId'>) => void;
+  addTransaction: (tx: Omit<Transaction, 'id' | 'date' | 'status' | 'transactionId'> & Partial<Transaction>) => void;
   gpConversionConfig: GpConversionConfig;
   updateGpConversionConfig: (config: Partial<GpConversionConfig>) => void;
   updateWithdrawalStatus: (id: string, status: WithdrawalRecord['status'], notes?: string) => void;

@@ -1485,7 +1485,7 @@ export async function startNewSchoolDomeSeason(
       fetch('/api/spin/school-dome/reset-season', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seasonId }),
+        body: JSON.stringify({ seasonId, startedAt: newSeason.startedAt || Date.now() }),
       }).catch(() => {});
     } catch {}
 
@@ -2192,7 +2192,7 @@ export async function deleteAllSchoolDomeSeasons(
       fetch('/api/spin/school-dome/reset-season', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seasonId: freshSeason1.id }),
+        body: JSON.stringify({ seasonId: freshSeason1.id, startedAt: freshSeason1.startedAt || Date.now() }),
       }).catch(() => {});
     } catch {}
 

@@ -577,7 +577,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
     const fetchSpinStatus = async () => {
       try {
-        const res = await fetch(`/api/spin/school-dome/status/${currentSeason.id}/${currentUid}`);
+        const res = await fetch(`/api/spin/school-dome/status/${currentSeason.id}/${currentUid}?tier=${spinTierType}`);
         const data = await res.json();
         if (isMounted && data.success) {
           const remaining = Number(data.spinsRemaining) || 0;

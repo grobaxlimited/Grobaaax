@@ -60,7 +60,7 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
   tierType,
   onSpinCompleted,
 }) => {
-  const { currentUser, setCurrentUser, openWalletModal } = useApp();
+  const { currentUser, setCurrentUser, openWalletModal, addTransaction } = useApp();
 
   // Mode: 'prompt' (Initial Thank you pop-up) | 'wheel' (Active spin wheel) | 'result' (Won reward modal)
   const [viewState, setViewState] = useState<'prompt' | 'wheel' | 'result'>('prompt');
@@ -103,7 +103,7 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
 
     const checkStatus = async () => {
       try {
-        const res = await fetch(`/api/spin/school-dome/status/${seasonId}/${activeUserId}`);
+        const res = await fetch(`/api/spin/school-dome/status/${seasonId}/${activeUserId}?tier=${tierType}`);
         const data = await res.json();
         if (isMounted && data.success) {
           if (typeof data.spinsUsed === 'number') setSpinsUsed(data.spinsUsed);
@@ -120,7 +120,7 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
     return () => {
       isMounted = false;
     };
-  }, [isOpen, seasonId, activeUserId]);
+  }, [isOpen, seasonId, activeUserId, tierType]);
 
   // Confetti effect
   const fireConfetti = () => {
@@ -207,6 +207,7 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
         body: JSON.stringify({
           seasonId,
           userId: activeUserId,
+          tierType,
           seasonNumber,
           seasonTitle: seasonTitle || `Season ${seasonNumber}`,
           userName: currentUser?.name || (currentUser as any)?.username || 'Scholar',
@@ -264,6 +265,37 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
             walletBalance: result.newBalance,
             totalGpEarned: (Number(prev.totalGpEarned) || 0) + result.rewardAmount,
           }));
+
+          // Record authoritative transaction in wallet transactions log so both user and admin see it immediately
+          if (addTransaction) {
+            addTransaction({
+              type: 'school_dome_spin_bonus',
+              amount: result.rewardAmount,
+              unit: 'GP',
+              title: result.transaction?.title || 'School Dome Elimination Spin Bonus',
+              description:
+                result.transaction?.description ||
+                `School Dome ${seasonTitle || `Season #${seasonNumber}`} Elimination Participation Bonus (+${result.rewardAmount} GP)`,
+              isCredit: true,
+              transactionId: result.transaction?.transactionId || result.transaction?.id,
+              userId: activeUserId,
+              userName: currentUser?.name || (currentUser as any)?.username || 'Scholar',
+              userEmail: currentUser?.email || '',
+              institutionName: currentUser?.institutionName || (currentUser as any)?.institution || '',
+              meta: result.transaction?.meta || {
+                feature: 'school_dome_elimination_spin',
+                seasonId,
+                seasonNumber,
+                seasonTitle: seasonTitle || `Season #${seasonNumber}`,
+                subscriptionTier: tierType.toUpperCase(),
+                eliminationStatus: 'Eliminated',
+                spinNumber: result.spinsUsed || spinsUsed + 1,
+                maxSpins: result.maxSpins || maxSpins,
+                rewardAmount: result.rewardAmount,
+                sliceIndex: winningIndex,
+              },
+            });
+          }
 
           if (typeof window !== 'undefined') {
             window.dispatchEvent(
