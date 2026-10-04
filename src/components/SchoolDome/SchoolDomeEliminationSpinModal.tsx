@@ -356,10 +356,6 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
                   {tierType === 'vip' ? 'VIP Scholar (2 Spins)' : 'Premium Scholar (1 Spin)'}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-slate-300">
-                <span className="font-semibold">Guaranteed Reward:</span>
-                <span className="font-bold text-emerald-400">20 GP – 50 GP</span>
-              </div>
             </div>
 
             {/* Main Action Button */}

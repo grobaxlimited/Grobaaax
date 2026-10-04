@@ -609,7 +609,8 @@ export function AdminTransactionsView() {
                   return (
                     <tr
                       key={tx.id || tx.transactionId}
-                      className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition"
+                      onClick={() => setSelectedTxDetail(tx)}
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition cursor-pointer group"
                     >
                       {/* User & Ref */}
                       <td className="py-3.5 px-4">
@@ -622,7 +623,7 @@ export function AdminTransactionsView() {
                             )}
                           </div>
                           <div>
-                            <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                            <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                               <span>{tx.userName || 'Scholar'}</span>
                               {tx.institutionName && (
                                 <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-normal">
@@ -633,7 +634,11 @@ export function AdminTransactionsView() {
                             <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono mt-0.5">
                               <span>{tx.transactionId || tx.id}</span>
                               <button
-                                onClick={() => handleCopy(tx.transactionId || tx.id, tx.id)}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopy(tx.transactionId || tx.id, tx.id);
+                                }}
                                 className="text-slate-400 hover:text-blue-500 transition cursor-pointer"
                                 title="Copy Reference ID"
                               >
@@ -717,11 +722,16 @@ export function AdminTransactionsView() {
                       {/* Action */}
                       <td className="py-3.5 px-4 text-center">
                         <button
-                          onClick={() => setSelectedTxDetail(tx)}
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTxDetail(tx);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold text-xs transition cursor-pointer"
                           title="Inspect Transaction Details"
                         >
                           <Eye className="w-3.5 h-3.5" />
+                          <span>View</span>
                         </button>
                       </td>
                     </tr>

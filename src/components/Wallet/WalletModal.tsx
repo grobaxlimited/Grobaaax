@@ -88,6 +88,8 @@ import {
   Trophy,
   Star,
   Target,
+  Copy,
+  Clock,
 } from 'lucide-react';
 
 const STANDARD_ACADEMIC_LEVELS = [
@@ -231,6 +233,16 @@ export const WalletModal: React.FC = () => {
   const [ledgerSearchTerm, setLedgerSearchTerm] = useState('');
   const [ledgerDirectionFilter, setLedgerDirectionFilter] = useState<'all' | 'credit' | 'debit'>('all');
   const [ledgerTypeFilter, setLedgerTypeFilter] = useState<string>('all');
+  const [selectedUserTxDetail, setSelectedUserTxDetail] = useState<any | null>(null);
+  const [copiedUserTxId, setCopiedUserTxId] = useState<string | null>(null);
+
+  const handleCopyTxId = (id: string) => {
+    try {
+      navigator.clipboard?.writeText(id);
+      setCopiedUserTxId(id);
+      setTimeout(() => setCopiedUserTxId(null), 2000);
+    } catch {}
+  };
 
   // Settings Filter & Password Management State
   const [settingsSection, setSettingsSection] = useState<
@@ -2422,11 +2434,12 @@ export const WalletModal: React.FC = () => {
                           return (
                             <div
                               key={tx.id || tx.transactionId}
-                              className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs hover:border-blue-500/40 transition-all"
+                              onClick={() => setSelectedUserTxDetail(tx)}
+                              className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs hover:border-blue-500/50 hover:shadow-md transition-all cursor-pointer group"
                             >
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-black text-slate-900 dark:text-slate-100 text-sm">
+                                  <span className="font-black text-slate-900 dark:text-slate-100 text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                     {tx.title}
                                   </span>
                                   <span
@@ -2463,6 +2476,20 @@ export const WalletModal: React.FC = () => {
                                   <span>•</span>
                                   <span className="text-slate-500 dark:text-slate-400">Ref: {tx.transactionId || tx.id}</span>
                                 </div>
+
+                                <div className="pt-1 flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedUserTxDetail(tx);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 text-[11px] font-bold transition cursor-pointer"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>View Details</span>
+                                  </button>
+                                </div>
                               </div>
 
                               <div className="sm:text-right shrink-0">
@@ -2497,6 +2524,168 @@ export const WalletModal: React.FC = () => {
                   </div>
                 );
               })()}
+
+              {/* User Transaction Details Modal */}
+              {selectedUserTxDetail && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
+                  <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-4 text-slate-900 dark:text-white">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2.5 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                          <Receipt className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-black text-slate-900 dark:text-slate-100 text-base">
+                            Transaction Details
+                          </h3>
+                          <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-400">
+                            <span>{selectedUserTxDetail.transactionId || selectedUserTxDetail.id}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyTxId(selectedUserTxDetail.transactionId || selectedUserTxDetail.id)}
+                              className="text-slate-400 hover:text-blue-500 transition cursor-pointer"
+                              title="Copy Reference ID"
+                            >
+                              {copiedUserTxId === (selectedUserTxDetail.transactionId || selectedUserTxDetail.id) ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUserTxDetail(null)}
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 transition cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3.5 text-xs">
+                      {/* Amount & Status Card */}
+                      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between">
+                        <div>
+                          <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Amount & Flow</div>
+                          <div
+                            className={`text-2xl font-black mt-0.5 ${
+                              selectedUserTxDetail.isCredit
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-rose-600 dark:text-rose-400'
+                            }`}
+                          >
+                            {selectedUserTxDetail.isCredit ? '+' : '-'}{Number(selectedUserTxDetail.amount).toLocaleString()} {selectedUserTxDetail.unit || 'GP'}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Status</div>
+                          <div className="mt-1">
+                            <span
+                              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
+                                selectedUserTxDetail.status === 'completed'
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                  : selectedUserTxDetail.status === 'pending'
+                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                              }`}
+                            >
+                              {selectedUserTxDetail.status === 'completed' ? (
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              ) : (
+                                <Clock className="w-3.5 h-3.5" />
+                              )}
+                              <span className="capitalize">{selectedUserTxDetail.status || 'completed'}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Title & Description */}
+                      <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 space-y-1">
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Title & Description</div>
+                        <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">{selectedUserTxDetail.title}</div>
+                        <div className="text-slate-600 dark:text-slate-400">{selectedUserTxDetail.description}</div>
+                      </div>
+
+                      {/* School Dome Elimination Spin Bonus Metadata */}
+                      {(selectedUserTxDetail.type === 'school_dome_spin_bonus' ||
+                        selectedUserTxDetail.meta?.feature === 'school_dome_elimination_spin') && (
+                        <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-900 dark:text-purple-200 space-y-2.5">
+                          <div className="text-[11px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                            <Sparkles className="w-4 h-4 text-purple-500" />
+                            <span>School Dome Elimination Spin Record</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <span className="text-slate-400 text-[10.5px] font-medium block">School Dome Season:</span>
+                              <span className="font-bold text-slate-900 dark:text-white">
+                                {selectedUserTxDetail.meta?.seasonTitle || `Season #${selectedUserTxDetail.meta?.seasonNumber || selectedUserTxDetail.meta?.seasonId || 'Active'}`}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 text-[10.5px] font-medium block">Subscription at Eligibility:</span>
+                              <span className="font-bold text-amber-500">
+                                {selectedUserTxDetail.meta?.subscriptionTier || 'PREMIUM'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 text-[10.5px] font-medium block">Elimination Status:</span>
+                              <span className="font-bold text-rose-500">
+                                {selectedUserTxDetail.meta?.eliminationStatus || 'Eliminated'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 text-[10.5px] font-medium block">Spin Status:</span>
+                              <span className="font-bold text-emerald-500">
+                                Completed (Spin {selectedUserTxDetail.meta?.spinNumber || 1} of {selectedUserTxDetail.meta?.maxSpins || 1})
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* General Spin Wheel breakdown if daily spin */}
+                      {selectedUserTxDetail.type === 'spin_reward' && selectedUserTxDetail.meta?.feature === 'spin_wheel' && (
+                        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-1.5">
+                          <div className="text-[10.5px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Daily Spin Reward Record</span>
+                          </div>
+                          <div className="text-slate-600 dark:text-slate-300 text-xs">
+                            Claimed on: <strong className="text-white">{selectedUserTxDetail.meta?.spinDate || selectedUserTxDetail.date}</strong>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Reason / Admin Notes if present */}
+                      {selectedUserTxDetail.reason && selectedUserTxDetail.reason !== selectedUserTxDetail.description && (
+                        <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 space-y-1">
+                          <div className="text-[10px] text-blue-500 font-semibold uppercase tracking-wider">Note / Remarks</div>
+                          <div className="text-blue-900 dark:text-blue-300">{selectedUserTxDetail.reason}</div>
+                        </div>
+                      )}
+
+                      {/* Date & Time */}
+                      <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 flex justify-between items-center text-slate-500 dark:text-slate-400 text-xs">
+                        <span>Recorded Date & Time:</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedUserTxDetail.date || 'Recent'}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUserTxDetail(null)}
+                        className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer"
+                      >
+                        Close Details
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
