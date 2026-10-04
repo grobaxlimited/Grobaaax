@@ -32,7 +32,6 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import { WelcomeVideoBox } from './WelcomeVideoBox';
-import { DailySpinWheel } from '../Spin/DailySpinWheel';
 
 export const HomeTab: React.FC = () => {
   const {
@@ -310,12 +309,7 @@ export const HomeTab: React.FC = () => {
       </section>
 
       {/* ======================================================== */}
-      {/* 2. DEDICATED DAILY SPIN WHEEL FEATURE                    */}
-      {/* ======================================================== */}
-      <DailySpinWheel onOpenWallet={() => openWalletModal('history')} />
-
-      {/* ======================================================== */}
-      {/* 3. ADMIN-CREATED EVENTS SECTION (REAL-TIME FIRESTORE) */}
+      {/* 2. ADMIN-CREATED EVENTS SECTION (REAL-TIME FIRESTORE) */}
       {/* ======================================================== */}
       <section id="admin-created-events-section" className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">

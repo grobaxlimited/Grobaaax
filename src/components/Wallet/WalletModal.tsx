@@ -2177,7 +2177,7 @@ export const WalletModal: React.FC = () => {
 
                   if (ledgerTypeFilter !== 'all') {
                     if (ledgerTypeFilter === 'quiz' && tx.type !== 'gp_earned') return false;
-                    if (ledgerTypeFilter === 'spin' && tx.type !== 'spin_reward') return false;
+                    if (ledgerTypeFilter === 'spin' && tx.type !== 'spin_reward' && tx.type !== 'school_dome_spin_bonus') return false;
                     if (ledgerTypeFilter === 'vtu' && tx.type !== 'vtu_purchase' && tx.type !== 'vtu_redemption') return false;
                     if (ledgerTypeFilter === 'withdrawal' && tx.type !== 'gp_withdrawal' && tx.type !== 'withdrawal') return false;
                     if (ledgerTypeFilter === 'badge' && tx.type !== 'badge_purchase') return false;
@@ -2202,6 +2202,12 @@ export const WalletModal: React.FC = () => {
                         label: 'Spin Reward',
                         icon: Sparkles,
                         bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+                      };
+                    case 'school_dome_spin_bonus':
+                      return {
+                        label: 'Dome Elimination Spin',
+                        icon: Sparkles,
+                        bg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
                       };
                     case 'GUS_PRIZE':
                     case 'reward':

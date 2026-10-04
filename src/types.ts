@@ -1896,6 +1896,7 @@ export interface Transaction {
     | 'refund'
     | 'welcome_bonus'
     | 'spin_reward'
+    | 'school_dome_spin_bonus'
     | string;
   amount: number;
   unit: 'GRBX' | 'GP' | string;

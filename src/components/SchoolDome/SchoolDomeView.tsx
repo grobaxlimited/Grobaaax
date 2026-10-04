@@ -14,6 +14,7 @@ import { SchoolDomeRegistrationModal } from './SchoolDomeRegistrationModal';
 import { SchoolDomeQuestionCard } from './SchoolDomeQuestionCard';
 import { CreateSchoolDomeQuestionModal } from './CreateSchoolDomeQuestionModal';
 import { SchoolDomeResultsTab } from './SchoolDomeResultsTab';
+import { SchoolDomeEliminationSpinModal } from './SchoolDomeEliminationSpinModal';
 import { WhatsAppChatBackground } from '../common/WhatsAppChatBackground';
 import {
   subscribeSchoolDomeActiveSeason,
@@ -154,6 +155,9 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
   });
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [isEliminationSpinModalOpen, setIsEliminationSpinModalOpen] = useState(false);
+  const [pendingDomeSpins, setPendingDomeSpins] = useState<number>(0);
+  const hasAutoPromptedEliminationSpinRef = useRef<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<'arena' | 'results'>(initialTab);
 
   useEffect(() => {
@@ -338,6 +342,46 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     Boolean(currentUser?.name && currentUser.name.toLowerCase().includes('admin')) ||
     Boolean(currentUser?.name && currentUser.name.toLowerCase().includes('staff'));
 
+  const isActivelySubscribed = isUserSubscribed || checkIsUserSubscribed(currentUser);
+  const isUserExpired = !isStaffOrAdmin && isSubscriptionExpired(currentUser);
+
+  const isVIP =
+    !isStaffOrAdmin &&
+    !isUserExpired &&
+    Boolean(
+      currentUser?.isVip ||
+      currentUser?.gusTier === 'Titan' ||
+      membership.includes('vip') ||
+      membership.includes('titan') ||
+      subTier.includes('vip') ||
+      subTier.includes('titan') ||
+      plan.includes('vip') ||
+      plan.includes('titan') ||
+      plan.includes('annual')
+    );
+
+  const isPremium =
+    !isStaffOrAdmin &&
+    !isUserExpired &&
+    !isVIP &&
+    Boolean(
+      isActivelySubscribed ||
+      currentUser?.isPremium ||
+      (membership && !membership.includes('free') && membership.trim().length > 0) ||
+      (subTier && !subTier.includes('free') && subTier.trim().length > 0) ||
+      (plan && !plan.includes('free') && plan.trim().length > 0)
+    );
+
+  const tierName: 'free' | 'premium' | 'vip' | 'admin' = isStaffOrAdmin
+    ? 'admin'
+    : isVIP
+    ? 'vip'
+    : isPremium
+    ? 'premium'
+    : 'free';
+
+  const spinTierType: 'free' | 'premium' | 'vip' = isVIP ? 'vip' : isPremium ? 'premium' : 'free';
+
   // Real-time ticking sensor to instantly remove the pinned question card when its time expires
   const [nowTick, setNowTick] = useState<number>(Date.now());
   useEffect(() => {
@@ -397,6 +441,16 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
           }
           return updated;
         });
+
+        // Trigger elimination spin popup immediately for eligible Premium and VIP scholars
+        if (spinTierType !== 'free') {
+          if (currentSeason?.id) {
+            hasAutoPromptedEliminationSpinRef.current[`${currentSeason.id}_${cUid}`] = true;
+          }
+          setTimeout(() => {
+            setIsEliminationSpinModalOpen(true);
+          }, 800);
+        }
       }
 
       // Mark activeQuestion closed locally
@@ -419,44 +473,6 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     (currentUser as any)?.uid,
     isStaffOrAdmin,
   ]);
-
-  const isActivelySubscribed = isUserSubscribed || checkIsUserSubscribed(currentUser);
-  const isUserExpired = !isStaffOrAdmin && isSubscriptionExpired(currentUser);
-
-  const isVIP =
-    !isStaffOrAdmin &&
-    !isUserExpired &&
-    Boolean(
-      currentUser?.isVip ||
-      currentUser?.gusTier === 'Titan' ||
-      membership.includes('vip') ||
-      membership.includes('titan') ||
-      subTier.includes('vip') ||
-      subTier.includes('titan') ||
-      plan.includes('vip') ||
-      plan.includes('titan') ||
-      plan.includes('annual')
-    );
-
-  const isPremium =
-    !isStaffOrAdmin &&
-    !isUserExpired &&
-    !isVIP &&
-    Boolean(
-      isActivelySubscribed ||
-      currentUser?.isPremium ||
-      (membership && !membership.includes('free') && membership.trim().length > 0) ||
-      (subTier && !subTier.includes('free') && subTier.trim().length > 0) ||
-      (plan && !plan.includes('free') && plan.trim().length > 0)
-    );
-
-  const tierName: 'free' | 'premium' | 'vip' | 'admin' = isStaffOrAdmin
-    ? 'admin'
-    : isVIP
-    ? 'vip'
-    : isPremium
-    ? 'premium'
-    : 'free';
 
   // Daily Limits: Free (2), Premium (15), VIP (20), Admin/Manager (Unlimited)
   const maxDailyLimit = isStaffOrAdmin ? Infinity : isVIP ? 20 : isPremium ? 15 : 2;
@@ -538,6 +554,42 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
   // Standing means registered and not eliminated from the season
   const isUserStanding = isUserRegistered && !isUserEliminated;
   const isSpectator = !isStaffOrAdmin && (!isUserRegistered || isUserEliminated);
+
+  // Check pending School Dome elimination spin bonus for eliminated Premium/VIP scholars
+  useEffect(() => {
+    if (!currentSeason?.id || !currentUid || !isUserEliminated || !isUserRegistered || spinTierType === 'free') {
+      setPendingDomeSpins(0);
+      return;
+    }
+
+    let isMounted = true;
+    const seasonKey = `${currentSeason.id}_${currentUid}`;
+
+    const fetchSpinStatus = async () => {
+      try {
+        const res = await fetch(`/api/spin/school-dome/status/${currentSeason.id}/${currentUid}`);
+        const data = await res.json();
+        if (isMounted && data.success) {
+          const remaining = Number(data.spinsRemaining) || 0;
+          setPendingDomeSpins(remaining);
+
+          // If user has spins remaining and has not yet been prompted in this session, trigger popup automatically
+          if (remaining > 0 && !hasAutoPromptedEliminationSpinRef.current[seasonKey]) {
+            hasAutoPromptedEliminationSpinRef.current[seasonKey] = true;
+            setIsEliminationSpinModalOpen(true);
+          }
+        }
+      } catch (e) {
+        console.warn('[SchoolDome] Spin status check fallback:', e);
+      }
+    };
+
+    fetchSpinStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentSeason?.id, currentUid, isUserEliminated, isUserRegistered, spinTierType]);
 
   const handleRegister = async () => {
     if (!currentSeason?.id || isRegistering) return;
@@ -969,6 +1021,16 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
               repliedUserIds: Array.from(new Set([...(prev.repliedUserIds || []), cUid])),
             };
           });
+
+          // Trigger elimination spin popup immediately for eligible Premium and VIP scholars
+          if (spinTierType !== 'free') {
+            if (currentSeason?.id) {
+              hasAutoPromptedEliminationSpinRef.current[`${currentSeason.id}_${cUid}`] = true;
+            }
+            setTimeout(() => {
+              setIsEliminationSpinModalOpen(true);
+            }, 800);
+          }
         } else {
           setActiveQuestion((prev) => {
             if (!prev) return prev;
@@ -1309,9 +1371,21 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                 </div>
               )
             ) : isUserEliminated ? (
-              <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-medium">
-                <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                <span>You were eliminated from Season #{currentSeason.seasonNumber} (wrong answer or time expired). Spectator Mode active (watching live).</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full text-rose-600 dark:text-rose-400 font-medium">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                  <span>You were eliminated from Season #{currentSeason.seasonNumber} (wrong answer or time expired). Spectator Mode active (watching live).</span>
+                </div>
+                {isUserRegistered && spinTierType !== 'free' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEliminationSpinModalOpen(true)}
+                    className="self-start sm:self-auto px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs rounded-xl shadow-md transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                    <span>Spin Elimination Bonus {pendingDomeSpins > 0 ? `(${pendingDomeSpins} Left)` : ''}</span>
+                  </button>
+                )}
               </div>
             ) : isUserStanding ? (
               <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
@@ -1603,6 +1677,20 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                 >
                   Register Free
                 </button>
+              ) : isUserEliminated && isUserRegistered && spinTierType !== 'free' ? (
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsEliminationSpinModalOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-slate-950 font-black text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                    <span>Spin Bonus {pendingDomeSpins > 0 ? `(${pendingDomeSpins})` : ''}</span>
+                  </button>
+                  <span className="hidden sm:inline-block px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 font-black text-[11px] border border-amber-500/30 shrink-0 uppercase tracking-wider">
+                    Spectator Mode
+                  </span>
+                </div>
               ) : (
                 <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 font-black text-[11px] border border-amber-500/30 shrink-0 uppercase tracking-wider">
                   Spectator Mode
@@ -1790,6 +1878,23 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         isRegistering={isRegistering}
         onRegister={handleRegister}
       />
+
+      {/* School Dome Elimination Spin Bonus Modal for eligible Premium and VIP scholars */}
+      {currentSeason && isUserRegistered && spinTierType !== 'free' && (
+        <SchoolDomeEliminationSpinModal
+          isOpen={isEliminationSpinModalOpen}
+          onClose={() => setIsEliminationSpinModalOpen(false)}
+          seasonId={currentSeason.id}
+          seasonNumber={currentSeason.seasonNumber || 1}
+          seasonTitle={currentSeason.title || `School Dome Season #${currentSeason.seasonNumber || 1}`}
+          isRegistered={isUserRegistered}
+          isEliminated={isUserEliminated}
+          tierType={spinTierType}
+          onSpinCompleted={(_amount, _newBalance) => {
+            setPendingDomeSpins((prev) => Math.max(0, prev - 1));
+          }}
+        />
+      )}
     </div>
   );
 };

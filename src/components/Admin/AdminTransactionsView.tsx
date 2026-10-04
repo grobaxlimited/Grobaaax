@@ -94,7 +94,8 @@ export function AdminTransactionsView() {
       // Type filter
       if (selectedType !== 'all') {
         if (selectedType === 'quiz' && tx.type !== 'gp_earned') return false;
-        if (selectedType === 'spin' && tx.type !== 'spin_reward') return false;
+        if (selectedType === 'spin' && tx.type !== 'spin_reward' && tx.type !== 'school_dome_spin_bonus') return false;
+        if (selectedType === 'dome_spin' && tx.type !== 'school_dome_spin_bonus') return false;
         if (selectedType === 'vtu' && tx.type !== 'vtu_purchase' && tx.type !== 'vtu_redemption') return false;
         if (selectedType === 'withdrawal' && tx.type !== 'gp_withdrawal' && tx.type !== 'withdrawal') return false;
         if (selectedType === 'badge' && tx.type !== 'badge_purchase') return false;
@@ -269,6 +270,12 @@ export function AdminTransactionsView() {
           label: 'Spin Reward',
           icon: Sparkles,
           bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+        };
+      case 'school_dome_spin_bonus':
+        return {
+          label: 'Dome Elimination Spin',
+          icon: Sparkles,
+          bg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
         };
       case 'GUS_PRIZE':
       case 'reward':
@@ -490,7 +497,8 @@ export function AdminTransactionsView() {
               className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
             >
               <option value="all">All Types</option>
-              <option value="spin">🎡 Daily Spin Rewards (spin_reward)</option>
+              <option value="dome_spin">🏟️ School Dome Spin Bonuses (school_dome_spin_bonus)</option>
+              <option value="spin">🎡 Spin Rewards (All)</option>
               <option value="quiz">Dome Speed Quizzes (gp_earned)</option>
               <option value="vtu">Airtime & Mobile Data (VTU)</option>
               <option value="withdrawal">Cash Out Withdrawals</option>
@@ -803,6 +811,43 @@ export function AdminTransactionsView() {
                 <div className="font-bold text-slate-900 dark:text-slate-100">{selectedTxDetail.title}</div>
                 <div className="text-slate-500 dark:text-slate-400">{selectedTxDetail.description}</div>
               </div>
+
+              {/* School Dome Elimination Spin Bonus Metadata */}
+              {(selectedTxDetail.type === 'school_dome_spin_bonus' ||
+                selectedTxDetail.meta?.feature === 'school_dome_elimination_spin') && (
+                <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-900 dark:text-purple-200 space-y-2">
+                  <div className="text-[10.5px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>School Dome Elimination Spin Record</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-400 font-medium">School Dome Season:</span>
+                      <div className="font-bold text-slate-900 dark:text-white">
+                        {selectedTxDetail.meta?.seasonTitle || `Season #${selectedTxDetail.meta?.seasonNumber || selectedTxDetail.meta?.seasonId || 'Active'}`}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium">Subscription at Eligibility:</span>
+                      <div className="font-bold text-amber-500">
+                        {selectedTxDetail.meta?.subscriptionTier || 'PREMIUM'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium">Elimination Status:</span>
+                      <div className="font-bold text-rose-500">
+                        {selectedTxDetail.meta?.eliminationStatus || 'Eliminated'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium">Spin Status:</span>
+                      <div className="font-bold text-emerald-500">
+                        Completed (Spin {selectedTxDetail.meta?.spinNumber || 1} of {selectedTxDetail.meta?.maxSpins || 1})
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {selectedTxDetail.reason && (
                 <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 space-y-1">
