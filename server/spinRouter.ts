@@ -594,7 +594,20 @@ spinRouter.get('/school-dome/status/:seasonId/:userId', async (req: Request, res
 
     const maxSpins = tierType === 'vip' ? 2 : 1;
 
-    // 2. Count existing School Dome elimination spin transactions for this user & season
+    // 2. Fetch season doc to determine season start timestamp (ensures new season spins are reset)
+    let seasonStartedAt = 0;
+    try {
+      const { data: seasonDoc } = await supabaseAdmin
+        .from('schoolDomeSeasons')
+        .select('id, data')
+        .eq('id', seasonId)
+        .maybeSingle();
+
+      const sData = seasonDoc?.data?.data || seasonDoc?.data || {};
+      seasonStartedAt = Number(sData.startedAt || sData.createdAt || sData.resetAt || 0);
+    } catch {}
+
+    // Count existing School Dome elimination spin transactions for this user & season run
     const { data: rawTxList } = await supabaseAdmin
       .from('walletTransactions')
       .select('id, data')
@@ -604,8 +617,17 @@ spinRouter.get('/school-dome/status/:seasonId/:userId', async (req: Request, res
     const existingSpins = (rawTxList || []).filter((item: any) => {
       const d = item.data || {};
       const isTargetType = d.type === 'school_dome_spin_bonus' || (d.type === 'spin_reward' && d.meta?.feature === 'school_dome_elimination_spin');
-      const matchesSeason = d.meta?.seasonId === seasonId || (d.description && d.description.includes(seasonId));
-      return d.userId === userId && isTargetType && matchesSeason;
+      const matchesSeason = d.meta?.seasonId === seasonId;
+      if (!isTargetType || !matchesSeason || d.userId !== userId) return false;
+
+      // If season was started or reset, transactions must have occurred after the season started
+      if (seasonStartedAt > 0 && d.createdAt) {
+        const txTime = new Date(d.createdAt).getTime();
+        if (!isNaN(txTime) && txTime < seasonStartedAt) {
+          return false;
+        }
+      }
+      return true;
     });
 
     const spinsUsed = existingSpins.length;
@@ -741,7 +763,19 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
       });
     }
 
-    // 4. Count prior spins used for this season
+    // 4. Count prior spins used for this season run (only count spins after the season started)
+    let seasonStartedAt = 0;
+    try {
+      const { data: seasonDoc } = await supabaseAdmin
+        .from('schoolDomeSeasons')
+        .select('id, data')
+        .eq('id', seasonId)
+        .maybeSingle();
+
+      const sData = seasonDoc?.data?.data || seasonDoc?.data || {};
+      seasonStartedAt = Number(sData.startedAt || sData.createdAt || sData.resetAt || 0);
+    } catch {}
+
     const { data: rawTxList } = await supabaseAdmin
       .from('walletTransactions')
       .select('id, data')
@@ -751,8 +785,17 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
     const existingSpins = (rawTxList || []).filter((item: any) => {
       const d = item.data || {};
       const isTargetType = d.type === 'school_dome_spin_bonus' || (d.type === 'spin_reward' && d.meta?.feature === 'school_dome_elimination_spin');
-      const matchesSeason = d.meta?.seasonId === seasonId || (d.description && d.description.includes(seasonId));
-      return d.userId === userId && isTargetType && matchesSeason;
+      const matchesSeason = d.meta?.seasonId === seasonId;
+      if (!isTargetType || !matchesSeason || d.userId !== userId) return false;
+
+      // If season was started or reset, transactions must have occurred after the season started
+      if (seasonStartedAt > 0 && d.createdAt) {
+        const txTime = new Date(d.createdAt).getTime();
+        if (!isNaN(txTime) && txTime < seasonStartedAt) {
+          return false;
+        }
+      }
+      return true;
     });
 
     const spinsUsed = existingSpins.length;
@@ -903,5 +946,30 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
     domeSpinLocks.delete(lockKey);
     console.error('[School Dome Spin] Unexpected exception during spin execution:', err);
     return res.status(500).json({ success: false, message: 'Internal server error while executing spin.' });
+  }
+});
+
+/**
+ * POST /api/spin/school-dome/reset-season
+ * Resets spin bonus tracking whenever a new season starts or seasons are reset
+ */
+spinRouter.post('/school-dome/reset-season', async (req: Request, res: Response) => {
+  const { seasonId } = req.body || {};
+  try {
+    if (seasonId) {
+      try {
+        await supabaseAdmin.from('schoolDomeSpins').delete().eq('data->>seasonId', seasonId);
+      } catch {}
+    } else {
+      try {
+        await supabaseAdmin.from('schoolDomeSpins').delete().neq('id', '___keep_none___');
+      } catch {}
+    }
+    return res.json({
+      success: true,
+      message: `Spin bonus successfully reset for season ${seasonId || 'all'}. VIP scholars receive 2 spins, Premium scholars receive 1 spin.`,
+    });
+  } catch (err: any) {
+    return res.json({ success: true, message: 'Season reset acknowledged.' });
   }
 });

@@ -1480,6 +1480,15 @@ export async function startNewSchoolDomeSeason(
 
     await setDoc(doc(db, 'school_dome_seasons', seasonId), newSeason, { merge: false });
 
+    // Notify spin bonus system that a new season has started to reset VIP & Premium spin counts
+    try {
+      fetch('/api/spin/school-dome/reset-season', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seasonId }),
+      }).catch(() => {});
+    } catch {}
+
     // Announce opening of registration
     const annMsg: SchoolDomeMessage = {
       id: `ann_${Date.now()}`,
@@ -2177,6 +2186,15 @@ export async function deleteAllSchoolDomeSeasons(
       setDoc(doc(db, 'school_dome_seasons', freshSeason1.id), freshSeason1, { merge: false }),
       setDoc(doc(db, 'school_dome_messages', freshWelcomeMsg.id), freshWelcomeMsg, { merge: false }),
     ]);
+
+    // 4b. Reset all spin bonus records on backend for clean Season 1 restart
+    try {
+      fetch('/api/spin/school-dome/reset-season', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seasonId: freshSeason1.id }),
+      }).catch(() => {});
+    } catch {}
 
     // 5. Final local cache sync
     if (typeof window !== 'undefined') {

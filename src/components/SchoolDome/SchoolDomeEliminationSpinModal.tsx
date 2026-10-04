@@ -83,6 +83,18 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
 
   const activeUserId = currentUser?.id || '';
 
+  // Reset modal state whenever a new season is active or opened
+  useEffect(() => {
+    const freshMax = tierType === 'vip' ? 2 : 1;
+    setMaxSpins(freshMax);
+    setSpinsRemaining(freshMax);
+    setSpinsUsed(0);
+    setWonReward(null);
+    setWonTransaction(null);
+    setViewState('prompt');
+    setErrorMessage(null);
+  }, [seasonId, tierType]);
+
   // Check spin eligibility and status for this season on open
   useEffect(() => {
     if (!isOpen || !seasonId || !activeUserId) return;

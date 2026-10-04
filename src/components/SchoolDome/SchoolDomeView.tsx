@@ -175,7 +175,14 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     const handleSeasonUpdated = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail) {
-        setCurrentSeason(detail);
+        setCurrentSeason((prev) => {
+          if (prev && (prev.id !== detail.id || prev.startedAt !== detail.startedAt || prev.seasonNumber !== detail.seasonNumber)) {
+            setIsEliminationSpinModalOpen(false);
+            setPendingDomeSpins(0);
+            hasAutoPromptedEliminationSpinRef.current = {};
+          }
+          return detail;
+        });
         if (detail.seasonNumber === 1 && !detail.firstQuestionLaunched && (detail.totalQuestionsLaunched || 0) === 0) {
           setActiveQuestion(null);
           setSeasonQuestions([]);
@@ -191,6 +198,9 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         setActiveQuestion(null);
         setSeasonQuestions([]);
         setReplyTarget(null);
+        setIsEliminationSpinModalOpen(false);
+        setPendingDomeSpins(0);
+        hasAutoPromptedEliminationSpinRef.current = {};
       }
     };
     window.addEventListener('school_dome_season_reset', handleSeasonReset);
