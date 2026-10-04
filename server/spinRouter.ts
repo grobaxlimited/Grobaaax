@@ -603,13 +603,15 @@ spinRouter.get('/school-dome/status/:seasonId/:userId', async (req: Request, res
     let seasonStartedAt = 0;
     try {
       const { data: seasonDoc } = await supabaseAdmin
-        .from('schoolDomeSeasons')
-        .select('id, data')
+        .from('school_dome_seasons')
+        .select('id, data, created_at')
         .eq('id', seasonId)
         .maybeSingle();
 
       const sData = seasonDoc?.data?.data || seasonDoc?.data || {};
-      seasonStartedAt = Number(sData.startedAt || sData.createdAt || sData.resetAt || 0);
+      const rawStart = sData.startedAt || sData.createdAt || sData.resetAt || seasonDoc?.created_at;
+      seasonStartedAt = typeof rawStart === 'number' ? rawStart : new Date(rawStart || 0).getTime();
+      if (isNaN(seasonStartedAt)) seasonStartedAt = 0;
     } catch {}
 
     const resetTimestamp = seasonResetRegistry.get(seasonId) || seasonResetRegistry.get('__all__') || 0;
@@ -618,7 +620,7 @@ spinRouter.get('/school-dome/status/:seasonId/:userId', async (req: Request, res
     // Count existing School Dome elimination spin transactions for this user & season run
     const { data: rawTxList } = await supabaseAdmin
       .from('walletTransactions')
-      .select('id, data')
+      .select('id, data, created_at')
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -627,11 +629,26 @@ spinRouter.get('/school-dome/status/:seasonId/:userId', async (req: Request, res
       const isTargetType = d.type === 'school_dome_spin_bonus' || (d.type === 'spin_reward' && d.meta?.feature === 'school_dome_elimination_spin');
       const matchesSeason = d.meta?.seasonId === seasonId;
       if (!isTargetType || !matchesSeason || d.userId !== userId) return false;
+      if (d.meta?.resetArchived) return false;
 
       // If season was started or reset, transactions must have occurred after the season started/reset
-      if (effectiveSeasonStart > 0 && d.createdAt) {
-        const txTime = new Date(d.createdAt).getTime();
-        if (!isNaN(txTime) && txTime < effectiveSeasonStart) {
+      if (effectiveSeasonStart > 0) {
+        let txTime = 0;
+        if (typeof d.createdAt === 'number') {
+          txTime = d.createdAt;
+        } else if (d.createdAt?.seconds) {
+          txTime = d.createdAt.seconds * 1000;
+        } else if (d.createdAt?._seconds) {
+          txTime = d.createdAt._seconds * 1000;
+        } else if (d.createdAt) {
+          txTime = new Date(d.createdAt).getTime();
+        } else if (item.created_at) {
+          txTime = new Date(item.created_at).getTime();
+        } else if (d.timestamp) {
+          txTime = Number(d.timestamp);
+        }
+
+        if (txTime > 0 && txTime < effectiveSeasonStart) {
           return false;
         }
       }
@@ -738,7 +755,7 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
 
     try {
       const { data: seasonDoc } = await supabaseAdmin
-        .from('schoolDomeSeasons')
+        .from('school_dome_seasons')
         .select('id, data')
         .eq('id', seasonId)
         .maybeSingle();
@@ -778,7 +795,7 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
     let seasonStartedAt = 0;
     try {
       const { data: seasonDoc } = await supabaseAdmin
-        .from('schoolDomeSeasons')
+        .from('school_dome_seasons')
         .select('id, data')
         .eq('id', seasonId)
         .maybeSingle();

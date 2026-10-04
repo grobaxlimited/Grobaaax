@@ -668,13 +668,15 @@ export function subscribeSchoolDomeActiveQuestion(
               const stored = localStorage.getItem('grobax_school_dome_active_question');
               if (stored) {
                 const parsed = JSON.parse(stored);
-                if (parsed && parsed.status === 'active') fallback = parsed;
+                // ONLY accept cached question if it is genuinely active and not expired in time
+                if (parsed && parsed.status === 'active' && parsed.endAt && parsed.endAt > Date.now()) {
+                  fallback = parsed;
+                } else {
+                  localStorage.removeItem('grobax_school_dome_active_question');
+                }
               }
             }
           } catch {}
-          if (!fallback && (!seasonId || seasonId === 'season_dome_1') && DEFAULT_INITIAL_QUESTION?.status === 'active') {
-            fallback = DEFAULT_INITIAL_QUESTION;
-          }
           callback(fallback);
         }
       },
@@ -686,13 +688,14 @@ export function subscribeSchoolDomeActiveQuestion(
             const stored = localStorage.getItem('grobax_school_dome_active_question');
             if (stored) {
               const parsed = JSON.parse(stored);
-              if (parsed && parsed.status === 'active') fallback = parsed;
+              if (parsed && parsed.status === 'active' && parsed.endAt && parsed.endAt > Date.now()) {
+                fallback = parsed;
+              } else {
+                localStorage.removeItem('grobax_school_dome_active_question');
+              }
             }
           }
         } catch {}
-        if (!fallback && (!seasonId || seasonId === 'season_dome_1') && DEFAULT_INITIAL_QUESTION?.status === 'active') {
-          fallback = DEFAULT_INITIAL_QUESTION;
-        }
         callback(fallback);
       }
     );
@@ -1405,6 +1408,13 @@ export async function closeSchoolDomeQuestion(
     }
 
     await Promise.all(closeOps);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('grobax_school_dome_active_question');
+        window.dispatchEvent(new CustomEvent('school_dome_active_question_updated', { detail: null }));
+      } catch {}
+    }
   } catch (err) {
     console.error('Error closing School Dome question:', err);
     throw err;
@@ -1480,13 +1490,24 @@ export async function startNewSchoolDomeSeason(
 
     await setDoc(doc(db, 'school_dome_seasons', seasonId), newSeason, { merge: false });
 
+    // Sync to Supabase school_dome_seasons for authoritative server-side checks
+    try {
+      if (supabaseAdmin) {
+        await supabaseAdmin.from('school_dome_seasons').upsert({
+          id: seasonId,
+          data: newSeason,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    } catch {}
+
     // Notify spin bonus system that a new season has started to reset VIP & Premium spin counts
     try {
-      fetch('/api/spin/school-dome/reset-season', {
+      await fetch('/api/spin/school-dome/reset-season', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ seasonId, startedAt: newSeason.startedAt || Date.now() }),
-      }).catch(() => {});
+      });
     } catch {}
 
     // Announce opening of registration
@@ -2187,13 +2208,24 @@ export async function deleteAllSchoolDomeSeasons(
       setDoc(doc(db, 'school_dome_messages', freshWelcomeMsg.id), freshWelcomeMsg, { merge: false }),
     ]);
 
+    // 4a. Sync pristine Season 1 to Supabase school_dome_seasons
+    try {
+      if (supabaseAdmin) {
+        await supabaseAdmin.from('school_dome_seasons').upsert({
+          id: freshSeason1.id,
+          data: freshSeason1,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    } catch {}
+
     // 4b. Reset all spin bonus records on backend for clean Season 1 restart
     try {
-      fetch('/api/spin/school-dome/reset-season', {
+      await fetch('/api/spin/school-dome/reset-season', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ seasonId: freshSeason1.id, startedAt: freshSeason1.startedAt || Date.now() }),
-      }).catch(() => {});
+      });
     } catch {}
 
     // 5. Final local cache sync

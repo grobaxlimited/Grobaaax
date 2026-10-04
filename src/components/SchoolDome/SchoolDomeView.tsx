@@ -1890,7 +1890,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
       />
 
       {/* School Dome Elimination Spin Bonus Modal for eligible Premium and VIP scholars */}
-      {currentSeason && isUserRegistered && spinTierType !== 'free' && (
+      {currentSeason && spinTierType !== 'free' && (
         <SchoolDomeEliminationSpinModal
           isOpen={isEliminationSpinModalOpen}
           onClose={() => setIsEliminationSpinModalOpen(false)}
