@@ -1,7 +1,54 @@
 import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { supabaseAdmin } from '../src/lib/supabaseFirestoreAdapter';
 
 export const spinRouter = Router();
+
+const DOME_SPINS_FILE = path.resolve(process.cwd(), 'server', 'school_dome_spins.json');
+
+export interface DomeSpinRecord {
+  spinNumber: number;
+  rewardAmount: number;
+  transactionId: string;
+  timestamp: number;
+  tier: string;
+}
+
+export interface DomeSpinStore {
+  resets: Record<string, number>;
+  spins: Record<string, Record<string, DomeSpinRecord[]>>; // seasonId -> userId -> DomeSpinRecord[]
+}
+
+function loadDomeSpinStore(): DomeSpinStore {
+  try {
+    if (fs.existsSync(DOME_SPINS_FILE)) {
+      const content = fs.readFileSync(DOME_SPINS_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          resets: parsed.resets || {},
+          spins: parsed.spins || {},
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[School Dome Spin Store] Notice reading store file:', err);
+  }
+  return { resets: {}, spins: {} };
+}
+
+function saveDomeSpinStore(store: DomeSpinStore): void {
+  try {
+    const dir = path.dirname(DOME_SPINS_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(DOME_SPINS_FILE, JSON.stringify(store, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[School Dome Spin Store] Notice writing store file:', err);
+  }
+}
 
 export interface SpinRewardSlice {
   amount: number;
@@ -597,6 +644,7 @@ spinRouter.get('/school-dome/status/:seasonId/:userId', async (req: Request, res
       });
     }
 
+    // VIP scholars receive exactly 2 spins; Premium scholars receive exactly 1 spin
     const maxSpins = tierType === 'vip' ? 2 : 1;
 
     // 2. Fetch season doc to determine season start timestamp (ensures new season spins are reset)
@@ -614,48 +662,76 @@ spinRouter.get('/school-dome/status/:seasonId/:userId', async (req: Request, res
       if (isNaN(seasonStartedAt)) seasonStartedAt = 0;
     } catch {}
 
-    const resetTimestamp = seasonResetRegistry.get(seasonId) || seasonResetRegistry.get('__all__') || 0;
+    const store = loadDomeSpinStore();
+    const resetTimestamp = Math.max(
+      store.resets[seasonId] || 0,
+      store.resets['__all__'] || 0,
+      seasonResetRegistry.get(seasonId) || 0,
+      seasonResetRegistry.get('__all__') || 0
+    );
     const effectiveSeasonStart = Math.max(seasonStartedAt, resetTimestamp);
 
-    // Count existing School Dome elimination spin transactions for this user & season run
-    const { data: rawTxList } = await supabaseAdmin
-      .from('walletTransactions')
-      .select('id, data, created_at')
-      .order('created_at', { ascending: false })
-      .limit(100);
+    // If season doc startedAt is newer than store reset, record it so prior spins are excluded
+    if (seasonStartedAt > 0 && (!store.resets[seasonId] || seasonStartedAt > store.resets[seasonId])) {
+      store.resets[seasonId] = seasonStartedAt;
+      saveDomeSpinStore(store);
+    }
 
-    const existingSpins = (rawTxList || []).filter((item: any) => {
-      const d = item.data || {};
-      const isTargetType = d.type === 'school_dome_spin_bonus' || (d.type === 'spin_reward' && d.meta?.feature === 'school_dome_elimination_spin');
-      const matchesSeason = d.meta?.seasonId === seasonId;
-      if (!isTargetType || !matchesSeason || d.userId !== userId) return false;
-      if (d.meta?.resetArchived) return false;
-
-      // If season was started or reset, transactions must have occurred after the season started/reset
-      if (effectiveSeasonStart > 0) {
-        let txTime = 0;
-        if (typeof d.createdAt === 'number') {
-          txTime = d.createdAt;
-        } else if (d.createdAt?.seconds) {
-          txTime = d.createdAt.seconds * 1000;
-        } else if (d.createdAt?._seconds) {
-          txTime = d.createdAt._seconds * 1000;
-        } else if (d.createdAt) {
-          txTime = new Date(d.createdAt).getTime();
-        } else if (item.created_at) {
-          txTime = new Date(item.created_at).getTime();
-        } else if (d.timestamp) {
-          txTime = Number(d.timestamp);
-        }
-
-        if (txTime > 0 && txTime < effectiveSeasonStart) {
-          return false;
-        }
+    // Count user's recorded spins for this season run from persistent store
+    const seasonSpins = store.spins[seasonId] || {};
+    let userSpins = (seasonSpins[userId] || []).filter((s) => {
+      if (effectiveSeasonStart > 0 && s.timestamp < effectiveSeasonStart) {
+        return false;
       }
       return true;
     });
 
-    const spinsUsed = existingSpins.length;
+    // Fallback: check walletTransactions if store has 0 spins
+    if (userSpins.length === 0) {
+      try {
+        const { data: rawTxList } = await supabaseAdmin
+          .from('walletTransactions')
+          .select('id, data, created_at')
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        const txSpins = (rawTxList || []).filter((item: any) => {
+          const d = item.data || {};
+          const isTargetType = d.type === 'school_dome_spin_bonus' || (d.type === 'spin_reward' && d.meta?.feature === 'school_dome_elimination_spin');
+          const matchesSeason = d.meta?.seasonId === seasonId;
+          if (!isTargetType || !matchesSeason || d.userId !== userId) return false;
+          if (d.meta?.resetArchived) return false;
+
+          if (effectiveSeasonStart > 0) {
+            let txTime = 0;
+            if (typeof d.createdAt === 'number') txTime = d.createdAt;
+            else if (d.createdAt?.seconds) txTime = d.createdAt.seconds * 1000;
+            else if (d.createdAt?._seconds) txTime = d.createdAt._seconds * 1000;
+            else if (d.createdAt) txTime = new Date(d.createdAt).getTime();
+            else if (item.created_at) txTime = new Date(item.created_at).getTime();
+            else if (d.timestamp) txTime = Number(d.timestamp);
+
+            if (txTime > 0 && txTime < effectiveSeasonStart) return false;
+          }
+          return true;
+        });
+
+        if (txSpins.length > 0) {
+          if (!store.spins[seasonId]) store.spins[seasonId] = {};
+          store.spins[seasonId][userId] = txSpins.map((t: any, idx: number) => ({
+            spinNumber: t.data?.meta?.spinNumber || idx + 1,
+            rewardAmount: t.data?.amount || 20,
+            transactionId: t.id,
+            timestamp: new Date(t.data?.createdAt || t.created_at || Date.now()).getTime(),
+            tier: tierType,
+          }));
+          saveDomeSpinStore(store);
+          userSpins = store.spins[seasonId][userId];
+        }
+      } catch {}
+    }
+
+    const spinsUsed = userSpins.length;
     const spinsRemaining = Math.max(0, maxSpins - spinsUsed);
     const canSpin = spinsRemaining > 0;
 
@@ -791,7 +867,7 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
       });
     }
 
-    // 4. Count prior spins used for this season run (only count spins after the season started/reset)
+    // 4. Count prior spins used for this season run from persistent store
     let seasonStartedAt = 0;
     try {
       const { data: seasonDoc } = await supabaseAdmin
@@ -804,30 +880,66 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
       seasonStartedAt = Number(sData.startedAt || sData.createdAt || sData.resetAt || 0);
     } catch {}
 
-    const resetTimestamp = seasonResetRegistry.get(seasonId) || seasonResetRegistry.get('__all__') || 0;
+    const store = loadDomeSpinStore();
+    const resetTimestamp = Math.max(
+      store.resets[seasonId] || 0,
+      store.resets['__all__'] || 0,
+      seasonResetRegistry.get(seasonId) || 0,
+      seasonResetRegistry.get('__all__') || 0
+    );
     const effectiveSeasonStart = Math.max(seasonStartedAt, resetTimestamp);
 
-    const { data: rawTxList } = await supabaseAdmin
-      .from('walletTransactions')
-      .select('id, data')
-      .order('created_at', { ascending: false })
-      .limit(100);
+    if (seasonStartedAt > 0 && (!store.resets[seasonId] || seasonStartedAt > store.resets[seasonId])) {
+      store.resets[seasonId] = seasonStartedAt;
+      saveDomeSpinStore(store);
+    }
 
-    const existingSpins = (rawTxList || []).filter((item: any) => {
-      const d = item.data || {};
-      const isTargetType = d.type === 'school_dome_spin_bonus' || (d.type === 'spin_reward' && d.meta?.feature === 'school_dome_elimination_spin');
-      const matchesSeason = d.meta?.seasonId === seasonId;
-      if (!isTargetType || !matchesSeason || d.userId !== userId) return false;
-
-      // If season was started or reset, transactions must have occurred after the season started/reset
-      if (effectiveSeasonStart > 0 && d.createdAt) {
-        const txTime = new Date(d.createdAt).getTime();
-        if (!isNaN(txTime) && txTime < effectiveSeasonStart) {
-          return false;
-        }
+    const seasonSpins = store.spins[seasonId] || {};
+    let existingSpins = (seasonSpins[userId] || []).filter((s) => {
+      if (effectiveSeasonStart > 0 && s.timestamp < effectiveSeasonStart) {
+        return false;
       }
       return true;
     });
+
+    // Fallback: check walletTransactions if store has 0 spins
+    if (existingSpins.length === 0) {
+      try {
+        const { data: rawTxList } = await supabaseAdmin
+          .from('walletTransactions')
+          .select('id, data')
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        const txList = (rawTxList || []).filter((item: any) => {
+          const d = item.data || {};
+          const isTargetType = d.type === 'school_dome_spin_bonus' || (d.type === 'spin_reward' && d.meta?.feature === 'school_dome_elimination_spin');
+          const matchesSeason = d.meta?.seasonId === seasonId;
+          if (!isTargetType || !matchesSeason || d.userId !== userId) return false;
+
+          if (effectiveSeasonStart > 0 && d.createdAt) {
+            const txTime = new Date(d.createdAt).getTime();
+            if (!isNaN(txTime) && txTime < effectiveSeasonStart) {
+              return false;
+            }
+          }
+          return true;
+        });
+
+        if (txList.length > 0) {
+          if (!store.spins[seasonId]) store.spins[seasonId] = {};
+          store.spins[seasonId][userId] = txList.map((t: any, idx: number) => ({
+            spinNumber: t.data?.meta?.spinNumber || idx + 1,
+            rewardAmount: t.data?.amount || 20,
+            transactionId: t.id,
+            timestamp: new Date(t.data?.createdAt || Date.now()).getTime(),
+            tier: tierType,
+          }));
+          saveDomeSpinStore(store);
+          existingSpins = store.spins[seasonId][userId];
+        }
+      } catch {}
+    }
 
     const spinsUsed = existingSpins.length;
 
@@ -936,6 +1048,18 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
       console.warn('[School Dome Spin] Notice saving walletTransaction in database:', txErr?.message);
     }
 
+    // Save record to persistent store
+    if (!store.spins[seasonId]) store.spins[seasonId] = {};
+    if (!store.spins[seasonId][userId]) store.spins[seasonId][userId] = [];
+    store.spins[seasonId][userId].push({
+      spinNumber: currentSpinNumber,
+      rewardAmount,
+      transactionId: txId,
+      timestamp: Date.now(),
+      tier: tierType,
+    });
+    saveDomeSpinStore(store);
+
     // Save record to schoolDomeSpins table
     try {
       await supabaseAdmin.from('schoolDomeSpins').upsert({
@@ -988,15 +1112,25 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
 spinRouter.post('/school-dome/reset-season', async (req: Request, res: Response) => {
   const { seasonId, startedAt } = req.body || {};
   const resetTimestamp = Number(startedAt) || Date.now();
+  const store = loadDomeSpinStore();
+
   try {
     if (seasonId) {
       seasonResetRegistry.set(seasonId, resetTimestamp);
+      store.resets[seasonId] = resetTimestamp;
+      delete store.spins[seasonId]; // Clear all recorded spins for this season so spins start from 0
+      saveDomeSpinStore(store);
+
       try {
         await supabaseAdmin.from('schoolDomeSpins').delete().eq('data->>seasonId', seasonId);
       } catch {}
     } else {
       seasonResetRegistry.clear();
       seasonResetRegistry.set('__all__', resetTimestamp);
+      store.resets['__all__'] = resetTimestamp;
+      store.spins = {}; // Clear all recorded spins across all seasons
+      saveDomeSpinStore(store);
+
       try {
         await supabaseAdmin.from('schoolDomeSpins').delete().neq('id', '___keep_none___');
       } catch {}

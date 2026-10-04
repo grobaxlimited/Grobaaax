@@ -83,17 +83,19 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
 
   const activeUserId = currentUser?.id || '';
 
-  // Reset modal state whenever a new season is active or opened
+  // Reset modal state whenever a new season is active or modal is opened
   useEffect(() => {
-    const freshMax = tierType === 'vip' ? 2 : 1;
-    setMaxSpins(freshMax);
-    setSpinsRemaining(freshMax);
-    setSpinsUsed(0);
-    setWonReward(null);
-    setWonTransaction(null);
-    setViewState('prompt');
-    setErrorMessage(null);
-  }, [seasonId, tierType]);
+    if (isOpen) {
+      const freshMax = tierType === 'vip' ? 2 : 1;
+      setMaxSpins(freshMax);
+      setSpinsRemaining(freshMax);
+      setSpinsUsed(0);
+      setWonReward(null);
+      setWonTransaction(null);
+      setViewState('prompt');
+      setErrorMessage(null);
+    }
+  }, [isOpen, seasonId, tierType]);
 
   // Check spin eligibility and status for this season on open
   useEffect(() => {
@@ -397,7 +399,9 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
               <div className="flex items-center justify-between text-slate-300">
                 <span className="font-semibold">Your Status:</span>
                 <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold text-[10.5px]">
-                  {tierType === 'vip' ? 'VIP Scholar (2 Spins)' : 'Premium Scholar (1 Spin)'}
+                  {tierType === 'vip'
+                    ? `VIP Scholar (${spinsRemaining} Spin${spinsRemaining !== 1 ? 's' : ''} Available)`
+                    : 'Premium Scholar (1 Spin Available)'}
                 </span>
               </div>
             </div>
@@ -439,7 +443,7 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
               </h3>
               <p className="text-[11px] text-slate-400">
                 {tierType === 'vip'
-                  ? `VIP Scholar Bonus (Spin ${spinsUsed + 1} of ${maxSpins})`
+                  ? `VIP Scholar Bonus (Spin ${Math.min(maxSpins, spinsUsed + 1)} of ${maxSpins})`
                   : 'Premium Scholar Bonus (1 Spin Allowed)'}
               </p>
             </div>
@@ -646,7 +650,7 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
                   <>
                     <Sparkles className="w-4 h-4 text-slate-950" />
                     <span>
-                      SPIN WHEEL ({tierType === 'vip' ? `Spin ${spinsUsed + 1} of ${maxSpins}` : '1 Spin'})
+                      SPIN WHEEL ({tierType === 'vip' ? `Spin ${Math.min(maxSpins, spinsUsed + 1)} of ${maxSpins}` : '1 Spin'})
                     </span>
                   </>
                 )}
@@ -745,6 +749,7 @@ export const SchoolDomeEliminationSpinModal: React.FC<SchoolDomeEliminationSpinM
                 <button
                   onClick={() => {
                     setWonReward(null);
+                    setErrorMessage(null);
                     setViewState('wheel');
                   }}
                   className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 shadow-lg"

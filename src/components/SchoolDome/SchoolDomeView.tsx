@@ -567,7 +567,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
   // Check pending School Dome elimination spin bonus for eliminated Premium/VIP scholars
   useEffect(() => {
-    if (!currentSeason?.id || !currentUid || !isUserEliminated || !isUserRegistered || spinTierType === 'free') {
+    if (!currentSeason?.id || !currentUid || !isUserEliminated || spinTierType === 'free') {
       setPendingDomeSpins(0);
       return;
     }
@@ -599,7 +599,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     return () => {
       isMounted = false;
     };
-  }, [currentSeason?.id, currentUid, isUserEliminated, isUserRegistered, spinTierType]);
+  }, [currentSeason?.id, currentUid, isUserEliminated, spinTierType]);
 
   const handleRegister = async () => {
     if (!currentSeason?.id || isRegistering) return;
@@ -1386,7 +1386,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                   <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
                   <span>You were eliminated from Season #{currentSeason.seasonNumber} (wrong answer or time expired). Spectator Mode active (watching live).</span>
                 </div>
-                {isUserRegistered && spinTierType !== 'free' && (
+                {spinTierType !== 'free' && (
                   <button
                     type="button"
                     onClick={() => setIsEliminationSpinModalOpen(true)}
@@ -1687,7 +1687,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                 >
                   Register Free
                 </button>
-              ) : isUserEliminated && isUserRegistered && spinTierType !== 'free' ? (
+              ) : isUserEliminated && spinTierType !== 'free' ? (
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
