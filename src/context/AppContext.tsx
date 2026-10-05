@@ -2425,6 +2425,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // System Settings & Platform Configuration using Grobaax Master Data Engine
   useEffect(() => {
+    // 1. Authoritative server fetch for platform guide video & system configuration
+    if (typeof window !== 'undefined') {
+      fetch('/api/system-settings')
+        .then((res) => res.json())
+        .then((resData) => {
+          if (resData.success && resData.settings) {
+            setSystemSettings((prev) => ({ ...DEFAULT_SYSTEM_SETTINGS, ...prev, ...resData.settings }));
+            try {
+              localStorage.setItem('grobax_system_settings_cache', JSON.stringify(resData.settings));
+            } catch {}
+          }
+        })
+        .catch(() => {});
+    }
+
     try {
       const unsubSettings = grobaxDataService.subscribeDoc<SystemSettings>(
         'system_settings',
@@ -2591,7 +2606,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (!userJoinedAtMs) {
               const profileCreatedMs = getNotificationTimestampMs({ createdAt: currentUser.createdAt });
               userJoinedAtMs = profileCreatedMs > 0 ? profileCreatedMs : Date.now();
-              if (currentUid && currentUid !== 'user_student' && typeof window !== 'undefined') {
+              if (currentUid && typeof window !== 'undefined') {
                 try {
                   localStorage.setItem(storedJoinedKey, String(userJoinedAtMs));
                 } catch {}
@@ -2678,10 +2693,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               // New users must NOT see general previous notification messages!
               // A newly created scholar starts with brand new notifications (empty initially)
               // until fresh notifications start popping in after their account was registered!
-              if (!isUserAdmin && userJoinedAtMs > 0) {
+              if (!isUserAdmin) {
                 const notifMs = notif.createdAtMs || getNotificationTimestampMs(notif);
-                // If notification was created before this user registered/joined, filter it out!
-                if (notifMs > 0 && notifMs < userJoinedAtMs - 1500) {
+                // Strict isolation: If broadcast was created before this scholar joined or has no timestamp, filter it out!
+                if (!notifMs || !userJoinedAtMs || notifMs < userJoinedAtMs - 1000) {
                   return false;
                 }
               }

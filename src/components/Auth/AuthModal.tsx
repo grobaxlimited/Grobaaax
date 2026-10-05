@@ -12,6 +12,10 @@ import {
   isUsernameAvailable,
   isEmailAvailable,
   formatAuthError,
+  db,
+  collection,
+  doc,
+  setDoc,
 } from '../../lib/firebase';
 import { UserProfile } from '../../types';
 import { Button } from '../ui/Button';
@@ -334,6 +338,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           emailVerified: false,
           academicProfileCompleted: false,
         });
+      }
+
+      // Initialize scholar registration timestamp and clean initial notifications
+      const nowMs = Date.now();
+      try {
+        localStorage.setItem(`grobax_user_joined_at_${uid}`, String(nowMs));
+        localStorage.setItem(`grobax_saved_notifications_${uid}`, JSON.stringify([]));
+      } catch {}
+
+      // Dispatch newly created scholar's own personalized welcome notification
+      try {
+        const notifRef = doc(collection(db, 'notifications'));
+        await setDoc(notifRef, {
+          id: notifRef.id,
+          userId: uid,
+          targetUserId: uid,
+          title: '🎓 Welcome to Grobaax Arena!',
+          message: `Welcome, ${fullName.trim()}! Represent your institution in School Dome Arena, discover academic handouts in Library, recharge VTU airtime & data, and trade on Campus Mini Mart.`,
+          type: 'system',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          createdAtMillis: nowMs,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        });
+      } catch (nErr) {
+        console.warn('Notice writing scholar welcome notification:', nErr);
       }
 
       onAuthSuccess(profile);

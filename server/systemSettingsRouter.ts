@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS = {
   enableGusRegistration: true,
   announcementBannerText: '',
   announcementBannerActive: false,
-  welcomeVideoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+  welcomeVideoUrl: 'https://youtu.be/o9W0Ypmr1AA?si=x4s0isjgxGheEGbK',
   welcomeVideoTitle: 'How Grobaax Works: Complete Platform Guide & Walkthrough',
   welcomeVideoDescription: 'Watch this comprehensive guide to understand all features of Grobaax: represent your institution in School Dome, generate academic handouts in Library, recharge VTU airtime & data, trade in Mini Mart, and connect with campus peers.',
   welcomeVideoActive: true,

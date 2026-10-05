@@ -838,6 +838,8 @@ apiApp.use('/spin', spinRouter);
 
 apiApp.use('/api/admin/system-settings', systemSettingsRouter);
 apiApp.use('/admin/system-settings', systemSettingsRouter);
+apiApp.use('/api/system-settings', systemSettingsRouter);
+apiApp.use('/system-settings', systemSettingsRouter);
 
 // AI Academic Library Handout Generation Route
 const libraryGenerateHandler = async (req: Request, res: Response) => {

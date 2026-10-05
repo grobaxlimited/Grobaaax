@@ -35,6 +35,7 @@ export function AdminSettingsView() {
   // Dedicated save state for Platform Guide Video section
   const [videoSaving, setVideoSaving] = useState(false);
   const [videoSavedSuccess, setVideoSavedSuccess] = useState(false);
+  const [videoSaveError, setVideoSaveError] = useState<string | null>(null);
 
   // Prevent background sync/polling from overwriting form fields while user is editing
   const isDirtyRef = React.useRef(false);
@@ -49,6 +50,7 @@ export function AdminSettingsView() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    setVideoSaveError(null);
     try {
       await updateSystemSettings(formData);
       isDirtyRef.current = false;
@@ -58,8 +60,10 @@ export function AdminSettingsView() {
         setSavedSuccess(false);
         setVideoSavedSuccess(false);
       }, 4000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving settings:', err);
+      setVideoSaveError(err?.message || 'Failed to save system settings. Please try again.');
+      setTimeout(() => setVideoSaveError(null), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -67,6 +71,7 @@ export function AdminSettingsView() {
 
   const handleSaveVideoSettings = async () => {
     setVideoSaving(true);
+    setVideoSaveError(null);
     try {
       const videoPatch = {
         welcomeVideoActive: formData.welcomeVideoActive !== false,
@@ -79,9 +84,10 @@ export function AdminSettingsView() {
       isDirtyRef.current = false;
       setVideoSavedSuccess(true);
       setTimeout(() => setVideoSavedSuccess(false), 4500);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving video settings:', err);
-      alert('Failed to save video guide settings. Please check your connection and try again.');
+      setVideoSaveError(err?.message || 'Failed to save video guide settings. Please check your connection and try again.');
+      setTimeout(() => setVideoSaveError(null), 5000);
     } finally {
       setVideoSaving(false);
     }
@@ -428,10 +434,15 @@ export function AdminSettingsView() {
 
                 {/* Dedicated Save Row for Platform Guide Video */}
                 <div className="lg:col-span-2 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                  <div>
+                  <div className="space-y-1">
                     {videoSavedSuccess && (
                       <span className="text-emerald-500 font-bold text-xs flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 animate-pulse">
                         <CheckCircle2 className="w-4 h-4" /> Platform Guide Video Settings Saved Live!
+                      </span>
+                    )}
+                    {videoSaveError && (
+                      <span className="text-rose-500 font-bold text-xs flex items-center gap-1.5 bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">
+                        <span>⚠️ {videoSaveError}</span>
                       </span>
                     )}
                   </div>

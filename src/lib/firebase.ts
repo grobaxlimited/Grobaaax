@@ -5114,13 +5114,24 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   enableGusRegistration: true,
   announcementBannerText: '',
   announcementBannerActive: false,
-  welcomeVideoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+  welcomeVideoUrl: 'https://youtu.be/o9W0Ypmr1AA?si=x4s0isjgxGheEGbK',
   welcomeVideoTitle: 'How Grobaax Works: Complete Platform Guide & Walkthrough',
   welcomeVideoDescription: 'Watch this comprehensive guide to understand all features of Grobaax: represent your institution in School Dome, generate academic handouts in Library, recharge VTU airtime & data, trade in Mini Mart, and connect with campus peers.',
   welcomeVideoActive: true,
 };
 
 export const fetchSystemSettingsFromFirestore = async (): Promise<SystemSettings> => {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/system-settings');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.settings) {
+          return { ...DEFAULT_SYSTEM_SETTINGS, ...json.settings } as SystemSettings;
+        }
+      }
+    } catch {}
+  }
   try {
     const docSnap = await getDoc(doc(db, 'system_settings', 'config'));
     if (docSnap.exists()) {
@@ -5137,32 +5148,32 @@ export const saveSystemSettingsToFirestore = async (
   adminUid?: string,
   adminName?: string
 ): Promise<void> => {
-  try {
-    // 1. Authoritative Server-side persistence route
-    let serverSaved = false;
-    if (typeof window !== 'undefined') {
-      try {
-        const res = await fetch('/api/admin/system-settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            settings,
-            updatedByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
-            updatedByName: adminName || 'Admin',
-          }),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success) {
-            serverSaved = true;
-          }
+  let serverSaved = false;
+  // 1. Authoritative Server-side persistence route
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/admin/system-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings,
+          updatedByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
+          updatedByName: adminName || 'Admin',
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          serverSaved = true;
         }
-      } catch (srvErr) {
-        console.warn('[SystemSettings] Server endpoint notice, falling back to direct DB write:', srvErr);
       }
+    } catch (srvErr) {
+      console.warn('[SystemSettings] Server endpoint notice, falling back to direct DB write:', srvErr);
     }
+  }
 
-    // 2. Direct database setDoc
+  // 2. Direct database setDoc with fallback
+  try {
     const cleanedPayload = cleanFirestoreData({
       ...settings,
       updatedAt: new Date().toISOString(),
@@ -5193,8 +5204,12 @@ export const saveSystemSettingsToFirestore = async (
       logAdminAuditAction(adminUid, adminName || 'Admin', 'UPDATE_SYSTEM_SETTINGS', 'config', settings).catch(() => {});
     }
   } catch (err) {
-    console.error('Error saving system settings to Firestore:', err);
-    throw err;
+    if (!serverSaved) {
+      console.error('Error saving system settings to Firestore:', err);
+      throw err;
+    } else {
+      console.warn('[SystemSettings] Direct DB write notice (persisted via server):', err);
+    }
   }
 };
 

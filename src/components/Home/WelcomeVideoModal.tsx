@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Youtube, ExternalLink, Play, Sparkles } from 'lucide-react';
 import { getYouTubeEmbedUrl, extractYouTubeVideoId } from '../../lib/youtubeUtils';
 
@@ -39,11 +40,11 @@ export const WelcomeVideoModal: React.FC<WelcomeVideoModalProps> = ({
   const videoId = extractYouTubeVideoId(videoUrl);
   const directWatchUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : videoUrl;
 
-  return (
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fadeIn"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fadeIn"
       onClick={onClose}
     >
       <div
@@ -152,4 +153,6 @@ export const WelcomeVideoModal: React.FC<WelcomeVideoModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };
