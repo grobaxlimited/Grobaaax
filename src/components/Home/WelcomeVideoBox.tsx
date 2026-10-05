@@ -77,8 +77,8 @@ export const WelcomeVideoBox: React.FC<WelcomeVideoBoxProps> = ({
               {title}
             </h3>
 
-            <p className="text-[11px] sm:text-xs text-slate-300 dark:text-slate-400 line-clamp-1">
-              Click to watch platform guide & all features
+            <p className="text-[11px] sm:text-xs text-slate-300 dark:text-slate-400 line-clamp-2">
+              {description || 'Click to watch platform guide & all features'}
             </p>
           </div>
         </div>

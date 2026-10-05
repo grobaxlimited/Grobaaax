@@ -164,6 +164,7 @@ class GrobaaxNotificationService {
           admin_transactions: defaultTime,
           admin_hints: defaultTime,
         };
+        this.saveReadState();
       }
     } catch (e) {
       console.warn('[NotificationService] Failed to load read state:', e);

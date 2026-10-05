@@ -53,7 +53,11 @@ export function AdminSettingsView() {
       await updateSystemSettings(formData);
       isDirtyRef.current = false;
       setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 4000);
+      setVideoSavedSuccess(true);
+      setTimeout(() => {
+        setSavedSuccess(false);
+        setVideoSavedSuccess(false);
+      }, 4000);
     } catch (err) {
       console.error('Error saving settings:', err);
     } finally {
@@ -64,18 +68,20 @@ export function AdminSettingsView() {
   const handleSaveVideoSettings = async () => {
     setVideoSaving(true);
     try {
-      await updateSystemSettings({
-        welcomeVideoActive: formData.welcomeVideoActive,
-        welcomeVideoUrl: formData.welcomeVideoUrl,
-        welcomeVideoTitle: formData.welcomeVideoTitle,
-        welcomeVideoDescription: formData.welcomeVideoDescription,
-      });
+      const videoPatch = {
+        welcomeVideoActive: formData.welcomeVideoActive !== false,
+        welcomeVideoUrl: (formData.welcomeVideoUrl || '').trim(),
+        welcomeVideoTitle: (formData.welcomeVideoTitle || '').trim(),
+        welcomeVideoDescription: (formData.welcomeVideoDescription || '').trim(),
+      };
+      await updateSystemSettings(videoPatch);
+      setFormData(prev => ({ ...prev, ...videoPatch }));
       isDirtyRef.current = false;
       setVideoSavedSuccess(true);
-      setTimeout(() => setVideoSavedSuccess(false), 4000);
+      setTimeout(() => setVideoSavedSuccess(false), 4500);
     } catch (err) {
       console.error('Error saving video settings:', err);
-      alert('Failed to save video guide settings. Please try again.');
+      alert('Failed to save video guide settings. Please check your connection and try again.');
     } finally {
       setVideoSaving(false);
     }

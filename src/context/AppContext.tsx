@@ -1843,24 +1843,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
   const [upgradePlans, setUpgradePlans] = useState<UpgradePlan[]>(MOCK_UPGRADE_PLANS);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
-    try {
-      const cached = localStorage.getItem('grobax_saved_notifications');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const readSet = getReadNotifSet();
-          const mapped = parsed.map((n: any) => ({
-            ...n,
-            isRead: isNotificationRead(n, readSet),
-            createdAtMs: getNotificationTimestampMs(n),
-          }));
-          return sortNotificationsNewestFirst(mapped);
-        }
-      }
-    } catch {}
-    return DEFAULT_NOTIFICATIONS;
-  });
+  // User notifications start brand new (empty) initially until fresh notifications arrive
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
     try {
       const cached = localStorage.getItem('grobax_system_settings_cache');
@@ -2595,6 +2579,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               }
             });
 
+            // Calculate when this user account joined/registered so that general previous broadcasts are not shown to new scholars
+            let userJoinedAtMs = 0;
+            const storedJoinedKey = `grobax_user_joined_at_${currentUid}`;
+            if (typeof window !== 'undefined') {
+              const rawStored = localStorage.getItem(storedJoinedKey);
+              if (rawStored) {
+                userJoinedAtMs = Number(rawStored) || 0;
+              }
+            }
+            if (!userJoinedAtMs) {
+              const profileCreatedMs = getNotificationTimestampMs({ createdAt: currentUser.createdAt });
+              userJoinedAtMs = profileCreatedMs > 0 ? profileCreatedMs : Date.now();
+              if (currentUid && currentUid !== 'user_student' && typeof window !== 'undefined') {
+                try {
+                  localStorage.setItem(storedJoinedKey, String(userJoinedAtMs));
+                } catch {}
+              }
+            }
+
             // Filter strictly for this specific user so User A and User B receive isolated notifications
             const userScopedNotifs = rawNotifs.filter((notif) => {
               // Exclude creator if set
@@ -2623,9 +2626,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               }
 
               // If targeted to a specific user ID
+              const isDirectTarget = Boolean(
+                (notif.targetUserId && (notif.targetUserId === currentUid || notif.targetUserId === currentUser.username || notif.targetUserId === currentUser.id)) ||
+                (notif.userId && (notif.userId === currentUid || notif.userId === currentUser.username || notif.userId === currentUser.id))
+              );
+
+              if (isDirectTarget) {
+                return true;
+              }
+
+              // If targeted to a different specific user, discard
               if (notif.targetUserId || notif.userId) {
-                const target = notif.targetUserId || notif.userId;
-                return target === currentUid || target === currentUser.username || target === currentUser.id;
+                return false;
               }
 
               // Filter out legacy or untargeted personal upgrade / account activity items
@@ -2641,95 +2653,87 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
               // If targeted to a specific role
               if (notif.targetRole && notif.targetRole !== 'ALL') {
-                if (notif.targetRole === 'admin') return isUserAdmin;
-                if (notif.targetRole === 'representative') return isUserRep;
-                if (notif.targetRole === 'student') return !isUserAdmin;
-                return notif.targetRole === currentRole;
+                if (notif.targetRole === 'admin') {
+                  if (!isUserAdmin) return false;
+                } else if (notif.targetRole === 'representative') {
+                  if (!isUserRep) return false;
+                } else if (notif.targetRole === 'student') {
+                  if (isUserAdmin) return false;
+                } else if (notif.targetRole !== currentRole) {
+                  return false;
+                }
               }
 
-              // Broadcast for all users (genuine platform announcements, league alerts, arena matches)
-              return notif.type === 'announcement' || notif.type === 'dome' || notif.type === 'league' || notif.type === 'gus';
+              // Broadcast for all users (genuine platform announcements, league alerts, arena matches, system notices)
+              const isBroadcast =
+                notif.type === 'announcement' ||
+                notif.type === 'dome' ||
+                notif.type === 'league' ||
+                notif.type === 'gus' ||
+                notif.type === 'system';
+
+              if (!isBroadcast) return false;
+
+              // CRITICAL REQUIREMENT:
+              // New users must NOT see general previous notification messages!
+              // A newly created scholar starts with brand new notifications (empty initially)
+              // until fresh notifications start popping in after their account was registered!
+              if (!isUserAdmin && userJoinedAtMs > 0) {
+                const notifMs = notif.createdAtMs || getNotificationTimestampMs(notif);
+                // If notification was created before this user registered/joined, filter it out!
+                if (notifMs > 0 && notifMs < userJoinedAtMs - 1500) {
+                  return false;
+                }
+              }
+
+              return true;
             });
 
             // Sort strictly newest first: latest notification is always at the top
-            const finalNotifs = userScopedNotifs.length > 0 ? sortNotificationsNewestFirst(userScopedNotifs) : DEFAULT_NOTIFICATIONS;
+            const finalNotifs = userScopedNotifs.length > 0 ? sortNotificationsNewestFirst(userScopedNotifs) : [];
             setNotifications(finalNotifs);
             try {
-              localStorage.setItem('grobax_saved_notifications', JSON.stringify(finalNotifs));
+              localStorage.setItem(`grobax_saved_notifications_${currentUid}`, JSON.stringify(finalNotifs));
             } catch {}
           } else {
             try {
-              const cached = localStorage.getItem('grobax_saved_notifications');
+              const cached = localStorage.getItem(`grobax_saved_notifications_${currentUid}`);
               if (cached) {
                 const parsed = JSON.parse(cached);
-                if (Array.isArray(parsed) && parsed.length > 0) {
+                if (Array.isArray(parsed)) {
                   const readSet = getReadNotifSet(currentUid, currentUser.id, firebaseUser?.uid);
-                  const cleaned = parsed
-                    .map((notif: any) => ({
-                      ...notif,
-                      isRead: isNotificationRead(notif, readSet),
-                      createdAtMs: getNotificationTimestampMs(notif),
-                    }))
-                    .filter((notif: any) => {
-                      const lowerTitle = (notif.title || '').toLowerCase();
-                      const lowerMsg = (notif.message || '').toLowerCase();
-                      const isPrize =
-                        lowerTitle.includes('prize distributed') ||
-                        lowerTitle.includes('prize credited') ||
-                        lowerTitle.includes('champion prize') ||
-                        lowerTitle.includes('prize split') ||
-                        lowerMsg.includes('deposited directly into your wallet') ||
-                        lowerMsg.includes('gp has been deposited');
-                      if (isPrize) {
-                        const target = notif.targetUserId || notif.userId;
-                        return target === currentUid || target === currentUser.username || target === currentUser.id;
-                      }
-                      return true;
-                    });
+                  const cleaned = parsed.map((notif: any) => ({
+                    ...notif,
+                    isRead: isNotificationRead(notif, readSet),
+                    createdAtMs: getNotificationTimestampMs(notif),
+                  }));
                   setNotifications(sortNotificationsNewestFirst(cleaned));
                   return;
                 }
               }
             } catch {}
-            setNotifications(DEFAULT_NOTIFICATIONS);
+            setNotifications([]);
           }
         },
         (error) => {
           console.warn('Notifications live snapshot notice (using fallback):', error);
           try {
-            const cached = localStorage.getItem('grobax_saved_notifications');
+            const cached = localStorage.getItem(`grobax_saved_notifications_${currentUid}`);
             if (cached) {
               const parsed = JSON.parse(cached);
-              if (Array.isArray(parsed) && parsed.length > 0) {
+              if (Array.isArray(parsed)) {
                 const readSet = getReadNotifSet(currentUid, currentUser.id, firebaseUser?.uid);
-                const cleaned = parsed
-                  .map((notif: any) => ({
-                    ...notif,
-                    isRead: isNotificationRead(notif, readSet),
-                    createdAtMs: getNotificationTimestampMs(notif),
-                  }))
-                  .filter((notif: any) => {
-                    const lowerTitle = (notif.title || '').toLowerCase();
-                    const lowerMsg = (notif.message || '').toLowerCase();
-                    const isPrize =
-                      lowerTitle.includes('prize distributed') ||
-                      lowerTitle.includes('prize credited') ||
-                      lowerTitle.includes('champion prize') ||
-                      lowerTitle.includes('prize split') ||
-                      lowerMsg.includes('deposited directly into your wallet') ||
-                      lowerMsg.includes('gp has been deposited');
-                    if (isPrize) {
-                      const target = notif.targetUserId || notif.userId;
-                      return target === currentUid || target === currentUser.username || target === currentUser.id;
-                    }
-                    return true;
-                  });
+                const cleaned = parsed.map((notif: any) => ({
+                  ...notif,
+                  isRead: isNotificationRead(notif, readSet),
+                  createdAtMs: getNotificationTimestampMs(notif),
+                }));
                 setNotifications(sortNotificationsNewestFirst(cleaned));
                 return;
               }
             }
           } catch {}
-          setNotifications(DEFAULT_NOTIFICATIONS);
+          setNotifications([]);
         }
       );
       return () => unsubNotifs();
@@ -5634,6 +5638,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return matchesId || matchesFp ? { ...n, isRead: true } : n;
       });
       try {
+        localStorage.setItem(`grobax_saved_notifications_${currentUid}`, JSON.stringify(updated));
         localStorage.setItem('grobax_saved_notifications', JSON.stringify(updated));
       } catch {}
       return sortNotificationsNewestFirst(updated);
@@ -5677,6 +5682,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setNotifications(prev => {
       const updated = prev.map(n => ({ ...n, isRead: true }));
       try {
+        localStorage.setItem(`grobax_saved_notifications_${currentUid}`, JSON.stringify(updated));
         localStorage.setItem('grobax_saved_notifications', JSON.stringify(updated));
       } catch {}
       return sortNotificationsNewestFirst(updated);

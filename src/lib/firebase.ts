@@ -5138,13 +5138,40 @@ export const saveSystemSettingsToFirestore = async (
   adminName?: string
 ): Promise<void> => {
   try {
+    // 1. Authoritative Server-side persistence route
+    let serverSaved = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch('/api/admin/system-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            settings,
+            updatedByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
+            updatedByName: adminName || 'Admin',
+          }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            serverSaved = true;
+          }
+        }
+      } catch (srvErr) {
+        console.warn('[SystemSettings] Server endpoint notice, falling back to direct DB write:', srvErr);
+      }
+    }
+
+    // 2. Direct database setDoc
+    const cleanedPayload = cleanFirestoreData({
+      ...settings,
+      updatedAt: new Date().toISOString(),
+      updatedByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
+    });
+
     await setDoc(
       doc(db, 'system_settings', 'config'),
-      {
-        ...settings,
-        updatedAt: new Date().toISOString(),
-        updatedByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
-      },
+      cleanedPayload,
       { merge: true }
     );
 
@@ -5152,18 +5179,18 @@ export const saveSystemSettingsToFirestore = async (
     if (typeof settings.minWithdrawalAmountGp === 'number' || typeof settings.gpToFiatRate === 'number') {
       await setDoc(
         doc(db, 'system_settings', 'gp_conversion'),
-        {
+        cleanFirestoreData({
           ...(typeof settings.minWithdrawalAmountGp === 'number' ? { minimumWithdrawalGP: settings.minWithdrawalAmountGp } : {}),
           ...(typeof settings.gpToFiatRate === 'number' ? { gpToFiatRate: settings.gpToFiatRate } : {}),
           updatedAt: new Date().toISOString(),
           updatedByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
-        },
+        }),
         { merge: true }
       );
     }
 
     if (adminUid) {
-      await logAdminAuditAction(adminUid, adminName || 'Admin', 'UPDATE_SYSTEM_SETTINGS', 'config', settings);
+      logAdminAuditAction(adminUid, adminName || 'Admin', 'UPDATE_SYSTEM_SETTINGS', 'config', settings).catch(() => {});
     }
   } catch (err) {
     console.error('Error saving system settings to Firestore:', err);
