@@ -35,7 +35,7 @@ export const WelcomeVideoModal: React.FC<WelcomeVideoModalProps> = ({
 
   if (!isOpen) return null;
 
-  const embedUrl = getYouTubeEmbedUrl(videoUrl);
+  const embedUrl = getYouTubeEmbedUrl(videoUrl, true);
   const videoId = extractYouTubeVideoId(videoUrl);
   const directWatchUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : videoUrl;
 

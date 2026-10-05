@@ -20,6 +20,7 @@ import {
   Youtube,
   Play,
   ExternalLink,
+  Clipboard,
 } from 'lucide-react';
 import { AdminContactSupportView } from './AdminContactSupportView';
 import { getYouTubeEmbedUrl } from '../../lib/youtubeUtils';
@@ -31,9 +32,18 @@ export function AdminSettingsView() {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'academic' | 'competition' | 'wallet' | 'infrastructure' | 'contact'>('general');
 
-  // Keep local form in sync if context changes
+  // Dedicated save state for Platform Guide Video section
+  const [videoSaving, setVideoSaving] = useState(false);
+  const [videoSavedSuccess, setVideoSavedSuccess] = useState(false);
+
+  // Prevent background sync/polling from overwriting form fields while user is editing
+  const isDirtyRef = React.useRef(false);
+
+  // Keep local form in sync only when user has NOT modified the form
   React.useEffect(() => {
-    setFormData(systemSettings);
+    if (!isDirtyRef.current) {
+      setFormData(systemSettings);
+    }
   }, [systemSettings]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -41,12 +51,33 @@ export function AdminSettingsView() {
     setIsSaving(true);
     try {
       await updateSystemSettings(formData);
+      isDirtyRef.current = false;
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 4000);
     } catch (err) {
       console.error('Error saving settings:', err);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveVideoSettings = async () => {
+    setVideoSaving(true);
+    try {
+      await updateSystemSettings({
+        welcomeVideoActive: formData.welcomeVideoActive,
+        welcomeVideoUrl: formData.welcomeVideoUrl,
+        welcomeVideoTitle: formData.welcomeVideoTitle,
+        welcomeVideoDescription: formData.welcomeVideoDescription,
+      });
+      isDirtyRef.current = false;
+      setVideoSavedSuccess(true);
+      setTimeout(() => setVideoSavedSuccess(false), 4000);
+    } catch (err) {
+      console.error('Error saving video settings:', err);
+      alert('Failed to save video guide settings. Please try again.');
+    } finally {
+      setVideoSaving(false);
     }
   };
 
@@ -237,25 +268,84 @@ export function AdminSettingsView() {
                     <input
                       type="checkbox"
                       checked={formData.welcomeVideoActive !== false}
-                      onChange={(e) => setFormData({ ...formData, welcomeVideoActive: e.target.checked })}
+                      onChange={(e) => {
+                        isDirtyRef.current = true;
+                        setFormData({ ...formData, welcomeVideoActive: e.target.checked });
+                      }}
                       className="w-5 h-5 text-red-600 rounded focus:ring-red-500 cursor-pointer"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                      YouTube Video Link / URL
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.welcomeVideoUrl || ''}
-                      onChange={(e) => setFormData({ ...formData, welcomeVideoUrl: e.target.value })}
-                      placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtu.be/..."
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1">
-                      Supports standard YouTube watch links, youtu.be short links, embed links, and YouTube Shorts.
-                    </p>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold text-slate-700 dark:text-slate-300">
+                        YouTube Video Link / URL
+                      </label>
+                      <span className="text-[10px] text-slate-400">
+                        Supports youtu.be, watch?v=, shorts
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          id="admin-welcome-video-url-input"
+                          type="text"
+                          value={formData.welcomeVideoUrl || ''}
+                          onChange={(e) => {
+                            isDirtyRef.current = true;
+                            setFormData({ ...formData, welcomeVideoUrl: e.target.value });
+                          }}
+                          onPaste={(e) => {
+                            const pasted = e.clipboardData?.getData('text');
+                            if (pasted) {
+                              e.preventDefault();
+                              isDirtyRef.current = true;
+                              setFormData(prev => ({ ...prev, welcomeVideoUrl: pasted.trim() }));
+                            }
+                          }}
+                          placeholder="e.g. https://youtu.be/... or https://www.youtube.com/watch?v=..."
+                          className="w-full pl-3 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium text-xs sm:text-sm"
+                        />
+                        {formData.welcomeVideoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              isDirtyRef.current = true;
+                              setFormData(prev => ({ ...prev, welcomeVideoUrl: '' }));
+                            }}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-1"
+                            title="Clear URL"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const clipText = await navigator.clipboard.readText();
+                            if (clipText && clipText.trim()) {
+                              isDirtyRef.current = true;
+                              setFormData(prev => ({ ...prev, welcomeVideoUrl: clipText.trim() }));
+                            } else {
+                              const el = document.getElementById('admin-welcome-video-url-input');
+                              if (el) el.focus();
+                            }
+                          } catch (err) {
+                            const el = document.getElementById('admin-welcome-video-url-input');
+                            if (el) el.focus();
+                          }
+                        }}
+                        className="px-3 py-2.5 rounded-xl bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 text-red-600 dark:text-red-400 font-bold text-xs shrink-0 flex items-center gap-1.5 transition cursor-pointer"
+                        title="Paste URL directly from clipboard"
+                      >
+                        <Clipboard className="w-3.5 h-3.5" />
+                        <span>Paste Link</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div>
@@ -265,7 +355,10 @@ export function AdminSettingsView() {
                     <input
                       type="text"
                       value={formData.welcomeVideoTitle || ''}
-                      onChange={(e) => setFormData({ ...formData, welcomeVideoTitle: e.target.value })}
+                      onChange={(e) => {
+                        isDirtyRef.current = true;
+                        setFormData({ ...formData, welcomeVideoTitle: e.target.value });
+                      }}
                       placeholder="e.g. How Grobaax Works: Complete Platform Guide"
                       className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
                     />
@@ -278,7 +371,10 @@ export function AdminSettingsView() {
                     <textarea
                       rows={3}
                       value={formData.welcomeVideoDescription || ''}
-                      onChange={(e) => setFormData({ ...formData, welcomeVideoDescription: e.target.value })}
+                      onChange={(e) => {
+                        isDirtyRef.current = true;
+                        setFormData({ ...formData, welcomeVideoDescription: e.target.value });
+                      }}
                       placeholder="Explain what scholars will learn in this video..."
                       className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
                     />
@@ -288,7 +384,7 @@ export function AdminSettingsView() {
                 {/* Live Video Embed Preview */}
                 <div className="space-y-2">
                   <div className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center justify-between">
-                    <span>Live Video Preview</span>
+                    <span>Live Video Preview (No Autoplay)</span>
                     {formData.welcomeVideoUrl && (
                       <a
                         href={formData.welcomeVideoUrl}
@@ -303,11 +399,12 @@ export function AdminSettingsView() {
                   </div>
 
                   <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black border border-slate-700 flex items-center justify-center shadow-inner">
-                    {getYouTubeEmbedUrl(formData.welcomeVideoUrl) ? (
+                    {getYouTubeEmbedUrl(formData.welcomeVideoUrl, false) ? (
                       <iframe
-                        src={getYouTubeEmbedUrl(formData.welcomeVideoUrl) || ''}
+                        key={formData.welcomeVideoUrl}
+                        src={getYouTubeEmbedUrl(formData.welcomeVideoUrl, false) || ''}
                         title="Video Preview"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                         className="w-full h-full border-0"
                       />
@@ -321,6 +418,26 @@ export function AdminSettingsView() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Dedicated Save Row for Platform Guide Video */}
+                <div className="lg:col-span-2 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    {videoSavedSuccess && (
+                      <span className="text-emerald-500 font-bold text-xs flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 animate-pulse">
+                        <CheckCircle2 className="w-4 h-4" /> Platform Guide Video Settings Saved Live!
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={videoSaving}
+                    onClick={handleSaveVideoSettings}
+                    className="px-5 py-2.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 text-white rounded-xl font-black text-xs shadow-md shadow-red-600/25 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{videoSaving ? 'Saving Video Settings...' : 'Save Video Guide Settings'}</span>
+                  </button>
                 </div>
               </div>
             </div>

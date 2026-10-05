@@ -1,6 +1,18 @@
 {
   "resets": {
-    "season_dome_1": 1791185566671
+    "season_dome_1": 1791185999661
   },
-  "spins": {}
+  "spins": {
+    "season_dome_1": {
+      "prem_user_test": [
+        {
+          "spinNumber": 1,
+          "rewardAmount": 20,
+          "transactionId": "TX_DOME_SPIN_season_dome_1_prem_user_test_1791186006648_8830",
+          "timestamp": 1791186006703,
+          "tier": "premium"
+        }
+      ]
+    }
+  }
 }

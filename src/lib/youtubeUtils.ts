@@ -35,10 +35,10 @@ export function extractYouTubeVideoId(urlOrId?: string): string | null {
   return null;
 }
 
-export function getYouTubeEmbedUrl(urlOrId?: string): string | null {
+export function getYouTubeEmbedUrl(urlOrId?: string, autoplay: boolean = false): string | null {
   const videoId = extractYouTubeVideoId(urlOrId);
   if (!videoId) return null;
-  return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
+  return `https://www.youtube.com/embed/${videoId}?autoplay=${autoplay ? '1' : '0'}&rel=0&modestbranding=1`;
 }
 
 export function getYouTubeThumbnailUrl(urlOrId?: string): string | null {
