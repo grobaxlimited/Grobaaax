@@ -68,6 +68,35 @@ export const AdminSchoolDomeView: React.FC = () => {
   const [deleteAllSuccessMsg, setDeleteAllSuccessMsg] = useState<string | null>(null);
   const [deleteAllError, setDeleteAllError] = useState<string | null>(null);
 
+  // Elimination Spin Bonus reset state
+  const [isResettingSpins, setIsResettingSpins] = useState(false);
+  const [spinResetFeedback, setSpinResetFeedback] = useState<string | null>(null);
+
+  const handleResetSeasonSpins = async () => {
+    if (!currentSeason) return;
+    try {
+      setIsResettingSpins(true);
+      setSpinResetFeedback(null);
+      const res = await fetch('/api/spin/school-dome/reset-season', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seasonId: currentSeason.id, startedAt: Date.now() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSpinResetFeedback(`✅ Season #${currentSeason.seasonNumber || 1} bonus spins reset to 0! VIP scholars can spin twice (2x bonus) and Premium scholars can spin once.`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('school_dome_season_reset', { detail: currentSeason }));
+        }
+        setTimeout(() => setSpinResetFeedback(null), 6000);
+      }
+    } catch (e: any) {
+      setSpinResetFeedback(`Failed to reset spins: ${e?.message || 'Network error'}`);
+    } finally {
+      setIsResettingSpins(false);
+    }
+  };
+
   const handleExecuteDeleteAllSeasons = async () => {
     try {
       setIsDeletingAllSeasons(true);
@@ -544,6 +573,40 @@ export const AdminSchoolDomeView: React.FC = () => {
               <span>Registered: <strong className="text-slate-900 dark:text-white font-black">{registeredCount}</strong></span>
               <span>Standing: <strong className="text-emerald-500 font-black">{standingCount}</strong></span>
               <span>Registration: <strong className={currentSeason.isRegistrationLocked ? 'text-amber-500 font-black' : 'text-emerald-500 font-black'}>{currentSeason.isRegistrationLocked ? 'Locked' : 'Open'}</strong></span>
+            </div>
+          </div>
+
+          {/* Elimination Participation Spin Bonus Policy Card */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                <h4 className="font-black text-slate-900 dark:text-white uppercase tracking-wider text-xs">
+                  Elimination Spin Bonus Policy (Season #{currentSeason.seasonNumber || 1})
+                </h4>
+              </div>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                • <strong className="text-amber-600 dark:text-amber-400">VIP Scholars:</strong> Exactly <strong>2 bonus spins</strong> per season/elimination (spins twice and earns bonus twice, starts at 0).<br />
+                • <strong className="text-blue-600 dark:text-blue-400">Premium Scholars:</strong> Exactly <strong>1 bonus spin</strong> per season/elimination (starts at 0).<br />
+                • <strong className="text-slate-500">Free Scholars:</strong> 0 bonus spins.<br />
+                • <em>Upon season reset or start of next season, spin counts automatically reset to 0 for all scholars.</em>
+              </p>
+              {spinResetFeedback && (
+                <p className="text-emerald-600 dark:text-emerald-400 font-bold pt-1">{spinResetFeedback}</p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                disabled={isResettingSpins}
+                onClick={handleResetSeasonSpins}
+                className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs rounded-xl shadow-md transition hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5"
+                title="Reset elimination spin counts for all scholars in this season back to 0"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{isResettingSpins ? 'RESETTING SPINS...' : 'RESET SEASON SPINS (TO 0)'}</span>
+              </button>
             </div>
           </div>
         </div>

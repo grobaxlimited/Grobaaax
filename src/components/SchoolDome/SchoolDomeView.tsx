@@ -356,10 +356,12 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
   const isUserExpired = !isStaffOrAdmin && isSubscriptionExpired(currentUser);
 
   const isVIP =
-    !isStaffOrAdmin &&
     !isUserExpired &&
     Boolean(
+      isStaffOrAdmin ||
       currentUser?.isVip ||
+      currentUser?.targetTier === 'vip' ||
+      currentUser?.tierType === 'vip' ||
       currentUser?.gusTier === 'Titan' ||
       membership.includes('vip') ||
       membership.includes('titan') ||
@@ -371,12 +373,13 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     );
 
   const isPremium =
-    !isStaffOrAdmin &&
     !isUserExpired &&
     !isVIP &&
     Boolean(
       isActivelySubscribed ||
       currentUser?.isPremium ||
+      currentUser?.targetTier === 'premium' ||
+      currentUser?.tierType === 'premium' ||
       (membership && !membership.includes('free') && membership.trim().length > 0) ||
       (subTier && !subTier.includes('free') && subTier.trim().length > 0) ||
       (plan && !plan.includes('free') && plan.trim().length > 0)
@@ -437,7 +440,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         (cAltUid && activeQuestion.survivorUserIds?.includes(cAltUid))
       );
 
-      if (isStanding && !hasSurvived && !isStaffOrAdmin) {
+      if (isStanding && !hasSurvived) {
         setCurrentSeason((prev) => {
           if (!prev) return prev;
           const newActive = (prev.activeUserIds || []).filter((id) => id !== cUid && id !== cAltUid);
@@ -1272,6 +1275,19 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
             </button>
           )}
 
+          {/* Admin Test Elimination Spin Modal Button */}
+          {isStaffOrAdmin && currentSeason && (
+            <button
+              onClick={() => setIsEliminationSpinModalOpen(true)}
+              className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer border border-purple-400 shrink-0"
+              title="Test the Elimination Spin Bonus flow (VIP gets 2 spins, Premium gets 1 spin)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span className="hidden sm:inline">Test Elimination Spin</span>
+              <span className="sm:hidden">Spin Test</span>
+            </button>
+          )}
+
           {/* Admin Pause / Resume Season Toggle Button */}
           {isStaffOrAdmin && currentSeason && currentSeason.status !== 'ended' && (
             <button
@@ -1890,16 +1906,16 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
       />
 
       {/* School Dome Elimination Spin Bonus Modal for eligible Premium and VIP scholars */}
-      {currentSeason && spinTierType !== 'free' && (
+      {currentSeason && (
         <SchoolDomeEliminationSpinModal
           isOpen={isEliminationSpinModalOpen}
           onClose={() => setIsEliminationSpinModalOpen(false)}
           seasonId={currentSeason.id}
           seasonNumber={currentSeason.seasonNumber || 1}
           seasonTitle={currentSeason.title || `School Dome Season #${currentSeason.seasonNumber || 1}`}
-          isRegistered={isUserRegistered}
-          isEliminated={isUserEliminated}
-          tierType={spinTierType}
+          isRegistered={isUserRegistered || isStaffOrAdmin}
+          isEliminated={isUserEliminated || isStaffOrAdmin}
+          tierType={spinTierType === 'free' && isStaffOrAdmin ? 'vip' : spinTierType}
           onSpinCompleted={(_amount, _newBalance) => {
             setPendingDomeSpins((prev) => Math.max(0, prev - 1));
           }}

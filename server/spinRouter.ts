@@ -717,16 +717,25 @@ spinRouter.get('/school-dome/status/:seasonId/:userId', async (req: Request, res
         });
 
         if (txSpins.length > 0) {
+          // Deduplicate by spinNumber so multiple logs for the same spin are NEVER counted twice
+          const spinsByNumber = new Map<number, DomeSpinRecord>();
+          txSpins.forEach((t: any) => {
+            const sNum = Math.max(1, Math.min(2, Number(t.data?.meta?.spinNumber) || 1));
+            if (!spinsByNumber.has(sNum)) {
+              spinsByNumber.set(sNum, {
+                spinNumber: sNum,
+                rewardAmount: Number(t.data?.amount) || 20,
+                transactionId: t.id,
+                timestamp: new Date(t.data?.createdAt || t.created_at || Date.now()).getTime(),
+                tier: tierType,
+              });
+            }
+          });
+          const dedupedSpins = Array.from(spinsByNumber.values()).sort((a, b) => a.spinNumber - b.spinNumber);
           if (!store.spins[seasonId]) store.spins[seasonId] = {};
-          store.spins[seasonId][userId] = txSpins.map((t: any, idx: number) => ({
-            spinNumber: t.data?.meta?.spinNumber || idx + 1,
-            rewardAmount: t.data?.amount || 20,
-            transactionId: t.id,
-            timestamp: new Date(t.data?.createdAt || t.created_at || Date.now()).getTime(),
-            tier: tierType,
-          }));
+          store.spins[seasonId][userId] = dedupedSpins;
           saveDomeSpinStore(store);
-          userSpins = store.spins[seasonId][userId];
+          userSpins = dedupedSpins;
         }
       } catch {}
     }
@@ -927,14 +936,23 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
         });
 
         if (txList.length > 0) {
+          // Deduplicate by spinNumber so multiple logs for the same spin are NEVER counted twice
+          const spinsByNumber = new Map<number, DomeSpinRecord>();
+          txList.forEach((t: any) => {
+            const sNum = Math.max(1, Math.min(2, Number(t.data?.meta?.spinNumber) || 1));
+            if (!spinsByNumber.has(sNum)) {
+              spinsByNumber.set(sNum, {
+                spinNumber: sNum,
+                rewardAmount: Number(t.data?.amount) || 20,
+                transactionId: t.id,
+                timestamp: new Date(t.data?.createdAt || Date.now()).getTime(),
+                tier: tierType,
+              });
+            }
+          });
+          const dedupedSpins = Array.from(spinsByNumber.values()).sort((a, b) => a.spinNumber - b.spinNumber);
           if (!store.spins[seasonId]) store.spins[seasonId] = {};
-          store.spins[seasonId][userId] = txList.map((t: any, idx: number) => ({
-            spinNumber: t.data?.meta?.spinNumber || idx + 1,
-            rewardAmount: t.data?.amount || 20,
-            transactionId: t.id,
-            timestamp: new Date(t.data?.createdAt || Date.now()).getTime(),
-            tier: tierType,
-          }));
+          store.spins[seasonId][userId] = dedupedSpins;
           saveDomeSpinStore(store);
           existingSpins = store.spins[seasonId][userId];
         }
@@ -1051,13 +1069,19 @@ spinRouter.post('/school-dome/execute', async (req: Request, res: Response) => {
     // Save record to persistent store
     if (!store.spins[seasonId]) store.spins[seasonId] = {};
     if (!store.spins[seasonId][userId]) store.spins[seasonId][userId] = [];
-    store.spins[seasonId][userId].push({
+    const existingIndex = store.spins[seasonId][userId].findIndex((s) => s.spinNumber === currentSpinNumber);
+    const newRecord: DomeSpinRecord = {
       spinNumber: currentSpinNumber,
       rewardAmount,
       transactionId: txId,
       timestamp: Date.now(),
       tier: tierType,
-    });
+    };
+    if (existingIndex >= 0) {
+      store.spins[seasonId][userId][existingIndex] = newRecord;
+    } else {
+      store.spins[seasonId][userId].push(newRecord);
+    }
     saveDomeSpinStore(store);
 
     // Save record to schoolDomeSpins table
