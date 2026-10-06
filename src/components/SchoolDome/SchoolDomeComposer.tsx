@@ -114,19 +114,40 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
 
   const isFreeScholar = !isManagerOrAdmin && !isUserVip && !isUserPremium;
 
+  const isQuestionTargetForAll = Boolean(
+    replyToMessage?.type === 'question' && (
+      (replyToMessage.targetTier || '').toLowerCase() === 'all' ||
+      (replyToMessage.targetTier || '').toLowerCase() === 'free' ||
+      replyToMessage.allowFreeParticipation === true ||
+      (replyToMessage.competitionRef?.targetTier || '').toLowerCase() === 'all' ||
+      (replyToMessage.competitionRef?.targetTier || '').toLowerCase() === 'free' ||
+      replyToMessage.competitionRef?.allowFreeParticipation === true ||
+      (replyToMessage.targetPlanName || '').toLowerCase().includes('all user') ||
+      (replyToMessage.targetPlanName || '').toLowerCase().includes('free + premium') ||
+      (replyToMessage.targetPlanName || '').toLowerCase().includes('free users') ||
+      (replyToMessage.targetPlanName || '').toLowerCase().includes('open to all') ||
+      (replyToMessage.competitionRef?.targetPlanName || '').toLowerCase().includes('all user') ||
+      (replyToMessage.competitionRef?.targetPlanName || '').toLowerCase().includes('free + premium') ||
+      (replyToMessage.competitionRef?.targetPlanName || '').toLowerCase().includes('free users') ||
+      (replyToMessage.competitionRef?.targetPlanName || '').toLowerCase().includes('open to all')
+    )
+  );
+
+  const isFreeScholarRestrictedOnQuestion = isFreeScholar && !isQuestionTargetForAll;
+
   const isPausedForUser = Boolean(isPaused && !isManagerOrAdmin);
-  const isQuestionReplyBlocked = Boolean(replyToMessage?.type === 'question' && (hasRepliedToTarget || isFreeScholar));
+  const isQuestionReplyBlocked = Boolean(replyToMessage?.type === 'question' && (hasRepliedToTarget || isFreeScholarRestrictedOnQuestion));
   // Input should never be disabled for normal chatting; only disabled if season is paused
   const isInputDisabled = isPausedForUser;
 
-  // If user already replied to this question card or is a free scholar, automatically cancel reply target so they can continue texting normally!
+  // If user already replied to this question card or is restricted, automatically cancel reply target so they can continue texting normally!
   useEffect(() => {
-    if (replyToMessage?.type === 'question' && (hasRepliedToTarget || isFreeScholar)) {
+    if (replyToMessage?.type === 'question' && (hasRepliedToTarget || isFreeScholarRestrictedOnQuestion)) {
       if (onCancelReply) {
         onCancelReply();
       }
     }
-  }, [replyToMessage?.id, hasRepliedToTarget, isFreeScholar, onCancelReply]);
+  }, [replyToMessage?.id, hasRepliedToTarget, isFreeScholarRestrictedOnQuestion, onCancelReply]);
 
   useEffect(() => {
     if (replyToMessage && inputRef.current && !isQuestionReplyBlocked) {
@@ -139,7 +160,7 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
     const trimmed = inputText.trim();
     if (!trimmed) return;
 
-    if (replyToMessage?.type === 'question' && isFreeScholar) {
+    if (replyToMessage?.type === 'question' && isFreeScholarRestrictedOnQuestion) {
       alert('Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers. Upgrade to Premium or VIP to participate in question challenges!');
       if (openWalletModal) openWalletModal('upgrade');
       if (onCancelReply) onCancelReply();
@@ -206,11 +227,15 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
         }`}>
           <div className="flex items-center gap-2 min-w-0">
             {replyToMessage.type === 'question' ? (
-              isFreeScholar ? (
+              isFreeScholarRestrictedOnQuestion ? (
                 <div className="flex items-center gap-1.5 shrink-0 text-amber-600 dark:text-amber-400 font-bold">
                   <Lock className="w-3.5 h-3.5 text-amber-500" />
                   <span>🔒 Premium & VIP Only:</span>
                 </div>
+              ) : isQuestionTargetForAll ? (
+                <span className="font-black text-emerald-600 dark:text-emerald-400 shrink-0 flex items-center gap-1">
+                  <span>🌐 All Users Answer Mode:</span>
+                </span>
               ) : (
                 <span className="font-black text-amber-600 dark:text-amber-400 shrink-0 flex items-center gap-1">
                   <span>⚡ Official Answer Mode:</span>
@@ -224,7 +249,7 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
             <span className="text-slate-700 dark:text-slate-300 truncate font-semibold">
               {replyToMessage.competitionRef?.questionText || replyToMessage.messageText}
             </span>
-            {replyToMessage.type === 'question' && isFreeScholar ? (
+            {replyToMessage.type === 'question' && isFreeScholarRestrictedOnQuestion ? (
               <button
                 type="button"
                 onClick={() => {
@@ -236,8 +261,8 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
                 Upgrade to Answer
               </button>
             ) : replyToMessage.type === 'question' && (
-              <span className="px-2 py-0.5 rounded-md bg-amber-500/25 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase shrink-0">
-                1 Attempt
+              <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase shrink-0 ${isQuestionTargetForAll ? 'bg-emerald-500/25 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/25 text-amber-700 dark:text-amber-300'}`}>
+                {isQuestionTargetForAll ? 'Free + VIP (1 Attempt)' : '1 Attempt'}
               </span>
             )}
           </div>
@@ -284,7 +309,7 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
               isPausedForUser
                 ? '⏸️ Arena paused by Arbiter. Responses and chat are frozen...'
                 : replyToMessage?.type === 'question'
-                ? isFreeScholar
+                ? isFreeScholarRestrictedOnQuestion
                   ? '🔒 Admin set for Premium & VIP: Free users cannot reply to question cards...'
                   : `Type your official answer for Question #${replyToMessage.competitionRef?.questionNumber || (replyToMessage as any).questionNumber || ''} (1 attempt only)...`
                 : !isUserRegistered && !isManagerOrAdmin

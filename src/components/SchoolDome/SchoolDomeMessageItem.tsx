@@ -567,7 +567,7 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
 
                     return (
                       <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 font-bold text-[10px] border border-emerald-400/30 uppercase tracking-wide flex items-center gap-1">
-                        <span>🟢 All Contenders (Free)</span>
+                        <span>🌐 All Users (Free + Premium + VIP)</span>
                       </span>
                     );
                   })()}
@@ -621,6 +621,32 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                 const isExplicitClosed = message.competitionRef?.status === 'closed' || foundQuestion?.status === 'closed';
                 const officialAnswer = foundQuestion?.correctAnswer || (message.competitionRef as any)?.correctAnswer;
 
+                const isQuestionOpenToAll = Boolean(
+                  (message.targetTier || '').toLowerCase() === 'all' ||
+                  (message.targetTier || '').toLowerCase() === 'free' ||
+                  message.allowFreeParticipation === true ||
+                  (message.competitionRef?.targetTier || '').toLowerCase() === 'all' ||
+                  (message.competitionRef?.targetTier || '').toLowerCase() === 'free' ||
+                  message.competitionRef?.allowFreeParticipation === true ||
+                  (foundQuestion?.targetTier || '').toLowerCase() === 'all' ||
+                  (foundQuestion?.targetTier || '').toLowerCase() === 'free' ||
+                  foundQuestion?.allowFreeParticipation === true ||
+                  (message.targetPlanName || '').toLowerCase().includes('all user') ||
+                  (message.targetPlanName || '').toLowerCase().includes('free + premium') ||
+                  (message.targetPlanName || '').toLowerCase().includes('free users') ||
+                  (message.targetPlanName || '').toLowerCase().includes('open to all') ||
+                  (message.competitionRef?.targetPlanName || '').toLowerCase().includes('all user') ||
+                  (message.competitionRef?.targetPlanName || '').toLowerCase().includes('free + premium') ||
+                  (message.competitionRef?.targetPlanName || '').toLowerCase().includes('free users') ||
+                  (message.competitionRef?.targetPlanName || '').toLowerCase().includes('open to all') ||
+                  (foundQuestion?.targetPlanName || '').toLowerCase().includes('all user') ||
+                  (foundQuestion?.targetPlanName || '').toLowerCase().includes('free + premium') ||
+                  (foundQuestion?.targetPlanName || '').toLowerCase().includes('free users') ||
+                  (foundQuestion?.targetPlanName || '').toLowerCase().includes('open to all')
+                );
+
+                const isFreeBlockedOnThisQuestion = isFreeScholar && !isManagerOrAdmin && !isQuestionOpenToAll;
+
                 return (
                   <div className="space-y-2 pt-1">
                     {/* Revealed Answer when Closed */}
@@ -643,8 +669,10 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                           ? '✓ 1 attempt used. You can continue texting for other purposes in the arena below.'
                           : isExplicitClosed
                           ? 'This question challenge has concluded.'
-                          : isFreeScholar && !isManagerOrAdmin
+                          : isFreeBlockedOnThisQuestion
                           ? '⭐ Admin set for Premium & VIP: Free users cannot reply to question cards.'
+                          : isQuestionOpenToAll
+                          ? '🌐 Open to All Users (Free + Premium + VIP): Reply to submit your official answer (1 attempt limit).'
                           : !isUserRegistered && !isManagerOrAdmin
                           ? 'Register free to participate in this challenge.'
                           : !isUserStanding && !isManagerOrAdmin
@@ -661,7 +689,7 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                         <div className="px-3 py-1 bg-slate-800 border border-slate-700 text-slate-400 text-xs font-bold rounded-xl flex items-center gap-1.5">
                           <span>⌛ Concluded</span>
                         </div>
-                      ) : isFreeScholar && !isManagerOrAdmin ? (
+                      ) : isFreeBlockedOnThisQuestion ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -706,7 +734,7 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                     </div>
 
                     {/* Inline Quick Answer Form on Question Card */}
-                    {isInlineReplying && !hasRepliedToQuestion && !isExplicitClosed && !isFreeScholar && (
+                    {isInlineReplying && !hasRepliedToQuestion && !isExplicitClosed && !isFreeBlockedOnThisQuestion && (
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();

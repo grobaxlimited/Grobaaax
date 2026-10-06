@@ -887,9 +887,18 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     const targetQId =
       replyTarget.competitionRef?.questionId ||
       replyTarget.id.replace(/^dome_msg_q_/, '').replace(/^msg_sdq_/, '');
-    const qObj = activeQuestion?.id === targetQId ? activeQuestion : activeQuestion;
+    const qObj =
+      (activeQuestion && (activeQuestion.id === targetQId || getCanonicalQuestionId(activeQuestion) === getCanonicalQuestionId(targetQId)))
+        ? activeQuestion
+        : (seasonQuestions?.find(q => q.id === targetQId || getCanonicalQuestionId(q) === getCanonicalQuestionId(targetQId)) || {
+            id: targetQId,
+            targetTier: replyTarget.targetTier || replyTarget.competitionRef?.targetTier,
+            targetPlanName: replyTarget.targetPlanName || replyTarget.competitionRef?.targetPlanName,
+            allowedPlanIds: replyTarget.allowedPlanIds || replyTarget.competitionRef?.allowedPlanIds,
+            allowFreeParticipation: replyTarget.allowFreeParticipation || replyTarget.competitionRef?.allowFreeParticipation,
+          } as any);
     return checkScholarSchoolDomePlanEligibility(currentUser, qObj);
-  }, [replyTarget, activeQuestion, currentUser]);
+  }, [replyTarget, activeQuestion, seasonQuestions, currentUser]);
 
   const handleSendMessage = async (text: string, replyTo?: SchoolDomeMessage['replyTo']) => {
     // Whenever admin clicks End Season, typing is strictly unavailable for regular users; admin remains open
@@ -939,6 +948,10 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
           repliedUserIds: qMsg.competitionRef.repliedUserIds || [],
           totalSubmissionsCount: 0,
           createdAt: qMsg.timestamp || Date.now(),
+          targetTier: qMsg.targetTier || qMsg.competitionRef.targetTier,
+          targetPlanName: qMsg.targetPlanName || qMsg.competitionRef.targetPlanName,
+          allowedPlanIds: qMsg.allowedPlanIds || qMsg.competitionRef.allowedPlanIds,
+          allowFreeParticipation: qMsg.allowFreeParticipation || qMsg.competitionRef.allowFreeParticipation,
         };
       } else if (activeQuestion && (targetQCanonicalId.includes('dome_q_') || targetQCanonicalId.includes('sdq_'))) {
         targetQuestionObj = activeQuestion;
@@ -949,7 +962,17 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
     // Prevent replying twice to a question challenge
     if (isTargetingAnyQuestion && targetQuestionObj) {
-      if (!isStaffOrAdmin && !isVIP && !isPremium) {
+      const isTargetQForAll = Boolean(
+        (targetQuestionObj.targetTier || '').toLowerCase() === 'all' ||
+        (targetQuestionObj.targetTier || '').toLowerCase() === 'free' ||
+        targetQuestionObj.allowFreeParticipation === true ||
+        (targetQuestionObj.targetPlanName || '').toLowerCase().includes('all user') ||
+        (targetQuestionObj.targetPlanName || '').toLowerCase().includes('free + premium') ||
+        (targetQuestionObj.targetPlanName || '').toLowerCase().includes('free users') ||
+        (targetQuestionObj.targetPlanName || '').toLowerCase().includes('open to all')
+      );
+
+      if (!isTargetQForAll && !isStaffOrAdmin && !isVIP && !isPremium) {
         alert(
           'Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers. Upgrade to Premium or VIP to participate in question challenges!'
         );
@@ -958,9 +981,10 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
         return;
       }
 
-      if (!replyTargetPlanEligibility.isEligible && !isStaffOrAdmin) {
+      const qPlanEligibility = checkScholarSchoolDomePlanEligibility(currentUser, targetQuestionObj);
+      if (!qPlanEligibility.isEligible && !isStaffOrAdmin) {
         alert(
-          `Your subscription plan (${replyTargetPlanEligibility.userPlanName}) is not eligible to answer this question. Required: ${replyTargetPlanEligibility.requiredPlanText}. Your tournament standing is safe.`
+          `Your subscription plan (${qPlanEligibility.userPlanName}) is not eligible to answer this question. Required: ${qPlanEligibility.requiredPlanText}. Your tournament standing is safe.`
         );
         return;
       }
@@ -1142,7 +1166,24 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
   };
 
   const handleAnswerSubmit = (msg: SchoolDomeMessage, answerText: string) => {
-    if (!isStaffOrAdmin && !isVIP && !isPremium) {
+    const isMsgOpenToAll = Boolean(
+      (msg.targetTier || '').toLowerCase() === 'all' ||
+      (msg.targetTier || '').toLowerCase() === 'free' ||
+      msg.allowFreeParticipation === true ||
+      (msg.competitionRef?.targetTier || '').toLowerCase() === 'all' ||
+      (msg.competitionRef?.targetTier || '').toLowerCase() === 'free' ||
+      msg.competitionRef?.allowFreeParticipation === true ||
+      (msg.targetPlanName || '').toLowerCase().includes('all user') ||
+      (msg.targetPlanName || '').toLowerCase().includes('free + premium') ||
+      (msg.targetPlanName || '').toLowerCase().includes('free users') ||
+      (msg.targetPlanName || '').toLowerCase().includes('open to all') ||
+      (msg.competitionRef?.targetPlanName || '').toLowerCase().includes('all user') ||
+      (msg.competitionRef?.targetPlanName || '').toLowerCase().includes('free + premium') ||
+      (msg.competitionRef?.targetPlanName || '').toLowerCase().includes('free users') ||
+      (msg.competitionRef?.targetPlanName || '').toLowerCase().includes('open to all')
+    );
+
+    if (!isMsgOpenToAll && !isStaffOrAdmin && !isVIP && !isPremium) {
       alert('Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers. Upgrade to Premium or VIP to participate in question challenges!');
       if (openWalletModal) openWalletModal('upgrade');
       return;
@@ -1541,19 +1582,24 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                 } as any)}
                 isUserRegistered={isUserRegistered}
                 isUserStanding={isUserStanding || isStaffOrAdmin}
-                isUserPlanEligible={!isFreeScholar && questionPlanEligibility.isEligible}
-                userPlanName={isFreeScholar ? 'Free Scholar' : questionPlanEligibility.userPlanName}
+                isUserPlanEligible={questionPlanEligibility.isEligible}
+                userPlanName={questionPlanEligibility.userPlanName}
                 requiredPlanText={questionPlanEligibility.requiredPlanText}
-                planIneligibleReason={
-                  isFreeScholar
-                    ? 'Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers.'
-                    : questionPlanEligibility.reason
-                }
+                planIneligibleReason={questionPlanEligibility.reason}
                 onOpenUpgrade={handleOpenUpgrade}
                 onCloseQuestion={isStaffOrAdmin ? (qId) => closeSchoolDomeQuestion(currentSeason?.id || 'season_dome_1', qId) : undefined}
                 onExtendTime={isStaffOrAdmin ? (qId, extra) => extendSchoolDomeQuestionTime(qId, extra) : undefined}
                 onReplyToAnswer={(q) => {
-                  if (isFreeScholar || (!isStaffOrAdmin && !isVIP && !isPremium)) {
+                  const isQForAll = Boolean(
+                    (q.targetTier || '').toLowerCase() === 'all' ||
+                    (q.targetTier || '').toLowerCase() === 'free' ||
+                    q.allowFreeParticipation === true ||
+                    (q.targetPlanName || '').toLowerCase().includes('all user') ||
+                    (q.targetPlanName || '').toLowerCase().includes('free + premium') ||
+                    (q.targetPlanName || '').toLowerCase().includes('free users') ||
+                    (q.targetPlanName || '').toLowerCase().includes('open to all')
+                  );
+                  if (!isQForAll && (isFreeScholar || (!isStaffOrAdmin && !isVIP && !isPremium))) {
                     alert('Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers. Upgrade to Premium or VIP to participate in question challenges!');
                     if (openWalletModal) openWalletModal('upgrade');
                     return;
@@ -1627,7 +1673,23 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                   activeQuestion={activeQuestion}
                   questions={seasonQuestions}
                   onReply={(m) => {
-                    if (m.type === 'question' && (isFreeScholar || (!isStaffOrAdmin && !isVIP && !isPremium))) {
+                    const isMForAll = Boolean(
+                      (m.targetTier || '').toLowerCase() === 'all' ||
+                      (m.targetTier || '').toLowerCase() === 'free' ||
+                      m.allowFreeParticipation === true ||
+                      (m.competitionRef?.targetTier || '').toLowerCase() === 'all' ||
+                      (m.competitionRef?.targetTier || '').toLowerCase() === 'free' ||
+                      m.competitionRef?.allowFreeParticipation === true ||
+                      (m.targetPlanName || '').toLowerCase().includes('all user') ||
+                      (m.targetPlanName || '').toLowerCase().includes('free + premium') ||
+                      (m.targetPlanName || '').toLowerCase().includes('free users') ||
+                      (m.targetPlanName || '').toLowerCase().includes('open to all') ||
+                      (m.competitionRef?.targetPlanName || '').toLowerCase().includes('all user') ||
+                      (m.competitionRef?.targetPlanName || '').toLowerCase().includes('free + premium') ||
+                      (m.competitionRef?.targetPlanName || '').toLowerCase().includes('free users') ||
+                      (m.competitionRef?.targetPlanName || '').toLowerCase().includes('open to all')
+                    );
+                    if (m.type === 'question' && !isMForAll && (isFreeScholar || (!isStaffOrAdmin && !isVIP && !isPremium))) {
                       alert('Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers. Upgrade to Premium or VIP to participate in question challenges!');
                       if (openWalletModal) openWalletModal('upgrade');
                       return;

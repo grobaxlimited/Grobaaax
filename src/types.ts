@@ -3064,6 +3064,7 @@ export interface SchoolDomeQuestion {
   targetTier?: 'free' | 'premium' | 'vip' | 'all';
   allowedPlanIds?: string[]; // Specific subscription plan IDs (e.g. 'plan_basic_naira', 'plan_pro_naira', 'plan_titan_naira')
   targetPlanName?: string; // Display name of specific plan requirement (e.g. "Scholar Starter Plan", "Grobaax Titan Annual VIP")
+  allowFreeParticipation?: boolean;
   startAt: number;
   endAt: number;
   status: 'active' | 'closed';
@@ -3085,6 +3086,7 @@ export interface SchoolDomeMessage extends ChatroomLiveMessage {
   targetTier?: 'free' | 'premium' | 'vip' | 'all';
   targetPlanName?: string;
   allowedPlanIds?: string[];
+  allowFreeParticipation?: boolean;
   isAnswer?: boolean;
   isCorrect?: boolean;
   evalStatus?: 'correct' | 'wrong';

@@ -88,13 +88,23 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const isQuestionForAll = Boolean(
+    (question.targetTier || '').toLowerCase() === 'all' ||
+    (question.targetTier || '').toLowerCase() === 'free' ||
+    question.allowFreeParticipation === true ||
+    (question.targetPlanName || '').toLowerCase().includes('all user') ||
+    (question.targetPlanName || '').toLowerCase().includes('free + premium') ||
+    (question.targetPlanName || '').toLowerCase().includes('free users') ||
+    (question.targetPlanName || '').toLowerCase().includes('open to all')
+  );
+
   const isStanding = isUserStanding || isManagerOrAdmin;
-  const isFreeUser = userPlanName === 'Free Scholar' || !isUserPlanEligible;
-  const canReply = isStanding && isUserPlanEligible && !isFreeUser && !hasRepliedToQuestion;
+  const isEligibleForThisQuestion = isUserPlanEligible || isQuestionForAll || isManagerOrAdmin;
+  const canReply = isStanding && isEligibleForThisQuestion && !hasRepliedToQuestion;
 
   const handleQuickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isFreeUser && !isManagerOrAdmin) {
+    if (!isEligibleForThisQuestion && !isManagerOrAdmin) {
       if (onOpenUpgrade) onOpenUpgrade();
       return;
     }
@@ -135,11 +145,16 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
             <span>{formatTime(secondsRemaining)}</span>
           </span>
 
-          {question.targetPlanName && (
+          {isQuestionForAll ? (
+            <span className="hidden sm:inline-flex px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold items-center gap-1">
+              <span>🌐</span>
+              <span>All Users (Free + Premium + VIP)</span>
+            </span>
+          ) : question.targetPlanName ? (
             <span className="hidden sm:inline-flex px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold">
               {question.targetPlanName}
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* Right Action: Answer Submitted / Reply with Answer / Admin Controls */}
@@ -149,7 +164,7 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
               <span>✓ Answer Submitted (1 attempt used)</span>
             </div>
-          ) : (!isUserPlanEligible || isFreeUser) && !isManagerOrAdmin ? (
+          ) : !isEligibleForThisQuestion && !isManagerOrAdmin ? (
             <button
               type="button"
               onClick={onOpenUpgrade}
@@ -212,12 +227,22 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
         « {question.questionText} »
       </div>
 
+      {/* Open to All Users Notice */}
+      {isQuestionForAll && (
+        <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs">
+          <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="flex-1">
+            🌐 <strong>Open to All Users:</strong> Free users + Premium + VIP are all able to reply and answer this question card!
+          </span>
+        </div>
+      )}
+
       {/* Free User Plan Ineligible Notice */}
-      {(!isUserPlanEligible || isFreeUser) && !isManagerOrAdmin && (
+      {!isEligibleForThisQuestion && !isManagerOrAdmin && (
         <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
           <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
           <span className="flex-1">
-            ⭐ <strong>Admin set for Premium & VIP:</strong> Free users cannot reply to question cards. Upgrade to Premium or VIP to submit answers and survive!
+            ⭐ <strong>Admin set for Premium & VIP:</strong> Free users cannot reply to this question card. Upgrade to Premium or VIP to submit answers and survive!
           </span>
           {onOpenUpgrade && (
             <button

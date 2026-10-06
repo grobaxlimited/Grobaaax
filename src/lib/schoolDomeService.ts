@@ -166,7 +166,30 @@ export function checkScholarSchoolDomePlanEligibility(
     };
   }
 
-  // RULE: Free users are NOT allowed to reply to question cards! Admin sets questions for Premium and VIP.
+  // Check if question is set by Admin for all users (Free users + Premium + VIP)
+  const questionTargetTier = (question.targetTier || '').toLowerCase();
+  const questionPlanName = (question.targetPlanName || '').toLowerCase();
+  const allowsAllUsers =
+    questionTargetTier === 'all' ||
+    questionTargetTier === 'free' ||
+    question.allowFreeParticipation === true ||
+    (question as any).competitionRef?.allowFreeParticipation === true ||
+    questionPlanName.includes('all user') ||
+    questionPlanName.includes('free + premium') ||
+    questionPlanName.includes('free users') ||
+    questionPlanName.includes('open to all');
+
+  if (allowsAllUsers) {
+    return {
+      isEligible: true,
+      userTierName,
+      userPlanName,
+      userPlanId: rawPlanId,
+      requiredPlanText: 'All Users (Free + Premium + VIP)',
+    };
+  }
+
+  // RULE: If question is NOT set for all users, Free users are restricted from replying!
   if (userTierName === 'free' || (!isPremium && !isVip)) {
     return {
       isEligible: false,
@@ -1129,6 +1152,7 @@ export async function createSchoolDomeQuestion(
     targetTier?: 'free' | 'premium' | 'vip' | 'all';
     allowedPlanIds?: string[];
     targetPlanName?: string;
+    allowFreeParticipation?: boolean;
     questionNumber?: number;
     winnerLimit?: number;
     gpRewardPerWinner?: number;
@@ -1150,6 +1174,17 @@ export async function createSchoolDomeQuestion(
     const targetPlanName = questionData.targetPlanName;
     const nextQNumber = precomputedQuestion?.questionNumber || questionData.questionNumber || 1;
 
+    const allowFree = Boolean(
+      targetTier === 'all' ||
+      targetTier === 'free' ||
+      questionData.allowFreeParticipation === true ||
+      precomputedQuestion?.allowFreeParticipation === true ||
+      (targetPlanName || '').toLowerCase().includes('all user') ||
+      (targetPlanName || '').toLowerCase().includes('free + premium') ||
+      (targetPlanName || '').toLowerCase().includes('free users') ||
+      (targetPlanName || '').toLowerCase().includes('open to all')
+    );
+
     const newQuestion: SchoolDomeQuestion = precomputedQuestion || {
       id: qId,
       seasonId,
@@ -1161,6 +1196,7 @@ export async function createSchoolDomeQuestion(
       targetTier,
       allowedPlanIds,
       targetPlanName,
+      allowFreeParticipation: allowFree,
       startAt: now,
       endAt,
       status: 'active',
@@ -1174,8 +1210,7 @@ export async function createSchoolDomeQuestion(
       createdByName: adminName || 'Dome Arbiter',
     };
 
-    const targetLabel = targetPlanName || (targetTier === 'vip' ? 'VIP Only' : 'Premium & VIP');
-    const allowFree = false; // Free users cannot reply to question cards; Admin set for Premium and VIP
+    const targetLabel = targetPlanName || (allowFree ? 'All Users (Free + Premium + VIP)' : targetTier === 'vip' ? 'VIP Only' : 'Premium & VIP');
     const qMessage: SchoolDomeMessage = precomputedMessage || {
       id: 'msg_' + qId,
       seasonId,
@@ -1191,6 +1226,7 @@ export async function createSchoolDomeQuestion(
       targetTier,
       targetPlanName,
       allowedPlanIds,
+      allowFreeParticipation: allowFree,
       messageText: newQuestion.questionText,
       timestamp: now,
       type: 'question',
