@@ -98,6 +98,14 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
     (question.targetPlanName || '').toLowerCase().includes('open to all')
   );
 
+  const isVipOnly = Boolean(
+    !isQuestionForAll && (
+      (question.targetTier || '').toLowerCase() === 'vip' ||
+      (question.targetPlanName || '').toLowerCase().includes('vip') ||
+      (question.targetPlanName || '').toLowerCase().includes('titan')
+    )
+  );
+
   const isStanding = isUserStanding || isManagerOrAdmin;
   const isEligibleForThisQuestion = isUserPlanEligible || isQuestionForAll || isManagerOrAdmin;
   const canReply = isStanding && isEligibleForThisQuestion && !hasRepliedToQuestion;
@@ -146,15 +154,21 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
           </span>
 
           {isQuestionForAll ? (
-            <span className="hidden sm:inline-flex px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold items-center gap-1">
+            <span className="inline-flex px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-black items-center gap-1 shrink-0">
               <span>🌐</span>
               <span>All Users (Free + Premium + VIP)</span>
             </span>
-          ) : question.targetPlanName ? (
-            <span className="hidden sm:inline-flex px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold">
-              {question.targetPlanName}
+          ) : isVipOnly ? (
+            <span className="inline-flex px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-black items-center gap-1 shrink-0">
+              <span>👑</span>
+              <span>{question.targetPlanName || 'VIP Only'}</span>
             </span>
-          ) : null}
+          ) : (
+            <span className="inline-flex px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black items-center gap-1 shrink-0">
+              <span>⭐</span>
+              <span>{question.targetPlanName || 'Premium & VIP'}</span>
+            </span>
+          )}
         </div>
 
         {/* Right Action: Answer Submitted / Reply with Answer / Admin Controls */}

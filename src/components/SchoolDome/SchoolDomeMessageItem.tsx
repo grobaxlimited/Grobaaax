@@ -514,32 +514,60 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                     <span>⚔️ Survival Round</span>
                   </span>
                   {(() => {
+                    const canonicalQId = getCanonicalQuestionId(message);
+                    const foundQuestion = questions?.find((q) => getCanonicalQuestionId(q) === canonicalQId) ||
+                      (activeQuestion && getCanonicalQuestionId(activeQuestion) === canonicalQId ? activeQuestion : null);
+
                     const rawTargetTier =
                       (message as any).targetTier ||
-                      message.competitionRef?.targetTier;
+                      message.competitionRef?.targetTier ||
+                      foundQuestion?.targetTier ||
+                      '';
                     const rawPlanName =
                       (message as any).targetPlanName ||
-                      message.competitionRef?.targetPlanName;
-                    const rawSubPlan = (message as any).subscriptionPlan;
+                      message.competitionRef?.targetPlanName ||
+                      foundQuestion?.targetPlanName ||
+                      '';
+                    const rawSubPlan = (message as any).subscriptionPlan || '';
+                    const allowFreePart =
+                      (message as any).allowFreeParticipation === true ||
+                      message.competitionRef?.allowFreeParticipation === true ||
+                      foundQuestion?.allowFreeParticipation === true;
 
                     const effectivePlan = (rawPlanName || rawSubPlan || '').trim();
                     const planLower = effectivePlan.toLowerCase();
+                    const tierLower = String(rawTargetTier).toLowerCase();
 
-                    // Check if question allows Premium (which includes Premium & VIP)
-                    const isPremiumLevel =
-                      rawTargetTier === 'premium' ||
-                      planLower.includes('premium') ||
-                      planLower.includes('any paid') ||
-                      planLower.includes('premium & vip') ||
-                      planLower.includes('premium / vip');
+                    // 1. FIRST: Check if question is for All Users (Free + Premium + VIP)
+                    const isAllUsers = Boolean(
+                      allowFreePart ||
+                      tierLower === 'all' ||
+                      tierLower === 'free' ||
+                      planLower.includes('all user') ||
+                      planLower.includes('open to all') ||
+                      planLower.includes('all contender') ||
+                      planLower.includes('free + premium') ||
+                      planLower.includes('free users') ||
+                      message.competitionRef?.allowFreeParticipation === true
+                    );
 
-                    // Check if question is strictly VIP / Titan only
-                    const isStrictVip =
-                      !isPremiumLevel &&
-                      (rawTargetTier === 'vip' ||
-                       planLower === 'vip only' ||
-                       planLower === 'vip / titan only' ||
-                       (planLower.includes('titan') && !planLower.includes('all') && !planLower.includes('free')));
+                    if (isAllUsers) {
+                      return (
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-black text-[10px] border border-emerald-400/40 uppercase tracking-wide flex items-center gap-1 shadow-xs">
+                          <span>🌐 All Users (Free + Premium + VIP)</span>
+                        </span>
+                      );
+                    }
+
+                    // 2. Check if question is strictly VIP / Titan only
+                    const isStrictVip = Boolean(
+                      tierLower === 'vip' ||
+                      planLower === 'vip only' ||
+                      planLower === 'vip / titan only' ||
+                      planLower.includes('titan vip') ||
+                      planLower.includes('vip / titan') ||
+                      (planLower.includes('titan') && !planLower.includes('all') && !planLower.includes('free'))
+                    );
 
                     if (isStrictVip) {
                       return (
@@ -549,25 +577,19 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                       );
                     }
 
-                    if (isPremiumLevel) {
-                      return (
-                        <span className="px-2.5 py-0.5 rounded-full bg-amber-500/25 text-amber-200 font-black text-[10px] border border-amber-400/40 uppercase tracking-wide flex items-center gap-1 shadow-xs">
-                          <span>⭐ Premium & VIP</span>
-                        </span>
-                      );
-                    }
-
-                    if (effectivePlan && effectivePlan !== 'Open to All' && effectivePlan !== 'All Contenders' && effectivePlan !== 'all') {
-                      return (
-                        <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/25 text-cyan-200 font-black text-[10px] border border-cyan-400/40 uppercase tracking-wide flex items-center gap-1 shadow-xs">
-                          <span>🎯 {effectivePlan}</span>
-                        </span>
-                      );
-                    }
+                    // 3. Otherwise: Premium & VIP (or specific paid plan title if provided)
+                    const displayPaidLabel =
+                      effectivePlan &&
+                      !effectivePlan.toLowerCase().includes('all') &&
+                      !effectivePlan.toLowerCase().includes('free') &&
+                      effectivePlan !== 'Open to All' &&
+                      effectivePlan !== 'All Contenders'
+                        ? effectivePlan
+                        : 'Premium & VIP';
 
                     return (
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 font-bold text-[10px] border border-emerald-400/30 uppercase tracking-wide flex items-center gap-1">
-                        <span>🌐 All Users (Free + Premium + VIP)</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-amber-500/25 text-amber-200 font-black text-[10px] border border-amber-400/40 uppercase tracking-wide flex items-center gap-1 shadow-xs">
+                        <span>⭐ {displayPaidLabel}</span>
                       </span>
                     );
                   })()}
