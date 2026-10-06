@@ -89,10 +89,15 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
   };
 
   const isStanding = isUserStanding || isManagerOrAdmin;
-  const canReply = isStanding && isUserPlanEligible && !hasRepliedToQuestion;
+  const isFreeUser = userPlanName === 'Free Scholar' || !isUserPlanEligible;
+  const canReply = isStanding && isUserPlanEligible && !isFreeUser && !hasRepliedToQuestion;
 
   const handleQuickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isFreeUser && !isManagerOrAdmin) {
+      if (onOpenUpgrade) onOpenUpgrade();
+      return;
+    }
     const trimmed = quickAnswerText.trim();
     if (!trimmed || isSubmitting) return;
     setIsSubmitting(true);
@@ -144,14 +149,15 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
               <span>✓ Answer Submitted (1 attempt used)</span>
             </div>
-          ) : !isUserPlanEligible && !isManagerOrAdmin ? (
+          ) : (!isUserPlanEligible || isFreeUser) && !isManagerOrAdmin ? (
             <button
               type="button"
               onClick={onOpenUpgrade}
-              className="px-2.5 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded-xl text-xs font-bold hover:bg-amber-500/30 transition cursor-pointer flex items-center gap-1"
+              className="px-2.5 py-1 bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-blue-500/20 hover:from-amber-500/30 hover:to-purple-500/30 border border-amber-500/50 text-amber-300 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+              title="Question cards are exclusively reserved for Premium and VIP scholars. Click to upgrade your plan."
             >
-              <Lock className="w-3 h-3" />
-              <span>Upgrade Plan</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Upgrade to Answer (Premium / VIP)</span>
             </button>
           ) : canReply ? (
             <button
@@ -205,6 +211,25 @@ export const SchoolDomeQuestionCard: React.FC<SchoolDomeQuestionCardProps> = ({
       <div className="text-sm sm:text-base font-black text-white leading-snug px-1">
         « {question.questionText} »
       </div>
+
+      {/* Free User Plan Ineligible Notice */}
+      {(!isUserPlanEligible || isFreeUser) && !isManagerOrAdmin && (
+        <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="flex-1">
+            ⭐ <strong>Admin set for Premium & VIP:</strong> Free users cannot reply to question cards. Upgrade to Premium or VIP to submit answers and survive!
+          </span>
+          {onOpenUpgrade && (
+            <button
+              type="button"
+              onClick={onOpenUpgrade}
+              className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] shrink-0 transition cursor-pointer"
+            >
+              Upgrade Now
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Inline Quick Answer Box inside this card */}
       {isQuickReplying && canReply && (

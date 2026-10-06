@@ -16,13 +16,13 @@
   "enableGusRegistration": true,
   "announcementBannerText": "",
   "announcementBannerActive": false,
-  "welcomeVideoUrl": "https://youtu.be/o9W0Ypmr1AA?si=x4s0isjgxGheEGbK",
+  "welcomeVideoUrl": "https://youtu.be/1xGJ2RpUqOk?si=K0rBxEwdXLdOxUl7",
   "welcomeVideoTitle": "How Grobaax Works: Complete Platform Guide & Walkthrough",
   "welcomeVideoDescription": "Watch this comprehensive guide to understand all features of Grobaax: Represent your institution in School Dome, recharge VTU airtime & data on GP Redemption, trade in Mini Mart, and connect with campus peers.",
   "welcomeVideoActive": true,
   "id": "config",
-  "updatedAt": "2026-10-05T08:23:53.592Z",
-  "updatedByUid": "4403bd2b-e385-479b-af16-058582fa4ee3",
-  "updatedByName": "Grobaax Super Admin",
+  "updatedAt": "2026-10-05T08:48:15.909Z",
+  "updatedByUid": "admin",
+  "updatedByName": "Admin",
   "test": 1
 }

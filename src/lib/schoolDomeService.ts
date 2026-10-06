@@ -69,15 +69,17 @@ export function checkScholarSchoolDomePlanEligibility(
     userName.includes('arbiter');
 
   // 2. Resolve User's Effective Subscription Tier & Plan
-  const membership = ((user?.membershipTier || user?.tierName || '') + '').toLowerCase();
-  const subTier = ((user?.subscriptionTier || '') + '').toLowerCase();
-  const rawPlanId = ((user?.activePlanId || user?.planId || user?.tier || '') + '').toLowerCase();
-  const subPlanName = ((user?.subscriptionPlan || '') + '').toLowerCase();
+  const membership = ((user?.membershipTier || user?.tierName || '') + '').toLowerCase().trim();
+  const subTier = ((user?.subscriptionTier || '') + '').toLowerCase().trim();
+  const rawPlanId = ((user?.activePlanId || user?.planId || '') + '').toLowerCase().trim();
+  const subPlanName = ((user?.subscriptionPlan || '') + '').toLowerCase().trim();
 
   const isExpired = !isStaffOrAdmin && isSubscriptionExpired(user);
 
   const isVip = isStaffOrAdmin || (!isExpired && Boolean(
     user?.isVip ||
+    user?.targetTier === 'vip' ||
+    user?.tierType === 'vip' ||
     user?.gusTier === 'Titan' ||
     rawPlanId.includes('titan') ||
     rawPlanId.includes('vip') ||
@@ -93,15 +95,40 @@ export function checkScholarSchoolDomePlanEligibility(
     subPlanName.includes('annual')
   ));
 
-  const isPremium = isStaffOrAdmin || (!isExpired && (isVip || Boolean(
-    user?.isPremium ||
-    user?.isSubscribed ||
-    (rawPlanId && !rawPlanId.includes('free') && rawPlanId !== 'starter scholar') ||
-    (membership && !membership.includes('free') && membership !== 'starter scholar' && !membership.includes('scholar (starter)') && membership.trim().length > 0) ||
-    (subTier && !subTier.includes('free') && subTier !== 'starter scholar' && !subTier.includes('scholar (starter)') && subTier.trim().length > 0) ||
-    (subPlanName && !subPlanName.includes('free') && subPlanName !== 'starter scholar' && subPlanName.trim().length > 0) ||
+  const hasExplicitPaidPlan = Boolean(
+    rawPlanId === 'plan_basic_naira' ||
+    rawPlanId === 'plan_pro_naira' ||
+    rawPlanId === 'plan_titan_naira' ||
+    rawPlanId.includes('pro') ||
+    rawPlanId.includes('basic') ||
+    subPlanName.includes('champions pro') ||
+    subPlanName.includes('scholar starter plan') ||
+    subPlanName.includes('pro') ||
+    subPlanName.includes('premium') ||
+    membership.includes('premium') ||
+    subTier.includes('premium') ||
+    user?.targetTier === 'premium' ||
+    user?.tierType === 'premium' ||
+    user?.isPremium === true ||
+    user?.isSubscribed === true ||
     (user?.subscription && user.subscription.status === 'active')
-  )));
+  );
+
+  const isFreeMarker = Boolean(
+    membership.includes('free') ||
+    subTier.includes('free') ||
+    subPlanName.includes('free') ||
+    rawPlanId.includes('free') ||
+    membership === 'starter scholar' ||
+    membership === 'free scholar' ||
+    membership === 'scholar' ||
+    subTier === 'starter scholar' ||
+    subTier === 'free scholar' ||
+    subTier === 'scholar' ||
+    subPlanName === 'free scholar'
+  );
+
+  const isPremium = isStaffOrAdmin || (!isExpired && (isVip || (hasExplicitPaidPlan && !isFreeMarker)));
 
   const userTierName: 'free' | 'premium' | 'vip' = isVip ? 'vip' : isPremium ? 'premium' : 'free';
 
@@ -120,11 +147,11 @@ export function checkScholarSchoolDomePlanEligibility(
   // If no question is active or provided, return user's accurate resolved plan info
   if (!question) {
     return {
-      isEligible: true,
+      isEligible: userTierName !== 'free' || isStaffOrAdmin,
       userTierName,
       userPlanName,
       userPlanId: rawPlanId,
-      requiredPlanText: 'All Scholars',
+      requiredPlanText: 'Premium & VIP Subscribers',
     };
   }
 
@@ -139,12 +166,24 @@ export function checkScholarSchoolDomePlanEligibility(
     };
   }
 
-  // 3. Resolve Question Requirements
-  const targetTier = (question.targetTier || 'free').toLowerCase();
+  // RULE: Free users are NOT allowed to reply to question cards! Admin sets questions for Premium and VIP.
+  if (userTierName === 'free' || (!isPremium && !isVip)) {
+    return {
+      isEligible: false,
+      userTierName: 'free',
+      userPlanName: 'Free Scholar',
+      userPlanId: rawPlanId,
+      requiredPlanText: (question.targetTier || '').toLowerCase() === 'vip' ? 'VIP / Titan Only' : 'Premium & VIP Subscribers',
+      reason: 'Question cards are exclusively reserved for Premium and VIP members. Free users cannot submit answers.',
+    };
+  }
+
+  // 3. Resolve Question Requirements for Paid Contenders (Premium & VIP)
+  const targetTier = (question.targetTier || 'premium').toLowerCase();
   const allowedPlanIds = question.allowedPlanIds || [];
   const targetPlanName = question.targetPlanName;
 
-  let requiredPlanText = 'All Contenders';
+  let requiredPlanText = 'Premium & VIP Subscribers';
   if (targetPlanName) {
     requiredPlanText = targetPlanName;
   } else if (allowedPlanIds.length > 0) {
@@ -156,19 +195,22 @@ export function checkScholarSchoolDomePlanEligibility(
     }).join(' / ');
   } else if (targetTier === 'vip') {
     requiredPlanText = 'VIP / Titan Only';
-  } else if (targetTier === 'premium') {
+  } else {
     requiredPlanText = 'Premium & VIP Subscribers';
   }
 
-  // If question is open to everyone
-  if (targetTier === 'free' || targetTier === 'all' || (!targetTier && allowedPlanIds.length === 0 && !targetPlanName)) {
-    return {
-      isEligible: true,
-      userTierName,
-      userPlanName,
-      userPlanId: rawPlanId,
-      requiredPlanText: 'All Contenders',
-    };
+  // If question requires VIP exclusively
+  if (targetTier === 'vip') {
+    if (!isVip) {
+      return {
+        isEligible: false,
+        userTierName,
+        userPlanName,
+        userPlanId: rawPlanId,
+        requiredPlanText,
+        reason: `Exclusive to VIP & Titan subscribers. Your plan: ${userPlanName}.`,
+      };
+    }
   }
 
   // If specific plan IDs are enforced on this question
@@ -195,34 +237,6 @@ export function checkScholarSchoolDomePlanEligibility(
         userPlanId: rawPlanId,
         requiredPlanText,
         reason: `Requires ${requiredPlanText}. Your plan: ${userPlanName}.`,
-      };
-    }
-  }
-
-  // If question requires VIP
-  if (targetTier === 'vip') {
-    if (!isVip) {
-      return {
-        isEligible: false,
-        userTierName,
-        userPlanName,
-        userPlanId: rawPlanId,
-        requiredPlanText,
-        reason: `Exclusive to VIP & Titan subscribers. Your plan: ${userPlanName}.`,
-      };
-    }
-  }
-
-  // If question requires Premium
-  if (targetTier === 'premium') {
-    if (!isPremium && !isVip) {
-      return {
-        isEligible: false,
-        userTierName,
-        userPlanName,
-        userPlanId: rawPlanId,
-        requiredPlanText,
-        reason: `Requires an active Premium or VIP subscription plan. Your plan: Free Scholar.`,
       };
     }
   }
@@ -1131,7 +1145,7 @@ export async function createSchoolDomeQuestion(
     const qId = precomputedQuestion?.id || ('sdq_' + now + '_' + Math.random().toString(36).substring(2, 6));
     const winnerLimit = Number(questionData.winnerLimit) || 1;
     const gpReward = Number(questionData.gpRewardPerWinner) || 500;
-    const targetTier = questionData.targetTier || 'free';
+    const targetTier = questionData.targetTier || 'premium';
     const allowedPlanIds = questionData.allowedPlanIds;
     const targetPlanName = questionData.targetPlanName;
     const nextQNumber = precomputedQuestion?.questionNumber || questionData.questionNumber || 1;
@@ -1160,8 +1174,8 @@ export async function createSchoolDomeQuestion(
       createdByName: adminName || 'Dome Arbiter',
     };
 
-    const targetLabel = targetPlanName || (targetTier === 'vip' ? 'VIP Only' : targetTier === 'premium' ? 'Premium & VIP' : 'Open to All');
-    const allowFree = targetTier === 'free' || targetTier === 'all';
+    const targetLabel = targetPlanName || (targetTier === 'vip' ? 'VIP Only' : 'Premium & VIP');
+    const allowFree = false; // Free users cannot reply to question cards; Admin set for Premium and VIP
     const qMessage: SchoolDomeMessage = precomputedMessage || {
       id: 'msg_' + qId,
       seasonId,

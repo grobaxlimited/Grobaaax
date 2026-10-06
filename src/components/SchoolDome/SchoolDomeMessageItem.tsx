@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { UserBadgeItem } from '../ui/UserBadgeItem';
 import { useApp } from '../../context/AppContext';
-import { getUserProfileDoc } from '../../lib/firebase';
+import { getUserProfileDoc, isSubscriptionExpired } from '../../lib/firebase';
 import { isAnswerCorrect, getCanonicalQuestionId } from '../../lib/schoolDomeService';
 
 interface SchoolDomeMessageItemProps {
@@ -38,6 +38,7 @@ interface SchoolDomeMessageItemProps {
   onReply?: (message: SchoolDomeMessage) => void;
   onAnswerSubmit?: (message: SchoolDomeMessage, answerText: string) => void;
   onOpenRegistration?: () => void;
+  onOpenUpgrade?: () => void;
   onDelete?: (messageId: string) => void;
   onMuteUser?: (userId: string, userName: string) => void;
   onReact?: (messageId: string, emoji: string) => void;
@@ -143,16 +144,75 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
   onReply,
   onAnswerSubmit,
   onOpenRegistration,
+  onOpenUpgrade,
   onDelete,
   onMuteUser,
   onReact,
   onCloseQuestion,
   onExtendTime,
 }) => {
-  const { currentUser } = useApp();
+  const { currentUser, openWalletModal } = useApp();
   const [isInlineReplying, setIsInlineReplying] = useState(false);
   const [inlineAnswerText, setInlineAnswerText] = useState('');
   const [isInlineSubmitting, setIsInlineSubmitting] = useState(false);
+
+  const isUserExpired = !isManagerOrAdmin && isSubscriptionExpired(currentUser);
+  const uMem = ((currentUser?.membershipTier || (currentUser as any)?.tierName || '') + '').toLowerCase().trim();
+  const uSub = ((currentUser?.subscriptionTier || '') + '').toLowerCase().trim();
+  const uPlan = ((currentUser?.subscriptionPlan || '') + '').toLowerCase().trim();
+  const rawP = ((currentUser?.activePlanId || currentUser?.planId || '') + '').toLowerCase().trim();
+
+  const isUserVip = !isUserExpired && Boolean(
+    isManagerOrAdmin ||
+    currentUser?.isVip ||
+    currentUser?.targetTier === 'vip' ||
+    currentUser?.tierType === 'vip' ||
+    currentUser?.gusTier === 'Titan' ||
+    uMem.includes('vip') || uMem.includes('titan') ||
+    uSub.includes('vip') || uSub.includes('titan') ||
+    uPlan.includes('vip') || uPlan.includes('titan') ||
+    rawP.includes('titan') || rawP.includes('vip')
+  );
+
+  const hasExplicitPaidPlan = Boolean(
+    rawP === 'plan_basic_naira' ||
+    rawP === 'plan_pro_naira' ||
+    rawP === 'plan_titan_naira' ||
+    rawP.includes('pro') ||
+    rawP.includes('basic') ||
+    uPlan.includes('champions pro') ||
+    uPlan.includes('scholar starter plan') ||
+    uPlan.includes('pro') ||
+    uPlan.includes('premium') ||
+    uMem.includes('premium') ||
+    uSub.includes('premium') ||
+    currentUser?.targetTier === 'premium' ||
+    currentUser?.tierType === 'premium' ||
+    currentUser?.isPremium === true ||
+    currentUser?.isSubscribed === true ||
+    (currentUser?.subscription && currentUser.subscription.status === 'active')
+  );
+
+  const isFreeMarker = Boolean(
+    uMem.includes('free') ||
+    uSub.includes('free') ||
+    uPlan.includes('free') ||
+    rawP.includes('free') ||
+    uMem === 'starter scholar' ||
+    uMem === 'free scholar' ||
+    uMem === 'scholar' ||
+    uSub === 'starter scholar' ||
+    uSub === 'free scholar' ||
+    uSub === 'scholar' ||
+    uPlan === 'free scholar'
+  );
+
+  const isUserPremium = !isUserExpired && Boolean(
+    isUserVip ||
+    (hasExplicitPaidPlan && !isFreeMarker)
+  );
+
+  const isFreeScholar = !isManagerOrAdmin && !isUserVip && !isUserPremium;
 
   if (message.isDeleted) {
     return (
@@ -583,6 +643,8 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                           ? '✓ 1 attempt used. You can continue texting for other purposes in the arena below.'
                           : isExplicitClosed
                           ? 'This question challenge has concluded.'
+                          : isFreeScholar && !isManagerOrAdmin
+                          ? '⭐ Admin set for Premium & VIP: Free users cannot reply to question cards.'
                           : !isUserRegistered && !isManagerOrAdmin
                           ? 'Register free to participate in this challenge.'
                           : !isUserStanding && !isManagerOrAdmin
@@ -599,6 +661,20 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                         <div className="px-3 py-1 bg-slate-800 border border-slate-700 text-slate-400 text-xs font-bold rounded-xl flex items-center gap-1.5">
                           <span>⌛ Concluded</span>
                         </div>
+                      ) : isFreeScholar && !isManagerOrAdmin ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (openWalletModal) {
+                              openWalletModal('upgrade');
+                            }
+                          }}
+                          className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-blue-500/20 hover:from-amber-500/30 hover:to-purple-500/30 border border-amber-500/50 text-amber-300 hover:text-amber-200 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
+                          title="Question cards are reserved for Premium and VIP scholars. Click to upgrade your plan."
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Upgrade to Answer (Premium / VIP)</span>
+                        </button>
                       ) : !isUserRegistered && !isManagerOrAdmin && onOpenRegistration ? (
                         <button
                           type="button"
@@ -630,7 +706,7 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                     </div>
 
                     {/* Inline Quick Answer Form on Question Card */}
-                    {isInlineReplying && !hasRepliedToQuestion && !isExplicitClosed && (
+                    {isInlineReplying && !hasRepliedToQuestion && !isExplicitClosed && !isFreeScholar && (
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();

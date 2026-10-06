@@ -39,8 +39,8 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
   const [questionText, setQuestionText] = useState('');
   const [correctAnswer, setCorrectAnswer] = useState('');
   const [alternativeAnswers, setAlternativeAnswers] = useState('');
-  const [targetTier, setTargetTier] = useState<'free' | 'premium' | 'vip' | 'all'>('free');
-  const [selectedPlanFilter, setSelectedPlanFilter] = useState<string>('all');
+  const [targetTier, setTargetTier] = useState<'free' | 'premium' | 'vip' | 'all'>('premium');
+  const [selectedPlanFilter, setSelectedPlanFilter] = useState<string>('tier_premium');
   const [timeLimitSeconds, setTimeLimitSeconds] = useState(defaultTimeLimitSeconds || 120);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -49,9 +49,7 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
 
   const handlePlanFilterChange = (val: string) => {
     setSelectedPlanFilter(val);
-    if (val === 'all') {
-      setTargetTier('free');
-    } else if (val === 'plan_titan_naira' || val === 'tier_vip') {
+    if (val === 'plan_titan_naira' || val === 'tier_vip') {
       setTargetTier('vip');
     } else {
       setTargetTier('premium');
@@ -133,8 +131,8 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
         createdByName: adminName || 'Dome Arbiter',
       };
 
-      const targetLabel = targetPlanName || (targetTier === 'vip' ? 'VIP Only' : targetTier === 'premium' ? 'Premium & VIP' : 'Open to All');
-      const allowFree = targetTier === 'free' || targetTier === 'all';
+      const targetLabel = targetPlanName || (targetTier === 'vip' ? 'VIP Only' : 'Premium & VIP');
+      const allowFree = false; // Free users cannot reply to question cards; Admin set for Premium and VIP
 
       // Optimistic Arena Feed Message (0ms creation)
       const qMessage: SchoolDomeMessage = {
@@ -165,7 +163,7 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
           status: 'active',
           gpRewardPerWinner: 500,
           winnerCountLimit: 1,
-          allowFreeParticipation: allowFree,
+          allowFreeParticipation: false,
           targetTier,
           targetPlanName,
           allowedPlanIds,
@@ -209,7 +207,8 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
       setQuestionText('');
       setCorrectAnswer('');
       setAlternativeAnswers('');
-      setSelectedPlanFilter('all');
+      setSelectedPlanFilter('tier_premium');
+      setTargetTier('premium');
       onClose();
 
       // 3. Persist to Firestore asynchronously in background
@@ -336,26 +335,13 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
                 <Users className="w-4 h-4 text-amber-500" />
                 <span>Eligibility / Allowed Subscription Plan</span>
               </span>
-              <span className="text-[11px] text-slate-400 font-normal">
-                Who can answer this question
+              <span className="text-[11px] text-amber-500 font-bold">
+                ⭐ Premium & VIP Only (Free Users Restricted)
               </span>
             </label>
 
             {/* Quick Tier Buttons */}
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handlePlanFilterChange('all')}
-                className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all ${
-                  selectedPlanFilter === 'all'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-400 ring-2 ring-emerald-500/20'
-                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                }`}
-              >
-                <span>FREE (ALL)</span>
-                <span className="text-[10px] font-normal opacity-80">All Contenders</span>
-              </button>
-
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => handlePlanFilterChange('tier_premium')}
@@ -365,8 +351,8 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
                     : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                 }`}
               >
-                <span>PREMIUM</span>
-                <span className="text-[10px] font-normal opacity-80">Premium & VIP</span>
+                <span className="flex items-center gap-1">⭐ PREMIUM & VIP</span>
+                <span className="text-[10px] font-normal opacity-80">All Paid Subscribers</span>
               </button>
 
               <button
@@ -378,8 +364,8 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
                     : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                 }`}
               >
-                <span>VIP / TITAN</span>
-                <span className="text-[10px] font-normal opacity-80">VIP Only</span>
+                <span className="flex items-center gap-1">👑 VIP / TITAN ONLY</span>
+                <span className="text-[10px] font-normal opacity-80">VIP Subscribers Only</span>
               </button>
             </div>
 
@@ -393,12 +379,11 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
                 onChange={e => handlePlanFilterChange(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20"
               >
-                <option value="all">🌐 All Contenders (Free, Basic, Pro, Titan VIP)</option>
+                <option value="tier_premium">⭐ Premium & VIP (All Paid Subscribers — Free Users Restricted)</option>
+                <option value="tier_vip">👑 VIP Only (Titan Annual VIP Subscribers)</option>
                 <option value="plan_basic_naira">🥉 Scholar Starter Plan (₦1,000 / mo) & Above</option>
                 <option value="plan_pro_naira">🥈 Champions Pro Scholar (₦2,500 / mo) & Above</option>
                 <option value="plan_titan_naira">👑 Grobaax Titan Annual VIP (₦25,000 / yr) Exclusively</option>
-                <option value="tier_premium">⭐ Premium & VIP (Any Paid Plan)</option>
-                <option value="tier_vip">👑 VIP Only (Titan Subscribers)</option>
               </select>
             </div>
 
@@ -407,13 +392,12 @@ export const CreateSchoolDomeQuestionModal: React.FC<CreateSchoolDomeQuestionMod
               <Sparkles className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
               <div>
                 <strong>Dome Filter Rule:</strong>{' '}
-                {selectedPlanFilter === 'all' && 'All standing contenders are eligible to answer.'}
                 {selectedPlanFilter === 'plan_basic_naira' && 'Only scholars on Scholar Starter (₦1k) or higher can answer.'}
                 {selectedPlanFilter === 'plan_pro_naira' && 'Only scholars on Champions Pro (₦2.5k) or Titan VIP can answer.'}
                 {selectedPlanFilter === 'plan_titan_naira' && 'Exclusively reserved for Grobaax Titan Annual VIP members.'}
-                {selectedPlanFilter === 'tier_premium' && 'Scholars with any active Premium or VIP subscription plan can answer.'}
+                {selectedPlanFilter === 'tier_premium' && 'Scholars with active Premium or VIP subscription plans can answer.'}
                 {selectedPlanFilter === 'tier_vip' && 'Only VIP & Titan scholars can answer.'}
-                {' '}Ineligible contenders are filtered out without being eliminated.
+                {' '}🔒 <em>Free users cannot reply to question cards.</em>
               </div>
             </div>
           </div>

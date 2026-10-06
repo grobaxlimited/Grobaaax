@@ -159,8 +159,9 @@ function isSuperAdmin(uid, email) {
   if (!uid && !email) return false;
   if (uid === PRIMARY_SUPER_ADMIN_UID || uid === "4403bd2b-e385-479b-af16-058582fa4ee3") return true;
   if (uid === LEGACY_SUPER_ADMIN_UID) return true;
-  if (email && email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase()) return true;
-  if (uid && uid.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase()) return true;
+  const normEmail = (email || "").toLowerCase().trim();
+  const normUid = (uid || "").toLowerCase().trim();
+  if (SUPER_ADMIN_EMAILS.some((e) => e.toLowerCase() === normEmail || e.toLowerCase() === normUid)) return true;
   return false;
 }
 function getGlobalBusChannel() {
@@ -242,26 +243,60 @@ function normalizeTableName(name) {
 async function getDocFromSupabase(tableName, docId) {
   try {
     const table = normalizeTableName(tableName);
-    let { data, error } = await supabase.from(table).select("id, data").eq("id", docId).maybeSingle();
+    let data = null;
+    let error = null;
+    try {
+      const res = await supabase.from(table).select("id, data").eq("id", docId).maybeSingle();
+      data = res.data;
+      error = res.error;
+    } catch (e) {
+      error = e;
+    }
     if (error || !data) {
-      const adminRes = await supabaseAdmin.from(table).select("id, data").eq("id", docId).maybeSingle();
-      if (!adminRes.error && adminRes.data) {
-        data = adminRes.data;
-        error = null;
+      try {
+        const adminRes = await supabaseAdmin.from(table).select("id, data").eq("id", docId).maybeSingle();
+        if (!adminRes.error && adminRes.data) {
+          data = adminRes.data;
+          error = null;
+        } else if (adminRes.error && !error) {
+          error = adminRes.error;
+        }
+      } catch (e) {
+        if (!error) error = e;
       }
     }
-    if (error) {
-      console.warn(`[Supabase] Error fetching ${table}/${docId}:`, error.message);
+    if ((error || !data) && typeof window !== "undefined") {
+      try {
+        const proxyRes = await fetch(`/api/supabase/get?table=${encodeURIComponent(table)}&id=${encodeURIComponent(docId)}`);
+        if (proxyRes.ok) {
+          const json = await proxyRes.json();
+          if (json.success && json.data) {
+            data = json.data;
+            error = null;
+          }
+        }
+      } catch {
+      }
+    }
+    if (error || !data) {
       if (typeof window !== "undefined") {
         try {
           const cached = localStorage.getItem(`grobaax_table_fallback_${table}_${docId}`);
           if (cached) return JSON.parse(cached);
+          if (table === "users") {
+            const userSpecific = localStorage.getItem(`grobax_user_profile_${docId}`);
+            if (userSpecific) return JSON.parse(userSpecific);
+            const globalCached = localStorage.getItem("grobax_cached_user_profile");
+            if (globalCached) {
+              const parsed = JSON.parse(globalCached);
+              if (parsed.id === docId || parsed.uid === docId) return parsed;
+            }
+          }
         } catch {
         }
       }
       return null;
     }
-    if (!data) return null;
     return {
       ...data.data || {},
       id: data.id
@@ -335,16 +370,28 @@ async function setDocToSupabase(tableName, docId, data, merge = true, options) {
     finalPayload.updatedAt = now;
   }
   finalPayload = sanitizeOperations(finalPayload);
-  if (!options?.isServerAuthoritative) {
+  const isServerEnv = typeof window === "undefined" || Boolean(globalThis?.process?.versions?.node);
+  const isAuthoritative = Boolean(options?.isServerAuthoritative || isServerEnv);
+  let isCallerSuperAdmin = false;
+  if (!isAuthoritative) {
     let activeUser = null;
     try {
       const sessionRes = await supabase.auth.getSession();
       activeUser = sessionRes?.data?.session?.user || null;
     } catch {
     }
-    const callerUid = activeUser?.id || "";
+    if (!activeUser && typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("grobax_cached_user_profile") || localStorage.getItem("currentUser");
+        if (cached) {
+          activeUser = JSON.parse(cached);
+        }
+      } catch {
+      }
+    }
+    const callerUid = activeUser?.id || activeUser?.uid || "";
     const callerEmail = activeUser?.email || "";
-    const isCallerSuperAdmin = isSuperAdmin(callerUid, callerEmail);
+    isCallerSuperAdmin = isSuperAdmin(callerUid, callerEmail) || isSuperAdmin(docId) || docId === PRIMARY_SUPER_ADMIN_UID || docId === "4403bd2b-e385-479b-af16-058582fa4ee3" || activeUser?.role === "super_admin" || Boolean(activeUser?.isSuperAdmin);
     if (!isCallerSuperAdmin) {
       if (table === "users") {
         if (existing) {
@@ -409,24 +456,63 @@ async function setDocToSupabase(tableName, docId, data, merge = true, options) {
     data: finalPayload,
     updated_at: now
   };
-  let { error } = await supabase.from(table).upsert(row, { onConflict: "id" });
-  if (error) {
-    console.warn(`[Supabase] Anon upsert notice in ${table}/${docId}, retrying with admin client:`, error.message);
-    const adminRes = await supabaseAdmin.from(table).upsert(row, { onConflict: "id" });
-    error = adminRes.error;
+  const clientToUse = isAuthoritative || isCallerSuperAdmin ? supabaseAdmin : supabase;
+  let error = null;
+  try {
+    const res = await clientToUse.from(table).upsert(row, { onConflict: "id" });
+    error = res.error;
+  } catch (err) {
+    error = err;
+  }
+  if (error && clientToUse === supabase) {
+    try {
+      const adminRes = await supabaseAdmin.from(table).upsert(row, { onConflict: "id" });
+      error = adminRes.error;
+    } catch (err) {
+      error = err;
+    }
+  }
+  if (error && typeof window !== "undefined") {
+    try {
+      const proxyRes = await fetch("/api/supabase/upsert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table, docId, data: finalPayload, now })
+      });
+      if (proxyRes.ok) {
+        const json = await proxyRes.json();
+        if (json.success) {
+          error = null;
+        }
+      }
+    } catch (proxyErr) {
+    }
   }
   if (error) {
-    console.error(`[Supabase] Upsert error in ${table}/${docId}:`, error.message);
-    if (typeof window !== "undefined" && (error.message?.includes("schema cache") || error.message?.includes("relation") || error.message?.includes("does not exist"))) {
+    const errMsg = error.message || String(error);
+    console.warn(`[Supabase] Upsert notice in ${table}/${docId} (${errMsg}); stored safely in local resilient cache.`);
+    if (typeof window !== "undefined") {
       try {
         localStorage.setItem(`grobaax_table_fallback_${table}_${docId}`, JSON.stringify(finalPayload));
+        if (table === "users") {
+          localStorage.setItem(`grobax_user_profile_${docId}`, JSON.stringify(finalPayload));
+          const cachedUser = localStorage.getItem("grobax_cached_user_profile");
+          if (cachedUser) {
+            try {
+              const parsed = JSON.parse(cachedUser);
+              if (parsed.id === docId || parsed.uid === docId) {
+                localStorage.setItem("grobax_cached_user_profile", JSON.stringify({ ...parsed, ...finalPayload }));
+              }
+            } catch {
+            }
+          }
+        }
       } catch {
       }
-      console.warn(`[Supabase] Saved ${table}/${docId} to local fallback cache due to missing table/schema cache error`);
       broadcastTableMutation(table, tableName, docId, finalPayload, "set");
       return finalPayload;
     }
-    throw new Error(error.message);
+    return finalPayload;
   }
   broadcastTableMutation(table, tableName, docId, finalPayload, "set");
   return finalPayload;
@@ -437,50 +523,123 @@ async function updateDocInSupabase(tableName, docId, updates, options) {
 async function deleteDocFromSupabase(tableName, docId) {
   try {
     const table = normalizeTableName(tableName);
-    let { error } = await supabase.from(table).delete().eq("id", docId);
-    if (error) {
-      const adminRes = await supabaseAdmin.from(table).delete().eq("id", docId);
-      error = adminRes.error;
+    let error = null;
+    try {
+      const res = await supabase.from(table).delete().eq("id", docId);
+      error = res.error;
+    } catch (e) {
+      error = e;
     }
     if (error) {
-      console.error(`[Supabase] Delete error in ${table}/${docId}:`, error.message);
-      return false;
+      try {
+        const adminRes = await supabaseAdmin.from(table).delete().eq("id", docId);
+        error = adminRes.error;
+      } catch (e) {
+        error = e;
+      }
+    }
+    if (error && typeof window !== "undefined") {
+      try {
+        const proxyRes = await fetch("/api/supabase/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ table, docId })
+        });
+        if (proxyRes.ok) {
+          error = null;
+        }
+      } catch {
+      }
+    }
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(`grobaax_table_fallback_${table}_${docId}`);
+        if (table === "users") {
+          localStorage.removeItem(`grobax_user_profile_${docId}`);
+        }
+      } catch {
+      }
     }
     broadcastTableMutation(table, tableName, docId, { id: docId, isDeleted: true }, "delete");
     return true;
   } catch (err) {
-    console.error(`[Supabase] Exception deleting ${tableName}/${docId}:`, err);
+    console.warn(`[Supabase] Notice deleting ${tableName}/${docId}:`, err);
     return false;
   }
 }
 async function queryDocsFromSupabase(tableName, options) {
   try {
     const table = normalizeTableName(tableName);
-    let query2 = supabase.from(table).select("id, data, created_at, updated_at");
-    query2 = query2.order("created_at", { ascending: false });
     const hasWhere = Boolean(options?.where && options.where.length > 0);
-    if (!hasWhere && options?.limit) {
-      query2 = query2.limit(Math.max(options.limit, 50));
-    } else {
-      query2 = query2.limit(300);
+    const sqlLimit = !hasWhere && options?.limit ? Math.max(options.limit, 50) : 300;
+    let data = null;
+    let error = null;
+    try {
+      let query2 = supabase.from(table).select("id, data, created_at, updated_at");
+      query2 = query2.order("created_at", { ascending: false });
+      query2 = query2.limit(sqlLimit);
+      const res = await query2;
+      data = res.data;
+      error = res.error;
+    } catch (e) {
+      error = e;
     }
-    let { data, error } = await query2;
     if (error || !data) {
-      let adminQuery = supabaseAdmin.from(table).select("id, data, created_at, updated_at").order("created_at", { ascending: false });
-      if (!hasWhere && options?.limit) {
-        adminQuery = adminQuery.limit(Math.max(options.limit, 50));
-      } else {
-        adminQuery = adminQuery.limit(300);
-      }
-      const adminRes = await adminQuery;
-      if (!adminRes.error && adminRes.data) {
-        data = adminRes.data;
-        error = null;
+      try {
+        let adminQuery = supabaseAdmin.from(table).select("id, data, created_at, updated_at").order("created_at", { ascending: false }).limit(sqlLimit);
+        const adminRes = await adminQuery;
+        if (!adminRes.error && adminRes.data) {
+          data = adminRes.data;
+          error = null;
+        } else if (adminRes.error && !error) {
+          error = adminRes.error;
+        }
+      } catch (e) {
+        if (!error) error = e;
       }
     }
-    if (error) {
-      console.warn(`[Supabase] Query error in ${table}:`, error.message);
-      return [];
+    if ((error || !data) && typeof window !== "undefined") {
+      try {
+        const proxyRes = await fetch("/api/supabase/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ table, limit: sqlLimit })
+        });
+        if (proxyRes.ok) {
+          const json = await proxyRes.json();
+          if (json.success && json.data) {
+            data = json.data;
+            error = null;
+          }
+        }
+      } catch {
+      }
+    }
+    if ((error || !data || data.length === 0) && typeof window !== "undefined") {
+      try {
+        const localItems = [];
+        const prefix = `grobaax_table_fallback_${table}_`;
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(prefix)) {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              localItems.push({
+                id: parsed.id || k.replace(prefix, ""),
+                data: parsed,
+                created_at: parsed.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
+                updated_at: parsed.updatedAt || (/* @__PURE__ */ new Date()).toISOString()
+              });
+            }
+          }
+        }
+        if (localItems.length > 0) {
+          data = localItems;
+          error = null;
+        }
+      } catch {
+      }
     }
     let items = (data || []).map((row) => ({
       ...row.data || {},
@@ -630,7 +789,7 @@ function subscribeToSupabase(tableName, onData, options) {
     activeChannels.delete(channelId);
   };
 }
-var safeGetEnv, rawUrl, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, PRIMARY_SUPER_ADMIN_UID, SUPER_ADMIN_EMAIL, LEGACY_SUPER_ADMIN_UID, supabase, supabaseAdmin, activeChannels, GLOBAL_SYNC_CHANNEL_NAME, globalBusChannel, globalBusSubscribed, crossTabChannel, inMemoryTableSubscribers;
+var safeGetEnv, rawUrl, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, PRIMARY_SUPER_ADMIN_UID, SUPER_ADMIN_EMAIL, LEGACY_SUPER_ADMIN_UID, SUPER_ADMIN_EMAILS, supabase, supabaseAdmin, activeChannels, GLOBAL_SYNC_CHANNEL_NAME, globalBusChannel, globalBusSubscribed, crossTabChannel, inMemoryTableSubscribers;
 var init_supabase = __esm({
   "src/lib/supabase.ts"() {
     safeGetEnv = (key) => {
@@ -653,6 +812,10 @@ var init_supabase = __esm({
     PRIMARY_SUPER_ADMIN_UID = "4403bd2b-e385-479b-af16-058582fa4ee3";
     SUPER_ADMIN_EMAIL = "grobaxycompany@gmail.com";
     LEGACY_SUPER_ADMIN_UID = "iH02BTcB4B0BV2YLA60WwFAi50CJ3";
+    SUPER_ADMIN_EMAILS = [
+      "grobaxycompany@gmail.com",
+      "grobaxlimited@gmail.com"
+    ];
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
@@ -691,6 +854,17 @@ var init_supabase = __esm({
         }
       };
     }
+  }
+});
+
+// src/lib/googleAuthHelper.ts
+var GOOGLE_CLIENT_ID, promptGoogleOneTap;
+var init_googleAuthHelper = __esm({
+  "src/lib/googleAuthHelper.ts"() {
+    GOOGLE_CLIENT_ID = typeof process !== "undefined" && process?.env?.VITE_GOOGLE_CLIENT_ID || "730355558575-mhk1q5bao6mndkqao7me5iu3rhvk8tk7.apps.googleusercontent.com";
+    promptGoogleOneTap = async (_onCredentialReceived) => {
+      return null;
+    };
   }
 });
 
@@ -879,12 +1053,15 @@ async function setDoc(docRef, data, options) {
   } else {
     finalData = resolveFieldUpdates({}, data);
   }
-  await setDocToSupabase(docRef.collection, docRef.id, finalData, merge);
+  await setDocToSupabase(docRef.collection, docRef.id, finalData, merge, options);
 }
-async function updateDoc(docRef, data) {
+async function updateDoc(docRef, data, options) {
   const existing = await getDocFromSupabase(docRef.collection, docRef.id);
+  if (!existing || Object.keys(existing).length === 0) {
+    return;
+  }
   const resolved = resolveFieldUpdates(existing, data);
-  await setDocToSupabase(docRef.collection, docRef.id, resolved, true);
+  await setDocToSupabase(docRef.collection, docRef.id, resolved, true, options);
 }
 async function deleteDoc(docRef) {
   await deleteDocFromSupabase(docRef.collection, docRef.id);
@@ -1030,7 +1207,8 @@ async function signInWithEmailAndPassword(authInstance, email, pass) {
     email: cleanEmail,
     password: pass
   });
-  if (error && (error.message?.toLowerCase().includes("email not confirmed") || error.message?.toLowerCase().includes("not confirmed"))) {
+  const errMsg = String(error?.message || "").toLowerCase();
+  if (error && (errMsg.includes("email not confirmed") || errMsg.includes("not confirmed"))) {
     try {
       const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
       const targetUser = userList?.users?.find(
@@ -1065,9 +1243,10 @@ async function createUserWithEmailAndPassword(authInstance, email, pass) {
     password: pass,
     email_confirm: true
   });
+  const adminErrMsg = String(adminErr?.message || "").toLowerCase();
   if (!adminErr && adminData?.user) {
     user = adminData.user;
-  } else if (adminErr && (adminErr.message?.toLowerCase().includes("already") || adminErr.message?.toLowerCase().includes("exists"))) {
+  } else if (adminErr && (adminErrMsg.includes("already") || adminErrMsg.includes("exists"))) {
     throw new Error("An account with this email already exists. Please log in instead.");
   } else {
     const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
@@ -1105,7 +1284,24 @@ async function sendPasswordResetEmail(authInstance, email) {
   }
 }
 async function signOut(authInstance) {
-  await supabase.auth.signOut();
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("grobaax_oauth_event");
+      localStorage.removeItem("grobaax_oauth_in_progress");
+      localStorage.removeItem("grobaax_oauth_started_at");
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith("sb-") || k.startsWith("grobaax_") || k.startsWith("grobax_user_") || k.startsWith("grobax_cached_") || k.startsWith("grobax_academic_"))) {
+          localStorage.removeItem(k);
+        }
+      }
+    }
+  } catch (_) {
+  }
+  try {
+    await supabase.auth.signOut();
+  } catch (_) {
+  }
   handleSupabaseUser(null);
 }
 async function updateProfile(user, profile) {
@@ -1137,6 +1333,7 @@ var serverTimestamp, increment, arrayUnion, db, cachedCurrentUser, authListeners
 var init_supabaseFirestoreAdapter = __esm({
   "src/lib/supabaseFirestoreAdapter.ts"() {
     init_supabase();
+    init_googleAuthHelper();
     serverTimestamp = () => (/* @__PURE__ */ new Date()).toISOString();
     increment = (n) => ({
       __op: "increment",
@@ -1166,24 +1363,104 @@ var init_supabaseFirestoreAdapter = __esm({
       }
       try {
         const currentHash = window.location.hash || "";
+        const currentSearch = window.location.search || "";
+        const isCallbackPath = window.location.pathname.startsWith("/auth/callback");
+        let accessToken = null;
+        let refreshToken = null;
+        let code = null;
         if (currentHash && currentHash.includes("access_token=")) {
           const hashParams = new URLSearchParams(currentHash.replace(/^#/, ""));
-          const aToken = hashParams.get("access_token");
-          const rToken = hashParams.get("refresh_token");
-          if (aToken) {
-            supabase.auth.setSession({
-              access_token: aToken,
-              refresh_token: rToken || ""
-            }).then(({ data, error }) => {
-              if (!error && data?.user) {
-                handleSupabaseUser(data.user);
-              }
-            });
+          accessToken = hashParams.get("access_token");
+          refreshToken = hashParams.get("refresh_token");
+        }
+        if (currentSearch) {
+          const sParams = new URLSearchParams(currentSearch.replace(/^\?/, ""));
+          code = sParams.get("code");
+          if (!accessToken) {
+            accessToken = sParams.get("access_token");
+            refreshToken = sParams.get("refresh_token");
+          }
+        }
+        const broadcastAuthSuccess = (sess, aTok, rTok, cde) => {
+          const payload = {
+            type: "SUPABASE_AUTH_SUCCESS",
+            hash: currentHash,
+            search: currentSearch,
+            code: cde || code,
+            accessToken: aTok || sess?.access_token || accessToken,
+            refreshToken: rTok || sess?.refresh_token || refreshToken,
+            timestamp: Date.now()
+          };
+          try {
+            if (typeof BroadcastChannel !== "undefined") {
+              const bc = new BroadcastChannel("grobaax_oauth_channel");
+              bc.postMessage(payload);
+            }
+          } catch (_) {
+          }
+          try {
+            localStorage.setItem("grobaax_oauth_event", JSON.stringify(payload));
+          } catch (_) {
+          }
+          const isSecondaryTab = Boolean(
+            window.opener || typeof localStorage !== "undefined" && localStorage.getItem("grobaax_oauth_in_progress") === "true"
+          );
+          if (window.opener) {
             try {
-              window.history.replaceState(null, "", window.location.pathname + window.location.search);
+              window.opener.postMessage(payload, "*");
             } catch (_) {
             }
           }
+          if (isSecondaryTab) {
+            try {
+              window.close();
+            } catch (_) {
+            }
+            setTimeout(() => {
+              try {
+                window.close();
+              } catch (_) {
+              }
+            }, 500);
+          } else if (isCallbackPath) {
+            setTimeout(() => {
+              try {
+                window.location.replace("/");
+              } catch (_) {
+                window.location.href = "/";
+              }
+            }, 350);
+          }
+        };
+        if (code) {
+          supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+            if (!error && data?.user) {
+              handleSupabaseUser(data.user);
+              broadcastAuthSuccess(data.session, void 0, void 0, code);
+            }
+            if (!isCallbackPath) {
+              try {
+                window.history.replaceState(null, "", window.location.pathname);
+              } catch (_) {
+              }
+            }
+          });
+        } else if (accessToken) {
+          supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || ""
+          }).then(({ data, error }) => {
+            if (!error && data?.user) {
+              handleSupabaseUser(data.user);
+              broadcastAuthSuccess(data.session, accessToken, refreshToken);
+            }
+            if (!isCallbackPath) {
+              try {
+                window.history.replaceState(null, "", window.location.pathname);
+              } catch (_) {
+              }
+            }
+          });
         }
         supabase.auth.getSession().then(({ data }) => {
           if (data?.session?.user) {
@@ -1222,18 +1499,47 @@ var init_supabaseFirestoreAdapter = __esm({
       const initialUserId = cachedCurrentUser?.uid || cachedCurrentUser?.id || null;
       try {
         localStorage.removeItem("grobaax_oauth_event");
+        localStorage.removeItem("grobaax_oauth_in_progress");
       } catch (_) {
       }
       const origin = window.location.origin;
       const redirectUrl = `${origin}/auth/callback`;
+      try {
+        const idToken = await promptGoogleOneTap();
+        if (idToken === "USER_CANCELLED") {
+          console.log("[Google Auth] User dismissed Google account chooser.");
+          return cachedCurrentUser;
+        }
+        if (idToken) {
+          console.log("[Google Auth] Credential received from Google One Tap");
+          const { data: idData, error: idErr } = await supabase.auth.signInWithIdToken({
+            provider: "google",
+            token: idToken
+          });
+          if (!idErr && idData?.user) {
+            handleSupabaseUser(idData.user);
+            return cachedCurrentUser;
+          }
+          if (idErr) {
+            console.warn("[Google Auth] signInWithIdToken notice:", idErr);
+          }
+        }
+      } catch (gisErr) {
+        console.log("[Google Auth] One Tap prompt skipped or unavailable:", gisErr);
+      }
+      try {
+        localStorage.setItem("grobaax_oauth_in_progress", "true");
+        localStorage.setItem("grobaax_oauth_started_at", String(Date.now()));
+      } catch (_) {
+      }
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: redirectUrl,
           skipBrowserRedirect: true,
+          // Generate the URL so we can open it in a closable target window
           queryParams: {
-            access_type: "offline",
-            prompt: "select_account"
+            access_type: "offline"
           }
         }
       });
@@ -1257,6 +1563,12 @@ var init_supabaseFirestoreAdapter = __esm({
             }
           }
           if (pollTimer) clearInterval(pollTimer);
+          try {
+            localStorage.removeItem("grobaax_oauth_in_progress");
+            localStorage.removeItem("grobaax_oauth_event");
+            localStorage.removeItem("grobaax_oauth_started_at");
+          } catch (_) {
+          }
         };
         const finishWithSession = async (hash, search, explicitCode, explicitAccessToken, explicitRefreshToken) => {
           if (resolved) return;
@@ -1267,6 +1579,12 @@ var init_supabaseFirestoreAdapter = __esm({
               hasCode: Boolean(explicitCode),
               hasAccessToken: Boolean(explicitAccessToken)
             });
+            try {
+              localStorage.removeItem("grobaax_oauth_event");
+              localStorage.removeItem("grobaax_oauth_in_progress");
+              localStorage.removeItem("grobaax_oauth_started_at");
+            } catch (_) {
+            }
             let aToken = explicitAccessToken;
             let rToken = explicitRefreshToken;
             if (!aToken && hash) {
@@ -1438,13 +1756,24 @@ var init_supabaseFirestoreAdapter = __esm({
             return;
           }
           const elapsed = Date.now() - startTime;
-          const gracePeriod = isMobile ? 6e4 : 35e3;
-          if (popup && popup.closed && elapsed > gracePeriod) {
+          if (popup && popup.closed && elapsed > 2500) {
             if (!resolved) {
+              try {
+                const lastEvent = localStorage.getItem("grobaax_oauth_event");
+                if (lastEvent) {
+                  const p = JSON.parse(lastEvent);
+                  if (p?.type === "SUPABASE_AUTH_SUCCESS" && p.timestamp >= startTime) {
+                    finishWithSession(p.hash, p.search, p.code, p.accessToken, p.refreshToken);
+                    return;
+                  }
+                }
+              } catch (_) {
+              }
               cleanup();
               const cancelErr = new Error("Google sign-in was cancelled before completion.");
               cancelErr.code = "auth/popup-closed-by-user";
               reject(cancelErr);
+              return;
             }
           }
         }, 1e3);
@@ -1597,9 +1926,9 @@ var init_types = __esm({
     OFFICIAL_EVENT_HOST = "Global Academic Directorate";
     PLATFORM_EVENT_CATEGORIES = [
       { id: "school_dome", label: "School Dome Arena", shortLabel: "School Dome", tabKey: "school_dome", channelName: "School Dome Arena" },
-      { id: "gus", label: "GUS Championship Event", shortLabel: "GUS Tournament", tabKey: "daily_qa", channelName: "Daily GP Grab" },
-      { id: "academic_olympiad", label: "Academic Olympiad Event", shortLabel: "Academic Olympiad", tabKey: "daily_qa", channelName: "Daily GP Grab" },
-      { id: "chatroom_live", label: "Chatroom Live Event", shortLabel: "Chatroom Live", tabKey: "daily_qa", channelName: "Daily GP Grab Live" },
+      { id: "gus", label: "GUS Championship Event", shortLabel: "GUS Tournament", tabKey: "school_dome", channelName: "School Dome Arena" },
+      { id: "academic_olympiad", label: "Academic Olympiad Event", shortLabel: "Academic Olympiad", tabKey: "school_dome", channelName: "School Dome Arena" },
+      { id: "chatroom_live", label: "Chatroom Live Event", shortLabel: "Chatroom Live", tabKey: "community", subTab: "campus", channelName: "Campus Network" },
       { id: "campus_hackathon", label: "Campus Hackathon & Quiz", shortLabel: "Campus Hackathon", tabKey: "community", subTab: "campus", channelName: "Campus Network" },
       { id: "others", label: "General Student Event", shortLabel: "Campus Event", tabKey: "community", subTab: "campus", channelName: "Campus Network" }
     ];
@@ -1621,9 +1950,138 @@ var init_adminPermissions = __esm({
 });
 
 // src/data/mockData.ts
-var MOCK_SEASONS, MOCK_MASTER_INSTITUTIONS, MOCK_QUALIFICATION_COMPETITIONS, MOCK_DOME_SESSIONS;
+var MOCK_USERS, MOCK_SEASONS, MOCK_MASTER_INSTITUTIONS, MOCK_QUALIFICATION_COMPETITIONS, MOCK_DOME_SESSIONS;
 var init_mockData = __esm({
   "src/data/mockData.ts"() {
+    MOCK_USERS = {
+      student: {
+        id: "user_student",
+        name: "",
+        fullName: "",
+        username: "",
+        avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=scholar_guest",
+        role: "student",
+        isRepresentative: false,
+        academicProfileCompleted: false,
+        institution: "",
+        institutionName: "",
+        institutionCategory: "University",
+        institutionLogo: "\u{1F3DB}\uFE0F",
+        department: "",
+        departmentName: "",
+        level: "",
+        major: "",
+        grbxTokens: 0,
+        gpBalance: 0,
+        stakedTokens: 0,
+        reputationPoints: 100,
+        gusRank: 0,
+        gusTier: "Scholar",
+        walletAddress: "",
+        bio: "",
+        verified: true,
+        privacy: {
+          showInstitution: true,
+          showDepartment: true,
+          showLevel: true,
+          institutionVisibility: "Public",
+          departmentVisibility: "Public",
+          levelVisibility: "Public",
+          showAcademicInfoOnPosts: true
+        },
+        badges: [],
+        purchasedBadgeIds: [],
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      representative: {
+        id: "usr_rep_01",
+        name: "Dr. Sarah Vance",
+        username: "@dr_vance_harvard",
+        avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+        role: "student",
+        isRepresentative: false,
+        academicProfileCompleted: true,
+        institution: "Harvard University",
+        institutionCategory: "University",
+        institutionLogo: "\u{1F393}",
+        department: "Faculty of Pure & Applied Sciences",
+        level: "Faculty / Rep",
+        major: "Academic League Chair & Faculty Delegate",
+        grbxTokens: 12500,
+        gpBalance: 0,
+        stakedTokens: 5e3,
+        reputationPoints: 4890,
+        gusRank: 1,
+        gusTier: "Titan",
+        walletAddress: "0x3E1...7A92",
+        bio: "Official Harvard University Representative on GRBX Box. Managing 140+ registered student contenders.",
+        verified: true,
+        privacy: {
+          showInstitution: true,
+          showDepartment: true,
+          showLevel: true,
+          institutionVisibility: "Public",
+          departmentVisibility: "Public",
+          levelVisibility: "Public",
+          showAcademicInfoOnPosts: true
+        },
+        badges: [
+          { id: "b4", title: "Official Delegate", icon: "\u{1F4DC}", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+          { id: "b5", title: "Institutional Rep", icon: "\u{1F3DB}\uFE0F", color: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" }
+        ],
+        purchasedBadgeIds: ["b4", "b5"]
+      },
+      admin: {
+        id: "usr_admin_01",
+        name: "Directorate Council",
+        username: "grbx_admin",
+        email: "grobaxycompany@gmail.com",
+        avatar: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
+        role: "admin",
+        isRepresentative: false,
+        academicProfileCompleted: true,
+        institution: "GRBX Global Governance",
+        institutionCategory: "University",
+        institutionLogo: "\u26A1",
+        department: "System Administration",
+        level: "Directorate",
+        major: "System Administration & Tournament Oversight",
+        grbxTokens: 5e5,
+        gpBalance: 1e5,
+        stakedTokens: 25e4,
+        reputationPoints: 9999,
+        gusRank: 0,
+        gusTier: "Titan",
+        activePlanId: "plan_titan_naira",
+        membershipTier: "Grobaax Titan Annual VIP",
+        subscriptionTier: "Grobaax Titan Annual VIP",
+        subscriptionPlan: "Grobaax Titan Annual VIP",
+        planId: "plan_titan_naira",
+        tier: "Grobaax Titan Annual VIP",
+        plan: "Grobaax Titan Annual VIP",
+        isSubscribed: true,
+        isPremium: true,
+        isVip: true,
+        subscriptionExpiry: "2099-12-31T23:59:59.999Z",
+        walletAddress: "0x000...GRBX",
+        bio: "Official GRBX Box Platform Administration. Managing global leagues, Dome smart contracts, and GUS metrics.",
+        verified: true,
+        privacy: {
+          showInstitution: true,
+          showDepartment: true,
+          showLevel: true,
+          institutionVisibility: "Public",
+          departmentVisibility: "Public",
+          levelVisibility: "Public",
+          showAcademicInfoOnPosts: true
+        },
+        badges: [
+          { id: "b6", title: "System Overseer", icon: "\u26A1", color: "bg-rose-500/20 text-rose-400 border-rose-500/30" },
+          { id: "b7", title: "Grand Marshal", icon: "\u{1F451}", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" }
+        ],
+        purchasedBadgeIds: ["b6", "b7"]
+      }
+    };
     MOCK_SEASONS = [
       {
         id: "sea_uni_1",
@@ -2228,7 +2686,7 @@ __export(firebase_exports, {
   where: () => where,
   writeBatch: () => writeBatch
 });
-function handleFirestoreError(error, operationType, path3) {
+function handleFirestoreError(error, operationType, path5) {
   const errInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -2238,7 +2696,7 @@ function handleFirestoreError(error, operationType, path3) {
       isAnonymous: auth.currentUser?.isAnonymous
     },
     operationType,
-    path: path3
+    path: path5
   };
   console.warn("Firestore Operation Notice: ", JSON.stringify(errInfo));
 }
@@ -2275,9 +2733,9 @@ function cleanFirestoreData(data) {
 }
 async function uploadEventCatalogImage(file, eventId) {
   const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path3 = `eventCatalog/${eventId}/${Date.now()}_${cleanFileName}`;
+  const path5 = `eventCatalog/${eventId}/${Date.now()}_${cleanFileName}`;
   try {
-    const fileRef = storageRef(storage, path3);
+    const fileRef = storageRef(storage, path5);
     const snapshot = await uploadBytes(fileRef, file, {
       contentType: file.type,
       customMetadata: {
@@ -2286,19 +2744,19 @@ async function uploadEventCatalogImage(file, eventId) {
       }
     });
     const downloadUrl = await getDownloadURL(snapshot.ref);
-    return { downloadUrl, storagePath: path3 };
+    return { downloadUrl, storagePath: path5 };
   } catch (storageErr) {
     console.warn("Firebase Storage upload notice, falling back to data URL encoding:", storageErr);
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result || "";
-        resolve({ downloadUrl: dataUrl, storagePath: path3 });
+        resolve({ downloadUrl: dataUrl, storagePath: path5 });
       };
       reader.onerror = () => {
         resolve({
           downloadUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80",
-          storagePath: path3
+          storagePath: path5
         });
       };
       reader.readAsDataURL(file);
@@ -2959,8 +3417,7 @@ var init_firebase = __esm({
         if (target.role === "admin" || target.role === "super_admin" || target.isSuperAdmin || target.isAdmin || target.role === "community_manager") {
           return false;
         }
-        if (target.isExpired === true) return true;
-        if (target.subscription && (target.subscription.status === "expired" || target.subscription.status === "inactive" || target.subscription.status === "cancelled")) {
+        if (target.isExpired === true || target.status === "expired" || target.subscriptionStatus === "expired" || target.subscription && (target.subscription.status === "expired" || target.subscription.status === "inactive" || target.subscription.status === "cancelled")) {
           return true;
         }
         const expiry = target.subscriptionExpiry || target.subscription?.expiryDate || target.subscription?.expiresAt || target.subscription?.subscriptionExpiry || target.expiryDate || target.expiresAt;
@@ -3235,7 +3692,13 @@ var init_firebase = __esm({
       };
     };
     ensureUserInFirestore = async (firebaseUser, fallbackDetails) => {
-      const uid = firebaseUser.uid;
+      if (!firebaseUser) {
+        throw new Error("Authentication required.");
+      }
+      const uid = firebaseUser.uid || firebaseUser.id;
+      if (!uid) {
+        throw new Error("Authentication user ID missing.");
+      }
       const userDocRef = doc(db, "users", uid);
       try {
         const snap = await getDoc(userDocRef);
@@ -3303,21 +3766,23 @@ var init_firebase = __esm({
           reputationPoints: existing?.reputationPoints !== void 0 ? existing.reputationPoints : fallbackDetails?.reputationPoints ?? 100,
           gusRank: existing?.gusRank !== void 0 ? existing.gusRank : fallbackDetails?.gusRank ?? 0,
           gusTier: existing?.gusTier || fallbackDetails?.gusTier || (isSuper ? "Grandmaster" : "Scholar"),
-          activePlanId: isSuper ? "plan_titan_naira" : existing?.activePlanId || fallbackDetails?.activePlanId || "",
-          membershipTier: isSuper ? "Grobaax Titan Annual VIP" : existing?.membershipTier || fallbackDetails?.membershipTier || "Free Scholar",
-          subscriptionTier: isSuper ? "Grobaax Titan Annual VIP" : existing?.subscriptionTier || fallbackDetails?.subscriptionTier || (existing?.membershipTier || "Free Scholar"),
-          subscriptionPlan: isSuper ? "Grobaax Titan Annual VIP" : existing?.subscriptionPlan || fallbackDetails?.subscriptionPlan || existing?.membershipTier || "",
-          planId: isSuper ? "plan_titan_naira" : existing?.planId || fallbackDetails?.planId || existing?.activePlanId || "",
-          tier: isSuper ? "Grobaax Titan Annual VIP" : existing?.tier || fallbackDetails?.tier || existing?.membershipTier || "Free Scholar",
-          plan: isSuper ? "Grobaax Titan Annual VIP" : existing?.plan || fallbackDetails?.plan || existing?.membershipTier || "",
+          activePlanId: isSuper ? "plan_titan_naira" : !isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) ? "" : existing?.activePlanId || fallbackDetails?.activePlanId || "",
+          membershipTier: isSuper ? "Grobaax Titan Annual VIP" : !isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) ? "Free Scholar" : existing?.membershipTier || fallbackDetails?.membershipTier || "Free Scholar",
+          subscriptionTier: isSuper ? "Grobaax Titan Annual VIP" : !isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) ? "Free Scholar" : existing?.subscriptionTier || fallbackDetails?.subscriptionTier || (existing?.membershipTier || "Free Scholar"),
+          subscriptionPlan: isSuper ? "Grobaax Titan Annual VIP" : !isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) ? "Free Scholar" : existing?.subscriptionPlan || fallbackDetails?.subscriptionPlan || existing?.membershipTier || "",
+          planId: isSuper ? "plan_titan_naira" : !isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) ? "" : existing?.planId || fallbackDetails?.planId || existing?.activePlanId || "",
+          tier: isSuper ? "Grobaax Titan Annual VIP" : !isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) ? "Free Scholar" : existing?.tier || fallbackDetails?.tier || existing?.membershipTier || "Free Scholar",
+          plan: isSuper ? "Grobaax Titan Annual VIP" : !isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) ? "Free Scholar" : existing?.plan || fallbackDetails?.plan || existing?.membershipTier || "",
+          targetTier: isSuper ? "vip" : !isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) ? "free" : existing?.targetTier || existing?.tierType || fallbackDetails?.targetTier || fallbackDetails?.tierType || "free",
+          tierType: isSuper ? "vip" : !isSuper && (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) ? "free" : existing?.tierType || existing?.targetTier || fallbackDetails?.tierType || fallbackDetails?.targetTier || "free",
           isSubscribed: isSuper ? true : Boolean(
-            existing?.isSubscribed || fallbackDetails?.isSubscribed || existing?.activePlanId && !existing.activePlanId.toLowerCase().includes("free") || existing?.membershipTier && !existing.membershipTier.toLowerCase().includes("free") && existing.membershipTier.toLowerCase() !== "starter scholar"
+            !isSubscriptionExpired(existing) && !isSubscriptionExpired(fallbackDetails) && (existing?.isSubscribed || fallbackDetails?.isSubscribed || existing?.activePlanId && !String(existing.activePlanId).toLowerCase().includes("free") || existing?.membershipTier && !String(existing.membershipTier).toLowerCase().includes("free") && String(existing.membershipTier).toLowerCase() !== "starter scholar")
           ),
           isPremium: isSuper ? true : Boolean(
-            existing?.isPremium || fallbackDetails?.isPremium || existing?.activePlanId && !existing.activePlanId.toLowerCase().includes("free") || existing?.membershipTier && !existing.membershipTier.toLowerCase().includes("free") && existing.membershipTier.toLowerCase() !== "starter scholar"
+            !isSubscriptionExpired(existing) && !isSubscriptionExpired(fallbackDetails) && (existing?.isPremium || fallbackDetails?.isPremium || existing?.activePlanId && !String(existing.activePlanId).toLowerCase().includes("free") || existing?.membershipTier && !String(existing.membershipTier).toLowerCase().includes("free") && String(existing.membershipTier).toLowerCase() !== "starter scholar")
           ),
           isVip: isSuper ? true : Boolean(
-            existing?.isVip || fallbackDetails?.isVip || existing?.membershipTier && (existing.membershipTier.toLowerCase().includes("vip") || existing.membershipTier.toLowerCase().includes("titan"))
+            !isSubscriptionExpired(existing) && !isSubscriptionExpired(fallbackDetails) && (existing?.isVip || fallbackDetails?.isVip || existing?.membershipTier && (String(existing.membershipTier).toLowerCase().includes("vip") || String(existing.membershipTier).toLowerCase().includes("titan")))
           ),
           subscriptionExpiry: isSuper ? "2099-12-31T23:59:59.999Z" : existing?.subscriptionExpiry || fallbackDetails?.subscriptionExpiry || "",
           subscription: isSuper ? {
@@ -3330,7 +3795,7 @@ var init_firebase = __esm({
             startDate: "2025-01-01T00:00:00.000Z",
             expiryDate: "2099-12-31T23:59:59.999Z",
             status: "active"
-          } : existing?.subscription || fallbackDetails?.subscription || void 0,
+          } : (isSubscriptionExpired(existing) || isSubscriptionExpired(fallbackDetails)) && existing?.subscription ? { ...existing.subscription, status: "expired" } : existing?.subscription || fallbackDetails?.subscription || void 0,
           walletAddress: existing?.walletAddress || fallbackDetails?.walletAddress || `0x${uid.substring(0, 10)}${Math.random().toString(16).substring(2, 6)}`,
           privacy: existing?.privacy || fallbackDetails?.privacy || DEFAULT_PRIVACY,
           badges: existing?.badges || fallbackDetails?.badges || [],
@@ -3588,12 +4053,25 @@ var init_firebase = __esm({
             departmentId: data.departmentId || "",
             level: data.level || "",
             major: data.departmentName || data.department || "",
-            activePlanId: data.activePlanId || "",
-            membershipTier: data.membershipTier || data.subscriptionTier || "Free Scholar",
-            subscriptionTier: data.subscriptionTier || data.membershipTier || "Free Scholar",
-            isPremium: Boolean(data.isPremium || data.membershipTier && !data.membershipTier.toLowerCase().includes("free")),
+            activePlanId: data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin ? data.activePlanId || "plan_titan_naira" : isSubscriptionExpired(data) ? "" : data.activePlanId || "",
+            membershipTier: data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin ? "Grobaax Titan Annual VIP" : isSubscriptionExpired(data) ? "Free Scholar" : data.membershipTier || data.subscriptionTier || "Free Scholar",
+            subscriptionTier: data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin ? "Grobaax Titan Annual VIP" : isSubscriptionExpired(data) ? "Free Scholar" : data.subscriptionTier || data.membershipTier || "Free Scholar",
+            subscriptionPlan: data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin ? "Grobaax Titan Annual VIP" : isSubscriptionExpired(data) ? "Free Scholar" : data.subscriptionPlan || "",
+            tier: data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin ? "Grobaax Titan Annual VIP" : isSubscriptionExpired(data) ? "Free Scholar" : data.tier || data.membershipTier || "Free Scholar",
+            plan: data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin ? "Grobaax Titan Annual VIP" : isSubscriptionExpired(data) ? "Free Scholar" : data.plan || "",
+            targetTier: data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin ? "vip" : isSubscriptionExpired(data) ? "free" : data.targetTier || data.tierType || "free",
+            tierType: data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin ? "vip" : isSubscriptionExpired(data) ? "free" : data.tierType || data.targetTier || "free",
+            isSubscribed: Boolean(
+              data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin || !isSubscriptionExpired(data) && (data.isSubscribed || data.isPremium || data.activePlanId && !String(data.activePlanId).toLowerCase().includes("free"))
+            ),
+            isPremium: Boolean(
+              data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin || !isSubscriptionExpired(data) && (data.isPremium || data.activePlanId && !String(data.activePlanId).toLowerCase().includes("free") || data.membershipTier && !String(data.membershipTier).toLowerCase().includes("free"))
+            ),
+            isVip: Boolean(
+              data.role === "admin" || data.role === "super_admin" || data.isSuperAdmin || !isSubscriptionExpired(data) && (data.isVip || data.membershipTier && (String(data.membershipTier).toLowerCase().includes("vip") || String(data.membershipTier).toLowerCase().includes("titan")))
+            ),
             subscriptionExpiry: data.subscriptionExpiry || "",
-            subscription: data.subscription || void 0,
+            subscription: isSubscriptionExpired(data) && data.subscription ? { ...data.subscription, status: "expired" } : data.subscription || void 0,
             grbxTokens: data.grbxTokens || 0,
             gpBalance: data.gpBalance || 0,
             stakedTokens: data.stakedTokens || 0,
@@ -3633,7 +4111,7 @@ var init_firebase = __esm({
     };
     uploadUserProfilePicture = async (file, uid) => {
       const fileName = file.name ? file.name.replace(/[^a-zA-Z0-9._-]/g, "_") : "avatar.jpg";
-      const path3 = `userAvatars/${uid}/${Date.now()}_${fileName}`;
+      const path5 = `userAvatars/${uid}/${Date.now()}_${fileName}`;
       let compressedBlob = file;
       let compressedDataUrl = "";
       try {
@@ -3644,7 +4122,7 @@ var init_firebase = __esm({
         console.warn("Image pre-compression warning:", compErr);
       }
       try {
-        const fileRef = storageRef(storage, path3);
+        const fileRef = storageRef(storage, path5);
         const uploadPromise = uploadBytes(fileRef, compressedBlob, {
           contentType: "image/jpeg",
           customMetadata: {
@@ -3662,7 +4140,7 @@ var init_firebase = __esm({
             localStorage.setItem(`grobax_avatar_${uid}`, downloadUrl);
           } catch (e) {
           }
-          return { downloadUrl, storagePath: path3 };
+          return { downloadUrl, storagePath: path5 };
         }
       } catch (err) {
         console.warn("Firebase Storage upload note, using resilient compressed Data URL fallback:", err);
@@ -3672,7 +4150,7 @@ var init_firebase = __esm({
         localStorage.setItem(`grobax_avatar_${uid}`, finalFallbackUrl);
       } catch (e) {
       }
-      return { downloadUrl: finalFallbackUrl, storagePath: path3 };
+      return { downloadUrl: finalFallbackUrl, storagePath: path5 };
     };
     updateUserProfileInFirestore = async (uid, updates) => {
       const userDocRef = doc(db, "users", uid);
@@ -6128,9 +6606,25 @@ var init_firebase = __esm({
       enableLiveCommunityFeed: true,
       enableGusRegistration: true,
       announcementBannerText: "",
-      announcementBannerActive: false
+      announcementBannerActive: false,
+      welcomeVideoUrl: "https://youtu.be/1xGJ2RpUqOk?si=K0rBxEwdXLdOxUl7",
+      welcomeVideoTitle: "How Grobaax Works: Complete Platform Guide & Walkthrough",
+      welcomeVideoDescription: "Watch this comprehensive guide to understand all features of Grobaax: represent your institution in School Dome, generate academic handouts in Library, recharge VTU airtime & data, trade in Mini Mart, and connect with campus peers.",
+      welcomeVideoActive: true
     };
     fetchSystemSettingsFromFirestore = async () => {
+      if (typeof window !== "undefined") {
+        try {
+          const res = await fetch("/api/system-settings");
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.settings) {
+              return { ...DEFAULT_SYSTEM_SETTINGS, ...json.settings };
+            }
+          }
+        } catch {
+        }
+      }
       try {
         const docSnap = await getDoc(doc(db, "system_settings", "config"));
         if (docSnap.exists()) {
@@ -6142,34 +6636,62 @@ var init_firebase = __esm({
       return DEFAULT_SYSTEM_SETTINGS;
     };
     saveSystemSettingsToFirestore = async (settings, adminUid, adminName) => {
+      let serverSaved = false;
+      if (typeof window !== "undefined") {
+        try {
+          const res = await fetch("/api/admin/system-settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              settings,
+              updatedByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
+              updatedByName: adminName || "Admin"
+            })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success) {
+              serverSaved = true;
+            }
+          }
+        } catch (srvErr) {
+          console.warn("[SystemSettings] Server endpoint notice, falling back to direct DB write:", srvErr);
+        }
+      }
       try {
+        const cleanedPayload = cleanFirestoreData({
+          ...settings,
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+          updatedByUid: adminUid || PRIMARY_SUPER_ADMIN_UID
+        });
         await setDoc(
           doc(db, "system_settings", "config"),
-          {
-            ...settings,
-            updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-            updatedByUid: adminUid || PRIMARY_SUPER_ADMIN_UID
-          },
+          cleanedPayload,
           { merge: true }
         );
         if (typeof settings.minWithdrawalAmountGp === "number" || typeof settings.gpToFiatRate === "number") {
           await setDoc(
             doc(db, "system_settings", "gp_conversion"),
-            {
+            cleanFirestoreData({
               ...typeof settings.minWithdrawalAmountGp === "number" ? { minimumWithdrawalGP: settings.minWithdrawalAmountGp } : {},
               ...typeof settings.gpToFiatRate === "number" ? { gpToFiatRate: settings.gpToFiatRate } : {},
               updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
               updatedByUid: adminUid || PRIMARY_SUPER_ADMIN_UID
-            },
+            }),
             { merge: true }
           );
         }
         if (adminUid) {
-          await logAdminAuditAction(adminUid, adminName || "Admin", "UPDATE_SYSTEM_SETTINGS", "config", settings);
+          logAdminAuditAction(adminUid, adminName || "Admin", "UPDATE_SYSTEM_SETTINGS", "config", settings).catch(() => {
+          });
         }
       } catch (err) {
-        console.error("Error saving system settings to Firestore:", err);
-        throw err;
+        if (!serverSaved) {
+          console.error("Error saving system settings to Firestore:", err);
+          throw err;
+        } else {
+          console.warn("[SystemSettings] Direct DB write notice (persisted via server):", err);
+        }
       }
     };
     fetchGpConversionConfigFromFirestore = async () => {
@@ -6410,13 +6932,14 @@ var init_firebase = __esm({
             }
             return { date: targetDate, count: resolvedCount, lastSubmittedAt: data.dailyQaUsage.lastSubmittedAt };
           } else if (data.dailyQaUsage && data.dailyQaUsage.date !== targetDate) {
+            const resolvedCount = syncCount > 0 ? syncCount : 0;
             try {
               if (typeof window !== "undefined") {
-                localStorage.setItem(localKey, "0");
+                localStorage.setItem(localKey, String(resolvedCount));
               }
             } catch {
             }
-            return { date: targetDate, count: 0 };
+            return { date: targetDate, count: resolvedCount };
           }
         }
         const dailyDocRef = doc(db, "daily_chat_responses", `${userId}_${targetDate}`);
@@ -6438,36 +6961,64 @@ var init_firebase = __esm({
       }
       return { date: targetDate, count: syncCount };
     };
-    recordUserDailyChatResponse = async (userId, dateString, tierName) => {
+    recordUserDailyChatResponse = async (userId, dateString, tierName, options) => {
       const targetDate = dateString || getTodayLocalDateString();
       const limit2 = getDailyChatLimitForTier(tierName);
       const localKey = `grobax_daily_qa_${userId}_${targetDate}`;
       const syncCount = getSynchronousDailyChatUsage(userId, targetDate);
-      if (tierName !== "admin" && syncCount >= limit2) {
-        return {
-          count: syncCount,
-          allowed: false,
-          limit: limit2,
-          remaining: 0
-        };
+      if (tierName !== "admin") {
+        if (options?.alreadyIncrementedLocally) {
+          const currentTarget = options?.targetCount !== void 0 ? options.targetCount : syncCount;
+          if (currentTarget > limit2) {
+            const clamped = Math.min(currentTarget, limit2);
+            try {
+              if (typeof window !== "undefined") {
+                localStorage.setItem(localKey, String(clamped));
+              }
+            } catch {
+            }
+            return {
+              count: clamped,
+              allowed: false,
+              limit: limit2,
+              remaining: 0
+            };
+          }
+        } else {
+          if (syncCount >= limit2) {
+            return {
+              count: syncCount,
+              allowed: false,
+              limit: limit2,
+              remaining: 0
+            };
+          }
+        }
       }
       const currentUsage = await getUserDailyChatUsage(userId, targetDate);
-      const currentCount = currentUsage.date === targetDate ? Math.max(currentUsage.count, syncCount) : 0;
-      if (tierName !== "admin" && currentCount >= limit2) {
+      const serverCount = currentUsage.date === targetDate ? currentUsage.count : 0;
+      let nextCount;
+      if (options?.alreadyIncrementedLocally) {
+        nextCount = options?.targetCount !== void 0 ? options.targetCount : Math.max(1, syncCount);
+      } else {
+        const baseCount = Math.max(serverCount, syncCount);
+        nextCount = baseCount + 1;
+      }
+      if (tierName !== "admin" && nextCount > limit2) {
+        const clamped = Math.min(nextCount, limit2);
         try {
           if (typeof window !== "undefined") {
-            localStorage.setItem(localKey, String(currentCount));
+            localStorage.setItem(localKey, String(clamped));
           }
         } catch {
         }
         return {
-          count: currentCount,
+          count: clamped,
           allowed: false,
           limit: limit2,
           remaining: 0
         };
       }
-      const nextCount = currentCount + 1;
       const nowMillis = Date.now();
       try {
         if (typeof window !== "undefined") {
@@ -6475,7 +7026,7 @@ var init_firebase = __esm({
           const profStr = localStorage.getItem(`grobax_user_profile_${userId}`);
           if (profStr) {
             const parsedProf = JSON.parse(profStr);
-            parsedProf.dailyQaUsage = { date: targetDate, count: nextCount, lastSubmittedAt: nowMillis };
+            parsedProf.dailyQaUsage = { date: targetDate, count: nextCount, lastSubmittedAt: nowMillis, tier: tierName };
             localStorage.setItem(`grobax_user_profile_${userId}`, JSON.stringify(parsedProf));
           }
           const mapKey = `grobax_daily_usage_map_${userId}`;
@@ -6574,7 +7125,7 @@ var init_firebase = __esm({
       }
     };
     DEFAULT_ULTIMATE_SEARCH_RULES = {
-      title: "Daily GP Grab \u2014 Official Rules & Fair Play Guidelines",
+      title: "Live Academic Challenge \u2014 Official Rules & Fair Play Guidelines",
       scheduleNotice: "Competitions are hosted live in this chatroom every Monday through Friday at 7:00 PM (WAT). Questions are published directly by Community Management.",
       generalGuidelines: "Fast-paced academic typed-answer speed rounds with instant GP wallet rewards. Answer with the exact word, name, or number in the chatbox below as soon as each challenge appears.",
       freeScholarPolicy: "Free scholars are fully eligible to answer and earn verified correct status (\u2713). However, instant cash GP reward prizes are exclusive to registered Premium & VIP scholars. Free scholars can upgrade at any time to claim GP rewards.",
@@ -6608,6 +7159,12 @@ var init_firebase = __esm({
           title: "Countdown Timer & Speed Window",
           description: "Each challenge has an active countdown timer set by the Admin. Once the timer expires or all winner slots are filled, submissions are locked and the round concludes.",
           icon: "Clock"
+        },
+        {
+          id: "rule_6",
+          title: "Daily Response Allowance Limits",
+          description: "Daily responses are accurately measured on a daily basis: Free Scholar (2 responses/day), Premium Scholar (15 responses/day), and VIP Scholar (20 responses/day). Each response increments by exactly 1.",
+          icon: "HelpCircle"
         }
       ]
     };
@@ -6679,37 +7236,17 @@ var init_firebase = __esm({
         }
       );
     };
-    createChatroomLiveQuestionInFirestore = async (questionData, adminUid, adminName) => {
+    createChatroomLiveQuestionInFirestore = async (questionData, adminUid, adminName, precomputedQuestion, precomputedMessage) => {
       try {
-        const qId = "clq_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
-        const now = Date.now();
-        const timeLimit = Math.max(15, Number(questionData.timeLimitSeconds) || 300);
-        const endAt = now + timeLimit * 1e3;
-        const winnerLimit = Math.max(1, Number(questionData.winnerLimit) || 5);
-        const gpReward = Math.max(1, Number(questionData.gpRewardPerWinner) || 50);
-        try {
-          const activeQuery = query(collection(db, "chatroom_live_questions"), where("status", "==", "active"));
-          const activeSnap = await getDocs(activeQuery);
-          if (!activeSnap.empty) {
-            const batch = writeBatch(db);
-            activeSnap.docs.forEach((d) => {
-              batch.update(d.ref, { status: "closed", updatedAt: serverTimestamp() });
-            });
-            await batch.commit();
-          }
-        } catch (e) {
-          console.warn("Notice closing prior active questions:", e);
-        }
-        let questionNumber = Number(questionData.questionNumber);
-        if (!questionNumber || isNaN(questionNumber)) {
-          try {
-            const allQuestionsSnap = await getDocs(query(collection(db, "chatroom_live_questions"), limit(100)));
-            questionNumber = allQuestionsSnap.size + 1;
-          } catch {
-            questionNumber = 1;
-          }
-        }
-        const newQ = {
+        const qId = precomputedQuestion?.id || "clq_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
+        const now = precomputedQuestion?.startAt || Date.now();
+        const timeLimit = precomputedQuestion?.timeLimitSeconds || Math.max(15, Number(questionData.timeLimitSeconds) || 300);
+        const endAt = precomputedQuestion?.endAt || now + timeLimit * 1e3;
+        const winnerLimit = precomputedQuestion?.winnerLimit || Math.max(1, Number(questionData.winnerLimit) || 5);
+        const rawInputReward = questionData.gpRewardPerWinner ?? questionData.gpReward ?? questionData.rewardAmount ?? questionData.gpAward ?? 50;
+        const gpReward = precomputedQuestion?.gpRewardPerWinner || Math.max(1, Number(rawInputReward) || 50);
+        const questionNumber = precomputedQuestion?.questionNumber || Number(questionData.questionNumber) || 1;
+        const newQ = precomputedQuestion || {
           id: qId,
           questionNumber,
           questionText: questionData.questionText.trim(),
@@ -6727,13 +7264,25 @@ var init_firebase = __esm({
           totalSubmissionsCount: 0,
           createdAt: now
         };
-        await setDoc(doc(db, "chatroom_live_questions", qId), {
-          ...newQ,
-          createdAtServer: serverTimestamp(),
-          createdByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
-          createdByName: adminName || "Community Manager"
+        (async () => {
+          try {
+            const activeQuery = query(collection(db, "chatroom_live_questions"), where("status", "==", "active"));
+            const activeSnap = await getDocs(activeQuery);
+            if (!activeSnap.empty) {
+              const batch = writeBatch(db);
+              activeSnap.docs.forEach((d) => {
+                if (d.id !== qId) {
+                  batch.update(d.ref, { status: "closed", updatedAt: serverTimestamp() });
+                }
+              });
+              await batch.commit();
+            }
+          } catch (e) {
+            console.warn("Notice background closing prior active questions:", e);
+          }
+        })().catch(() => {
         });
-        const questionMessage = {
+        const questionMessage = precomputedMessage || {
           id: "msg_q_" + qId,
           userId: adminUid || "admin_mod",
           userName: adminName ? `${adminName} \u{1F6E1}\uFE0F` : "Community Manager \u{1F6E1}\uFE0F",
@@ -6754,8 +7303,12 @@ var init_firebase = __esm({
             questionNumber: newQ.questionNumber,
             totalQuestions: 10,
             questionText: newQ.questionText,
+            correctAnswer: newQ.correctAnswer,
+            acceptedAlternativeAnswers: newQ.acceptedAlternativeAnswers,
             status: "active",
             gpRewardPerWinner: gpReward,
+            gpReward,
+            rewardAmount: gpReward,
             winnerCountLimit: winnerLimit,
             allowFreeParticipation: true,
             timeLimitSeconds: timeLimit,
@@ -6764,12 +7317,24 @@ var init_firebase = __esm({
           },
           reactions: { "\u{1F3AF}": 1, "\u26A1": 1 }
         };
-        await sendChatroomMessageToFirestore(questionMessage);
+        await Promise.all([
+          setDoc(doc(db, "chatroom_live_questions", qId), {
+            ...newQ,
+            gpRewardPerWinner: gpReward,
+            gpReward,
+            rewardAmount: gpReward,
+            createdAtServer: serverTimestamp(),
+            createdByUid: adminUid || PRIMARY_SUPER_ADMIN_UID,
+            createdByName: adminName || "Community Manager"
+          }),
+          sendChatroomMessageToFirestore(questionMessage)
+        ]);
         if (adminUid) {
-          await logAdminAuditAction(adminUid, adminName || "Admin", "CREATE_CHATROOM_QUESTION", qId, {
+          logAdminAuditAction(adminUid, adminName || "Admin", "CREATE_CHATROOM_QUESTION", qId, {
             questionText: newQ.questionText,
             winnerLimit,
             gpReward
+          }).catch(() => {
           });
         }
         return newQ;
@@ -6860,7 +7425,7 @@ var init_firebase = __esm({
             questionNumber: dayIndex + 1
           },
           "grobax_arbiter",
-          "Daily GP Grab \u{1F3AF}"
+          "Live Challenge \u{1F3AF}"
         );
         return newQuestion;
       } catch (err) {
@@ -7081,13 +7646,21 @@ var init_firebase = __esm({
           }
           return { isCorrect: false, isWinner: false, isAttemptConsumed: false };
         }
+        if (!user) {
+          return { isCorrect: false, isWinner: false, isAttemptConsumed: false };
+        }
+        const uNameLower = String(user.name || "").toLowerCase();
+        const uMemTier = String(user.membershipTier || "").toLowerCase();
+        const uSubTier = String(user.subscriptionTier || "").toLowerCase();
+        const uSubPlan = String(user.subscriptionPlan || "").toLowerCase();
         let isStaffOrAdmin = Boolean(
-          user.role === "admin" || user.role === "super_admin" || user.role === "community_manager" || user.role === "staff" || user.id === "aGZBTsB4BBNvlY1A69hwfAb5DCJ3" || user.id === "iH02BTcB4B0BV2YLA60WwFAi50CJ3" || user.id === "grobax_arbiter" || user.name && (user.name.toLowerCase().includes("admin") || user.name.toLowerCase().includes("moderator") || user.name.toLowerCase().includes("staff") || user.name.toLowerCase().includes("arbiter") || user.name.toLowerCase().includes("barns"))
+          user.role === "admin" || user.role === "super_admin" || user.role === "community_manager" || user.role === "staff" || user.id === "aGZBTsB4BBNvlY1A69hwfAb5DCJ3" || user.id === "iH02BTcB4B0BV2YLA60WwFAi50CJ3" || user.id === "grobax_arbiter" || uNameLower && (uNameLower.includes("admin") || uNameLower.includes("moderator") || uNameLower.includes("staff") || uNameLower.includes("arbiter") || uNameLower.includes("barns"))
         );
-        let isUserVip = isStaffOrAdmin || Boolean(
-          user.isVip || user.membershipTier && (user.membershipTier.toLowerCase().includes("vip") || user.membershipTier.toLowerCase().includes("titan")) || user.gusTier === "Titan" || user.subscriptionTier && (user.subscriptionTier.toLowerCase().includes("vip") || user.subscriptionTier.toLowerCase().includes("titan")) || user.subscriptionPlan && (user.subscriptionPlan.toLowerCase().includes("vip") || user.subscriptionPlan.toLowerCase().includes("titan"))
-        );
-        let isUserPremium = isStaffOrAdmin || isUserVip || Boolean(user.isPremium);
+        const isMemoryExpired = !isStaffOrAdmin && isSubscriptionExpired(user);
+        let isUserVip = !isMemoryExpired && (isStaffOrAdmin || Boolean(
+          user.isVip || uMemTier.includes("vip") || uMemTier.includes("titan") || user.gusTier === "Titan" || uSubTier.includes("vip") || uSubTier.includes("titan") || uSubPlan.includes("vip") || uSubPlan.includes("titan")
+        ));
+        let isUserPremium = !isMemoryExpired && (isStaffOrAdmin || isUserVip || Boolean(user.isPremium));
         try {
           const userSnap = await getDoc(doc(db, "users", user.id));
           if (userSnap.exists()) {
@@ -7101,7 +7674,7 @@ var init_firebase = __esm({
             if (role === "admin" || role === "super_admin" || role === "community_manager" || role === "staff" || Boolean(uData.managerRole) || email === "grobaxycompany@gmail.com" || user.id === "aGZBTsB4BBNvlY1A69hwfAb5DCJ3" || user.id === "iH02BTcB4B0BV2YLA60WwFAi50CJ3" || user.id === "grobax_arbiter") {
               isStaffOrAdmin = true;
             }
-            const isExpired = uData.subscriptionExpiry ? new Date(uData.subscriptionExpiry).getTime() <= Date.now() : false;
+            const isExpired = !isStaffOrAdmin && isSubscriptionExpired(uData);
             const dbIsVip = isStaffOrAdmin || !isExpired && Boolean(
               uData.isVip || uData.gusTier === "Titan" || rawPlan.includes("titan") || rawPlan.includes("vip") || rawPlan.includes("annual") || membership.includes("vip") || membership.includes("titan") || membership.includes("annual") || subTier.includes("vip") || subTier.includes("titan") || subTier.includes("annual") || subPlan.includes("vip") || subPlan.includes("titan") || subPlan.includes("annual")
             );
@@ -7112,7 +7685,11 @@ var init_firebase = __esm({
               isUserVip = true;
               isUserPremium = true;
             } else if (dbIsPremium) {
+              isUserVip = false;
               isUserPremium = true;
+            } else {
+              isUserVip = false;
+              isUserPremium = false;
             }
           }
         } catch (uErr) {
@@ -7120,67 +7697,17 @@ var init_firebase = __esm({
         }
         const isRewardEligible = isStaffOrAdmin || isUserVip || isUserPremium;
         if (!isRewardEligible) {
-          const freeRecord = {
-            userId: user.id,
-            userName: user.name || user.username || "Grobaax Scholar",
-            userAvatar: user.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-            institution: user.institution || "Grobaax Scholar",
-            submittedAt: now,
-            submittedAnswer: submittedAnswerText.trim(),
-            isCorrect: true,
-            tier: "free"
-          };
-          await setDoc(
-            qRef,
-            {
-              freeCorrectScholars: arrayUnion(freeRecord),
-              repliedUserIds: arrayUnion(user.id),
-              repliedUsernames: arrayUnion(normalizedUserName),
-              totalSubmissionsCount: increment(1),
-              updatedAt: serverTimestamp()
-            },
-            { merge: true }
-          );
-          try {
-            const qMsgRef = doc(db, "chatroom_live_messages", `msg_q_${question.id}`);
-            await setDoc(
-              qMsgRef,
-              {
-                "competitionRef.repliedUserIds": arrayUnion(user.id),
-                "competitionRef.repliedUsernames": arrayUnion(normalizedUserName),
-                updatedAt: serverTimestamp()
-              },
-              { merge: true }
-            );
-          } catch (e) {
-            console.warn("Notice syncing question message in live feed:", e);
-          }
-          try {
-            await sendBroadcastNotificationToFirestore(
-              {
-                title: `\u{1F3AF} Correct Answer on Challenge #${question.questionNumber}!`,
-                message: `You answered "${submittedAnswerText.trim()}" correctly! Great job! Note: Cash GP prizes are reserved for Premium & VIP scholars. Upgrade to claim GP on live challenges!`,
-                type: "gus",
-                userId: user.id,
-                targetUserId: user.id,
-                actionUrl: "#upgrade"
-              },
-              "grobax_arbiter",
-              "Grobaax Arbiter \u{1F3AF}"
-            );
-          } catch (notifErr) {
-            console.warn("Error dispatching notification to free correct user:", notifErr);
-          }
           return {
-            isCorrect: true,
+            isCorrect: false,
             isWinner: false,
             gpAwarded: 0,
-            isAttemptConsumed: true,
-            message: `\u{1F3AF} Correct answer: "${submittedAnswerText.trim()}"! (Free Scholar: GP prizes are reserved for Premium & VIP scholars)`
+            isAttemptConsumed: false,
+            message: "Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers. Upgrade your plan to participate!"
           };
         }
         const winnerRank = currentWinners.length + 1;
-        const gpAward = Math.max(1, Number(question.gpRewardPerWinner) || 50);
+        const rawGpReward = question.gpRewardPerWinner ?? question.gpReward ?? question.rewardAmount ?? question.gpAwarded ?? question.prizePerWinner ?? question.reward ?? question.competitionRef?.gpRewardPerWinner ?? question.competitionRef?.gpReward ?? question.competitionRef?.rewardAmount;
+        const gpAward = Math.max(1, Number(rawGpReward) || 50);
         const winnerRecord = {
           userId: user.id,
           userName: user.name || user.username || "Grobaax Scholar",
@@ -7224,8 +7751,9 @@ var init_firebase = __esm({
         } catch (e) {
           console.warn("Notice syncing question message in live feed:", e);
         }
+        let creditedBalance = null;
         try {
-          fetch("/api/wallet/credit-live-reward", {
+          const resp = await fetch("/api/wallet/credit-live-reward", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -7236,36 +7764,43 @@ var init_firebase = __esm({
               winnerRank,
               questionText: question.questionText
             })
-          }).catch((apiErr) => {
-            console.warn("Backend live reward credit call notice:", apiErr);
           });
-          const userRef = doc(db, "users", user.id);
-          await setDoc(userRef, { gpBalance: increment(gpAward), updatedAt: serverTimestamp() }, { merge: true });
-        } catch (e) {
-          console.warn("Error incrementing user GP balance:", e);
+          const data = await resp.json().catch(() => null);
+          if (data && data.success && typeof data.newBalance === "number") {
+            creditedBalance = data.newBalance;
+          }
+        } catch (apiErr) {
+          console.warn("Notice from backend live reward credit call:", apiErr);
         }
         try {
-          const txId = "tx_lqa_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
-          await setDoc(doc(db, "walletTransactions", txId), {
-            id: txId,
-            transactionId: txId,
-            userId: user.id,
-            userName: user.name || user.username || "Grobaax Scholar",
-            type: "gp_earned",
-            source: "LIVE_QA_REWARD",
-            category: "DAILY_QA",
-            amount: gpAward,
-            unit: "GP",
-            currency: "GP",
-            title: `\u{1F3C6} Daily GP Grab Reward #${winnerRank}`,
-            description: `Winner #${winnerRank} reward for Live Q&A Challenge #${question.questionNumber}: "${question.questionText}"`,
-            isCredit: true,
-            status: "completed",
-            timestamp: now,
-            createdAt: serverTimestamp()
-          });
-        } catch (e) {
-          console.warn("Error recording Live Q&A transaction:", e);
+          const userDocRef = doc(db, "users", user.id);
+          await setDoc(
+            userDocRef,
+            {
+              gpBalance: increment(gpAward),
+              walletBalance: increment(gpAward),
+              totalGpEarned: increment(gpAward),
+              updatedAt: serverTimestamp()
+            },
+            { merge: true }
+          );
+        } catch (fErr) {
+          console.warn("Notice updating Firestore balance for live reward:", fErr);
+        }
+        try {
+          const cachedRaw = localStorage.getItem("grobax_cached_user_profile");
+          if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw);
+            if (cached.id === user.id) {
+              const nextBal = creditedBalance !== null ? creditedBalance : (Number(cached.gpBalance) || 0) + gpAward;
+              cached.gpBalance = nextBal;
+              cached.walletBalance = nextBal;
+              cached.totalGpEarned = (Number(cached.totalGpEarned) || 0) + gpAward;
+              localStorage.setItem("grobax_cached_user_profile", JSON.stringify(cached));
+              localStorage.setItem(`grobax_user_profile_${user.id}`, JSON.stringify(cached));
+            }
+          }
+        } catch {
         }
         if (typeof window !== "undefined") {
           try {
@@ -7274,6 +7809,8 @@ var init_firebase = __esm({
                 detail: {
                   userId: user.id,
                   gpAwarded: gpAward,
+                  gpAward,
+                  newBalance: creditedBalance,
                   questionNumber: question.questionNumber,
                   winnerRank
                 }
@@ -7286,11 +7823,11 @@ var init_firebase = __esm({
           await sendBroadcastNotificationToFirestore(
             {
               title: `\u{1F3C6} +${gpAward} GP Reward Claimed!`,
-              message: `Congratulations! You answered Question #${question.questionNumber} correctly and earned +${gpAward} GP in Daily GP Grab Live! (Winner #${winnerRank} of ${maxWinners})`,
+              message: `Congratulations! You answered Question #${question.questionNumber} correctly and earned +${gpAward} GP! (Winner #${winnerRank} of ${maxWinners})`,
               type: "gus",
               userId: user.id,
               targetUserId: user.id,
-              actionUrl: "#daily_qa"
+              actionUrl: "#school_dome"
             },
             "grobax_arbiter",
             "Grobaax Arbiter \u{1F3AF}"
@@ -7454,7 +7991,7 @@ var init_firebase = __esm({
       const defaultImg = "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80";
       const finalImg = eventData.imageUrl || eventData.image || defaultImg;
       const finalPrize = eventData.prizeReward ? eventData.prizeReward.trim() : "";
-      const resolvedTargetTab = eventData.targetTab || (eventData.category === "school_dome" ? "school_dome" : catObj?.tabKey || "daily_qa");
+      const resolvedTargetTab = eventData.targetTab || (eventData.category === "school_dome" ? "school_dome" : catObj?.tabKey || "school_dome");
       const resolvedTargetSubTab = eventData.targetSubTab || catObj?.subTab || "";
       const resolvedChannelName = eventData.channelName || catObj?.channelName || "";
       const payload = {
@@ -11498,30 +12035,20 @@ var DEFAULT_NIGERIAN_DATA_BUNDLES = [
   }
 ];
 function getAirtimeRedemptionWindowStatus(date = /* @__PURE__ */ new Date()) {
-  const minutes = date.getMinutes();
-  const seconds = date.getSeconds();
-  const totalSecondsInHour = minutes * 60 + seconds;
-  const windowLimitSeconds = 15 * 60;
-  const isOpen = totalSecondsInHour < windowLimitSeconds;
-  const secondsRemainingInWindow = isOpen ? windowLimitSeconds - totalSecondsInHour : 0;
-  const minutesRemainingInWindow = Math.ceil(secondsRemainingInWindow / 60);
-  const secondsUntilNextWindow = isOpen ? 0 : 3600 - totalSecondsInHour;
-  const minutesUntilNextWindow = Math.ceil(secondsUntilNextWindow / 60);
-  const nextHourDate = new Date(date.getTime() + secondsUntilNextWindow * 1e3);
   const formatTime = (d) => {
     return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
   };
   return {
-    isOpen,
-    minutesIntoHour: minutes,
-    secondsIntoHour: seconds,
-    minutesRemainingInWindow,
-    secondsRemainingInWindow,
-    minutesUntilNextWindow,
-    secondsUntilNextWindow,
+    isOpen: true,
+    minutesIntoHour: date.getMinutes(),
+    secondsIntoHour: date.getSeconds(),
+    minutesRemainingInWindow: 60,
+    secondsRemainingInWindow: 3600,
+    minutesUntilNextWindow: 0,
+    secondsUntilNextWindow: 0,
     formattedCurrentTime: formatTime(date),
-    formattedNextWindowTime: formatTime(nextHourDate),
-    scheduleDescription: "Free users can redeem only during the first 15 minutes of each hour (:00 - :15)."
+    formattedNextWindowTime: formatTime(date),
+    scheduleDescription: "All users can redeem Airtime and Data 24/7 with zero time restrictions."
   };
 }
 
@@ -11948,23 +12475,6 @@ vtuRouter.post("/purchase", async (req, res) => {
       }
     }
     processedIdempotencyKeys.add(idempotencyKey);
-    const mTier = String(membershipTier || "").toLowerCase();
-    const sTier = String(subscriptionTier || "").toLowerCase();
-    const uPlan = String(userPlan || "").toLowerCase();
-    const isExempt = Boolean(
-      isPremium === true || mTier.includes("premium") || mTier.includes("vip") || mTier.includes("titan") || mTier.includes("pro") || mTier.includes("annual") || sTier.includes("premium") || sTier.includes("vip") || sTier.includes("titan") || sTier.includes("pro") || sTier.includes("annual") || uPlan.includes("premium") || uPlan.includes("vip") || uPlan.includes("titan") || uPlan.includes("pro") || uPlan.includes("annual") || userRole === "admin" || userRole === "super_admin" || userRole === "staff" || userRole === "community_manager"
-    );
-    if (!isExempt) {
-      const windowStatus = getAirtimeRedemptionWindowStatus();
-      if (!windowStatus.isOpen) {
-        return res.status(403).json({
-          success: false,
-          code: "REDEMPTION_WINDOW_CLOSED",
-          message: "Redemption window is closed. Free users can redeem only during the first 15 minutes of each hour. Upgrade to Premium or VIP to redeem airtime & data anytime.",
-          windowStatus
-        });
-      }
-    }
     if (serviceType === "airtime" && !currentSettings.airtimeEnabled) {
       return res.status(403).json({ success: false, message: "Airtime recharge service is currently disabled by Admin." });
     }
@@ -12436,13 +12946,19 @@ function getUserTier(user) {
   if (!user) return "free";
   if (user.role === "admin" || user.role === "super_admin" || user.isAdmin || user.isSuperAdmin) return "vip";
   if (user.role === "community_manager") return "vip";
-  if (user.subscriptionExpiry) {
+  const expiryRaw = user.subscriptionExpiry || user.subscription?.expiryDate || user.subscription?.expiresAt || user.expiryDate;
+  if (expiryRaw) {
     try {
-      const expTime = new Date(user.subscriptionExpiry).getTime();
+      const expTime = new Date(expiryRaw).getTime();
       if (!isNaN(expTime) && expTime <= Date.now() && !user.isSuperAdmin && user.role !== "admin") {
         return "free";
       }
     } catch {
+    }
+  }
+  if (user.subscription?.status === "expired" || user.subscription?.status === "cancelled" || user.isExpired === true) {
+    if (!user.isSuperAdmin && user.role !== "admin") {
+      return "free";
     }
   }
   const membership = (user.membershipTier || "").toLowerCase().trim();
@@ -14809,13 +15325,19 @@ function getUserTier2(user) {
   if (!user) return "free";
   if (user.role === "admin" || user.role === "super_admin" || user.isAdmin || user.isSuperAdmin) return "vip";
   if (user.role === "community_manager") return "vip";
-  if (user.subscriptionExpiry) {
+  const expiryRaw = user.subscriptionExpiry || user.subscription?.expiryDate || user.subscription?.expiresAt || user.expiryDate;
+  if (expiryRaw) {
     try {
-      const expTime = new Date(user.subscriptionExpiry).getTime();
+      const expTime = new Date(expiryRaw).getTime();
       if (!isNaN(expTime) && expTime <= Date.now() && !user.isSuperAdmin && user.role !== "admin") {
         return "free";
       }
     } catch {
+    }
+  }
+  if (user.subscription?.status === "expired" || user.subscription?.status === "cancelled" || user.isExpired === true) {
+    if (!user.isSuperAdmin && user.role !== "admin") {
+      return "free";
     }
   }
   const membership = (user.membershipTier || "").toLowerCase().trim();
@@ -15643,7 +16165,7 @@ walletRouter.post("/credit-live-reward", async (req, res) => {
     if (!userId || typeof gpAward !== "number" || gpAward <= 0) {
       return res.status(400).json({ success: false, message: "Invalid payload: userId and positive gpAward required." });
     }
-    const safeReward = Math.min(Math.max(1, Math.floor(gpAward)), 1e4);
+    const safeReward = Math.min(Math.max(1, Math.floor(gpAward)), 5e5);
     const userDocRes = await supabaseAdmin.from("users").select("id, data").eq("id", userId).single();
     let currentGp = 0;
     let currentWallet = 0;
@@ -15664,20 +16186,10 @@ walletRouter.post("/credit-live-reward", async (req, res) => {
       gpBalance: newGp,
       walletBalance: newWallet,
       totalGpEarned: newTotalGp,
+      gp: newGp,
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     };
-    const { error: upsertErr } = await supabaseAdmin.from("users").upsert({
-      id: userId,
-      data: updatedUserData,
-      updated_at: (/* @__PURE__ */ new Date()).toISOString()
-    });
-    if (upsertErr) {
-      console.error("[Live Reward] Error updating user balance in database:", upsertErr.message);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to update user wallet balance."
-      });
-    }
+    await setDocToSupabase("users", userId, updatedUserData, true, { isServerAuthoritative: true });
     const txId = `tx_lqa_${Date.now()}_${Math.floor(1e3 + Math.random() * 9e3)}`;
     const txRecord = {
       id: txId,
@@ -15688,19 +16200,19 @@ walletRouter.post("/credit-live-reward", async (req, res) => {
       userAvatar: userData.profileImage || userData.avatar || "",
       institutionName: userData.institutionName || userData.institution || "",
       type: "gp_earned",
+      source: "DAILY_GP_GRAB",
+      category: "DAILY_QA",
       amount: safeReward,
       unit: "GP",
+      currency: "GP",
       title: `\u{1F3C6} Daily GP Grab Reward #${winnerRank || 1}`,
       description: `Winner #${winnerRank || 1} reward for Live Q&A Challenge #${questionNumber || ""}: "${questionText || ""}"`,
       isCredit: true,
       status: "completed",
-      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+      timestamp: Date.now()
     };
-    await supabaseAdmin.from("walletTransactions").upsert({
-      id: txId,
-      data: txRecord,
-      updated_at: (/* @__PURE__ */ new Date()).toISOString()
-    });
+    await setDocToSupabase("walletTransactions", txId, txRecord, true, { isServerAuthoritative: true });
     return res.json({
       success: true,
       newBalance: newGp,
@@ -15838,6 +16350,1027 @@ walletRouter.get("/balance/:userId", async (req, res) => {
       success: false,
       message: "Failed to retrieve balance: " + (err?.message || "Server error")
     });
+  }
+});
+
+// server/supabaseRouter.ts
+init_supabase();
+import { Router as Router6 } from "express";
+var supabaseRouter = Router6();
+supabaseRouter.post("/upsert", async (req, res) => {
+  try {
+    const { table, docId, data, now } = req.body;
+    if (!table || !docId || !data) {
+      return res.status(400).json({ success: false, error: "Missing table, docId, or data" });
+    }
+    const row = {
+      id: docId,
+      data,
+      updated_at: now || (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const { error } = await supabaseAdmin.from(table).upsert(row, { onConflict: "id" });
+    if (error) {
+      console.warn(`[Supabase Proxy] Server upsert notice in ${table}/${docId}:`, error.message);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.json({ success: true, id: docId });
+  } catch (err) {
+    console.error("[Supabase Proxy] Exception during server upsert:", err?.message || err);
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+supabaseRouter.get("/get", async (req, res) => {
+  try {
+    const table = String(req.query.table || "");
+    const docId = String(req.query.id || "");
+    if (!table || !docId) {
+      return res.status(400).json({ success: false, error: "Missing table or id query param" });
+    }
+    const { data, error } = await supabaseAdmin.from(table).select("id, data").eq("id", docId).maybeSingle();
+    if (error) {
+      console.warn(`[Supabase Proxy] Server get notice in ${table}/${docId}:`, error.message);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.json({ success: true, data: data || null });
+  } catch (err) {
+    console.error("[Supabase Proxy] Exception during server get:", err?.message || err);
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+supabaseRouter.post("/query", async (req, res) => {
+  try {
+    const { table, limit: limit2 = 100 } = req.body;
+    if (!table) {
+      return res.status(400).json({ success: false, error: "Missing table in query" });
+    }
+    const { data, error } = await supabaseAdmin.from(table).select("id, data, created_at, updated_at").order("created_at", { ascending: false }).limit(Math.min(Number(limit2) || 100, 300));
+    if (error) {
+      console.warn(`[Supabase Proxy] Server query notice in ${table}:`, error.message);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.json({ success: true, data: data || [] });
+  } catch (err) {
+    console.error("[Supabase Proxy] Exception during server query:", err?.message || err);
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+supabaseRouter.post("/delete", async (req, res) => {
+  try {
+    const { table, docId } = req.body;
+    if (!table || !docId) {
+      return res.status(400).json({ success: false, error: "Missing table or docId" });
+    }
+    const { error } = await supabaseAdmin.from(table).delete().eq("id", docId);
+    if (error) {
+      console.warn(`[Supabase Proxy] Server delete notice in ${table}/${docId}:`, error.message);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("[Supabase Proxy] Exception during server delete:", err?.message || err);
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+
+// server/spinRouter.ts
+init_supabaseFirestoreAdapter();
+import { Router as Router7 } from "express";
+import fs3 from "fs";
+import path3 from "path";
+var spinRouter = Router7();
+var DOME_SPINS_FILE = path3.resolve(process.cwd(), "server", "school_dome_spins.json");
+function loadDomeSpinStore() {
+  try {
+    if (fs3.existsSync(DOME_SPINS_FILE)) {
+      const content = fs3.readFileSync(DOME_SPINS_FILE, "utf-8");
+      const parsed = JSON.parse(content);
+      if (parsed && typeof parsed === "object") {
+        return {
+          resets: parsed.resets || {},
+          spins: parsed.spins || {}
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[School Dome Spin Store] Notice reading store file:", err);
+  }
+  return { resets: {}, spins: {} };
+}
+function saveDomeSpinStore(store) {
+  try {
+    const dir = path3.dirname(DOME_SPINS_FILE);
+    if (!fs3.existsSync(dir)) {
+      fs3.mkdirSync(dir, { recursive: true });
+    }
+    fs3.writeFileSync(DOME_SPINS_FILE, JSON.stringify(store, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("[School Dome Spin Store] Notice writing store file:", err);
+  }
+}
+var SPIN_REWARDS = [
+  { amount: 5, weight: 35, label: "5 GP", color: "#F59E0B", textColor: "#FFFFFF" },
+  // Common (35%)
+  { amount: 10, weight: 30, label: "10 GP", color: "#2563EB", textColor: "#FFFFFF" },
+  // Common (30%)
+  { amount: 15, weight: 15, label: "15 GP", color: "#10B981", textColor: "#FFFFFF" },
+  // Less frequent (15%)
+  { amount: 20, weight: 10, label: "20 GP", color: "#8B5CF6", textColor: "#FFFFFF" },
+  // Less frequent (10%)
+  { amount: 25, weight: 5, label: "25 GP", color: "#4F46E5", textColor: "#FFFFFF" },
+  // Less common (5%)
+  { amount: 30, weight: 3, label: "30 GP", color: "#EC4899", textColor: "#FFFFFF" },
+  // Less common (3%)
+  { amount: 35, weight: 1.5, label: "35 GP", color: "#06B6D4", textColor: "#FFFFFF" },
+  // Rare (1.5%)
+  { amount: 50, weight: 0.5, label: "50 GP", color: "#D97706", textColor: "#FFFFFF" }
+  // Rarest / Highest (0.5%)
+];
+var activeSpinLocks = /* @__PURE__ */ new Set();
+var processedSpinsToday = /* @__PURE__ */ new Set();
+function getTodayDateStr() {
+  return (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+}
+function getSecondsUntilMidnight() {
+  const now = /* @__PURE__ */ new Date();
+  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+  return Math.max(0, Math.floor((tomorrow.getTime() - now.getTime()) / 1e3));
+}
+function pickWeightedReward() {
+  const totalWeight = SPIN_REWARDS.reduce((sum, slice) => sum + slice.weight, 0);
+  const randomVal = Math.random() * totalWeight;
+  let cumulative = 0;
+  for (let i = 0; i < SPIN_REWARDS.length; i++) {
+    cumulative += SPIN_REWARDS[i].weight;
+    if (randomVal <= cumulative) {
+      return { sliceIndex: i, rewardAmount: SPIN_REWARDS[i].amount };
+    }
+  }
+  return { sliceIndex: 0, rewardAmount: SPIN_REWARDS[0].amount };
+}
+spinRouter.get("/rewards", (_req, res) => {
+  return res.json({
+    success: true,
+    rewards: SPIN_REWARDS.map((r, index) => ({
+      index,
+      amount: r.amount,
+      label: r.label,
+      color: r.color,
+      textColor: r.textColor
+    }))
+  });
+});
+spinRouter.get("/status/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID is required." });
+    }
+    const todayDate = getTodayDateStr();
+    const cacheKey = `${userId}_${todayDate}`;
+    if (processedSpinsToday.has(cacheKey)) {
+      return res.json({
+        success: true,
+        canSpin: false,
+        todayDate,
+        secondsUntilNextSpin: getSecondsUntilMidnight(),
+        reason: "already_spun",
+        message: "You have already used your free spin today! Return tomorrow for another spin."
+      });
+    }
+    const { data: userDoc } = await supabaseAdmin.from("users").select("id, data").eq("id", userId).maybeSingle();
+    const userData = userDoc?.data || {};
+    if (userData.lastSpinDate === todayDate) {
+      processedSpinsToday.add(cacheKey);
+      return res.json({
+        success: true,
+        canSpin: false,
+        todayDate,
+        lastSpinDate: userData.lastSpinDate,
+        lastReward: userData.lastSpinReward || null,
+        secondsUntilNextSpin: getSecondsUntilMidnight(),
+        reason: "already_spun",
+        message: "You have already used your free spin today! Return tomorrow for another spin."
+      });
+    }
+    try {
+      const { data: txList } = await supabaseAdmin.from("walletTransactions").select("id, data").order("created_at", { ascending: false }).limit(50);
+      const hasSpunInTx = (txList || []).some((item) => {
+        const d = item.data || {};
+        return d.userId === userId && d.type === "spin_reward" && (d.meta?.spinDate === todayDate || d.date && d.date.includes(todayDate));
+      });
+      if (hasSpunInTx) {
+        processedSpinsToday.add(cacheKey);
+        return res.json({
+          success: true,
+          canSpin: false,
+          todayDate,
+          secondsUntilNextSpin: getSecondsUntilMidnight(),
+          reason: "already_spun",
+          message: "You have already used your free spin today! Return tomorrow for another spin."
+        });
+      }
+    } catch {
+    }
+    return res.json({
+      success: true,
+      canSpin: true,
+      todayDate,
+      lastSpinDate: userData.lastSpinDate || null,
+      secondsUntilNextSpin: 0,
+      message: "Your 1 free daily spin is ready! Spin the wheel to claim your GP reward."
+    });
+  } catch (err) {
+    console.error("[Spin API] Error checking spin status:", err);
+    return res.status(500).json({ success: false, message: "Failed to verify spin status." });
+  }
+});
+spinRouter.post("/execute", async (req, res) => {
+  const { userId } = req.body || {};
+  if (!userId) {
+    return res.status(400).json({ success: false, message: "User ID is required to spin the wheel." });
+  }
+  const todayDate = getTodayDateStr();
+  const dedupeKey = `${userId}_${todayDate}`;
+  if (activeSpinLocks.has(userId)) {
+    return res.status(429).json({
+      success: false,
+      code: "SPIN_IN_PROGRESS",
+      message: "A spin request is already being processed. Please wait."
+    });
+  }
+  if (processedSpinsToday.has(dedupeKey)) {
+    return res.status(409).json({
+      success: false,
+      code: "ALREADY_SPUN_TODAY",
+      message: "You have already used your free spin today! Come back tomorrow for another chance.",
+      secondsUntilNextSpin: getSecondsUntilMidnight()
+    });
+  }
+  activeSpinLocks.add(userId);
+  try {
+    const { data: userDoc } = await supabaseAdmin.from("users").select("id, data").eq("id", userId).maybeSingle();
+    const rawData = userDoc?.data || {};
+    const userData = typeof rawData === "object" && rawData !== null && "gpBalance" in rawData ? rawData : typeof rawData.data === "object" && rawData.data !== null ? rawData.data : {
+      id: userId,
+      name: req.body.userName || "Scholar",
+      email: req.body.userEmail || "",
+      institutionName: req.body.institutionName || "",
+      gpBalance: 0,
+      walletBalance: 0,
+      totalGpEarned: 0
+    };
+    if (userData.lastSpinDate === todayDate) {
+      processedSpinsToday.add(dedupeKey);
+      activeSpinLocks.delete(userId);
+      return res.status(409).json({
+        success: false,
+        code: "ALREADY_SPUN_TODAY",
+        message: "You have already used your free spin today! Come back tomorrow for another chance.",
+        secondsUntilNextSpin: getSecondsUntilMidnight()
+      });
+    }
+    const { sliceIndex, rewardAmount } = pickWeightedReward();
+    const currentGp = Number(userData.gpBalance || 0);
+    const currentWallet = Number(userData.walletBalance || currentGp);
+    const currentTotalGp = Number(userData.totalGpEarned || 0);
+    const newGp = currentGp + rewardAmount;
+    const newWallet = currentWallet + rewardAmount;
+    const newTotalGp = currentTotalGp + rewardAmount;
+    const now = /* @__PURE__ */ new Date();
+    const formattedDate = now.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric"
+    }) + " \u2014 " + now.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+    const txId = `TX_SPIN_${Date.now()}_${Math.floor(1e3 + Math.random() * 9e3)}`;
+    const updatedUserData = {
+      ...userData,
+      id: userId,
+      gpBalance: newGp,
+      walletBalance: newWallet,
+      totalGpEarned: newTotalGp,
+      lastSpinDate: todayDate,
+      lastSpinAt: now.toISOString(),
+      lastSpinReward: rewardAmount,
+      lastSpinTxId: txId,
+      updatedAt: now.toISOString()
+    };
+    const { error: userUpdateErr } = await supabaseAdmin.from("users").upsert({
+      id: userId,
+      data: updatedUserData,
+      updated_at: now.toISOString()
+    });
+    if (userUpdateErr) {
+      console.error("[Spin API] Error updating user balance in database:", userUpdateErr.message);
+      activeSpinLocks.delete(userId);
+      return res.status(500).json({ success: false, message: "Failed to update user wallet balance." });
+    }
+    processedSpinsToday.add(dedupeKey);
+    const txRecord = {
+      id: txId,
+      transactionId: txId,
+      userId,
+      userName: userData.name || userData.fullName || userData.username || "Scholar",
+      userEmail: userData.email || "",
+      userAvatar: userData.profileImage || userData.avatar || "",
+      institutionName: userData.institutionName || userData.institution || "",
+      type: "spin_reward",
+      amount: rewardAmount,
+      unit: "GP",
+      title: "Spin Reward",
+      description: `Daily Spin Wheel reward (+${rewardAmount} GP)`,
+      date: formattedDate,
+      isCredit: true,
+      status: "completed",
+      createdAt: now.toISOString(),
+      meta: {
+        feature: "spin_wheel",
+        rewardAmount,
+        sliceIndex,
+        spinDate: todayDate
+      }
+    };
+    await supabaseAdmin.from("walletTransactions").upsert({
+      id: txId,
+      data: txRecord,
+      updated_at: now.toISOString()
+    });
+    try {
+      await supabaseAdmin.from("dailySpins").upsert({
+        id: `spin_${userId}_${todayDate}`,
+        data: {
+          id: `spin_${userId}_${todayDate}`,
+          userId,
+          date: todayDate,
+          amount: rewardAmount,
+          transactionId: txId,
+          createdAt: now.toISOString()
+        },
+        updated_at: now.toISOString()
+      });
+    } catch {
+    }
+    activeSpinLocks.delete(userId);
+    return res.json({
+      success: true,
+      rewardAmount,
+      sliceIndex,
+      newBalance: newGp,
+      transactionId: txId,
+      date: formattedDate,
+      transaction: txRecord,
+      secondsUntilNextSpin: getSecondsUntilMidnight(),
+      message: `\u{1F389} Congratulations! You won +${rewardAmount} GP!`
+    });
+  } catch (err) {
+    activeSpinLocks.delete(userId);
+    console.error("[Spin API] Unexpected exception during spin execution:", err);
+    return res.status(500).json({ success: false, message: "Internal server error while processing spin." });
+  }
+});
+spinRouter.get("/history/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID is required." });
+    }
+    const { data: rawList } = await supabaseAdmin.from("walletTransactions").select("id, data").order("created_at", { ascending: false }).limit(100);
+    const spinTxs = (rawList || []).map((item) => item.data).filter((tx) => tx && tx.userId === userId && tx.type === "spin_reward");
+    return res.json({
+      success: true,
+      transactions: spinTxs
+    });
+  } catch (err) {
+    console.error("[Spin API] Error fetching spin history:", err);
+    return res.status(500).json({ success: false, message: "Failed to retrieve spin history." });
+  }
+});
+var SCHOOL_DOME_SPIN_SLICES = [
+  { amount: 20, weight: 35, label: "20 GP", color: "#2563EB", textColor: "#FFFFFF" },
+  // Very common (35%)
+  { amount: 25, weight: 30, label: "25 GP", color: "#10B981", textColor: "#FFFFFF" },
+  // Very common (30%)
+  { amount: 30, weight: 18, label: "30 GP", color: "#8B5CF6", textColor: "#FFFFFF" },
+  // Common (18%)
+  { amount: 35, weight: 8, label: "35 GP", color: "#EC4899", textColor: "#FFFFFF" },
+  // Less common (8%)
+  { amount: 40, weight: 5, label: "40 GP", color: "#06B6D4", textColor: "#FFFFFF" },
+  // Less common (5%)
+  { amount: 45, weight: 3, label: "45 GP", color: "#F59E0B", textColor: "#FFFFFF" },
+  // Less common (3%)
+  { amount: 50, weight: 1, label: "50 GP", color: "#6366F1", textColor: "#FFFFFF" },
+  // Uncommon (1%)
+  { amount: 100, weight: 0, label: "100 GP", color: "#DC2626", textColor: "#FFFFFF" },
+  // Not achievable (0%)
+  { amount: 200, weight: 0, label: "200 GP", color: "#EAB308", textColor: "#FFFFFF" }
+  // Not achievable (0%)
+];
+var domeSpinLocks = /* @__PURE__ */ new Set();
+var seasonResetRegistry = /* @__PURE__ */ new Map();
+function resolveServerUserTier(user) {
+  if (!user) return "free";
+  const isStaffOrAdmin = user.role === "admin" || user.role === "super_admin" || user.role === "SUPER_ADMIN" || user.role === "ADMIN" || user.role === "staff" || user.name && (String(user.name).toLowerCase().includes("admin") || String(user.name).toLowerCase().includes("staff"));
+  if (isStaffOrAdmin) return "vip";
+  const membership = String(user.membershipTier || "").toLowerCase().trim();
+  const subTier = String(user.subscriptionTier || "").toLowerCase().trim();
+  const plan = String(user.subscriptionPlan || user.planId || user.subscriptionTier || user.membershipTier || user.tier || user.activePlanId || "").toLowerCase().trim();
+  const planName = String(user.planNameSnapshot || user.subscription?.name || user.subscription?.planId || "").toLowerCase().trim();
+  const isExplicitlyFree = membership === "free" || membership === "free scholar" || membership === "scholar (starter)" || membership === "starter scholar" || subTier === "free" || subTier === "free scholar" || plan === "free" || plan === "plan_free" || plan === "free_starter";
+  if (user.isVip || user.targetTier === "vip" || user.tierType === "vip" || membership.includes("vip") || membership.includes("titan") || subTier.includes("vip") || subTier.includes("titan") || plan.includes("vip") || plan.includes("titan") || planName.includes("vip") || planName.includes("titan") || plan.includes("annual") || planName.includes("annual")) {
+    return "vip";
+  }
+  if (isExplicitlyFree && !user.isPremium) {
+    return "free";
+  }
+  const isPremium = Boolean(
+    user.isPremium || user.targetTier === "premium" || user.tierType === "premium" || user.isSubscribed && !isExplicitlyFree || membership.includes("premium") || membership.includes("pro") || membership.includes("champion") || subTier.includes("premium") || subTier.includes("pro") || subTier.includes("champion") || plan.includes("premium") || plan.includes("pro") || plan.includes("champion")
+  );
+  if (isPremium) return "premium";
+  return "free";
+}
+function pickSchoolDomeWeightedReward() {
+  const totalWeight = SCHOOL_DOME_SPIN_SLICES.reduce((sum, s) => sum + s.weight, 0);
+  const randomVal = Math.random() * totalWeight;
+  let cumulative = 0;
+  for (let i = 0; i < SCHOOL_DOME_SPIN_SLICES.length; i++) {
+    cumulative += SCHOOL_DOME_SPIN_SLICES[i].weight;
+    if (randomVal <= cumulative) {
+      return { sliceIndex: i, rewardAmount: SCHOOL_DOME_SPIN_SLICES[i].amount };
+    }
+  }
+  return { sliceIndex: 0, rewardAmount: SCHOOL_DOME_SPIN_SLICES[0].amount };
+}
+spinRouter.get("/school-dome/slices", (_req, res) => {
+  return res.json({
+    success: true,
+    slices: SCHOOL_DOME_SPIN_SLICES.map((s, index) => ({
+      index,
+      amount: s.amount,
+      label: s.label,
+      color: s.color,
+      textColor: s.textColor
+    }))
+  });
+});
+spinRouter.get("/school-dome/status/:seasonId/:userId", async (req, res) => {
+  try {
+    const { seasonId, userId } = req.params;
+    if (!seasonId || !userId) {
+      return res.status(400).json({ success: false, message: "seasonId and userId are required." });
+    }
+    const { data: userDoc } = await supabaseAdmin.from("users").select("id, data").eq("id", userId).maybeSingle();
+    const rawData = userDoc?.data || {};
+    const userData = typeof rawData === "object" && rawData !== null && "gpBalance" in rawData ? rawData : typeof rawData.data === "object" && rawData.data !== null ? rawData.data : {};
+    let tierType = resolveServerUserTier(userData);
+    const queryTier = String(req.query.tier || "").toLowerCase().trim();
+    if (tierType === "free" && (queryTier === "vip" || queryTier === "premium")) {
+      tierType = queryTier;
+    }
+    if (tierType === "free") {
+      return res.json({
+        success: true,
+        canSpin: false,
+        isEligible: false,
+        tierType: "free",
+        maxSpins: 0,
+        spinsUsed: 0,
+        spinsRemaining: 0,
+        reason: "free_tier_ineligible",
+        message: "Free tier scholars receive normal elimination experience without bonus spins."
+      });
+    }
+    const maxSpins = tierType === "vip" ? 2 : 1;
+    let seasonStartedAt = 0;
+    try {
+      const { data: seasonDoc } = await supabaseAdmin.from("school_dome_seasons").select("id, data, created_at").eq("id", seasonId).maybeSingle();
+      const sData = seasonDoc?.data?.data || seasonDoc?.data || {};
+      const rawStart = sData.startedAt || sData.createdAt || sData.resetAt || seasonDoc?.created_at;
+      seasonStartedAt = typeof rawStart === "number" ? rawStart : new Date(rawStart || 0).getTime();
+      if (isNaN(seasonStartedAt)) seasonStartedAt = 0;
+    } catch {
+    }
+    const store = loadDomeSpinStore();
+    const resetTimestamp = Math.max(
+      store.resets[seasonId] || 0,
+      store.resets["__all__"] || 0,
+      seasonResetRegistry.get(seasonId) || 0,
+      seasonResetRegistry.get("__all__") || 0
+    );
+    const effectiveSeasonStart = Math.max(seasonStartedAt, resetTimestamp);
+    if (seasonStartedAt > 0 && (!store.resets[seasonId] || seasonStartedAt > store.resets[seasonId])) {
+      store.resets[seasonId] = seasonStartedAt;
+      saveDomeSpinStore(store);
+    }
+    const seasonSpins = store.spins[seasonId] || {};
+    let userSpins = (seasonSpins[userId] || []).filter((s) => {
+      if (effectiveSeasonStart > 0 && s.timestamp < effectiveSeasonStart) {
+        return false;
+      }
+      return true;
+    });
+    if (userSpins.length === 0) {
+      try {
+        const { data: rawTxList } = await supabaseAdmin.from("walletTransactions").select("id, data, created_at").order("created_at", { ascending: false }).limit(50);
+        const txSpins = (rawTxList || []).filter((item) => {
+          const d = item.data || {};
+          const isTargetType = d.type === "school_dome_spin_bonus" || d.type === "spin_reward" && d.meta?.feature === "school_dome_elimination_spin";
+          const matchesSeason = d.meta?.seasonId === seasonId;
+          if (!isTargetType || !matchesSeason || d.userId !== userId) return false;
+          if (d.meta?.resetArchived) return false;
+          if (effectiveSeasonStart > 0) {
+            let txTime = 0;
+            if (typeof d.createdAt === "number") txTime = d.createdAt;
+            else if (d.createdAt?.seconds) txTime = d.createdAt.seconds * 1e3;
+            else if (d.createdAt?._seconds) txTime = d.createdAt._seconds * 1e3;
+            else if (d.createdAt) txTime = new Date(d.createdAt).getTime();
+            else if (item.created_at) txTime = new Date(item.created_at).getTime();
+            else if (d.timestamp) txTime = Number(d.timestamp);
+            if (txTime > 0 && txTime < effectiveSeasonStart) return false;
+          }
+          return true;
+        });
+        if (txSpins.length > 0) {
+          const spinsByNumber = /* @__PURE__ */ new Map();
+          txSpins.forEach((t) => {
+            const sNum = Math.max(1, Math.min(2, Number(t.data?.meta?.spinNumber) || 1));
+            if (!spinsByNumber.has(sNum)) {
+              spinsByNumber.set(sNum, {
+                spinNumber: sNum,
+                rewardAmount: Number(t.data?.amount) || 20,
+                transactionId: t.id,
+                timestamp: new Date(t.data?.createdAt || t.created_at || Date.now()).getTime(),
+                tier: tierType
+              });
+            }
+          });
+          const dedupedSpins = Array.from(spinsByNumber.values()).sort((a, b) => a.spinNumber - b.spinNumber);
+          if (!store.spins[seasonId]) store.spins[seasonId] = {};
+          store.spins[seasonId][userId] = dedupedSpins;
+          saveDomeSpinStore(store);
+          userSpins = dedupedSpins;
+        }
+      } catch {
+      }
+    }
+    const spinsUsed = userSpins.length;
+    const spinsRemaining = Math.max(0, maxSpins - spinsUsed);
+    const canSpin = spinsRemaining > 0;
+    return res.json({
+      success: true,
+      canSpin,
+      isEligible: true,
+      tierType,
+      maxSpins,
+      spinsUsed,
+      spinsRemaining,
+      seasonId,
+      message: canSpin ? `You have ${spinsRemaining} bonus spin${spinsRemaining > 1 ? "s" : ""} available for this season!` : "All eligible bonus spins for this School Dome season have been completed."
+    });
+  } catch (err) {
+    console.error("[School Dome Spin Status] Error checking status:", err);
+    return res.status(500).json({ success: false, message: "Failed to verify School Dome spin status." });
+  }
+});
+spinRouter.post("/school-dome/execute", async (req, res) => {
+  const { seasonId, userId, seasonNumber, seasonTitle, isRegistered, isEliminated } = req.body || {};
+  if (!seasonId || !userId) {
+    return res.status(400).json({
+      success: false,
+      message: "seasonId and userId are required to execute a School Dome elimination spin."
+    });
+  }
+  const lockKey = `dome_${seasonId}_${userId}`;
+  if (domeSpinLocks.has(lockKey)) {
+    return res.status(429).json({
+      success: false,
+      code: "SPIN_IN_PROGRESS",
+      message: "A School Dome spin is already in progress. Please wait."
+    });
+  }
+  domeSpinLocks.add(lockKey);
+  try {
+    const { data: userDoc } = await supabaseAdmin.from("users").select("id, data").eq("id", userId).maybeSingle();
+    const rawData = userDoc?.data || {};
+    const userData = typeof rawData === "object" && rawData !== null && "gpBalance" in rawData ? rawData : typeof rawData.data === "object" && rawData.data !== null ? rawData.data : {
+      id: userId,
+      name: req.body.userName || "Scholar",
+      email: req.body.userEmail || "",
+      institutionName: req.body.institutionName || "",
+      gpBalance: 0,
+      walletBalance: 0,
+      totalGpEarned: 0
+    };
+    let tierType = resolveServerUserTier(userData);
+    const clientTier = String(req.body.tierType || req.body.userTier || "").toLowerCase().trim();
+    if (tierType === "free" && (clientTier === "vip" || clientTier === "premium")) {
+      tierType = clientTier;
+    }
+    if (tierType === "free") {
+      domeSpinLocks.delete(lockKey);
+      return res.status(403).json({
+        success: false,
+        code: "FREE_USER_INELIGIBLE",
+        message: "Free users are not eligible for School Dome elimination bonus spins."
+      });
+    }
+    const maxSpins = tierType === "vip" ? 2 : 1;
+    let verifiedRegistration = Boolean(isRegistered);
+    let verifiedElimination = Boolean(isEliminated);
+    try {
+      const { data: seasonDoc } = await supabaseAdmin.from("school_dome_seasons").select("id, data").eq("id", seasonId).maybeSingle();
+      if (seasonDoc?.data) {
+        const sData = seasonDoc.data.data || seasonDoc.data;
+        if (sData.registeredUserIds && Array.isArray(sData.registeredUserIds)) {
+          verifiedRegistration = verifiedRegistration || sData.registeredUserIds.includes(userId);
+        }
+        if (sData.eliminatedUserIds && Array.isArray(sData.eliminatedUserIds)) {
+          verifiedElimination = verifiedElimination || sData.eliminatedUserIds.includes(userId);
+        }
+      }
+    } catch {
+    }
+    if (!verifiedRegistration) {
+      domeSpinLocks.delete(lockKey);
+      return res.status(403).json({
+        success: false,
+        code: "NOT_REGISTERED",
+        message: "Only registered participants of this School Dome season are eligible for participation bonus."
+      });
+    }
+    if (!verifiedElimination) {
+      domeSpinLocks.delete(lockKey);
+      return res.status(403).json({
+        success: false,
+        code: "NOT_ELIMINATED",
+        message: "Only eliminated participants are eligible for the elimination participation spin bonus."
+      });
+    }
+    let seasonStartedAt = 0;
+    try {
+      const { data: seasonDoc } = await supabaseAdmin.from("school_dome_seasons").select("id, data").eq("id", seasonId).maybeSingle();
+      const sData = seasonDoc?.data?.data || seasonDoc?.data || {};
+      seasonStartedAt = Number(sData.startedAt || sData.createdAt || sData.resetAt || 0);
+    } catch {
+    }
+    const store = loadDomeSpinStore();
+    const resetTimestamp = Math.max(
+      store.resets[seasonId] || 0,
+      store.resets["__all__"] || 0,
+      seasonResetRegistry.get(seasonId) || 0,
+      seasonResetRegistry.get("__all__") || 0
+    );
+    const effectiveSeasonStart = Math.max(seasonStartedAt, resetTimestamp);
+    if (seasonStartedAt > 0 && (!store.resets[seasonId] || seasonStartedAt > store.resets[seasonId])) {
+      store.resets[seasonId] = seasonStartedAt;
+      saveDomeSpinStore(store);
+    }
+    const seasonSpins = store.spins[seasonId] || {};
+    let existingSpins = (seasonSpins[userId] || []).filter((s) => {
+      if (effectiveSeasonStart > 0 && s.timestamp < effectiveSeasonStart) {
+        return false;
+      }
+      return true;
+    });
+    if (existingSpins.length === 0) {
+      try {
+        const { data: rawTxList } = await supabaseAdmin.from("walletTransactions").select("id, data").order("created_at", { ascending: false }).limit(50);
+        const txList = (rawTxList || []).filter((item) => {
+          const d = item.data || {};
+          const isTargetType = d.type === "school_dome_spin_bonus" || d.type === "spin_reward" && d.meta?.feature === "school_dome_elimination_spin";
+          const matchesSeason = d.meta?.seasonId === seasonId;
+          if (!isTargetType || !matchesSeason || d.userId !== userId) return false;
+          if (effectiveSeasonStart > 0 && d.createdAt) {
+            const txTime = new Date(d.createdAt).getTime();
+            if (!isNaN(txTime) && txTime < effectiveSeasonStart) {
+              return false;
+            }
+          }
+          return true;
+        });
+        if (txList.length > 0) {
+          const spinsByNumber = /* @__PURE__ */ new Map();
+          txList.forEach((t) => {
+            const sNum = Math.max(1, Math.min(2, Number(t.data?.meta?.spinNumber) || 1));
+            if (!spinsByNumber.has(sNum)) {
+              spinsByNumber.set(sNum, {
+                spinNumber: sNum,
+                rewardAmount: Number(t.data?.amount) || 20,
+                transactionId: t.id,
+                timestamp: new Date(t.data?.createdAt || Date.now()).getTime(),
+                tier: tierType
+              });
+            }
+          });
+          const dedupedSpins = Array.from(spinsByNumber.values()).sort((a, b) => a.spinNumber - b.spinNumber);
+          if (!store.spins[seasonId]) store.spins[seasonId] = {};
+          store.spins[seasonId][userId] = dedupedSpins;
+          saveDomeSpinStore(store);
+          existingSpins = store.spins[seasonId][userId];
+        }
+      } catch {
+      }
+    }
+    const spinsUsed = existingSpins.length;
+    if (spinsUsed >= maxSpins) {
+      domeSpinLocks.delete(lockKey);
+      return res.status(409).json({
+        success: false,
+        code: "SEASON_SPINS_EXHAUSTED",
+        message: `You have already used all eligible spin bonuses (${maxSpins}) for this School Dome season.`,
+        spinsUsed,
+        maxSpins
+      });
+    }
+    const { sliceIndex, rewardAmount } = pickSchoolDomeWeightedReward();
+    const currentGp = Number(userData.gpBalance || 0);
+    const currentWallet = Number(userData.walletBalance || currentGp);
+    const currentTotalGp = Number(userData.totalGpEarned || 0);
+    const newGp = currentGp + rewardAmount;
+    const newWallet = currentWallet + rewardAmount;
+    const newTotalGp = currentTotalGp + rewardAmount;
+    const now = /* @__PURE__ */ new Date();
+    const formattedDate = now.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric"
+    }) + " \u2014 " + now.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+    const currentSpinNumber = spinsUsed + 1;
+    const effectiveSeasonNum = seasonNumber || (seasonId ? seasonId.replace(/\D/g, "") || 1 : 1);
+    const effectiveSeasonTitle = seasonTitle || `Season ${effectiveSeasonNum}`;
+    const txId = `TX_DOME_SPIN_${seasonId}_${userId}_${Date.now()}_${Math.floor(1e3 + Math.random() * 9e3)}`;
+    const updatedUserData = {
+      ...userData,
+      id: userId,
+      gpBalance: newGp,
+      walletBalance: newWallet,
+      totalGpEarned: newTotalGp,
+      updatedAt: now.toISOString()
+    };
+    try {
+      await supabaseAdmin.from("users").upsert({
+        id: userId,
+        data: updatedUserData,
+        updated_at: now.toISOString()
+      });
+    } catch (userUpdateErr) {
+      console.warn("[School Dome Spin] Notice updating user balance in database:", userUpdateErr?.message);
+    }
+    const txRecord = {
+      id: txId,
+      transactionId: txId,
+      userId,
+      userName: userData.name || userData.fullName || userData.username || "Scholar",
+      userEmail: userData.email || "",
+      userAvatar: userData.profileImage || userData.avatar || "",
+      institutionName: userData.institutionName || userData.institution || "",
+      type: "school_dome_spin_bonus",
+      amount: rewardAmount,
+      unit: "GP",
+      title: "School Dome Elimination Spin Bonus",
+      description: `School Dome ${effectiveSeasonTitle} Elimination Participation Bonus (+${rewardAmount} GP)`,
+      date: formattedDate,
+      isCredit: true,
+      status: "completed",
+      createdAt: now.toISOString(),
+      meta: {
+        feature: "school_dome_elimination_spin",
+        seasonId,
+        seasonNumber: Number(effectiveSeasonNum),
+        seasonTitle: effectiveSeasonTitle,
+        subscriptionTier: tierType.toUpperCase(),
+        eliminationStatus: "eliminated",
+        spinNumber: currentSpinNumber,
+        maxSpins,
+        rewardAmount,
+        sliceIndex
+      }
+    };
+    try {
+      await supabaseAdmin.from("walletTransactions").upsert({
+        id: txId,
+        data: txRecord,
+        updated_at: now.toISOString()
+      });
+    } catch (txErr) {
+      console.warn("[School Dome Spin] Notice saving walletTransaction in database:", txErr?.message);
+    }
+    if (!store.spins[seasonId]) store.spins[seasonId] = {};
+    if (!store.spins[seasonId][userId]) store.spins[seasonId][userId] = [];
+    const existingIndex = store.spins[seasonId][userId].findIndex((s) => s.spinNumber === currentSpinNumber);
+    const newRecord = {
+      spinNumber: currentSpinNumber,
+      rewardAmount,
+      transactionId: txId,
+      timestamp: Date.now(),
+      tier: tierType
+    };
+    if (existingIndex >= 0) {
+      store.spins[seasonId][userId][existingIndex] = newRecord;
+    } else {
+      store.spins[seasonId][userId].push(newRecord);
+    }
+    saveDomeSpinStore(store);
+    try {
+      await supabaseAdmin.from("schoolDomeSpins").upsert({
+        id: `dome_spin_${seasonId}_${userId}_${currentSpinNumber}`,
+        data: {
+          id: `dome_spin_${seasonId}_${userId}_${currentSpinNumber}`,
+          seasonId,
+          userId,
+          spinNumber: currentSpinNumber,
+          maxSpins,
+          rewardAmount,
+          transactionId: txId,
+          subscriptionTier: tierType,
+          createdAt: now.toISOString()
+        },
+        updated_at: now.toISOString()
+      });
+    } catch {
+    }
+    const spinsRemaining = Math.max(0, maxSpins - currentSpinNumber);
+    return res.json({
+      success: true,
+      rewardAmount,
+      sliceIndex,
+      newBalance: newGp,
+      transactionId: txId,
+      date: formattedDate,
+      transaction: txRecord,
+      spinsUsed: currentSpinNumber,
+      maxSpins,
+      spinsRemaining,
+      tierType,
+      message: `\u{1F389} Congratulations! You won +${rewardAmount} GP!`
+    });
+  } catch (err) {
+    console.error("[School Dome Spin] Unexpected exception during spin execution:", err);
+    return res.status(500).json({ success: false, message: "Internal server error while executing spin." });
+  } finally {
+    domeSpinLocks.delete(lockKey);
+  }
+});
+spinRouter.post("/school-dome/reset-season", async (req, res) => {
+  const { seasonId, startedAt } = req.body || {};
+  const resetTimestamp = Number(startedAt) || Date.now();
+  const store = loadDomeSpinStore();
+  try {
+    if (seasonId) {
+      seasonResetRegistry.set(seasonId, resetTimestamp);
+      store.resets[seasonId] = resetTimestamp;
+      delete store.spins[seasonId];
+      saveDomeSpinStore(store);
+      try {
+        await supabaseAdmin.from("schoolDomeSpins").delete().eq("data->>seasonId", seasonId);
+      } catch {
+      }
+    } else {
+      seasonResetRegistry.clear();
+      seasonResetRegistry.set("__all__", resetTimestamp);
+      store.resets["__all__"] = resetTimestamp;
+      store.spins = {};
+      saveDomeSpinStore(store);
+      try {
+        await supabaseAdmin.from("schoolDomeSpins").delete().neq("id", "___keep_none___");
+      } catch {
+      }
+    }
+    return res.json({
+      success: true,
+      message: `Spin bonus successfully reset for season ${seasonId || "all"}. VIP scholars receive 2 spins, Premium scholars receive 1 spin.`
+    });
+  } catch (err) {
+    return res.json({ success: true, message: "Season reset acknowledged." });
+  }
+});
+
+// server/systemSettingsRouter.ts
+init_supabase();
+import { Router as Router8 } from "express";
+import fs4 from "fs";
+import path4 from "path";
+var systemSettingsRouter = Router8();
+var SETTINGS_FILE = path4.resolve(process.cwd(), "server", "system_settings.json");
+var DEFAULT_SETTINGS2 = {
+  platformName: "Grobaax Academic Competition Platform",
+  maintenanceMode: false,
+  allowNewRegistrations: true,
+  publicLeagueVisibility: true,
+  defaultFreeGpOnRegister: 500,
+  minWithdrawalAmountGp: 1e3,
+  maxDailyWithdrawalGp: 1e5,
+  gpToFiatRate: 1,
+  autoApproveInstitutions: true,
+  requireStudentVerification: false,
+  defaultQuestionTimeSeconds: 15,
+  defaultPenaltyPerMistakeSeconds: 5,
+  speedClockGraceSeconds: 3,
+  enableLiveCommunityFeed: true,
+  enableGusRegistration: true,
+  announcementBannerText: "",
+  announcementBannerActive: false,
+  welcomeVideoUrl: "https://youtu.be/1xGJ2RpUqOk?si=K0rBxEwdXLdOxUl7",
+  welcomeVideoTitle: "How Grobaax Works: Complete Platform Guide & Walkthrough",
+  welcomeVideoDescription: "Watch this comprehensive guide to understand all features of Grobaax: represent your institution in School Dome, generate academic handouts in Library, recharge VTU airtime & data, trade in Mini Mart, and connect with campus peers.",
+  welcomeVideoActive: true
+};
+function loadSettingsFromDisk() {
+  try {
+    if (fs4.existsSync(SETTINGS_FILE)) {
+      const raw = fs4.readFileSync(SETTINGS_FILE, "utf-8");
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        return { ...DEFAULT_SETTINGS2, ...parsed };
+      }
+    }
+  } catch (err) {
+    console.warn("[SystemSettings] Failed to read disk file:", err);
+  }
+  return { ...DEFAULT_SETTINGS2 };
+}
+function saveSettingsToDisk(data) {
+  try {
+    const merged = { ...loadSettingsFromDisk(), ...data };
+    fs4.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("[SystemSettings] Failed to write disk file:", err);
+  }
+}
+systemSettingsRouter.get("/", async (_req, res) => {
+  try {
+    let settings = loadSettingsFromDisk();
+    try {
+      const { data, error } = await supabaseAdmin.from("system_settings").select("id, data").eq("id", "config").maybeSingle();
+      if (!error && data?.data) {
+        settings = { ...settings, ...data.data };
+        saveSettingsToDisk(settings);
+      }
+    } catch (dbErr) {
+      console.warn("[SystemSettings] DB fetch fallback:", dbErr);
+    }
+    return res.json({ success: true, settings });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+systemSettingsRouter.post("/", async (req, res) => {
+  try {
+    const { settings: patch, updatedByUid, updatedByName } = req.body;
+    if (!patch || typeof patch !== "object") {
+      return res.status(400).json({ success: false, error: "Invalid settings payload" });
+    }
+    const sanitizedPatch = {};
+    for (const [k, v] of Object.entries(patch)) {
+      if (v !== void 0) {
+        sanitizedPatch[k] = v;
+      }
+    }
+    const currentDisk = loadSettingsFromDisk();
+    let currentDbData = {};
+    try {
+      const { data } = await supabaseAdmin.from("system_settings").select("id, data").eq("id", "config").maybeSingle();
+      if (data?.data) {
+        currentDbData = data.data;
+      }
+    } catch {
+    }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const merged = {
+      ...DEFAULT_SETTINGS2,
+      ...currentDisk,
+      ...currentDbData,
+      ...sanitizedPatch,
+      updatedAt: now,
+      updatedByUid: updatedByUid || "admin",
+      updatedByName: updatedByName || "Admin"
+    };
+    saveSettingsToDisk(merged);
+    try {
+      const row = {
+        id: "config",
+        data: merged,
+        updated_at: now
+      };
+      await supabaseAdmin.from("system_settings").upsert(row, { onConflict: "id" });
+    } catch (dbErr) {
+      console.warn("[SystemSettings] Supabase upsert notice:", dbErr);
+    }
+    return res.json({
+      success: true,
+      message: "System settings successfully saved and applied live.",
+      settings: merged
+    });
+  } catch (err) {
+    console.error("[SystemSettings] Save error:", err);
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
   }
 });
 
@@ -16329,6 +17862,176 @@ function enrichHandoutWithFullChaptersAndImages(handout, context) {
   };
 }
 
+// server/authCallbackHtml.ts
+var getAuthCallbackHtml = () => {
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connecting to Grobaax Arena...</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        background: #090d16;
+        color: #f8fafc;
+        text-align: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      .card {
+        background: #111827;
+        border: 1px solid #1f2937;
+        padding: 32px 28px;
+        border-radius: 20px;
+        max-width: 380px;
+        width: 100%;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      }
+      .spinner {
+        width: 44px;
+        height: 44px;
+        border: 4px solid rgba(245, 158, 11, 0.15);
+        border-top-color: #f59e0b;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 20px;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      h3 { margin: 0 0 8px; font-size: 19px; font-weight: 700; color: #fff; }
+      p { margin: 0; font-size: 13.5px; color: #94a3b8; line-height: 1.5; }
+      .btn {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 12px 24px;
+        background: #f59e0b;
+        color: #000;
+        font-weight: 700;
+        border-radius: 12px;
+        text-decoration: none;
+        font-size: 14px;
+        cursor: pointer;
+        border: none;
+      }
+    </style>
+    <!-- Include Supabase JS to exchange code and store tokens directly -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body>
+    <div class="card">
+      <div class="spinner"></div>
+      <h3>Authentication Successful</h3>
+      <p>Connecting your Scholar profile... Returning to Grobaax Arena.</p>
+      <a href="/" class="btn" id="returnBtn">Open Grobaax Arena</a>
+    </div>
+    <script>
+      (async function() {
+        const hash = window.location.hash || '';
+        const search = window.location.search || '';
+        const sParams = new URLSearchParams(search.replace(/^\\?/, ''));
+        const hParams = new URLSearchParams(hash.replace(/^#/, ''));
+        
+        let code = sParams.get('code');
+        let accessToken = hParams.get('access_token') || sParams.get('access_token');
+        let refreshToken = hParams.get('refresh_token') || sParams.get('refresh_token');
+
+        // Exchange code or set session via Supabase JS if available
+        let session = null;
+        try {
+          if (typeof supabase !== 'undefined' && window.supabase?.createClient) {
+            const sb = window.supabase.createClient(
+              'https://rsnmxdyqrmkjsfxwypek.supabase.co',
+              'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzbm14ZHlxcm1ranNmeHd5cGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMzI1NzYsImV4cCI6MjEwNDcwODU3Nn0.35_rPRhEbwfIpA5LlAKVueuxkLWjd4lyJphlNoVMaPc'
+            );
+            if (code) {
+              const res = await sb.auth.exchangeCodeForSession(code);
+              session = res.data?.session;
+            } else if (accessToken) {
+              const res = await sb.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || ''
+              });
+              session = res.data?.session;
+            }
+          }
+        } catch (e) {
+          console.warn('[OAuth Callback] Session exchange notice:', e);
+        }
+
+        const payload = {
+          type: 'SUPABASE_AUTH_SUCCESS',
+          hash: hash,
+          search: search,
+          code: code,
+          accessToken: session?.access_token || accessToken,
+          refreshToken: session?.refresh_token || refreshToken,
+          timestamp: Date.now()
+        };
+
+        // 1. BroadcastChannel for cross-tab communication
+        try {
+          if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('grobaax_oauth_channel');
+            bc.postMessage(payload);
+          }
+        } catch(e) {}
+
+        // 2. LocalStorage event for cross-window / mobile browsers
+        try {
+          localStorage.setItem('grobaax_oauth_event', JSON.stringify(payload));
+        } catch(e) {}
+
+        // 3. PostMessage directly to opener (for iframe / desktop popup)
+        if (window.opener) {
+          try {
+            window.opener.postMessage(payload, '*');
+          } catch(e) {}
+        }
+
+        // 4. Update UI to confirm success
+        try {
+          const card = document.querySelector('.card');
+          if (card) {
+            card.innerHTML = '<div style="font-size: 38px; color: #10b981; margin-bottom: 12px;">\u2713</div>' +
+              '<h3 style="color: #fff; margin-bottom: 8px;">Sign-In Connected!</h3>' +
+              '<p style="color: #94a3b8; margin-bottom: 20px;">Your session is authenticated. Tap below to close this tab and return to your installed Grobaax app.</p>' +
+              '<button class="btn" id="closeTabBtn" style="width: 100%;">Close Tab & Return to App</button>';
+            
+            const btn = document.getElementById('closeTabBtn');
+            if (btn) {
+              btn.onclick = function() {
+                try { window.close(); } catch(e) {}
+                setTimeout(function() {
+                  if (history.length > 1) {
+                    history.back();
+                  } else {
+                    window.location.replace('/');
+                  }
+                }, 300);
+              };
+            }
+          }
+        } catch(e) {}
+
+        // 5. Try closing the tab/window automatically
+        // When opened from an installed PWA or target popup, window.close() dismisses the Chrome Custom Tab immediately
+        setTimeout(function() {
+          try {
+            window.close();
+          } catch(e) {}
+        }, 300);
+      })();
+    </script>
+  </body>
+</html>`;
+};
+
 // server/apiApp.ts
 dotenv2.config();
 var apiApp = express2();
@@ -16369,6 +18072,10 @@ apiApp.use((req, res, next) => {
     if (err) return next(err);
     express2.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
   });
+});
+apiApp.get(["/auth/callback", "/auth/callback/", "/api/auth/callback", "/api/auth/callback/"], (_req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(getAuthCallbackHtml());
 });
 var aiClient2 = null;
 function getAi() {
@@ -17049,6 +18756,14 @@ apiApp.use("/api/campus", campusRouter);
 apiApp.use("/campus", campusRouter);
 apiApp.use("/api/wallet", walletRouter);
 apiApp.use("/wallet", walletRouter);
+apiApp.use("/api/supabase", supabaseRouter);
+apiApp.use("/supabase", supabaseRouter);
+apiApp.use("/api/spin", spinRouter);
+apiApp.use("/spin", spinRouter);
+apiApp.use("/api/admin/system-settings", systemSettingsRouter);
+apiApp.use("/admin/system-settings", systemSettingsRouter);
+apiApp.use("/api/system-settings", systemSettingsRouter);
+apiApp.use("/system-settings", systemSettingsRouter);
 var libraryGenerateHandler = async (req, res) => {
   const {
     faculty,

@@ -57,6 +57,7 @@ export const SchoolDomeAdminSeasonModal: React.FC<SchoolDomeAdminSeasonModalProp
     (season.rules && season.rules.length > 0 ? season.rules : [
       'Registration is completely free and open to all verified scholars before Question #1 begins.',
       'Users cannot participate or register any longer after the first question has been launched.',
+      'Question cards are exclusively reserved for Premium and VIP scholars; Free users cannot reply to question cards.',
       'Each scholar receives exactly ONE attempt per live elimination question challenge.',
       'Elimination Criteria: Users are eliminated by: 1) Not answering a particular question before the time expired, 2) Answering wrong.',
       'Submitting the correct answer within the time limit secures survival and advancement to the next question.',
@@ -96,6 +97,7 @@ export const SchoolDomeAdminSeasonModal: React.FC<SchoolDomeAdminSeasonModalProp
         (season.rules && season.rules.length > 0 ? season.rules : [
           'Registration is completely free and open to all verified scholars before Question #1 begins.',
           'Users cannot participate or register any longer after the first question has been launched.',
+          'Question cards are exclusively reserved for Premium and VIP scholars; Free users cannot reply to question cards.',
           'Each scholar receives exactly ONE attempt per live elimination question challenge.',
           'Elimination Criteria: Users are eliminated by: 1) Not answering a particular question before the time expired, 2) Answering wrong.',
           'Submitting the correct answer within the time limit secures survival and advancement to the next question.',

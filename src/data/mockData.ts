@@ -75,6 +75,7 @@ export const MOCK_USERS: Record<string, UserProfile> = {
     },
     badges: [],
     purchasedBadgeIds: [],
+    createdAt: new Date().toISOString(),
   },
   representative: {
     id: 'usr_rep_01',

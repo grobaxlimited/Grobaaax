@@ -20,8 +20,9 @@ interface SchoolDomeRulesModalProps {
 }
 
 const DEFAULT_STANDARD_RULES = [
-  'Registration is completely free and open to all verified scholars before Question #1 begins.',
+  'Registration is open to all verified scholars before Question #1 begins.',
   'Users cannot participate or register any longer after the first question has been launched.',
+  'Question cards are exclusively reserved for Premium and VIP contenders (Admin set for Premium & VIP; Free users cannot reply to question cards).',
   'Each scholar receives exactly ONE attempt per live elimination question.',
   'Elimination Condition 1: Users are eliminated by not answering a particular question before the time expires.',
   'Elimination Condition 2: Users are eliminated by answering wrong.',

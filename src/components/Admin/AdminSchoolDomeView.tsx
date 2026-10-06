@@ -380,7 +380,7 @@ export const AdminSchoolDomeView: React.FC = () => {
                 setIsCreateQModalOpen(true);
               }}
               className="px-4 py-2 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 text-xs font-black rounded-xl shadow-md transition hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5"
-              title="Launch elimination question for Free, Premium, or VIP contenders with specific time limit"
+              title="Launch elimination question (Admin set for Premium and VIP contenders; Free users restricted from replying)"
             >
               <span className="w-4 h-4 rounded-full bg-slate-950 text-amber-400 flex items-center justify-center font-black text-[10px]">
                 Q
@@ -453,6 +453,9 @@ export const AdminSchoolDomeView: React.FC = () => {
               </h3>
 
               <div className="flex items-center gap-4 text-xs text-slate-300 flex-wrap">
+                <span className="px-2.5 py-0.5 rounded-lg bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[11px] font-bold">
+                  ⭐ Admin set for: {activeQuestion.targetPlanName || (activeQuestion.targetTier === 'vip' ? 'VIP / Titan Only' : 'Premium & VIP')} (Free users restricted)
+                </span>
                 <span className="flex items-center gap-1 text-emerald-400 font-bold">
                   <CheckCircle2 className="w-4 h-4" />
                   Answer: {activeQuestion.correctAnswer}

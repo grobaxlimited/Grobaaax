@@ -5114,7 +5114,7 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   enableGusRegistration: true,
   announcementBannerText: '',
   announcementBannerActive: false,
-  welcomeVideoUrl: 'https://youtu.be/o9W0Ypmr1AA?si=x4s0isjgxGheEGbK',
+  welcomeVideoUrl: 'https://youtu.be/1xGJ2RpUqOk?si=K0rBxEwdXLdOxUl7',
   welcomeVideoTitle: 'How Grobaax Works: Complete Platform Guide & Walkthrough',
   welcomeVideoDescription: 'Watch this comprehensive guide to understand all features of Grobaax: represent your institution in School Dome, generate academic handouts in Library, recharge VTU airtime & data, trade in Mini Mart, and connect with campus peers.',
   welcomeVideoActive: true,
@@ -5926,8 +5926,8 @@ export const createChatroomLiveQuestionInFirestore = async (
       status: 'active',
       winnerLimit,
       gpRewardPerWinner: gpReward,
-      allowFreeParticipation: questionData.allowFreeParticipation !== false,
-      premiumRequiredForRewards: false,
+      allowFreeParticipation: false,
+      premiumRequiredForRewards: true,
       selectedWinners: [],
       totalSubmissionsCount: 0,
       createdAt: now,
@@ -5978,7 +5978,7 @@ export const createChatroomLiveQuestionInFirestore = async (
         gpReward: gpReward,
         rewardAmount: gpReward,
         winnerCountLimit: winnerLimit,
-        allowFreeParticipation: true,
+        allowFreeParticipation: false,
         timeLimitSeconds: timeLimit,
         startAt: now,
         endAt: endAt,
@@ -6525,75 +6525,14 @@ export const evaluateAndProcessLiveAnswer = async (
 
     const isRewardEligible = isStaffOrAdmin || isUserVip || isUserPremium;
 
-    // SCENARIO 1: FREE SCHOLAR
-    // Free users can participate and the system marks them correct, but cash GP is reserved for Premium/VIP
+    // Free scholars should not be able to reply to a question card (Admin set for Premium and VIP)
     if (!isRewardEligible) {
-      const freeRecord = {
-        userId: user.id,
-        userName: user.name || user.username || 'Grobaax Scholar',
-        userAvatar:
-          user.avatar ||
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        institution: user.institution || 'Grobaax Scholar',
-        submittedAt: now,
-        submittedAnswer: submittedAnswerText.trim(),
-        isCorrect: true,
-        tier: 'free',
-      };
-
-      // 1. Mark user attempt & correct answer on question doc
-      await setDoc(
-        qRef,
-        {
-          freeCorrectScholars: arrayUnion(freeRecord),
-          repliedUserIds: arrayUnion(user.id),
-          repliedUsernames: arrayUnion(normalizedUserName),
-          totalSubmissionsCount: increment(1),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      // Sync question message in live feed with updated repliedUserIds
-      try {
-        const qMsgRef = doc(db, 'chatroom_live_messages', `msg_q_${question.id}`);
-        await setDoc(
-          qMsgRef,
-          {
-            'competitionRef.repliedUserIds': arrayUnion(user.id),
-            'competitionRef.repliedUsernames': arrayUnion(normalizedUserName),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      } catch (e) {
-        console.warn('Notice syncing question message in live feed:', e);
-      }
-
-      // Send real-time push notification indicating they are correct
-      try {
-        await sendBroadcastNotificationToFirestore(
-          {
-            title: `🎯 Correct Answer on Challenge #${question.questionNumber}!`,
-            message: `You answered "${submittedAnswerText.trim()}" correctly! Great job! Note: Cash GP prizes are reserved for Premium & VIP scholars. Upgrade to claim GP on live challenges!`,
-            type: 'gus',
-            userId: user.id,
-            targetUserId: user.id,
-            actionUrl: '#upgrade',
-          },
-          'grobax_arbiter',
-          'Grobaax Arbiter 🎯'
-        );
-      } catch (notifErr) {
-        console.warn('Error dispatching notification to free correct user:', notifErr);
-      }
-
       return {
-        isCorrect: true,
+        isCorrect: false,
         isWinner: false,
         gpAwarded: 0,
-        isAttemptConsumed: true,
-        message: `🎯 Correct answer: "${submittedAnswerText.trim()}"! (Free Scholar: GP prizes are reserved for Premium & VIP scholars)`,
+        isAttemptConsumed: false,
+        message: 'Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers. Upgrade your plan to participate!',
       };
     }
 

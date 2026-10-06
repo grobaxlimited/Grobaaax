@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient, User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User as SupabaseUser, type Session } from '@supabase/supabase-js';
 
 // Safe environment variable resolution supporting Vite, browser, and Node.js
 const safeGetEnv = (key: string): string => {
