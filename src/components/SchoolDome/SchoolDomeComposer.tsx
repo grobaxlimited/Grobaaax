@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   SchoolDomeMessage,
+  SchoolDomeQuestion,
 } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { isSubscriptionExpired } from '../../lib/firebase';
@@ -20,6 +21,7 @@ interface SchoolDomeComposerProps {
   onSendMessage: (text: string, replyTo?: SchoolDomeMessage['replyTo']) => void;
   replyToMessage?: SchoolDomeMessage | null;
   onCancelReply?: () => void;
+  activeQuestion?: SchoolDomeQuestion | null;
   isChatMuted?: boolean;
   isPaused?: boolean;
   channelName?: string;
@@ -39,6 +41,7 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
   onSendMessage,
   replyToMessage,
   onCancelReply,
+  activeQuestion,
   isChatMuted,
   isPaused = false,
   channelName = 'school-dome',
@@ -122,6 +125,15 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
       (replyToMessage.competitionRef?.targetTier || '').toLowerCase() === 'all' ||
       (replyToMessage.competitionRef?.targetTier || '').toLowerCase() === 'free' ||
       replyToMessage.competitionRef?.allowFreeParticipation === true ||
+      (activeQuestion && (
+        (activeQuestion.targetTier || '').toLowerCase() === 'all' ||
+        (activeQuestion.targetTier || '').toLowerCase() === 'free' ||
+        activeQuestion.allowFreeParticipation === true ||
+        (activeQuestion.targetPlanName || '').toLowerCase().includes('all user') ||
+        (activeQuestion.targetPlanName || '').toLowerCase().includes('free + premium') ||
+        (activeQuestion.targetPlanName || '').toLowerCase().includes('free users') ||
+        (activeQuestion.targetPlanName || '').toLowerCase().includes('open to all')
+      )) ||
       (replyToMessage.targetPlanName || '').toLowerCase().includes('all user') ||
       (replyToMessage.targetPlanName || '').toLowerCase().includes('free + premium') ||
       (replyToMessage.targetPlanName || '').toLowerCase().includes('free users') ||
@@ -140,14 +152,14 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
   // Input should never be disabled for normal chatting; only disabled if season is paused
   const isInputDisabled = isPausedForUser;
 
-  // If user already replied to this question card or is restricted, automatically cancel reply target so they can continue texting normally!
+  // If user already replied and used their 1 attempt on this question, cancel reply target so they can continue texting normally in the arena
   useEffect(() => {
-    if (replyToMessage?.type === 'question' && (hasRepliedToTarget || isFreeScholarRestrictedOnQuestion)) {
+    if (replyToMessage?.type === 'question' && hasRepliedToTarget) {
       if (onCancelReply) {
         onCancelReply();
       }
     }
-  }, [replyToMessage?.id, hasRepliedToTarget, isFreeScholarRestrictedOnQuestion, onCancelReply]);
+  }, [replyToMessage?.id, hasRepliedToTarget, onCancelReply]);
 
   useEffect(() => {
     if (replyToMessage && inputRef.current && !isQuestionReplyBlocked) {

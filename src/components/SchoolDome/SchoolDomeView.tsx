@@ -962,30 +962,14 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
     // Prevent replying twice to a question challenge
     if (isTargetingAnyQuestion && targetQuestionObj) {
-      const isTargetQForAll = Boolean(
-        (targetQuestionObj.targetTier || '').toLowerCase() === 'all' ||
-        (targetQuestionObj.targetTier || '').toLowerCase() === 'free' ||
-        targetQuestionObj.allowFreeParticipation === true ||
-        (targetQuestionObj.targetPlanName || '').toLowerCase().includes('all user') ||
-        (targetQuestionObj.targetPlanName || '').toLowerCase().includes('free + premium') ||
-        (targetQuestionObj.targetPlanName || '').toLowerCase().includes('free users') ||
-        (targetQuestionObj.targetPlanName || '').toLowerCase().includes('open to all')
-      );
-
-      if (!isTargetQForAll && !isStaffOrAdmin && !isVIP && !isPremium) {
-        alert(
-          'Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers. Upgrade to Premium or VIP to participate in question challenges!'
-        );
-        setReplyTarget(null);
-        if (openWalletModal) openWalletModal('upgrade');
-        return;
-      }
-
       const qPlanEligibility = checkScholarSchoolDomePlanEligibility(currentUser, targetQuestionObj);
       if (!qPlanEligibility.isEligible && !isStaffOrAdmin) {
         alert(
-          `Your subscription plan (${qPlanEligibility.userPlanName}) is not eligible to answer this question. Required: ${qPlanEligibility.requiredPlanText}. Your tournament standing is safe.`
+          qPlanEligibility.reason ||
+          `Question restricted to ${qPlanEligibility.requiredPlanText}. Upgrade to participate in question challenges!`
         );
+        setReplyTarget(null);
+        if (openWalletModal) openWalletModal('upgrade');
         return;
       }
 
@@ -1166,25 +1150,24 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
   };
 
   const handleAnswerSubmit = (msg: SchoolDomeMessage, answerText: string) => {
-    const isMsgOpenToAll = Boolean(
-      (msg.targetTier || '').toLowerCase() === 'all' ||
-      (msg.targetTier || '').toLowerCase() === 'free' ||
-      msg.allowFreeParticipation === true ||
-      (msg.competitionRef?.targetTier || '').toLowerCase() === 'all' ||
-      (msg.competitionRef?.targetTier || '').toLowerCase() === 'free' ||
-      msg.competitionRef?.allowFreeParticipation === true ||
-      (msg.targetPlanName || '').toLowerCase().includes('all user') ||
-      (msg.targetPlanName || '').toLowerCase().includes('free + premium') ||
-      (msg.targetPlanName || '').toLowerCase().includes('free users') ||
-      (msg.targetPlanName || '').toLowerCase().includes('open to all') ||
-      (msg.competitionRef?.targetPlanName || '').toLowerCase().includes('all user') ||
-      (msg.competitionRef?.targetPlanName || '').toLowerCase().includes('free + premium') ||
-      (msg.competitionRef?.targetPlanName || '').toLowerCase().includes('free users') ||
-      (msg.competitionRef?.targetPlanName || '').toLowerCase().includes('open to all')
-    );
+    const canonicalQId = getCanonicalQuestionId(msg);
+    const qObj: SchoolDomeQuestion | null =
+      (activeQuestion && getCanonicalQuestionId(activeQuestion) === canonicalQId ? activeQuestion : null) ||
+      seasonQuestions?.find(q => getCanonicalQuestionId(q) === canonicalQId) ||
+      ({
+        id: msg.competitionRef?.questionId || msg.id,
+        targetTier: msg.targetTier || msg.competitionRef?.targetTier,
+        targetPlanName: msg.targetPlanName || msg.competitionRef?.targetPlanName,
+        allowedPlanIds: msg.allowedPlanIds || msg.competitionRef?.allowedPlanIds,
+        allowFreeParticipation: msg.allowFreeParticipation || msg.competitionRef?.allowFreeParticipation,
+      } as any);
 
-    if (!isMsgOpenToAll && !isStaffOrAdmin && !isVIP && !isPremium) {
-      alert('Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers. Upgrade to Premium or VIP to participate in question challenges!');
+    const planCheck = checkScholarSchoolDomePlanEligibility(currentUser, qObj);
+    if (!planCheck.isEligible && !isStaffOrAdmin) {
+      alert(
+        planCheck.reason ||
+        `Question restricted to ${planCheck.requiredPlanText}. Upgrade your plan to participate!`
+      );
       if (openWalletModal) openWalletModal('upgrade');
       return;
     }
@@ -1590,21 +1573,30 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                 onCloseQuestion={isStaffOrAdmin ? (qId) => closeSchoolDomeQuestion(currentSeason?.id || 'season_dome_1', qId) : undefined}
                 onExtendTime={isStaffOrAdmin ? (qId, extra) => extendSchoolDomeQuestionTime(qId, extra) : undefined}
                 onReplyToAnswer={(q) => {
-                  const isQForAll = Boolean(
-                    (q.targetTier || '').toLowerCase() === 'all' ||
-                    (q.targetTier || '').toLowerCase() === 'free' ||
-                    q.allowFreeParticipation === true ||
-                    (q.targetPlanName || '').toLowerCase().includes('all user') ||
-                    (q.targetPlanName || '').toLowerCase().includes('free + premium') ||
-                    (q.targetPlanName || '').toLowerCase().includes('free users') ||
-                    (q.targetPlanName || '').toLowerCase().includes('open to all')
-                  );
-                  if (!isQForAll && (isFreeScholar || (!isStaffOrAdmin && !isVIP && !isPremium))) {
-                    alert('Question cards are exclusively reserved for Premium and VIP scholars. Free users cannot submit answers. Upgrade to Premium or VIP to participate in question challenges!');
+                  const planCheck = checkScholarSchoolDomePlanEligibility(currentUser, q);
+                  if (!planCheck.isEligible && !isStaffOrAdmin) {
+                    alert(
+                      planCheck.reason ||
+                      `Question restricted to ${planCheck.requiredPlanText}. Upgrade to participate in question challenges!`
+                    );
                     if (openWalletModal) openWalletModal('upgrade');
                     return;
                   }
-                  const targetMsg = messages.find(m => m.type === 'question' && getCanonicalQuestionId(m) === getCanonicalQuestionId(q.id)) || {
+                  const existingMsg = messages.find(m => m.type === 'question' && getCanonicalQuestionId(m) === getCanonicalQuestionId(q.id));
+                  const targetMsg: SchoolDomeMessage = existingMsg ? {
+                    ...existingMsg,
+                    targetTier: q.targetTier || existingMsg.targetTier,
+                    targetPlanName: q.targetPlanName || existingMsg.targetPlanName,
+                    allowedPlanIds: q.allowedPlanIds || existingMsg.allowedPlanIds,
+                    allowFreeParticipation: q.allowFreeParticipation ?? existingMsg.allowFreeParticipation,
+                    competitionRef: existingMsg.competitionRef ? {
+                      ...existingMsg.competitionRef,
+                      targetTier: q.targetTier || existingMsg.competitionRef.targetTier,
+                      targetPlanName: q.targetPlanName || existingMsg.competitionRef.targetPlanName,
+                      allowedPlanIds: q.allowedPlanIds || existingMsg.competitionRef.allowedPlanIds,
+                      allowFreeParticipation: q.allowFreeParticipation ?? existingMsg.competitionRef.allowFreeParticipation,
+                    } : undefined,
+                  } : {
                     id: `msg_${q.id}`,
                     type: 'question',
                     userId: PRIMARY_SUPER_ADMIN_UID,
@@ -1612,6 +1604,10 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                     messageText: q.questionText,
                     timestamp: q.startAt,
                     seasonId: currentSeason?.id || 'season_dome_1',
+                    targetTier: q.targetTier,
+                    targetPlanName: q.targetPlanName,
+                    allowedPlanIds: q.allowedPlanIds,
+                    allowFreeParticipation: q.allowFreeParticipation,
                     competitionRef: {
                       questionId: q.id,
                       questionNumber: q.questionNumber,
@@ -1621,6 +1617,10 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                       startAt: q.startAt,
                       endAt: q.endAt,
                       status: q.status,
+                      targetTier: q.targetTier,
+                      targetPlanName: q.targetPlanName,
+                      allowedPlanIds: q.allowedPlanIds,
+                      allowFreeParticipation: q.allowFreeParticipation,
                     },
                   } as SchoolDomeMessage;
                   setReplyTarget(targetMsg);
@@ -1636,6 +1636,10 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                     messageText: q.questionText,
                     timestamp: q.startAt,
                     seasonId: currentSeason?.id || 'season_dome_1',
+                    targetTier: q.targetTier,
+                    targetPlanName: q.targetPlanName,
+                    allowedPlanIds: q.allowedPlanIds,
+                    allowFreeParticipation: q.allowFreeParticipation,
                     competitionRef: {
                       questionId: q.id,
                       questionNumber: q.questionNumber,
@@ -1645,6 +1649,10 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                       startAt: q.startAt,
                       endAt: q.endAt,
                       status: q.status,
+                      targetTier: q.targetTier,
+                      targetPlanName: q.targetPlanName,
+                      allowedPlanIds: q.allowedPlanIds,
+                      allowFreeParticipation: q.allowFreeParticipation,
                     },
                   } as any, text);
                 }}
@@ -1896,6 +1904,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                 onSendMessage={handleSendMessage}
                 replyToMessage={replyTarget}
                 onCancelReply={() => setReplyTarget(null)}
+                activeQuestion={activeQuestion}
                 isChatMuted={false}
                 isPaused={currentSeason?.status === 'paused'}
                 channelName="school-dome"

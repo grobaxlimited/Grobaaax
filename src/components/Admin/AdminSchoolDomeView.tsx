@@ -453,9 +453,24 @@ export const AdminSchoolDomeView: React.FC = () => {
               </h3>
 
               <div className="flex items-center gap-4 text-xs text-slate-300 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-lg bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[11px] font-bold">
-                  ⭐ Admin set for: {activeQuestion.targetPlanName || (activeQuestion.targetTier === 'vip' ? 'VIP / Titan Only' : 'Premium & VIP')} (Free users restricted)
-                </span>
+                {Boolean(
+                  (activeQuestion.targetTier || '').toLowerCase() === 'all' ||
+                  (activeQuestion.targetTier || '').toLowerCase() === 'free' ||
+                  activeQuestion.allowFreeParticipation === true ||
+                  (activeQuestion.targetPlanName || '').toLowerCase().includes('all user') ||
+                  (activeQuestion.targetPlanName || '').toLowerCase().includes('free + premium') ||
+                  (activeQuestion.targetPlanName || '').toLowerCase().includes('free users') ||
+                  (activeQuestion.targetPlanName || '').toLowerCase().includes('open to all')
+                ) ? (
+                  <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1">
+                    <span>🌐</span>
+                    <span>Admin set for: All Users (Free + Premium + VIP Can Answer)</span>
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-lg bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[11px] font-bold">
+                    ⭐ Admin set for: {activeQuestion.targetPlanName || (activeQuestion.targetTier === 'vip' ? 'VIP / Titan Only' : 'Premium & VIP')} (Free users restricted)
+                  </span>
+                )}
                 <span className="flex items-center gap-1 text-emerald-400 font-bold">
                   <CheckCircle2 className="w-4 h-4" />
                   Answer: {activeQuestion.correctAnswer}
