@@ -510,13 +510,15 @@ export const DEFAULT_FREE_SCHOLAR_PLAN: SubscriptionPlan = {
   durationValue: 1,
   durationUnit: 'Years',
   benefits: [
-    'School Dome Arena Access',
-    'Browse Campus Minimart (Discovery Only)',
-    'Withdrawal Eligibility — Not Available',
-    'SchoolDome',
-    'Campus connect — Limited Access',
-    'Competition - Hint — Not Available',
-    'GbX Ads — Available',
+    'School Dome — Available (Admin "All Users" questions only)',
+    'Hint — Not Available (Subscription required)',
+    'Withdrawal Eligibility — Not Available (Subscription required)',
+    'Campus Minimart Products Listing — Not Available (Subscription required)',
+    'Grobaax Pop-up Upgrade Ads — Active (Every 10 min interval)',
+    'Profile Verification Badge — Not Available',
+    'Campus Connect — Available (Same institution only)',
+    'Airtime & Data Redemption — 24/7 Available',
+    'School Dome Elimination Spinning Bonus — Not Available',
   ],
   features: ['Lifetime Validity', 'Standard Access', 'Ad-Supported'],
   badgeLabel: 'FREE FOREVER',
@@ -533,7 +535,7 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     planId: 'plan_basic_naira',
     name: 'Scholar Starter Plan',
     shortDescription: 'Essential premium academic privileges & competition access',
-    fullDescription: 'Essential premium plan for scholars wanting arena competitions, withdrawal eligibility, AI library handouts, and minimart listings.',
+    fullDescription: 'Essential premium plan for scholars wanting arena competitions, withdrawal eligibility, hints, and minimart listings.',
     priceNaira: 1000,
     currency: 'NGN',
     targetTier: 'premium',
@@ -541,15 +543,18 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     durationValue: 30,
     durationUnit: 'Days',
     benefits: [
-      'School Dome Arena — Active Participation',
+      'School Dome — Full Access (Free + Premium questions)',
+      'Hint — Full Access',
       'Withdrawal Eligibility — Available',
-      'AI Library — 5 Handout Generations',
       'Campus Minimart Products Listing (3 / Day)',
-      'No Grobaax Pop-up Upgrade Ads',
+      'No Grobaax Pop-up Upgrade Ads (Ad-Free)',
       'Profile Verification Badge — Available',
       'Premium Badge — Available',
+      'Campus Connect — Full Access (All institutions)',
+      'Airtime & Data Redemption — 24/7 Available',
+      'School Dome Elimination Spinning Bonus — Available',
     ],
-    features: ['30 Days Validity', 'Arena Battles', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'No Pop-up Ads', 'Premium Badge'],
+    features: ['30 Days Validity', 'Full Hint Access', '3 Minimart Listings/Day', 'No Pop-up Ads', 'Premium Badge'],
     badgeLabel: 'POPULAR',
     featured: false,
     active: true,
@@ -570,16 +575,18 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     durationValue: 30,
     durationUnit: 'Days',
     benefits: [
-      'School Dome Arena — Active Participation',
+      'School Dome — Full Access (Free + Premium questions)',
+      'Hint — Full Access',
       'Withdrawal Eligibility — Available',
-      'AI Library — 5 Handout Generations',
       'Campus Minimart Products Listing (3 / Day)',
-      'No Grobaax Pop-up Upgrade Ads',
-      '2x GP Reward Multiplier on all Competitions',
-      'Profile Badge & Premium Badge — Available',
-      'Priority Live Match Queue & Arena Access',
+      'No Grobaax Pop-up Upgrade Ads (Ad-Free)',
+      'Profile Verification Badge — Available',
+      'Premium Badge — Available',
+      'Campus Connect — Full Access (All institutions)',
+      'Airtime & Data Redemption — 24/7 Available',
+      'School Dome Elimination Spinning Bonus — Available',
     ],
-    features: ['30 Days Validity', 'Arena Battles', '2x GP Multiplier', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'Premium Badge'],
+    features: ['30 Days Validity', 'Full Hint Access', '2x GP Multiplier', '3 Minimart Listings/Day', 'Premium Badge'],
     badgeLabel: 'RECOMMENDED',
     featured: true,
     active: true,
@@ -600,16 +607,18 @@ export const DEFAULT_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     durationValue: 365,
     durationUnit: 'Days',
     benefits: [
-      'School Dome Arena — Priority VIP Access',
-      'Withdrawal Eligibility — Available (Zero Processing Fees)',
-      'AI Library — Unlimited Handouts Generation',
+      'School Dome — Full Access (Free + Premium + VIP questions)',
+      'Hint — Full Access',
+      'Withdrawal Eligibility — Available',
       'Campus Minimart Products Listing (6 / Day)',
-      'No Grobaax Pop-up Upgrade Ads',
-      'Profile Badge & VIP Gold Crown Badge — Available',
-      '3x GP Reward Multiplier across all League Rounds',
-      'Instant Representative Fast-Track Review',
+      'No Grobaax Pop-up Upgrade Ads (Ad-Free)',
+      'Profile Verification Badge — Available',
+      'VIP Badge — Available',
+      'Campus Connect — Full Access (All institutions)',
+      'Airtime & Data Redemption — 24/7 Available',
+      'School Dome Elimination Spinning Bonus — Available',
     ],
-    features: ['365 Days Validity', 'VIP Arena Battles', 'Unlimited AI Handouts', '6 Minimart Listings/Day', '3x GP Multiplier', 'Gold VIP Crown'],
+    features: ['365 Days Validity', 'VIP Arena Battles', 'Full Hint Access', '6 Minimart Listings/Day', 'Gold VIP Crown'],
     badgeLabel: 'VIP ANNUAL',
     featured: false,
     active: true,
@@ -6059,14 +6068,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const curUser = currentUserRef.current;
       const fbUser = firebaseUserRef.current;
-      const days =
-        plan.durationUnit === 'Years'
-          ? plan.durationValue * 365
-          : plan.durationUnit === 'Months'
-          ? plan.durationValue * 30
-          : plan.durationValue;
+      let durationMs = (Number(plan.durationValue) || 30) * 24 * 60 * 60 * 1000;
+      if (plan.durationUnit === 'Hours') {
+        durationMs = (Number(plan.durationValue) || 24) * 60 * 60 * 1000;
+      } else if (plan.durationUnit === 'Days') {
+        durationMs = (Number(plan.durationValue) || 30) * 24 * 60 * 60 * 1000;
+      } else if (plan.durationUnit === 'Weeks') {
+        durationMs = (Number(plan.durationValue) || 1) * 7 * 24 * 60 * 60 * 1000;
+      } else if (plan.durationUnit === 'Months') {
+        durationMs = (Number(plan.durationValue) || 1) * 30 * 24 * 60 * 60 * 1000;
+      } else if (plan.durationUnit === 'Years') {
+        durationMs = (Number(plan.durationValue) || 1) * 365 * 24 * 60 * 60 * 1000;
+      }
       const startDate = new Date().toISOString();
-      const expiryDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+      const expiryDate = new Date(Date.now() + durationMs).toISOString();
       const finalReference =
         customPaymentReference ||
         (paymentMethod === 'GP'

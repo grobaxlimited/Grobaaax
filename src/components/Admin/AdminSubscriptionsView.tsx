@@ -58,7 +58,7 @@ export function AdminSubscriptionsView() {
   const [formFullDesc, setFormFullDesc] = useState('');
   const [formPriceNaira, setFormPriceNaira] = useState<number | string>(1000);
   const [formDurationValue, setFormDurationValue] = useState<number>(30);
-  const [formDurationUnit, setFormDurationUnit] = useState<'Days' | 'Months' | 'Years'>('Days');
+  const [formDurationUnit, setFormDurationUnit] = useState<'Hours' | 'Days' | 'Weeks' | 'Months' | 'Years'>('Days');
   const [formBenefitsText, setFormBenefitsText] = useState('');
   const [formFeaturesText, setFormFeaturesText] = useState('');
   const [formBadgeLabel, setFormBadgeLabel] = useState('');
@@ -136,15 +136,18 @@ export function AdminSubscriptionsView() {
         durationValue: 30,
         durationUnit: 'Days',
         benefits: [
-          'School Dome Arena Access',
+          'School Dome — Full Access (Free + Premium questions)',
+          'Hint — Full Access',
           'Withdrawal Eligibility — Available',
-          'AI Library — 5 Handout Generations',
           'Campus Minimart Products Listing (3 / Day)',
-          'No Grobaax Pop-up Upgrade Ads',
+          'No Grobaax Pop-up Upgrade Ads (Ad-Free)',
           'Profile Verification Badge — Available',
           'Premium Badge — Available',
+          'Campus Connect — Full Access (All institutions)',
+          'Airtime & Data Redemption — 24/7 Available',
+          'School Dome Elimination Spinning Bonus — Available',
         ],
-        features: ['30 Days Validity', 'School Dome Access', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'No Pop-up Ads', 'Premium Badge'],
+        features: ['30 Days Validity', 'Full Hint Access', '3 Minimart Listings/Day', 'No Pop-up Ads', 'Premium Badge'],
         badgeLabel: 'POPULAR',
         featured: false,
         active: true,
@@ -164,16 +167,18 @@ export function AdminSubscriptionsView() {
         durationValue: 30,
         durationUnit: 'Days',
         benefits: [
-          'School Dome Arena Priority Access',
+          'School Dome — Full Access (Free + Premium questions)',
+          'Hint — Full Access',
           'Withdrawal Eligibility — Available',
-          'AI Library — 5 Handout Generations',
           'Campus Minimart Products Listing (3 / Day)',
-          'No Grobaax Pop-up Upgrade Ads',
-          '2x GP Reward Multiplier on all Competitions',
-          'Profile Badge & Premium Badge — Available',
-          'Priority Live Match Queue & Arena Access',
+          'No Grobaax Pop-up Upgrade Ads (Ad-Free)',
+          'Profile Verification Badge — Available',
+          'Premium Badge — Available',
+          'Campus Connect — Full Access (All institutions)',
+          'Airtime & Data Redemption — 24/7 Available',
+          'School Dome Elimination Spinning Bonus — Available',
         ],
-        features: ['30 Days Validity', '2x GP Multiplier', '5 AI Handouts/Day', '3 Minimart Listings/Day', 'Premium Badge'],
+        features: ['30 Days Validity', 'Full Hint Access', '2x GP Multiplier', '3 Minimart Listings/Day', 'Premium Badge'],
         badgeLabel: 'RECOMMENDED',
         featured: true,
         active: true,
@@ -193,16 +198,18 @@ export function AdminSubscriptionsView() {
         durationValue: 365,
         durationUnit: 'Days',
         benefits: [
-          'School Dome Arena VIP Access',
-          'Withdrawal Eligibility — Available (Zero Processing Fees)',
-          'AI Library — Unlimited Handouts Generation',
+          'School Dome — Full Access (Free + Premium + VIP questions)',
+          'Hint — Full Access',
+          'Withdrawal Eligibility — Available',
           'Campus Minimart Products Listing (6 / Day)',
-          'No Grobaax Pop-up Upgrade Ads',
-          'Profile Badge & VIP Gold Crown Badge — Available',
-          '3x GP Reward Multiplier across all League & Dome Rounds',
-          'Instant Representative Fast-Track Review',
+          'No Grobaax Pop-up Upgrade Ads (Ad-Free)',
+          'Profile Verification Badge — Available',
+          'VIP Badge — Available',
+          'Campus Connect — Full Access (All institutions)',
+          'Airtime & Data Redemption — 24/7 Available',
+          'School Dome Elimination Spinning Bonus — Available',
         ],
-        features: ['365 Days Validity', 'Unlimited AI Handouts', '6 Minimart Listings/Day', '3x GP Multiplier', 'Gold VIP Crown'],
+        features: ['365 Days Validity', 'VIP Arena Battles', 'Full Hint Access', '6 Minimart Listings/Day', 'Gold VIP Crown'],
         badgeLabel: 'VIP ANNUAL',
         featured: false,
         active: true,
@@ -1171,7 +1178,9 @@ export function AdminSubscriptionsView() {
                       onChange={(e) => setFormDurationUnit(e.target.value as any)}
                       className="flex-1 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                     >
+                      <option value="Hours">Hours</option>
                       <option value="Days">Days</option>
+                      <option value="Weeks">Weeks</option>
                       <option value="Months">Months</option>
                       <option value="Years">Years (Lifetime)</option>
                     </select>

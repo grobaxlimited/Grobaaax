@@ -460,15 +460,18 @@ export const WalletModal: React.FC = () => {
     e.preventDefault();
     setWithdrawalMessage(null);
 
+    const isUserExpired = isSubscriptionExpired(currentUser);
     const isFreeScholar =
-      !isUserSubscribed &&
+      isUserExpired ||
+      (!isUserSubscribed &&
       (!currentUser.membershipTier || currentUser.membershipTier.toLowerCase().includes('free')) &&
-      (!currentUser.subscriptionTier || currentUser.subscriptionTier.toLowerCase().includes('free'));
+      (!currentUser.subscriptionTier || currentUser.subscriptionTier.toLowerCase().includes('free')) &&
+      role !== 'admin');
 
-    if (isFreeScholar && !currentUser.isRepresentative && role !== 'admin') {
+    if (isFreeScholar) {
       setWithdrawalMessage({
         type: 'error',
-        text: '🔒 Direct bank cashout is exclusive to upgraded scholar tiers (Scholar Starter, Champions Pro, or Titan VIP). Please upgrade your tier or redeem for instant Airtime & Data.',
+        text: '🔒 Direct bank cashout is exclusive to upgraded scholar tiers (Premium or VIP). Free tier members must subscribe to withdraw cash. You can redeem your GP for instant Airtime & Data 24/7.',
       });
       return;
     }
@@ -2803,13 +2806,15 @@ export const WalletModal: React.FC = () => {
                           {(freeScholarPlan?.benefits && freeScholarPlan.benefits.length > 0
                             ? freeScholarPlan.benefits
                             : [
-                                'School Dome Arena Access',
-                                'Browse Campus Minimart (Discovery Only)',
-                                'Withdrawal Eligibility — Not Available',
-                                'SchoolDome',
-                                'Campus connect — Limited Access',
-                                'Competition - Hint — Not Available',
-                                'GbX Ads — Available',
+                                'School Dome — Available (Admin "All Users" questions only)',
+                                'Hint — Not Available (Subscription required)',
+                                'Withdrawal Eligibility — Not Available (Subscription required)',
+                                'Campus Minimart Products Listing — Not Available (Subscription required)',
+                                'Grobaax Pop-up Upgrade Ads — Active (Every 10 min interval)',
+                                'Profile Verification Badge — Not Available',
+                                'Campus Connect — Available (Same institution only)',
+                                'Airtime & Data Redemption — 24/7 Available',
+                                'School Dome Elimination Spinning Bonus — Not Available',
                               ]
                           ).map((benefit, bIdx) => {
                             const isUnavailable =

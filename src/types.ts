@@ -88,7 +88,7 @@ export interface SubscriptionPlan {
   targetTier?: SubscriptionTierType; // Base membership tier rule applied to this plan: 'free' | 'premium' | 'vip'
   tierType?: SubscriptionTierType;
   durationValue: number;
-  durationUnit: 'Days' | 'Months' | 'Years';
+  durationUnit: 'Hours' | 'Days' | 'Weeks' | 'Months' | 'Years';
   benefits: string[];
   features: string[];
   badgeLabel?: string;

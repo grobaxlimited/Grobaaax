@@ -201,12 +201,10 @@ export function HintsView() {
   const activeHintsSignal = Math.max(sectionNotifications?.hints || 0, recentHintsCount);
 
   // Check access permissions for an individual hint based on user tier
-  const canAccessHint = (hint: CompetitionHint): boolean => {
+  const canAccessHint = (_hint: CompetitionHint): boolean => {
     if (identifiedTier === 'admin') return true;
     if (identifiedTier === 'vip') return true;
-    if (identifiedTier === 'premium') {
-      return hint.accessLevel !== 'vip';
-    }
+    if (identifiedTier === 'premium') return true;
     // Free users cannot view hint contents - upgrade to Premium or VIP is required
     return false;
   };
