@@ -17,6 +17,19 @@ async function startServer() {
     res.send(getAuthCallbackHtml());
   });
 
+  // Explicit handlers for search engine robots & sitemap
+  app.get('/robots.txt', (_req, res) => {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    const robotsPath = path.join(process.cwd(), process.env.NODE_ENV === 'production' ? 'dist' : 'public', 'robots.txt');
+    res.sendFile(robotsPath);
+  });
+
+  app.get('/sitemap.xml', (_req, res) => {
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    const sitemapPath = path.join(process.cwd(), process.env.NODE_ENV === 'production' ? 'dist' : 'public', 'sitemap.xml');
+    res.sendFile(sitemapPath);
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

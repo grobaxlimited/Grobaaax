@@ -1,6 +1,6 @@
 {
   "name": "Grobaax",
-  "description": "Represent your school title, conquer academic arenas, and connect with scholars nationwide.",
+  "description": "Represent your school in School Dome academic arenas, access verified study hints, trade safely on Campus Minimart, and connect with scholars nationwide.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
