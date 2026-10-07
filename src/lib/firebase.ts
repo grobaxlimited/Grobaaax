@@ -9255,7 +9255,37 @@ export interface ActivateSubscriptionOptions {
   amountNaira?: number;
   channel?: string;
   durationDays?: number;
+  durationValue?: number | string;
+  durationUnit?: string;
+  durationMs?: number;
+  expiryDate?: string;
 }
+
+/**
+ * Robust helper to calculate subscription duration in milliseconds from value and unit.
+ * Supports: Hours, Minutes, Days, Weeks, Months, Years (case-insensitive)
+ */
+export const calculateSubscriptionDurationMs = (value?: number | string, unit?: string): number => {
+  const num = Math.max(1, Number(value) || 1);
+  const u = String(unit || 'Days').toLowerCase().trim();
+  if (u.includes('min')) {
+    return num * 60 * 1000;
+  }
+  if (u.includes('hour') || u === 'h') {
+    return num * 60 * 60 * 1000;
+  }
+  if (u.includes('week') || u === 'w') {
+    return num * 7 * 24 * 60 * 60 * 1000;
+  }
+  if (u.includes('month') || u === 'm') {
+    return num * 30 * 24 * 60 * 60 * 1000;
+  }
+  if (u.includes('year') || u === 'y') {
+    return num * 365 * 24 * 60 * 60 * 1000;
+  }
+  // Default to Days
+  return num * 24 * 60 * 60 * 1000;
+};
 
 export const activateUserSubscriptionInFirestore = async (
   options: ActivateSubscriptionOptions
@@ -9304,28 +9334,83 @@ export const activateUserSubscriptionInFirestore = async (
     const pId = (rawPlanId || '').toLowerCase().trim();
     const pName = (rawPlanName || '').toLowerCase().trim();
 
-    const isTitanVip =
-      targetTier === 'vip' ||
-      pId.includes('titan') ||
-      pId.includes('vip') ||
-      pName.includes('titan') ||
-      pName.includes('vip') ||
-      pName.includes('annual') ||
-      amount >= 20000;
+    // Query Firestore subscriptionPlans catalog to extract admin-defined duration and rules
+    let fetchedPlanData: any = null;
+    let planDurationValue = options.durationValue;
+    let planDurationUnit = options.durationUnit;
 
-    const isPro = !isTitanVip && (targetTier === 'premium' || pId.includes('pro') || pName.includes('pro') || pName.includes('champion') || amount >= 2000);
+    try {
+      if (rawPlanId) {
+        const planDocRef = doc(db, 'subscriptionPlans', rawPlanId);
+        const planSnap = await getDoc(planDocRef);
+        if (planSnap.exists()) {
+          fetchedPlanData = planSnap.data();
+        } else {
+          const qSnap = await getDocs(query(collection(db, 'subscriptionPlans'), where('planId', '==', rawPlanId), limit(1)));
+          if (!qSnap.empty) {
+            fetchedPlanData = qSnap.docs[0].data();
+          }
+        }
+      }
+      if (!fetchedPlanData && rawPlanName) {
+        const qSnap2 = await getDocs(query(collection(db, 'subscriptionPlans'), where('name', '==', rawPlanName), limit(1)));
+        if (!qSnap2.empty) {
+          fetchedPlanData = qSnap2.docs[0].data();
+        }
+      }
+    } catch (lookupErr) {
+      console.warn('[Firebase] Notice looking up plan from Firestore subscriptionPlans:', lookupErr);
+    }
+
+    if (fetchedPlanData) {
+      if (planDurationValue === undefined && fetchedPlanData.durationValue !== undefined) {
+        planDurationValue = fetchedPlanData.durationValue;
+      }
+      if (!planDurationUnit && fetchedPlanData.durationUnit) {
+        planDurationUnit = fetchedPlanData.durationUnit;
+      }
+    }
+
+    const resolvedTargetTier: 'free' | 'premium' | 'vip' =
+      targetTier ||
+      fetchedPlanData?.targetTier ||
+      fetchedPlanData?.tierType ||
+      (pId.includes('titan') || pId.includes('vip') || pName.includes('titan') || pName.includes('vip') || pName.includes('annual') || amount >= 20000
+        ? 'vip'
+        : 'premium');
+
+    const isTitanVip = resolvedTargetTier === 'vip';
+    const isPro = !isTitanVip && (resolvedTargetTier === 'premium' || pId.includes('pro') || pName.includes('pro') || pName.includes('champion') || amount >= 2000);
 
     // CRITICAL: Preserve exact plan name and ID if provided by user/admin/catalog
     const effectivePlanId = rawPlanId && rawPlanId.trim() !== ''
       ? rawPlanId.trim()
-      : isTitanVip ? 'plan_titan_naira' : isPro ? 'plan_pro_naira' : 'plan_premium';
+      : fetchedPlanData?.planId || (isTitanVip ? 'plan_titan_naira' : isPro ? 'plan_pro_naira' : 'plan_premium');
 
     const effectivePlanName = rawPlanName && rawPlanName.trim() !== ''
       ? rawPlanName.trim()
-      : isTitanVip ? 'VIP' : isPro ? 'Champions Pro Scholar' : 'Premium';
+      : fetchedPlanData?.name || (isTitanVip ? 'VIP' : isPro ? 'Champions Pro Scholar' : 'Premium');
 
-    const durationDays = isTitanVip && (pName.includes('annual') || pId.includes('annual') || amount >= 20000) ? 365 : 30;
-    const expiryDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+    // Calculate exact duration in milliseconds
+    let durationMs: number;
+    if (options.durationMs && options.durationMs > 0) {
+      durationMs = options.durationMs;
+    } else if (planDurationValue !== undefined && planDurationUnit) {
+      durationMs = calculateSubscriptionDurationMs(planDurationValue, planDurationUnit);
+    } else if (options.durationDays && options.durationDays > 0) {
+      durationMs = options.durationDays * 24 * 60 * 60 * 1000;
+    } else {
+      durationMs = isTitanVip && (pName.includes('annual') || pId.includes('annual') || amount >= 20000)
+        ? 365 * 24 * 60 * 60 * 1000
+        : 30 * 24 * 60 * 60 * 1000;
+    }
+
+    const startDate = new Date().toISOString();
+    const expiryDate = options.expiryDate || new Date(Date.now() + durationMs).toISOString();
+
+    const formattedDurationString = planDurationValue !== undefined && planDurationUnit
+      ? `${planDurationValue} ${planDurationUnit}`
+      : `${Math.round(durationMs / (24 * 60 * 60 * 1000))} Days`;
 
     // 1. Update user profile document in Firestore
     const userDocRef = doc(db, 'users', targetUid);
@@ -9347,6 +9432,8 @@ export const activateUserSubscriptionInFirestore = async (
       planId: effectivePlanId,
       tier: effectivePlanName,
       plan: effectivePlanName,
+      targetTier: resolvedTargetTier,
+      tierType: resolvedTargetTier,
       isSubscribed: true,
       isPremium: true,
       isVip: isTitanVip,
@@ -9356,10 +9443,10 @@ export const activateUserSubscriptionInFirestore = async (
       subscription: {
         planId: effectivePlanId,
         name: effectivePlanName,
-        price: amount > 0 ? amount : (isTitanVip ? 800 : isPro ? 2500 : 100),
+        price: amount > 0 ? amount : (fetchedPlanData?.priceNaira || (isTitanVip ? 800 : isPro ? 2500 : 100)),
         currency: 'NGN',
-        duration: isTitanVip && (pName.includes('annual') || amount >= 20000) ? '365 Days' : '1 Months',
-        startDate: new Date().toISOString(),
+        duration: formattedDurationString,
+        startDate,
         expiryDate,
         status: 'active',
         paymentReference: reference,
@@ -9378,10 +9465,12 @@ export const activateUserSubscriptionInFirestore = async (
       userEmail: userEmail || existingData.email || '',
       planId: effectivePlanId,
       planNameSnapshot: effectivePlanName,
-      priceSnapshot: amount > 0 ? amount : (isTitanVip ? 800 : isPro ? 2500 : 100),
+      targetTier: resolvedTargetTier,
+      tierType: resolvedTargetTier,
+      priceSnapshot: amount > 0 ? amount : (fetchedPlanData?.priceNaira || (isTitanVip ? 800 : isPro ? 2500 : 100)),
       currencySnapshot: 'NGN',
-      durationSnapshot: isTitanVip && (pName.includes('annual') || amount >= 20000) ? '365 Days' : '1 Months',
-      startDate: new Date().toISOString(),
+      durationSnapshot: formattedDurationString,
+      startDate,
       expiryDate,
       status: 'active',
       paymentReference: reference,

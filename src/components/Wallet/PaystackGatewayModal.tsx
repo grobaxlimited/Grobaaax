@@ -162,6 +162,8 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
         email: activeEmail,
         userId: activeUserId,
         userName: activeUserName,
+        durationValue: plan.durationValue,
+        durationUnit: plan.durationUnit,
       });
 
       if (res.success && res.accountNumber) {
@@ -253,6 +255,8 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
           email: activeEmail,
           userId: activeUserId,
           userName: activeUserName,
+          durationValue: plan.durationValue,
+          durationUnit: plan.durationUnit,
         });
 
         if (isMounted) {

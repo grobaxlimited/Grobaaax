@@ -110,6 +110,8 @@ export async function initPaystackTransactionCore(
     userId,
     userName,
     callbackUrl,
+    durationValue,
+    durationUnit,
   } = body || {};
 
   if (!amountNaira || isNaN(Number(amountNaira)) || Number(amountNaira) <= 0) {
@@ -164,6 +166,8 @@ export async function initPaystackTransactionCore(
               planId: planId || 'premium_1m',
               planName: planName || 'Premium',
               amountNaira: Number(amountNaira),
+              durationValue: durationValue !== undefined ? durationValue : undefined,
+              durationUnit: durationUnit || undefined,
               platform: 'grobax_web',
               timestamp: Date.now(),
               custom_fields: [
@@ -252,6 +256,8 @@ export async function chargeTransferCore(body: any) {
     email,
     userId,
     userName,
+    durationValue,
+    durationUnit,
   } = body || {};
 
   if (!amountNaira || isNaN(Number(amountNaira)) || Number(amountNaira) <= 0) {
@@ -305,6 +311,8 @@ export async function chargeTransferCore(body: any) {
           planId: planId || 'premium_1m',
           planName: planName || 'Premium',
           amountNaira: Number(amountNaira),
+          durationValue: durationValue !== undefined ? durationValue : undefined,
+          durationUnit: durationUnit || undefined,
           platform: 'grobax_web',
           timestamp: Date.now(),
         },
@@ -341,6 +349,8 @@ export async function chargeTransferCore(body: any) {
                 planId: planId || 'premium_1m',
                 planName: planName || 'Premium',
                 amountNaira: Number(amountNaira),
+                durationValue: durationValue !== undefined ? durationValue : undefined,
+                durationUnit: durationUnit || undefined,
               },
             }),
           });
@@ -489,6 +499,8 @@ export async function verifyPaystackRefCore(rawRef: string) {
             channel: tx.channel,
             planId: tx.metadata?.planId,
             planName: tx.metadata?.planName,
+            durationValue: tx.metadata?.durationValue,
+            durationUnit: tx.metadata?.durationUnit,
             customer: tx.customer,
             gatewayResponse: tx.gateway_response,
             activation: { success: isSuccessful },

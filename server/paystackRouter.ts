@@ -46,6 +46,8 @@ paystackRouter.post('/initialize', async (req, res) => {
       userId,
       userName,
       callbackUrl,
+      durationValue,
+      durationUnit,
     } = req.body || {};
 
     if (!amountNaira || isNaN(Number(amountNaira)) || Number(amountNaira) <= 0) {
@@ -98,6 +100,8 @@ paystackRouter.post('/initialize', async (req, res) => {
                 planId: planId || 'premium_1m',
                 planName: planName || 'Premium',
                 amountNaira: Number(amountNaira),
+                durationValue: durationValue !== undefined ? durationValue : undefined,
+                durationUnit: durationUnit || undefined,
                 platform: 'grobax_web',
                 timestamp: Date.now(),
                 custom_fields: [
@@ -402,6 +406,8 @@ const handlePaystackVerify = async (req: express.Request, res: express.Response)
                 userName: tx.metadata?.userName || '',
                 planId: tx.metadata?.planId,
                 planName: tx.metadata?.planName,
+                durationValue: tx.metadata?.durationValue,
+                durationUnit: tx.metadata?.durationUnit,
                 amountNaira: tx.amount ? tx.amount / 100 : 0,
                 channel: tx.channel || 'paystack',
               });
@@ -472,7 +478,7 @@ paystackRouter.get('/verify', handlePaystackVerify);
 // POST /api/paystack/activate - Explicit activation endpoint called by client or admin
 paystackRouter.post('/activate', async (req, res) => {
   try {
-    const { reference, userId, userEmail, userName, planId, planName, amountNaira } = req.body || {};
+    const { reference, userId, userEmail, userName, planId, planName, amountNaira, durationValue, durationUnit } = req.body || {};
     if (!reference) {
       return res.status(400).json({ success: false, error: 'Payment reference is required.' });
     }
@@ -480,6 +486,8 @@ paystackRouter.post('/activate', async (req, res) => {
     const secretKey = getSecretKey();
     let channel = 'paystack';
     let verifiedAmount = Number(amountNaira || 0);
+    let resolvedDurationValue = durationValue;
+    let resolvedDurationUnit = durationUnit;
 
     // If secret key available, verify transaction with Paystack first
     if (secretKey && (secretKey.startsWith('sk_live_') || secretKey.startsWith('sk_test_'))) {
@@ -502,6 +510,12 @@ paystackRouter.post('/activate', async (req, res) => {
           }
           channel = verifyData.data.channel || 'paystack';
           verifiedAmount = verifyData.data.amount ? verifyData.data.amount / 100 : verifiedAmount;
+          if (resolvedDurationValue === undefined && verifyData.data.metadata?.durationValue !== undefined) {
+            resolvedDurationValue = verifyData.data.metadata.durationValue;
+          }
+          if (!resolvedDurationUnit && verifyData.data.metadata?.durationUnit) {
+            resolvedDurationUnit = verifyData.data.metadata.durationUnit;
+          }
         }
       } catch (vfErr) {
         console.warn('[Paystack Activate] Notice verifying with Paystack API:', vfErr);
@@ -517,6 +531,8 @@ paystackRouter.post('/activate', async (req, res) => {
       planName,
       amountNaira: verifiedAmount,
       channel,
+      durationValue: resolvedDurationValue,
+      durationUnit: resolvedDurationUnit,
     });
 
     return res.json({
@@ -578,6 +594,8 @@ paystackRouter.post('/webhook', async (req, res) => {
           planName: data.metadata?.planName,
           amountNaira: data.amount ? data.amount / 100 : 0,
           channel: data.channel || 'paystack',
+          durationValue: data.metadata?.durationValue,
+          durationUnit: data.metadata?.durationUnit,
         });
         console.log(`[Paystack Webhook] Activated subscription in Firestore:`, actResult);
       } catch (actErr) {

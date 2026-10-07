@@ -176,6 +176,8 @@ export async function createPaystackTransferAccount(params: {
   email: string;
   userId: string;
   userName: string;
+  durationValue?: number | string;
+  durationUnit?: string;
 }): Promise<PaystackTransferAccountResponse> {
   const endpoints = ['/api/paystack/charge-transfer', '/paystack/charge-transfer'];
   let lastError = '';
@@ -232,6 +234,8 @@ export async function initializePaystackTransaction(params: {
   userId: string;
   userName: string;
   callbackUrl?: string;
+  durationValue?: number | string;
+  durationUnit?: string;
 }): Promise<PaystackInitResponse> {
   const defaultCallback = typeof window !== 'undefined'
     ? `${window.location.origin}${window.location.pathname}?planId=${encodeURIComponent(params.planId)}`

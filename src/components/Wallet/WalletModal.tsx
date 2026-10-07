@@ -2748,13 +2748,47 @@ export const WalletModal: React.FC = () => {
                   {currentUser.subscriptionExpiry && (
                     <div className="px-4 py-2.5 rounded-2xl bg-transparent border border-slate-300 dark:border-slate-700/80 text-right shrink-0">
                       <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subscription Expiry</div>
-                      <div className="text-sm font-black text-amber-500 dark:text-amber-400 mt-0.5">
-                        {new Date(currentUser.subscriptionExpiry).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </div>
+                      {isSubscriptionExpired(currentUser) ? (
+                        <div className="text-xs font-black text-rose-500 dark:text-rose-400 mt-0.5 flex items-center justify-end gap-1">
+                          <span>Expired (Free Scholar)</span>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="text-sm font-black text-amber-500 dark:text-amber-400 mt-0.5">
+                            {new Date(currentUser.subscriptionExpiry).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}{' '}
+                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                              {new Date(currentUser.subscriptionExpiry).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                          {(() => {
+                            const diffMs = new Date(currentUser.subscriptionExpiry).getTime() - Date.now();
+                            if (diffMs > 0) {
+                              const diffHours = Math.floor(diffMs / (3600 * 1000));
+                              const diffMins = Math.floor((diffMs % (3600 * 1000)) / (60 * 1000));
+                              const diffDays = Math.floor(diffMs / (24 * 3600 * 1000));
+                              const countdownText = diffDays > 1
+                                ? `${diffDays} days left`
+                                : diffHours > 0
+                                ? `${diffHours}h ${diffMins}m left`
+                                : `${Math.max(1, diffMins)} mins left`;
+                              return (
+                                <div className="text-[10px] font-bold text-emerald-500 mt-0.5 flex items-center justify-end gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                  <span>Active • {countdownText}</span>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

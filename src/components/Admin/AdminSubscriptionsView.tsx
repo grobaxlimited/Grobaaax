@@ -960,8 +960,22 @@ export function AdminSubscriptionsView() {
                           </div>
                         </td>
                         <td className="p-3.5 font-bold">₦{sub.priceSnapshot.toLocaleString()}</td>
-                        <td className="p-3.5">{new Date(sub.startDate).toLocaleDateString()}</td>
-                        <td className="p-3.5">{new Date(sub.expiryDate).toLocaleDateString()}</td>
+                        <td className="p-3.5">
+                          <div className="text-slate-900 dark:text-white font-medium">
+                            {new Date(sub.startDate).toLocaleDateString()}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {new Date(sub.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </td>
+                        <td className="p-3.5">
+                          <div className="text-slate-900 dark:text-white font-medium">
+                            {new Date(sub.expiryDate).toLocaleDateString()}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {new Date(sub.expiryDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </td>
                         <td className="p-3.5">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                             effectiveStatus === 'active'

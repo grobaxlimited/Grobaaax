@@ -59,6 +59,7 @@ import {
   assignRepresentativeInFirestore,
   removeRepresentativeInFirestore,
   isSubscriptionExpired,
+  calculateSubscriptionDurationMs,
 } from '../lib/firebase';
 import { isPrimarySuperAdmin } from '../lib/adminPermissions';
 import {
@@ -1635,6 +1636,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (isSuper) return;
 
     const enforceSubscriptionExpiry = () => {
+      // Reconcile misaligned 30-day default expiry on short duration plans (e.g. 1 hour plan)
+      const userPlanId = currentUser.activePlanId || currentUser.subscription?.planId || (currentUser as any).planId;
+      const userPlanName = currentUser.membershipTier || currentUser.subscriptionTier || currentUser.subscription?.name;
+      const activePlan = subscriptionPlans.find(p =>
+        (userPlanId && (p.planId === userPlanId || p.id === userPlanId)) ||
+        (userPlanName && p.name && p.name.toLowerCase() === userPlanName.toLowerCase())
+      );
+
+      if (activePlan && activePlan.durationValue && activePlan.durationUnit) {
+        const planDurationMs = calculateSubscriptionDurationMs(activePlan.durationValue, activePlan.durationUnit);
+        const startMs = currentUser.subscription?.startDate
+          ? new Date(currentUser.subscription.startDate).getTime()
+          : (currentUser.updatedAt ? new Date(currentUser.updatedAt).getTime() : Date.now());
+        const currentExpiryMs = currentUser.subscriptionExpiry
+          ? new Date(currentUser.subscriptionExpiry).getTime()
+          : 0;
+
+        // If plan duration is short (e.g. <= 2 days) but expiry was set to > 10 days in the future (the 30-day default bug)
+        if (planDurationMs < 2 * 24 * 60 * 60 * 1000 && (currentExpiryMs - startMs) > 10 * 24 * 60 * 60 * 1000) {
+          const correctedExpiry = new Date(startMs + planDurationMs).toISOString();
+          console.log(`[Subscription Reconciliation] Correcting misaligned expiry for ${activePlan.name} (${activePlan.durationValue} ${activePlan.durationUnit}) from ${currentUser.subscriptionExpiry} to ${correctedExpiry}`);
+          setCurrentUser(prev => ({
+            ...prev,
+            subscriptionExpiry: correctedExpiry,
+            subscription: prev.subscription ? {
+              ...prev.subscription,
+              expiryDate: correctedExpiry,
+              duration: `${activePlan.durationValue} ${activePlan.durationUnit}`,
+            } : undefined,
+          }));
+          const userRef = doc(db, 'users', currentUser.id);
+          updateDoc(userRef, {
+            subscriptionExpiry: correctedExpiry,
+            'subscription.expiryDate': correctedExpiry,
+            'subscription.duration': `${activePlan.durationValue} ${activePlan.durationUnit}`,
+            updatedAt: serverTimestamp(),
+          }).catch(() => {});
+          return;
+        }
+      }
+
       const isExpired = isSubscriptionExpired(currentUser);
       const hasPaidTierPrivilege = Boolean(
         currentUser.isSubscribed ||
@@ -6068,18 +6110,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const curUser = currentUserRef.current;
       const fbUser = firebaseUserRef.current;
-      let durationMs = (Number(plan.durationValue) || 30) * 24 * 60 * 60 * 1000;
-      if (plan.durationUnit === 'Hours') {
-        durationMs = (Number(plan.durationValue) || 24) * 60 * 60 * 1000;
-      } else if (plan.durationUnit === 'Days') {
-        durationMs = (Number(plan.durationValue) || 30) * 24 * 60 * 60 * 1000;
-      } else if (plan.durationUnit === 'Weeks') {
-        durationMs = (Number(plan.durationValue) || 1) * 7 * 24 * 60 * 60 * 1000;
-      } else if (plan.durationUnit === 'Months') {
-        durationMs = (Number(plan.durationValue) || 1) * 30 * 24 * 60 * 60 * 1000;
-      } else if (plan.durationUnit === 'Years') {
-        durationMs = (Number(plan.durationValue) || 1) * 365 * 24 * 60 * 60 * 1000;
-      }
+      const durationMs = calculateSubscriptionDurationMs(plan.durationValue, plan.durationUnit);
       const startDate = new Date().toISOString();
       const expiryDate = new Date(Date.now() + durationMs).toISOString();
       const finalReference =
@@ -6282,6 +6313,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               planId: plan.planId,
               planName: plan.name,
               amountNaira: plan.priceNaira,
+              durationValue: plan.durationValue,
+              durationUnit: plan.durationUnit,
             }),
           }).catch(actErr => console.warn('Notice calling server activation:', actErr));
         }
