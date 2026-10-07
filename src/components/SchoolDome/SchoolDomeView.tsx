@@ -42,6 +42,10 @@ import {
   getUserDailyChatUsage,
   recordUserDailyChatResponse,
   isSubscriptionExpired,
+  auth,
+  db,
+  doc,
+  onSnapshot,
 } from '../../lib/firebase';
 import {
   MessageSquare,
@@ -176,12 +180,14 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
       const detail = (e as CustomEvent).detail;
       if (detail) {
         setCurrentSeason((prev) => {
-          if (prev && (prev.id !== detail.id || prev.startedAt !== detail.startedAt || prev.seasonNumber !== detail.seasonNumber)) {
+          if (!prev) return detail;
+          const merged = { ...prev, ...detail };
+          if (detail.id && detail.id !== prev.id) {
             setIsEliminationSpinModalOpen(false);
             setPendingDomeSpins(0);
             hasAutoPromptedEliminationSpinRef.current = {};
           }
-          return detail;
+          return merged;
         });
         if (detail.seasonNumber === 1 && !detail.firstQuestionLaunched && (detail.totalQuestionsLaunched || 0) === 0) {
           setActiveQuestion(null);
@@ -577,10 +583,32 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     (currentSeason.currentQuestionNumber || 0) === 0 &&
     (!activeQuestion || activeQuestion.status === 'closed' || activeQuestion.seasonId !== currentSeason.id)
   );
-  const currentUid = currentUser?.id || (currentUser as any)?.uid || '';
-  const currentAltUid = (currentUser as any)?.uid || currentUser?.id || '';
+  const currentUid = auth.currentUser?.uid || currentUser?.id || (currentUser as any)?.uid || '';
+  const currentAltUid = (currentUser as any)?.uid || auth.currentUser?.uid || currentUser?.id || '';
+
+  // Direct snapshot check on user's registration document to ensure instant recognition even if season array is updating
+  const [isRegisteredInDb, setIsRegisteredInDb] = useState(false);
+
+  useEffect(() => {
+    if (!currentSeason?.id || !currentUid) {
+      setIsRegisteredInDb(false);
+      return;
+    }
+    const regDocRef = doc(db, 'school_dome_registrations', `${currentSeason.id}_${currentUid}`);
+    const unsub = onSnapshot(
+      regDocRef,
+      (snap) => {
+        setIsRegisteredInDb(snap.exists());
+      },
+      () => {
+        setIsRegisteredInDb(false);
+      }
+    );
+    return () => unsub();
+  }, [currentSeason?.id, currentUid]);
 
   const isUserRegistered = Boolean(
+    isRegisteredInDb ||
     (currentUid && currentSeason?.registeredUserIds?.includes(currentUid)) ||
     (currentAltUid && currentSeason?.registeredUserIds?.includes(currentAltUid))
   );
@@ -589,7 +617,16 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
     (currentAltUid && currentSeason?.eliminatedUserIds?.includes(currentAltUid))
   );
   // Standing means registered and not eliminated from the season
-  const isUserStanding = isUserRegistered && !isUserEliminated;
+  // During active battles, ensure the scholar has not been eliminated and is in the active roster
+  const isUserStanding = Boolean(
+    isUserRegistered &&
+    !isUserEliminated &&
+    (!currentSeason?.firstQuestionLaunched ||
+     !currentSeason?.activeUserIds ||
+     currentSeason.activeUserIds.length === 0 ||
+     currentSeason.activeUserIds.includes(currentUid) ||
+     currentSeason.activeUserIds.includes(currentAltUid))
+  );
   const isSpectator = !isStaffOrAdmin && (!isUserRegistered || isUserEliminated);
 
   // Check pending School Dome elimination spin bonus for eliminated Premium/VIP scholars

@@ -128,7 +128,7 @@ export const AdminSchoolDomeView: React.FC = () => {
     const handleSeasonUpdated = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail) {
-        setCurrentSeason(detail);
+        setCurrentSeason((prev) => (prev ? { ...prev, ...detail } : detail));
         if (detail.seasonNumber === 1 && !detail.firstQuestionLaunched && (detail.totalQuestionsLaunched || 0) === 0) {
           setActiveQuestion(null);
           setQuestions([]);

@@ -15,7 +15,8 @@ import {
   Crown,
   Info,
 } from 'lucide-react';
-import { SchoolDomeSeason, UserProfile } from '../../types';
+import { SchoolDomeSeason, UserProfile, SchoolDomeParticipant } from '../../types';
+import { db, collection, query, where, onSnapshot, auth } from '../../lib/firebase';
 
 interface SchoolDomeContendersModalProps {
   isOpen: boolean;
@@ -43,6 +44,37 @@ export const SchoolDomeContendersModal: React.FC<SchoolDomeContendersModalProps>
   onRegister,
 }) => {
   const [activeRosterTab, setActiveRosterTab] = useState<'all' | 'standing' | 'knockout'>('standing');
+  const [participantsMap, setParticipantsMap] = useState<Record<string, SchoolDomeParticipant>>({});
+
+  // Real-time listener for all registered scholar details for this season
+  useEffect(() => {
+    if (!isOpen || !season?.id) return;
+    try {
+      const q = query(
+        collection(db, 'school_dome_registrations'),
+        where('seasonId', '==', season.id)
+      );
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const map: Record<string, SchoolDomeParticipant> = {};
+          snapshot.forEach((d) => {
+            const data = d.data() as SchoolDomeParticipant;
+            if (data.userId) {
+              map[data.userId] = data;
+            }
+          });
+          setParticipantsMap(map);
+        },
+        (err) => {
+          console.warn('Contender registrations listener notice:', err);
+        }
+      );
+      return () => unsubscribe();
+    } catch (e) {
+      console.warn('Notice listening to contenders:', e);
+    }
+  }, [isOpen, season?.id]);
 
   // Close on Escape key and prevent background scrolling
   useEffect(() => {
@@ -260,13 +292,17 @@ export const SchoolDomeContendersModal: React.FC<SchoolDomeContendersModalProps>
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                 Your Arena Standing
               </span>
-              {isUserStanding ? (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Still Standing
-                </span>
-              ) : isUserEliminated ? (
+              {isUserEliminated ? (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center gap-1">
                   <UserX className="w-3 h-3" /> Knocked Out
+                </span>
+              ) : isUserStanding ? (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> {season.firstQuestionLaunched ? 'Still Standing' : 'Registered'}
+                </span>
+              ) : isUserRegistered ? (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Registered
                 </span>
               ) : (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/20 flex items-center gap-1">
@@ -277,32 +313,36 @@ export const SchoolDomeContendersModal: React.FC<SchoolDomeContendersModalProps>
 
             <div className="flex items-start gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
-                {isUserStanding ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                ) : isUserEliminated ? (
+                {isUserEliminated ? (
                   <UserX className="w-4 h-4 text-rose-500" />
+                ) : isUserStanding || isUserRegistered ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                 ) : (
                   <Eye className="w-4 h-4 text-slate-400" />
                 )}
               </div>
               <div className="flex-1 space-y-0.5 min-w-0">
                 <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">
-                  {isUserStanding
-                    ? 'Active Contender in the Running'
-                    : isUserEliminated
+                  {isUserEliminated
                     ? 'Eliminated (Spectator Mode)'
+                    : isUserStanding
+                    ? (season.firstQuestionLaunched ? 'Active Contender in the Running' : 'Registered & Ready for Battle')
                     : isUserRegistered
                     ? 'Registered & Ready for Battle'
-                    : 'Not Registered for this Season'}
+                    : 'Not Registered (Spectator Mode)'}
                 </h4>
                 <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                  {isUserStanding
-                    ? 'You are active in this season. Submitting correct answers within each timer keeps you standing for the grand prize pool!'
-                    : isUserEliminated
+                  {isUserEliminated
                     ? 'You were eliminated by either answering wrong or not answering before the timer expired. You can continue spectating live questions.'
+                    : isUserStanding
+                    ? (season.firstQuestionLaunched
+                        ? 'You are active in this season. Submitting correct answers within each timer keeps you standing for the grand prize pool!'
+                        : `You are officially registered for Season #${season.seasonNumber || 1}! Elimination battles begin once Question #1 is launched.`)
+                    : isUserRegistered
+                    ? `You are registered for Season #${season.seasonNumber || 1}. Prepare for the first challenge!`
                     : isRegistrationOpen
                     ? `Registration is currently open for Season #${season.seasonNumber || 1}. Claim your contender slot now to battle for the ${prizePoolDisplay} prize pool!`
-                    : 'Registration closed when Question #1 launched. Users cannot participate or register any longer after the first question has been launched (Spectator Mode active).'}
+                    : 'Registration closed when Question #1 launched. Unregistered users can spectate live questions in Spectator Mode.'}
                 </p>
               </div>
             </div>
@@ -390,9 +430,23 @@ export const SchoolDomeContendersModal: React.FC<SchoolDomeContendersModalProps>
             <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
               {currentRosterIds.length > 0 ? (
                 currentRosterIds.map((uid, index) => {
-                  const isCurrent = uid === currentUser.id;
+                  const myUid = auth.currentUser?.uid || currentUser?.id || (currentUser as any)?.uid || '';
+                  const isCurrent = Boolean(myUid && (uid === myUid || uid === auth.currentUser?.uid || (currentUser as any)?.email === uid));
                   const isStanding = season.activeUserIds?.includes(uid);
                   const isEliminated = season.eliminatedUserIds?.includes(uid);
+                  const participant = participantsMap[uid];
+
+                  const scholarName = isCurrent
+                    ? (currentUser.fullName || currentUser.name || participant?.userName || 'Scholar')
+                    : (participant?.userName || `Contender #${index + 1}`);
+
+                  const avatarUrl = isCurrent
+                    ? (currentUser.avatar || participant?.userAvatar)
+                    : participant?.userAvatar;
+
+                  const institutionName = isCurrent
+                    ? (currentUser.institutionName || currentUser.institution || participant?.institution)
+                    : participant?.institution;
 
                   return (
                     <div
@@ -404,24 +458,30 @@ export const SchoolDomeContendersModal: React.FC<SchoolDomeContendersModalProps>
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-200 shrink-0">
-                          {isCurrent
-                            ? (currentUser.name || 'Y')[0]?.toUpperCase()
-                            : `#${index + 1}`}
-                        </div>
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt={scholarName}
+                            className="w-7 h-7 rounded-full object-cover shrink-0 border border-slate-300 dark:border-slate-700"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-200 shrink-0">
+                            {scholarName ? scholarName[0]?.toUpperCase() : `#${index + 1}`}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
-                              {isCurrent ? `${currentUser.name || 'You'} (You)` : `Contender #${index + 1}`}
+                              {scholarName}
                             </span>
                             {isCurrent && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-blue-500 text-white">
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-blue-600 text-white shadow-xs">
                                 YOU
                               </span>
                             )}
                           </div>
                           <span className="text-[10px] text-slate-400 truncate block">
-                            ID: {uid.substring(0, 10)}...
+                            {institutionName ? `${institutionName} • ` : ''}ID: {uid.substring(0, 8)}...
                           </span>
                         </div>
                       </div>

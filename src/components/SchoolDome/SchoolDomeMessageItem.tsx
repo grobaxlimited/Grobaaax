@@ -696,7 +696,7 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                           : isQuestionOpenToAll
                           ? '🌐 Open to All Users (Free + Premium + VIP): Reply to submit your official answer (1 attempt limit).'
                           : !isUserRegistered && !isManagerOrAdmin
-                          ? 'Register free to participate in this challenge.'
+                          ? 'Registration closed upon Question #1 launch (Spectator Mode active).'
                           : !isUserStanding && !isManagerOrAdmin
                           ? 'Spectator Mode: you were eliminated from this season.'
                           : 'Reply to this question card to submit your official answer (1 attempt only • Normal chat does not count as an answer)'}

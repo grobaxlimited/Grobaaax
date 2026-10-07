@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { registerUserForSchoolDome } from '../../lib/schoolDomeService';
 import { SchoolDomeSeason, UserProfile } from '../../types';
+import { auth } from '../../lib/firebase';
 
 interface SchoolDomeRegistrationModalProps {
   isOpen: boolean;
@@ -48,7 +49,7 @@ export const SchoolDomeRegistrationModal: React.FC<SchoolDomeRegistrationModalPr
         setSuccessMsg(res.message);
         if (typeof window !== 'undefined') {
           try {
-            const currentUid = currentUser?.id || (currentUser as any)?.uid;
+            const currentUid = auth.currentUser?.uid || currentUser?.id || (currentUser as any)?.uid;
             const updatedReg = Array.from(new Set([...(season.registeredUserIds || []), currentUid]));
             const updatedAct = Array.from(new Set([...(season.activeUserIds || []), currentUid]));
             const updatedSeason = { ...season, registeredUserIds: updatedReg, activeUserIds: updatedAct };

@@ -1031,18 +1031,16 @@ export async function sendSchoolDomeMessage(
         // Fast parallel execution without Arbiter spam writes
         if (typeof window !== 'undefined') {
           try {
+            const cachedSeasonStr = localStorage.getItem('grobax_school_dome_active_season');
+            const cachedObj = cachedSeasonStr ? JSON.parse(cachedSeasonStr) : { ...currentSeason };
+            cachedObj.activeUserIds = newActive;
+            cachedObj.eliminatedUserIds = newEliminated;
+            localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(cachedObj));
             window.dispatchEvent(
               new CustomEvent('school_dome_season_updated', {
-                detail: { activeUserIds: newActive, eliminatedUserIds: newEliminated },
+                detail: cachedObj,
               })
             );
-            const cachedSeasonStr = localStorage.getItem('grobax_school_dome_active_season');
-            if (cachedSeasonStr) {
-              const cachedObj = JSON.parse(cachedSeasonStr);
-              cachedObj.activeUserIds = newActive;
-              cachedObj.eliminatedUserIds = newEliminated;
-              localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(cachedObj));
-            }
           } catch {}
         }
 
@@ -1406,18 +1404,16 @@ export async function closeSchoolDomeQuestion(
       // Update question eliminated user list and season active standing
       if (typeof window !== 'undefined') {
         try {
+          const cachedSeasonStr = localStorage.getItem('grobax_school_dome_active_season');
+          const cachedObj = cachedSeasonStr ? JSON.parse(cachedSeasonStr) : { ...sData, id: seasonId };
+          cachedObj.activeUserIds = updatedActive;
+          cachedObj.eliminatedUserIds = updatedEliminated;
+          localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(cachedObj));
           window.dispatchEvent(
             new CustomEvent('school_dome_season_updated', {
-              detail: { activeUserIds: updatedActive, eliminatedUserIds: updatedEliminated },
+              detail: cachedObj,
             })
           );
-          const cachedSeasonStr = localStorage.getItem('grobax_school_dome_active_season');
-          if (cachedSeasonStr) {
-            const cachedObj = JSON.parse(cachedSeasonStr);
-            cachedObj.activeUserIds = updatedActive;
-            cachedObj.eliminatedUserIds = updatedEliminated;
-            localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(cachedObj));
-          }
         } catch {}
       }
 
