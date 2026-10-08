@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      // Gracefully filter benign Vite HMR and FedCM iframe messages in preview/iframe environments
+      (function () {
+        const _err = console.error;
+        console.error = function (...args) {
+          if (
+            args.length > 0 &&
+            typeof args[0] === 'string' &&
+            (args[0].includes('[vite] failed to connect to websocket') ||
+             args[0].includes('[vite] connecting') ||
+             args[0].startsWith('[vite]') ||
+             args[0].includes('identity-credentials-get') ||
+             args[0].includes('[GSI_LOGGER]'))
+          ) {
+            return;
+          }
+          _err.apply(console, args);
+        };
+        const _warn = console.warn;
+        console.warn = function (...args) {
+          if (
+            args.length > 0 &&
+            typeof args[0] === 'string' &&
+            (args[0].includes('identity-credentials-get') ||
+             args[0].includes('[GSI_LOGGER]'))
+          ) {
+            return;
+          }
+          _warn.apply(console, args);
+        };
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Permissions-Policy" content="identity-credentials-get=(self)" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover" />
+    <title>Grobaax - Represent your school in School Dome academic arenas, access verified study hints, trade safely on Campus Minimart, and connect with scholars nationwide.</title>
+    <meta name="description" content="Represent your school in School Dome academic arenas, access verified study hints, trade safely on Campus Minimart, and connect with scholars nationwide." />
+    <meta name="keywords" content="Grobaax, grobaax.com, School Dome, Campus Minimart, Academic Hints, Campus Connect, student marketplace Nigeria, inter-campus competition, university quiz competition, tertiary students, buy sell textbooks campus, scholar wallet, earn airtime data, student rewards Nigeria" />
+    <meta name="author" content="Grobaax Limited" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://www.grobaax.com/" />
+
+    <!-- Open Graph / Facebook / WhatsApp / LinkedIn -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.grobaax.com/" />
+    <meta property="og:site_name" content="Grobaax" />
+    <meta property="og:title" content="Grobaax - Represent your school in School Dome academic arenas, access verified study hints, trade safely on Campus Minimart, and connect with scholars nationwide." />
+    <meta property="og:description" content="Represent your school in School Dome academic arenas, access verified study hints, trade safely on Campus Minimart, and connect with scholars nationwide." />
+    <meta property="og:image" content="https://www.grobaax.com/images/grobaax-hero-students.png" />
+    <meta property="og:image:secure_url" content="https://www.grobaax.com/images/grobaax-hero-students.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Grobaax - Nigeria's Premier Academic Arena, Study Hints & Campus Marketplace" />
+    <meta property="og:locale" content="en_NG" />
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:domain" content="grobaax.com" />
+    <meta name="twitter:url" content="https://www.grobaax.com/" />
+    <meta name="twitter:title" content="Grobaax - Represent your school in School Dome academic arenas, access verified study hints, trade safely on Campus Minimart, and connect with scholars nationwide." />
+    <meta name="twitter:description" content="Represent your school in School Dome academic arenas, access verified study hints, trade safely on Campus Minimart, and connect with scholars nationwide." />
+    <meta name="twitter:image" content="https://www.grobaax.com/images/grobaax-hero-students.png" />
+    <meta name="twitter:image:alt" content="Grobaax Platform Features and Scholars" />
+
+    <!-- Schema.org JSON-LD Structured Data for Google Search Engine -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "@id": "https://www.grobaax.com/#webapp",
+          "name": "Grobaax",
+          "url": "https://www.grobaax.com/",
+          "applicationCategory": "EducationalApplication",
+          "operatingSystem": "All, Web, iOS, Android (PWA)",
+          "description": "Grobaax is the premier academic network built specifically for university, polytechnic, and college students. Represent your institution in School Dome elimination battles, access verified study hints, trade safely on Campus Minimart, and earn GP rewards.",
+          "browserRequirements": "Requires JavaScript. Requires HTML5.",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "NGN",
+            "name": "Free Scholar Membership"
+          },
+          "screenshot": "https://www.grobaax.com/images/grobaax-hero-students.png",
+          "featureList": [
+            "School Dome: Live inter-institutional academic elimination tournaments and institutional pride rankings",
+            "Academic Hints & AI Tutor: Curated handouts, past questions, and verified study solutions",
+            "Campus Minimart: Safe peer-to-peer campus marketplace for textbooks, gadgets, hostel items, and student services",
+            "Campus Connect: Cross-institution scholar networking, verified profiles, and direct scholar messaging across 100+ institutions",
+            "Scholar Wallet & GP Rewards: Earn Grobaax Points redeemable for instant MTN, Airtel, Glo, 9mobile airtime, data, and direct bank cashout",
+            "Academic Leaderboards: Institutional and individual scholar standings celebrating academic excellence"
+          ]
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://www.grobaax.com/#organization",
+          "name": "Grobaax Limited",
+          "alternateName": "Grobaax",
+          "url": "https://www.grobaax.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://www.grobaax.com/pwa-512x512.png",
+            "width": 512,
+            "height": 512
+          },
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "email": "grobaxlimited@gmail.com",
+            "contactType": "Customer Support",
+            "areaServed": "NG"
+          },
+          "description": "The premier inter-campus academic arena, study resources, and student commerce ecosystem for tertiary institutions."
+        },
+        {
+          "@type": "ItemList",
+          "@id": "https://www.grobaax.com/#features",
+          "name": "Grobaax Core Platform Features",
+          "description": "Key services and features provided by Grobaax for university and polytechnic students",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "School Dome Academic Arena",
+              "description": "Season-based academic elimination challenges where scholars represent their universities or polytechnics in live quiz battles to win national honors and GP prize pools.",
+              "url": "https://www.grobaax.com/#school-dome"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Academic Hints & Past Questions",
+              "description": "Curated academic handouts, verified past examination questions, study summaries, and AI-assisted learning for all courses.",
+              "url": "https://www.grobaax.com/#hints"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Campus Minimart (Student Marketplace)",
+              "description": "Verified campus marketplace where students can buy, sell, and swap textbooks, electronics, dorm essentials, fashion, and services within their schools.",
+              "url": "https://www.grobaax.com/#minimart"
+            },
+            {
+              "@type": "ListItem",
+              "position": 4,
+              "name": "Campus Connect Scholar Network",
+              "description": "Connect and collaborate with verified scholars across more than 100 Nigerian tertiary institutions, share department insights, and network.",
+              "url": "https://www.grobaax.com/#community"
+            },
+            {
+              "@type": "ListItem",
+              "position": 5,
+              "name": "Scholar Wallet & Instant Airtime/Data Redemption",
+              "description": "Secure scholar wallet to manage Grobaax Points (GP), redeem instant mobile airtime or internet data across major networks, or withdraw to bank accounts.",
+              "url": "https://www.grobaax.com/#wallet"
+            }
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://www.grobaax.com/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Grobaax?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Grobaax (https://www.grobaax.com/) is Nigeria's premier academic network and student marketplace designed for university, polytechnic, and college students. It combines competitive academic battles (School Dome), study resources and past questions (Academic Hints), an on-campus student marketplace (Campus Minimart), and cross-campus networking (Campus Connect)."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does the School Dome work?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "School Dome is a live tournament arena where students represent their schools in timed academic challenges. Scholars battle through elimination rounds to stay standing, climb the national leaderboard, win honor for their institution, and claim substantial GP cash prizes."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What is Campus Minimart on Grobaax?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Campus Minimart is a safe, peer-to-peer student marketplace where scholars can list, sell, purchase, or swap textbooks, tech devices, hostel furnishings, course handouts, and student services safely within their campus community."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How can students earn and redeem rewards on Grobaax?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Scholars earn Grobaax Points (GP) by participating in School Dome tournaments, contributing academic resources, and engaging in community activities. GP can be converted instantly into mobile airtime and data bundles (MTN, Airtel, Glo, 9mobile) or withdrawn directly to any Nigerian bank account."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Who can register on Grobaax?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Any student, scholar, or aspirant from accredited universities, polytechnics, and colleges of education can join Grobaax for free, select their institution and department, and immediately begin learning, competing, and trading."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+
+    <!-- PWA & Mobile Web App Meta Tags -->
+    <meta name="theme-color" content="#02081c" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Grobaax" />
+    <meta name="application-name" content="Grobaax" />
+    <meta name="msapplication-TileColor" content="#02081c" />
+
+    <!-- PWA Icons & Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <script type="module" crossorigin src="/assets/index-CyPHnS3j.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-BNLSySnv.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-icons-bEDRp7Mh.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-n6XoW7wz.css">
+  <link rel="manifest" href="/manifest.webmanifest"></head>
+  <body>
+    <!-- Fallback semantic content for search engine crawlers and users with JS disabled -->
+    <noscript>
+      <header>
+        <h1>Grobaax - The Premier Inter-Campus Academic Network & Student Marketplace</h1>
+        <p>Official Website: <a href="https://www.grobaax.com/">https://www.grobaax.com/</a></p>
+        <p>Represent your school title, conquer academic arenas in School Dome, access verified study hints, trade safely on Campus Minimart, and connect with scholars nationwide.</p>
+      </header>
+
+      <main>
+        <section>
+          <h2>1. School Dome: Inter-Campus Academic Elimination Arena</h2>
+          <p>Compete in live, weekend academic tournament battles representing your university, polytechnic, or college of education. Stay standing in timed elimination rounds, climb institutional leaderboards, and win Grobaax Points (GP) prize pools for yourself and your school.</p>
+        </section>
+
+        <section>
+          <h2>2. Campus Minimart: Safe Student Marketplace</h2>
+          <p>The trusted on-campus marketplace for tertiary scholars. Buy, sell, and swap university textbooks, electronic gadgets, hostel furnishings, course handouts, and student services safely within your campus community.</p>
+        </section>
+
+        <section>
+          <h2>3. Academic Hints & Past Questions</h2>
+          <p>Access high-yield study resources, lecture summaries, verified departmental past examination questions, and AI-powered academic assistance tailored for Nigerian tertiary institutions.</p>
+        </section>
+
+        <section>
+          <h2>4. Campus Connect: Nationwide Scholar Networking</h2>
+          <p>Discover, chat with, and collaborate with verified scholars across 100+ institutions. Form inter-campus study groups, cross-department academic partnerships, and expand your scholarly network.</p>
+        </section>
+
+        <section>
+          <h2>5. Scholar Wallet, Rewards & Airtime/Data Redemption</h2>
+          <p>Earn Grobaax Points (GP) through tournament victories and academic contributions. Redeem GP instantly for MTN, Airtel, Glo, and 9mobile airtime, high-speed data bundles, or direct bank cash withdrawals.</p>
+        </section>
+
+        <section>
+          <h2>6. Membership Tiers & VIP Perks</h2>
+          <p>Flexible membership options including Free Scholar, Premium Scholar, and Titan VIP tiers offering enhanced marketplace listings, zero transaction fees, priority tournament access, and verified badges.</p>
+        </section>
+      </main>
+
+      <footer>
+        <p>&copy; 2026 Grobaax Limited. All rights reserved. Visit <a href="https://www.grobaax.com/">grobaax.com</a>.</p>
+      </footer>
+    </noscript>
+
+    <div id="root"></div>
+  </body>
+</html>
+

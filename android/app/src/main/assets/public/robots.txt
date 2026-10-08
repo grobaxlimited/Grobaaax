@@ -1,0 +1,6 @@
+# Robots.txt for Grobaax (https://www.grobaax.com/)
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://www.grobaax.com/sitemap.xml

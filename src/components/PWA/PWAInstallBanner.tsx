@@ -7,6 +7,7 @@ export const PWAInstallBanner: React.FC = () => {
   const {
     hasNativePrompt,
     isInstalled,
+    isPackagedApp,
     isIOS,
     isAndroid,
     isChrome,
@@ -29,7 +30,7 @@ export const PWAInstallBanner: React.FC = () => {
   // Only show the pop install prompt when the user is on Chrome or mobile device (Android / iOS)
   const isTargetBrowserOrDevice = isChrome || isAndroid || isIOS;
 
-  if (isInstalled || isDismissed || !isTargetBrowserOrDevice) {
+  if (isInstalled || isPackagedApp || isDismissed || !isTargetBrowserOrDevice) {
     return null;
   }
 

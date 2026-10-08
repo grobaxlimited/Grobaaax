@@ -14,6 +14,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
 }) => {
   const {
     isInstalled,
+    isPackagedApp,
     hasNativePrompt,
     isIOS,
     isAndroid,
@@ -23,8 +24,8 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
 
   const [isGuideOpen, setIsGuideOpen] = useState(false);
 
-  // Hide button if already installed in standalone mode
-  if (isInstalled) {
+  // Hide button if already installed in standalone mode or running in packaged native app
+  if (isInstalled || isPackagedApp) {
     return null;
   }
 

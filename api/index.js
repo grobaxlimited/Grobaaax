@@ -2480,6 +2480,7 @@ __export(firebase_exports, {
   auth: () => auth,
   awardGusPrizesInFirestore: () => awardGusPrizesInFirestore,
   bulkImportInstitutionsBatch: () => bulkImportInstitutionsBatch,
+  calculateSubscriptionDurationMs: () => calculateSubscriptionDurationMs,
   checkUserGusRegistrationInFirestore: () => checkUserGusRegistrationInFirestore,
   checkUserHasVotedForPosition: () => checkUserHasVotedForPosition,
   cleanFirestoreData: () => cleanFirestoreData,
@@ -2772,7 +2773,7 @@ async function deleteEventCatalogImage(storagePath) {
     console.warn("Notice deleting storage image:", err);
   }
 }
-var googleProvider, storage, storageRef, uploadBytes, getDownloadURL, deleteObject, baseFirebaseConfig, safeGetEnv2, firebaseConfig, OperationType, sanitizeForFirestore, seedFirestoreInstitutionsIfEmpty, logAdminAuditAction, fetchAuditLogs, sanitizeInstitutionData, fetchMasterInstitutions, saveMasterInstitutionDoc, toggleInstitutionHideStatus, toggleInstitutionActiveStatus, deleteMasterInstitutionDoc, fetchDepartmentsByInstitutionId, saveDepartmentDoc, toggleDepartmentActiveStatus, fetchAcademicLevelsByType, saveAcademicLevelDoc, bulkImportInstitutionsBatch, isUsernameAvailable, isEmailAvailable, isSubscriptionExpired, fetchInstitutionsByCategory, fetchDepartmentsByInstitution, DEFAULT_PRIVACY, createUserProfileDoc, completeUserAcademicProfileDoc, ensureUserInFirestore, submitStudentVerificationRequest, subscribeToStudentVerificationRequests, approveStudentVerificationRequest, rejectStudentVerificationRequest, getUserProfileDoc, uploadUserProfilePicture, updateUserProfileInFirestore, recordWalletTransactionInFirestore, deductUserGpInFirestore, refundUserGpInFirestore, adjustUserGpInFirestore, formatAuthError, fetchSeasonsFromFirestore, saveSeasonToFirestore, updateSeasonStatusInFirestore, stopSeasonInFirestore, deleteSeasonFromFirestore, fetchSeasonParticipationsFromFirestore, addInstitutionToSeasonInFirestore, removeInstitutionFromSeasonInFirestore, fetchQualificationsFromFirestore, saveQualificationToFirestore, fetchQualificationAttemptsFromFirestore, submitQualificationAttemptToFirestore, fetchRepresentativeAssignmentsFromFirestore, assignRepresentativeInFirestore, removeRepresentativeInFirestore, fetchStandingsFromFirestore, initializeSeasonStandingsInFirestore, fetchFixturesFromFirestore, saveFixtureToFirestore, generateFixturesForSeasonInFirestore, fetchQuestionSetsFromFirestore, saveQuestionSetToFirestore, subscribeToLiveMatch, startLiveMatchLobby, startLiveMatch, submitRepresentativeAnswerInFirestore, advanceLiveMatchQuestion, pauseLiveMatchInFirestore, completeLiveMatch, updateSeasonStandingsAfterMatch, fetchGusSeasonsFromFirestore, saveGusSeasonToFirestore, stopGusSeasonInFirestore, deleteGusSeasonFromFirestore, deleteCommunityPostFromFirestore, deleteQuestionSetFromFirestore, deleteDataFileFromFirestore, registerUserForGusSeasonInFirestore, checkUserGusRegistrationInFirestore, subscribeToGusLive, startGusLiveCompetitionInFirestore, submitGusAnswerInFirestore, awardGusPrizesInFirestore, fetchGusUserHistoryFromFirestore, DEFAULT_NOTIFICATIONS, sendBroadcastNotificationToFirestore, deleteNotificationFromFirestore, DEFAULT_GP_CONVERSION, DEFAULT_SYSTEM_SETTINGS, fetchSystemSettingsFromFirestore, saveSystemSettingsToFirestore, fetchGpConversionConfigFromFirestore, saveGpConversionConfigToFirestore, submitWithdrawalRequestInFirestore, sendChatroomMessageToFirestore, deleteChatroomMessageFromFirestore, reactChatroomMessageInFirestore, getTodayLocalDateString, getDailyChatLimitForTier, getSynchronousDailyChatUsage, getUserDailyChatUsage, recordUserDailyChatResponse, DEFAULT_CHATROOM_LIVE_SETTINGS, fetchChatroomLiveSettingsFromFirestore, saveChatroomLiveSettingsToFirestore, DEFAULT_ULTIMATE_SEARCH_RULES, fetchUltimateSearchRulesFromFirestore, saveUltimateSearchRulesToFirestore, subscribeToUltimateSearchRules, createChatroomLiveQuestionInFirestore, DAILY_SEARCH_POOL, ensureActiveDailySearchQuestion, closeChatroomLiveQuestionInFirestore, answerEvaluationLocks, SI_UNIT_SYNONYMS, normalizeAnswerText, getAnswerVariants, escapeRegExp, isChatroomAnswerCorrect, evaluateAndProcessLiveAnswer, evaluateMessageForLiveQuestions, seedFirestoreChatroomIfEmpty, savePlatformEventToFirestore, deletePlatformEventFromFirestore, togglePlatformEventStatusInFirestore, seedDefaultPlatformEventsIfEmpty, logSugAudit, getActiveSugManagerByInstitution, getSugManagerByUserId, submitSugManagerRequest, approveSugManagerRequest, rejectSugManagerRequest, updateSugManagerStatus, revokeSugManagerAuthorization, createSugCampaignInFirestore, updateSugCampaignInFirestore, publishSugCampaignInFirestore, endSugCampaignInFirestore, reopenSugCampaignInFirestore, archiveSugCampaignInFirestore, deleteSugCampaignFromFirestore, saveSugSection, deleteSugSection, saveSugPosition, deleteSugPosition, saveSugCandidate, deleteSugCandidate, submitSugVoteInFirestore, checkUserHasVotedForPosition, getUserCampaignVotes, finalizeSugPositionResults, resolveSugTieInFirestore, resolveSugTieBreakerInFirestore, seedDefaultSugElectionsIfEmpty, fetchMinimartConfigFromFirestore, saveMinimartConfigToFirestore, saveMinimartProductToFirestore, updateMinimartProductStatusInFirestore, deleteMinimartProductFromFirestore, submitMinimartReportToFirestore, moderateMinimartReportInFirestore, saveMinimartCategoryToFirestore, deleteMinimartCategoryFromFirestore, seedInitialMinimartDataToFirestore, cleanupMockMinimartProductsFromFirestore, updateCommunityPostInFirestore, saveCommunityPostToFirestore, toggleLikeCommunityPostInFirestore, addCommentToCommunityPostInFirestore, saveAnnouncementToFirestore, deleteAnnouncementFromFirestore, saveSponsorshipCampaignToFirestore, deleteSponsorshipCampaignFromFirestore, isMockSponsorshipCampaign, cleanupMockSponsorshipCampaignsFromFirestore, deleteUserFromFirestore, activateUserSubscriptionInFirestore, cleanupDuplicateWalletTransactionsInFirestore, cleanupDuplicateUserSubscriptionsInFirestore;
+var googleProvider, storage, storageRef, uploadBytes, getDownloadURL, deleteObject, baseFirebaseConfig, safeGetEnv2, firebaseConfig, OperationType, sanitizeForFirestore, seedFirestoreInstitutionsIfEmpty, logAdminAuditAction, fetchAuditLogs, sanitizeInstitutionData, fetchMasterInstitutions, saveMasterInstitutionDoc, toggleInstitutionHideStatus, toggleInstitutionActiveStatus, deleteMasterInstitutionDoc, fetchDepartmentsByInstitutionId, saveDepartmentDoc, toggleDepartmentActiveStatus, fetchAcademicLevelsByType, saveAcademicLevelDoc, bulkImportInstitutionsBatch, isUsernameAvailable, isEmailAvailable, isSubscriptionExpired, fetchInstitutionsByCategory, fetchDepartmentsByInstitution, DEFAULT_PRIVACY, createUserProfileDoc, completeUserAcademicProfileDoc, ensureUserInFirestore, submitStudentVerificationRequest, subscribeToStudentVerificationRequests, approveStudentVerificationRequest, rejectStudentVerificationRequest, getUserProfileDoc, uploadUserProfilePicture, updateUserProfileInFirestore, recordWalletTransactionInFirestore, deductUserGpInFirestore, refundUserGpInFirestore, adjustUserGpInFirestore, formatAuthError, fetchSeasonsFromFirestore, saveSeasonToFirestore, updateSeasonStatusInFirestore, stopSeasonInFirestore, deleteSeasonFromFirestore, fetchSeasonParticipationsFromFirestore, addInstitutionToSeasonInFirestore, removeInstitutionFromSeasonInFirestore, fetchQualificationsFromFirestore, saveQualificationToFirestore, fetchQualificationAttemptsFromFirestore, submitQualificationAttemptToFirestore, fetchRepresentativeAssignmentsFromFirestore, assignRepresentativeInFirestore, removeRepresentativeInFirestore, fetchStandingsFromFirestore, initializeSeasonStandingsInFirestore, fetchFixturesFromFirestore, saveFixtureToFirestore, generateFixturesForSeasonInFirestore, fetchQuestionSetsFromFirestore, saveQuestionSetToFirestore, subscribeToLiveMatch, startLiveMatchLobby, startLiveMatch, submitRepresentativeAnswerInFirestore, advanceLiveMatchQuestion, pauseLiveMatchInFirestore, completeLiveMatch, updateSeasonStandingsAfterMatch, fetchGusSeasonsFromFirestore, saveGusSeasonToFirestore, stopGusSeasonInFirestore, deleteGusSeasonFromFirestore, deleteCommunityPostFromFirestore, deleteQuestionSetFromFirestore, deleteDataFileFromFirestore, registerUserForGusSeasonInFirestore, checkUserGusRegistrationInFirestore, subscribeToGusLive, startGusLiveCompetitionInFirestore, submitGusAnswerInFirestore, awardGusPrizesInFirestore, fetchGusUserHistoryFromFirestore, DEFAULT_NOTIFICATIONS, sendBroadcastNotificationToFirestore, deleteNotificationFromFirestore, DEFAULT_GP_CONVERSION, DEFAULT_SYSTEM_SETTINGS, fetchSystemSettingsFromFirestore, saveSystemSettingsToFirestore, fetchGpConversionConfigFromFirestore, saveGpConversionConfigToFirestore, submitWithdrawalRequestInFirestore, sendChatroomMessageToFirestore, deleteChatroomMessageFromFirestore, reactChatroomMessageInFirestore, getTodayLocalDateString, getDailyChatLimitForTier, getSynchronousDailyChatUsage, getUserDailyChatUsage, recordUserDailyChatResponse, DEFAULT_CHATROOM_LIVE_SETTINGS, fetchChatroomLiveSettingsFromFirestore, saveChatroomLiveSettingsToFirestore, DEFAULT_ULTIMATE_SEARCH_RULES, fetchUltimateSearchRulesFromFirestore, saveUltimateSearchRulesToFirestore, subscribeToUltimateSearchRules, createChatroomLiveQuestionInFirestore, DAILY_SEARCH_POOL, ensureActiveDailySearchQuestion, closeChatroomLiveQuestionInFirestore, answerEvaluationLocks, SI_UNIT_SYNONYMS, normalizeAnswerText, getAnswerVariants, escapeRegExp, isChatroomAnswerCorrect, evaluateAndProcessLiveAnswer, evaluateMessageForLiveQuestions, seedFirestoreChatroomIfEmpty, savePlatformEventToFirestore, deletePlatformEventFromFirestore, togglePlatformEventStatusInFirestore, seedDefaultPlatformEventsIfEmpty, logSugAudit, getActiveSugManagerByInstitution, getSugManagerByUserId, submitSugManagerRequest, approveSugManagerRequest, rejectSugManagerRequest, updateSugManagerStatus, revokeSugManagerAuthorization, createSugCampaignInFirestore, updateSugCampaignInFirestore, publishSugCampaignInFirestore, endSugCampaignInFirestore, reopenSugCampaignInFirestore, archiveSugCampaignInFirestore, deleteSugCampaignFromFirestore, saveSugSection, deleteSugSection, saveSugPosition, deleteSugPosition, saveSugCandidate, deleteSugCandidate, submitSugVoteInFirestore, checkUserHasVotedForPosition, getUserCampaignVotes, finalizeSugPositionResults, resolveSugTieInFirestore, resolveSugTieBreakerInFirestore, seedDefaultSugElectionsIfEmpty, fetchMinimartConfigFromFirestore, saveMinimartConfigToFirestore, saveMinimartProductToFirestore, updateMinimartProductStatusInFirestore, deleteMinimartProductFromFirestore, submitMinimartReportToFirestore, moderateMinimartReportInFirestore, saveMinimartCategoryToFirestore, deleteMinimartCategoryFromFirestore, seedInitialMinimartDataToFirestore, cleanupMockMinimartProductsFromFirestore, updateCommunityPostInFirestore, saveCommunityPostToFirestore, toggleLikeCommunityPostInFirestore, addCommentToCommunityPostInFirestore, saveAnnouncementToFirestore, deleteAnnouncementFromFirestore, saveSponsorshipCampaignToFirestore, deleteSponsorshipCampaignFromFirestore, isMockSponsorshipCampaign, cleanupMockSponsorshipCampaignsFromFirestore, deleteUserFromFirestore, calculateSubscriptionDurationMs, activateUserSubscriptionInFirestore, cleanupDuplicateWalletTransactionsInFirestore, cleanupDuplicateUserSubscriptionsInFirestore;
 var init_firebase = __esm({
   "src/lib/firebase.ts"() {
     init_supabaseFirestoreAdapter();
@@ -7258,8 +7259,8 @@ var init_firebase = __esm({
           status: "active",
           winnerLimit,
           gpRewardPerWinner: gpReward,
-          allowFreeParticipation: questionData.allowFreeParticipation !== false,
-          premiumRequiredForRewards: false,
+          allowFreeParticipation: false,
+          premiumRequiredForRewards: true,
           selectedWinners: [],
           totalSubmissionsCount: 0,
           createdAt: now
@@ -7310,7 +7311,7 @@ var init_firebase = __esm({
             gpReward,
             rewardAmount: gpReward,
             winnerCountLimit: winnerLimit,
-            allowFreeParticipation: true,
+            allowFreeParticipation: false,
             timeLimitSeconds: timeLimit,
             startAt: now,
             endAt
@@ -9810,6 +9811,26 @@ var init_firebase = __esm({
         return { success: false, error: err?.message || "Failed to delete user document from Firestore" };
       }
     };
+    calculateSubscriptionDurationMs = (value, unit) => {
+      const num = Math.max(1, Number(value) || 1);
+      const u = String(unit || "Days").toLowerCase().trim();
+      if (u.includes("min")) {
+        return num * 60 * 1e3;
+      }
+      if (u.includes("hour") || u === "h") {
+        return num * 60 * 60 * 1e3;
+      }
+      if (u.includes("week") || u === "w") {
+        return num * 7 * 24 * 60 * 60 * 1e3;
+      }
+      if (u.includes("month") || u === "m") {
+        return num * 30 * 24 * 60 * 60 * 1e3;
+      }
+      if (u.includes("year") || u === "y") {
+        return num * 365 * 24 * 60 * 60 * 1e3;
+      }
+      return num * 24 * 60 * 60 * 1e3;
+    };
     activateUserSubscriptionInFirestore = async (options) => {
       try {
         const {
@@ -9847,12 +9868,57 @@ var init_firebase = __esm({
         const amount = Number(amountNaira || 0);
         const pId = (rawPlanId || "").toLowerCase().trim();
         const pName = (rawPlanName || "").toLowerCase().trim();
-        const isTitanVip = targetTier === "vip" || pId.includes("titan") || pId.includes("vip") || pName.includes("titan") || pName.includes("vip") || pName.includes("annual") || amount >= 2e4;
-        const isPro = !isTitanVip && (targetTier === "premium" || pId.includes("pro") || pName.includes("pro") || pName.includes("champion") || amount >= 2e3);
-        const effectivePlanId = rawPlanId && rawPlanId.trim() !== "" ? rawPlanId.trim() : isTitanVip ? "plan_titan_naira" : isPro ? "plan_pro_naira" : "plan_premium";
-        const effectivePlanName = rawPlanName && rawPlanName.trim() !== "" ? rawPlanName.trim() : isTitanVip ? "VIP" : isPro ? "Champions Pro Scholar" : "Premium";
-        const durationDays = isTitanVip && (pName.includes("annual") || pId.includes("annual") || amount >= 2e4) ? 365 : 30;
-        const expiryDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1e3).toISOString();
+        let fetchedPlanData = null;
+        let planDurationValue = options.durationValue;
+        let planDurationUnit = options.durationUnit;
+        try {
+          if (rawPlanId) {
+            const planDocRef = doc(db, "subscriptionPlans", rawPlanId);
+            const planSnap = await getDoc(planDocRef);
+            if (planSnap.exists()) {
+              fetchedPlanData = planSnap.data();
+            } else {
+              const qSnap = await getDocs(query(collection(db, "subscriptionPlans"), where("planId", "==", rawPlanId), limit(1)));
+              if (!qSnap.empty) {
+                fetchedPlanData = qSnap.docs[0].data();
+              }
+            }
+          }
+          if (!fetchedPlanData && rawPlanName) {
+            const qSnap2 = await getDocs(query(collection(db, "subscriptionPlans"), where("name", "==", rawPlanName), limit(1)));
+            if (!qSnap2.empty) {
+              fetchedPlanData = qSnap2.docs[0].data();
+            }
+          }
+        } catch (lookupErr) {
+          console.warn("[Firebase] Notice looking up plan from Firestore subscriptionPlans:", lookupErr);
+        }
+        if (fetchedPlanData) {
+          if (planDurationValue === void 0 && fetchedPlanData.durationValue !== void 0) {
+            planDurationValue = fetchedPlanData.durationValue;
+          }
+          if (!planDurationUnit && fetchedPlanData.durationUnit) {
+            planDurationUnit = fetchedPlanData.durationUnit;
+          }
+        }
+        const resolvedTargetTier = targetTier || fetchedPlanData?.targetTier || fetchedPlanData?.tierType || (pId.includes("titan") || pId.includes("vip") || pName.includes("titan") || pName.includes("vip") || pName.includes("annual") || amount >= 2e4 ? "vip" : "premium");
+        const isTitanVip = resolvedTargetTier === "vip";
+        const isPro = !isTitanVip && (resolvedTargetTier === "premium" || pId.includes("pro") || pName.includes("pro") || pName.includes("champion") || amount >= 2e3);
+        const effectivePlanId = rawPlanId && rawPlanId.trim() !== "" ? rawPlanId.trim() : fetchedPlanData?.planId || (isTitanVip ? "plan_titan_naira" : isPro ? "plan_pro_naira" : "plan_premium");
+        const effectivePlanName = rawPlanName && rawPlanName.trim() !== "" ? rawPlanName.trim() : fetchedPlanData?.name || (isTitanVip ? "VIP" : isPro ? "Champions Pro Scholar" : "Premium");
+        let durationMs;
+        if (options.durationMs && options.durationMs > 0) {
+          durationMs = options.durationMs;
+        } else if (planDurationValue !== void 0 && planDurationUnit) {
+          durationMs = calculateSubscriptionDurationMs(planDurationValue, planDurationUnit);
+        } else if (options.durationDays && options.durationDays > 0) {
+          durationMs = options.durationDays * 24 * 60 * 60 * 1e3;
+        } else {
+          durationMs = isTitanVip && (pName.includes("annual") || pId.includes("annual") || amount >= 2e4) ? 365 * 24 * 60 * 60 * 1e3 : 30 * 24 * 60 * 60 * 1e3;
+        }
+        const startDate = (/* @__PURE__ */ new Date()).toISOString();
+        const expiryDate = options.expiryDate || new Date(Date.now() + durationMs).toISOString();
+        const formattedDurationString = planDurationValue !== void 0 && planDurationUnit ? `${planDurationValue} ${planDurationUnit}` : `${Math.round(durationMs / (24 * 60 * 60 * 1e3))} Days`;
         const userDocRef = doc(db, "users", targetUid);
         let existingData = {};
         try {
@@ -9871,6 +9937,8 @@ var init_firebase = __esm({
           planId: effectivePlanId,
           tier: effectivePlanName,
           plan: effectivePlanName,
+          targetTier: resolvedTargetTier,
+          tierType: resolvedTargetTier,
           isSubscribed: true,
           isPremium: true,
           isVip: isTitanVip,
@@ -9880,10 +9948,10 @@ var init_firebase = __esm({
           subscription: {
             planId: effectivePlanId,
             name: effectivePlanName,
-            price: amount > 0 ? amount : isTitanVip ? 800 : isPro ? 2500 : 100,
+            price: amount > 0 ? amount : fetchedPlanData?.priceNaira || (isTitanVip ? 800 : isPro ? 2500 : 100),
             currency: "NGN",
-            duration: isTitanVip && (pName.includes("annual") || amount >= 2e4) ? "365 Days" : "1 Months",
-            startDate: (/* @__PURE__ */ new Date()).toISOString(),
+            duration: formattedDurationString,
+            startDate,
             expiryDate,
             status: "active",
             paymentReference: reference
@@ -9899,10 +9967,12 @@ var init_firebase = __esm({
           userEmail: userEmail || existingData.email || "",
           planId: effectivePlanId,
           planNameSnapshot: effectivePlanName,
-          priceSnapshot: amount > 0 ? amount : isTitanVip ? 800 : isPro ? 2500 : 100,
+          targetTier: resolvedTargetTier,
+          tierType: resolvedTargetTier,
+          priceSnapshot: amount > 0 ? amount : fetchedPlanData?.priceNaira || (isTitanVip ? 800 : isPro ? 2500 : 100),
           currencySnapshot: "NGN",
-          durationSnapshot: isTitanVip && (pName.includes("annual") || amount >= 2e4) ? "365 Days" : "1 Months",
-          startDate: (/* @__PURE__ */ new Date()).toISOString(),
+          durationSnapshot: formattedDurationString,
+          startDate,
           expiryDate,
           status: "active",
           paymentReference: reference,
@@ -13507,7 +13577,9 @@ paystackRouter.post("/initialize", async (req, res) => {
       email,
       userId,
       userName,
-      callbackUrl
+      callbackUrl,
+      durationValue,
+      durationUnit
     } = req.body || {};
     if (!amountNaira || isNaN(Number(amountNaira)) || Number(amountNaira) <= 0) {
       return res.status(400).json({
@@ -13555,6 +13627,8 @@ paystackRouter.post("/initialize", async (req, res) => {
                 planId: planId || "premium_1m",
                 planName: planName || "Premium",
                 amountNaira: Number(amountNaira),
+                durationValue: durationValue !== void 0 ? durationValue : void 0,
+                durationUnit: durationUnit || void 0,
                 platform: "grobax_web",
                 timestamp: Date.now(),
                 custom_fields: [
@@ -13828,6 +13902,8 @@ var handlePaystackVerify = async (req, res) => {
                 userName: tx.metadata?.userName || "",
                 planId: tx.metadata?.planId,
                 planName: tx.metadata?.planName,
+                durationValue: tx.metadata?.durationValue,
+                durationUnit: tx.metadata?.durationUnit,
                 amountNaira: tx.amount ? tx.amount / 100 : 0,
                 channel: tx.channel || "paystack"
               });
@@ -13892,13 +13968,15 @@ paystackRouter.get("/verify/:reference", handlePaystackVerify);
 paystackRouter.get("/verify", handlePaystackVerify);
 paystackRouter.post("/activate", async (req, res) => {
   try {
-    const { reference, userId, userEmail, userName, planId, planName, amountNaira } = req.body || {};
+    const { reference, userId, userEmail, userName, planId, planName, amountNaira, durationValue, durationUnit } = req.body || {};
     if (!reference) {
       return res.status(400).json({ success: false, error: "Payment reference is required." });
     }
     const secretKey = getSecretKey();
     let channel = "paystack";
     let verifiedAmount = Number(amountNaira || 0);
+    let resolvedDurationValue = durationValue;
+    let resolvedDurationUnit = durationUnit;
     if (secretKey && (secretKey.startsWith("sk_live_") || secretKey.startsWith("sk_test_"))) {
       try {
         const baseUrl = getPaystackBaseUrl();
@@ -13919,6 +13997,12 @@ paystackRouter.post("/activate", async (req, res) => {
           }
           channel = verifyData.data.channel || "paystack";
           verifiedAmount = verifyData.data.amount ? verifyData.data.amount / 100 : verifiedAmount;
+          if (resolvedDurationValue === void 0 && verifyData.data.metadata?.durationValue !== void 0) {
+            resolvedDurationValue = verifyData.data.metadata.durationValue;
+          }
+          if (!resolvedDurationUnit && verifyData.data.metadata?.durationUnit) {
+            resolvedDurationUnit = verifyData.data.metadata.durationUnit;
+          }
         }
       } catch (vfErr) {
         console.warn("[Paystack Activate] Notice verifying with Paystack API:", vfErr);
@@ -13932,7 +14016,9 @@ paystackRouter.post("/activate", async (req, res) => {
       planId,
       planName,
       amountNaira: verifiedAmount,
-      channel
+      channel,
+      durationValue: resolvedDurationValue,
+      durationUnit: resolvedDurationUnit
     });
     return res.json({
       success: result.success,
@@ -13984,7 +14070,9 @@ paystackRouter.post("/webhook", async (req, res) => {
           planId: data.metadata?.planId,
           planName: data.metadata?.planName,
           amountNaira: data.amount ? data.amount / 100 : 0,
-          channel: data.channel || "paystack"
+          channel: data.channel || "paystack",
+          durationValue: data.metadata?.durationValue,
+          durationUnit: data.metadata?.durationUnit
         });
         console.log(`[Paystack Webhook] Activated subscription in Firestore:`, actResult);
       } catch (actErr) {

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { isPackagedApp, isAndroidApp, isIOSApp, isStandalonePWA } from '../utils/platformDetection';
 
 export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -7,7 +8,10 @@ export interface BeforeInstallPromptEvent extends Event {
 
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState<boolean>(false);
+  const [isInstalled, setIsInstalled] = useState<boolean>(() => {
+    return isPackagedApp() || isStandalonePWA();
+  });
+  const [isPackaged, setIsPackaged] = useState<boolean>(() => isPackagedApp());
   const [isIOS, setIsIOS] = useState<boolean>(false);
   const [isAndroid, setIsAndroid] = useState<boolean>(false);
   const [isChrome, setIsChrome] = useState<boolean>(false);
@@ -20,17 +24,20 @@ export function usePWAInstall() {
   });
 
   useEffect(() => {
-    // 1. Check if running in standalone mode (already installed)
-    const checkStandalone = () => {
-      const isStandaloneMedia = window.matchMedia('(display-mode: standalone)').matches;
-      const isNavigatorStandalone = (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-      const isDocumentReferrer = document.referrer.includes('android-app://');
-      return isStandaloneMedia || isNavigatorStandalone || isDocumentReferrer;
-    };
+    // 1. Packaged mobile app check (Google Play Android or App Store iOS)
+    const inPackagedApp = isPackagedApp();
+    setIsPackaged(inPackagedApp);
 
-    setIsInstalled(checkStandalone());
+    if (inPackagedApp) {
+      // Running inside installed Android / iOS app -> immediately mark installed and suppress PWA prompts
+      setIsInstalled(true);
+      return;
+    }
 
-    // 2. Detect platform / device
+    // 2. Check if running in standalone mode (already installed PWA from browser)
+    setIsInstalled(isStandalonePWA());
+
+    // 3. Detect browser platform / device for web browsers
     const ua = (window.navigator.userAgent || '').toLowerCase();
     const isIOSDevice = /iphone|ipad|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isAndroidDevice = /android/.test(ua);
@@ -40,16 +47,16 @@ export function usePWAInstall() {
     setIsAndroid(isAndroidDevice);
     setIsChrome(isChromeBrowser);
 
-    // 3. Listen for Chromium/Android 'beforeinstallprompt'
+    // 4. Listen for Chromium/Android browser 'beforeinstallprompt'
     const handleBeforeInstallPrompt = (e: Event) => {
+      // Never capture or prompt if running inside native packaged app
+      if (isPackagedApp()) return;
       e.preventDefault();
-      console.log('PWA: beforeinstallprompt event captured');
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
-    // 4. Listen for 'appinstalled'
+    // 5. Listen for 'appinstalled' in browser
     const handleAppInstalled = () => {
-      console.log('PWA: GRBX Box was successfully installed on device');
       setIsInstalled(true);
       setDeferredPrompt(null);
       try {
@@ -67,6 +74,7 @@ export function usePWAInstall() {
   }, []);
 
   const install = useCallback(async (): Promise<boolean> => {
+    if (isPackagedApp()) return false;
     if (deferredPrompt) {
       try {
         await deferredPrompt.prompt();
@@ -99,10 +107,14 @@ export function usePWAInstall() {
     } catch {}
   }, []);
 
+  // In packaged apps (Android/iOS), isInstallable is strictly false
+  const effectivelyInstallable = !isPackaged && !isInstalled && !!deferredPrompt;
+
   return {
-    isInstallable: !!deferredPrompt,
-    hasNativePrompt: !!deferredPrompt,
-    isInstalled,
+    isInstallable: effectivelyInstallable,
+    hasNativePrompt: effectivelyInstallable,
+    isInstalled: isInstalled || isPackaged,
+    isPackagedApp: isPackaged,
     isIOS,
     isAndroid,
     isChrome,

@@ -1,0 +1,58 @@
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.grobaax.app',
+  appName: 'Grobaax',
+  webDir: 'dist',
+  bundledWebRuntime: false,
+  server: {
+    // Uses local bundled web assets for instant loading and reliability
+    androidScheme: 'https',
+    iosScheme: 'grobaax',
+    cleartext: false,
+    allowNavigation: [
+      'www.grobaax.com',
+      'grobaax.com',
+      '*.grobaax.com',
+      '*.googleapis.com',
+      '*.firebaseapp.com',
+      '*.web.app',
+      '*.paystack.co',
+      'api.paystack.co',
+      'checkout.paystack.com',
+      'api.dicebear.com',
+      'images.unsplash.com',
+    ],
+  },
+  android: {
+    allowMixedContent: false,
+    captureInput: true,
+    webContentsDebuggingEnabled: false,
+    backgroundColor: '#030712',
+    buildOptions: {
+      keystorePath: undefined,
+      keystoreAlias: undefined,
+    },
+  },
+  ios: {
+    webContentsDebuggingEnabled: false,
+    backgroundColor: '#030712',
+    contentInset: 'always',
+    preferredContentMode: 'mobile',
+    scheme: 'Grobaax',
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 1800,
+      launchAutoHide: true,
+      backgroundColor: '#030712',
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
+  },
+};
+
+export default config;
