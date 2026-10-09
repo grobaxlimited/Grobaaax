@@ -90,6 +90,7 @@ import {
   Target,
   Copy,
   Clock,
+  ArrowRight,
 } from 'lucide-react';
 
 const STANDARD_ACADEMIC_LEVELS = [
@@ -112,6 +113,7 @@ export const WalletModal: React.FC = () => {
     isWalletModalOpen,
     setIsWalletModalOpen,
     currentUser,
+    setActiveTab: setAppActiveTab,
     role,
     setRole,
     toggleRepresentativeStatus,
