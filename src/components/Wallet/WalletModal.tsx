@@ -1822,48 +1822,9 @@ export const WalletModal: React.FC = () => {
                 </div>
               )}
 
-              {/* 4.5. MOBILE APP & PACKAGING DOWNLOADS */}
-              {(settingsSection === 'all' || settingsSection === 'account') && (
-                <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-950/30 to-blue-950/30 border border-emerald-500/30 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <Smartphone className="w-4 h-4 text-emerald-400" />
-                      <span>Mobile App &amp; Store Packaging</span>
-                    </h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      .APK • .AAB • iOS
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Download the complete Android Gradle project (produces <code className="text-emerald-400">.apk</code> for direct testing and <code className="text-emerald-400">.aab</code> for Google Play) and iOS Xcode workspace for the Apple App Store.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        window.dispatchEvent(new CustomEvent('open_mobile_packaging_modal'));
-                      }}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Smartphone className="w-3.5 h-3.5" />
-                      <span>Open Packaging Suite</span>
-                    </button>
-                    <a
-                      href="/download"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl border border-slate-300 dark:border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Standalone Download Hub</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                </div>
-              )}
-
               {/* 5. ACCOUNT SESSION & AUTH SECURITY */}
-
               {(settingsSection === 'all' || settingsSection === 'account') && (
+
                 <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
                   <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-blue-500" />
