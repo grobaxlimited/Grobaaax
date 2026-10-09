@@ -30,7 +30,10 @@ import {
   Smartphone,
   Swords,
   Lightbulb,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
+
 import { WelcomeVideoBox } from './WelcomeVideoBox';
 
 export const HomeTab: React.FC = () => {
@@ -309,7 +312,57 @@ export const HomeTab: React.FC = () => {
       </section>
 
       {/* ======================================================== */}
+      {/* 1.5. NATIVE MOBILE APP PACKAGING BANNER */}
+      {/* ======================================================== */}
+      <section
+        id="home-mobile-packaging-banner"
+        className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-800/50 text-white shadow-md relative overflow-hidden"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center text-white shadow-lg shrink-0">
+              <Smartphone className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-extrabold text-sm sm:text-base text-white">
+                  Grobaax Native Android (.apk/.aab) &amp; iOS Packaging
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                  Google Play &amp; App Store
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                Ready-to-build native distribution packages replicating the full Grobaax production web experience. Generate testing APKs, Google Play AABs, and Xcode archives.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open_mobile_packaging_modal'))}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              <span>Get Packages (.zip)</span>
+            </button>
+            <a
+              href="/download"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+            >
+              <span>Download Hub</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ======================================================== */}
       {/* 2. ADMIN-CREATED EVENTS SECTION (REAL-TIME FIRESTORE) */}
+
       {/* ======================================================== */}
       <section id="admin-created-events-section" className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">

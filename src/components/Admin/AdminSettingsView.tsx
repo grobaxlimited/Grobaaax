@@ -26,9 +26,12 @@ import {
   Download,
   PackageCheck,
   BookOpen,
+  Copy,
+  Loader2,
 } from 'lucide-react';
 import { AdminContactSupportView } from './AdminContactSupportView';
 import { getYouTubeEmbedUrl } from '../../lib/youtubeUtils';
+import { downloadFile, getAbsoluteDownloadUrl } from '../../utils/fileDownloader';
 
 export function AdminSettingsView() {
   const { systemSettings, updateSystemSettings } = useApp();
@@ -36,6 +39,26 @@ export function AdminSettingsView() {
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'academic' | 'competition' | 'wallet' | 'infrastructure' | 'contact' | 'mobile'>('general');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+
+  const handleDownload = async (url: string, filename: string, id: string) => {
+    try {
+      setDownloadingId(id);
+      await downloadFile(url, filename);
+    } finally {
+      setTimeout(() => setDownloadingId(null), 1200);
+    }
+  };
+
+  const handleCopyLink = (relativePath: string, id: string) => {
+    try {
+      const fullUrl = getAbsoluteDownloadUrl(relativePath);
+      navigator.clipboard.writeText(fullUrl);
+      setCopiedLink(id);
+      setTimeout(() => setCopiedLink(null), 2500);
+    } catch {}
+  };
 
   // Dedicated save state for Platform Guide Video section
   const [videoSaving, setVideoSaving] = useState(false);
@@ -750,6 +773,17 @@ export function AdminSettingsView() {
               </p>
             </div>
 
+            {/* Preview Iframe Download Notice */}
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1 text-xs">
+                <p className="font-bold text-amber-300">Mobile &amp; Preview Download Options</p>
+                <p className="text-slate-300 leading-relaxed text-[11px]">
+                  If your browser or the preview pane blocks downloading directly inside this window, tap <strong className="text-white">Copy Direct Link</strong> or tap the <strong className="text-white">↗ (Open)</strong> button to download in a full browser tab.
+                </p>
+              </div>
+            </div>
+
             {/* Download Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Android Card */}
@@ -777,14 +811,38 @@ export function AdminSettingsView() {
                   </div>
                 </div>
 
-                <a
-                  href="/api/download/android"
-                  download="grobaax-android-project.zip"
-                  className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download Android Project (.zip)</span>
-                </a>
+                <div className="space-y-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDownload('/api/download/android', 'grobaax-android-project.zip', 'android')}
+                    disabled={downloadingId === 'android'}
+                    className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer disabled:opacity-50"
+                  >
+                    {downloadingId === 'android' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    <span>{downloadingId === 'android' ? 'Downloading...' : 'Download Android Project (.zip)'}</span>
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyLink('/api/download/android', 'android_copy')}
+                      className="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                    >
+                      {copiedLink === 'android_copy' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedLink === 'android_copy' ? 'Copied Link!' : 'Copy Link'}</span>
+                    </button>
+
+                    <a
+                      href={getAbsoluteDownloadUrl('/api/download/android')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open in Tab ↗</span>
+                    </a>
+                  </div>
+                </div>
               </div>
 
               {/* iOS Card */}
@@ -812,14 +870,38 @@ export function AdminSettingsView() {
                   </div>
                 </div>
 
-                <a
-                  href="/api/download/ios"
-                  download="grobaax-ios-project.zip"
-                  className="w-full py-3 px-4 rounded-2xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download iOS Project (.zip)</span>
-                </a>
+                <div className="space-y-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDownload('/api/download/ios', 'grobaax-ios-project.zip', 'ios')}
+                    disabled={downloadingId === 'ios'}
+                    className="w-full py-3 px-4 rounded-2xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer disabled:opacity-50"
+                  >
+                    {downloadingId === 'ios' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    <span>{downloadingId === 'ios' ? 'Downloading...' : 'Download iOS Project (.zip)'}</span>
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyLink('/api/download/ios', 'ios_copy')}
+                      className="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                    >
+                      {copiedLink === 'ios_copy' ? <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedLink === 'ios_copy' ? 'Copied Link!' : 'Copy Link'}</span>
+                    </button>
+
+                    <a
+                      href={getAbsoluteDownloadUrl('/api/download/ios')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open in Tab ↗</span>
+                    </a>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -839,22 +921,24 @@ export function AdminSettingsView() {
                 </div>
               </div>
               <div className="flex items-center gap-2.5 w-full sm:w-auto">
-                <a
-                  href="/api/download/guide"
-                  download="MOBILE_PACKAGING_GUIDE.md"
-                  className="py-2.5 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                <button
+                  type="button"
+                  onClick={() => handleCopyLink('/api/download/mobile-suite', 'suite_copy')}
+                  className="py-2.5 px-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                 >
-                  <BookOpen className="w-4 h-4" />
-                  <span>View Guide (.md)</span>
-                </a>
-                <a
-                  href="/api/download/mobile-suite"
-                  download="grobaax-mobile-packaging-suite.zip"
-                  className="py-2.5 px-5 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black text-xs flex items-center gap-2 shadow-md transition cursor-pointer"
+                  {copiedLink === 'suite_copy' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedLink === 'suite_copy' ? 'Copied Suite Link!' : 'Copy Suite Link'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDownload('/api/download/mobile-suite', 'grobaax-mobile-packaging-suite.zip', 'suite')}
+                  disabled={downloadingId === 'suite'}
+                  className="py-2.5 px-5 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black text-xs flex items-center gap-2 shadow-md transition cursor-pointer disabled:opacity-50"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Download Suite (.zip)</span>
-                </a>
+                  {downloadingId === 'suite' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  <span>{downloadingId === 'suite' ? 'Downloading...' : 'Download Suite (.zip)'}</span>
+                </button>
               </div>
             </div>
           </div>

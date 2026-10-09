@@ -20,7 +20,9 @@ import {
   Swords,
   Shield,
   Lightbulb,
+  Smartphone,
 } from 'lucide-react';
+
 
 interface TopNavigationProps {
   onOpenAdminPanel?: () => void;
@@ -180,7 +182,20 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
               </button>
             )}
 
+            {/* Mobile App & APK/AAB Packaging Download Button */}
+            <button
+              type="button"
+              id="header-open-mobile-packaging-btn"
+              onClick={() => window.dispatchEvent(new CustomEvent('open_mobile_packaging_modal'))}
+              title="Download Android (APK/AAB) & iOS Packaging Suite"
+              className="relative p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/90 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 transition cursor-pointer flex items-center gap-1.5 font-bold text-xs"
+            >
+              <Smartphone className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span className="hidden sm:inline">Mobile App</span>
+            </button>
+
             {/* Notification Bell Button */}
+
             <div>
               <button
                 type="button"

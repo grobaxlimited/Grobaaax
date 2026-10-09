@@ -13,7 +13,9 @@ import {
   Copy,
   ExternalLink,
   BookOpen,
+  Loader2,
 } from 'lucide-react';
+import { downloadFile, getAbsoluteDownloadUrl } from '../../utils/fileDownloader';
 
 interface MobilePackagingModalProps {
   isOpen: boolean;
@@ -25,6 +27,7 @@ export const MobilePackagingModal: React.FC<MobilePackagingModalProps> = ({
   onClose,
 }) => {
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -40,7 +43,16 @@ export const MobilePackagingModal: React.FC<MobilePackagingModalProps> = ({
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedCmd(id);
-    setTimeout(() => setCopiedCmd(null), 2000);
+    setTimeout(() => setCopiedCmd(null), 2500);
+  };
+
+  const handleDownload = async (url: string, filename: string, id: string) => {
+    try {
+      setDownloadingId(id);
+      await downloadFile(url, filename);
+    } finally {
+      setTimeout(() => setDownloadingId(null), 1200);
+    }
   };
 
   const modalContent = (
@@ -76,15 +88,26 @@ export const MobilePackagingModal: React.FC<MobilePackagingModalProps> = ({
         {/* Scrollable Content */}
         <div className="p-5 space-y-6 overflow-y-auto flex-1 text-xs">
           
-          {/* Quick Notice */}
-          <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-start gap-3 text-blue-200">
-            <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-bold text-white">Exact Web App Replication</p>
-              <p className="text-slate-300 leading-relaxed">
-                The Android and iOS packaging files contain the complete production Grobaax web application. They connect to your existing backend, Firestore database, and authentication. In-app PWA install prompts are automatically suppressed when running inside these native apps.
-              </p>
+          {/* Quick Notice & Iframe Fallback Banner */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border border-blue-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-blue-200">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-bold text-white text-xs">Direct Downloads &amp; Store Submission</p>
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  Contains the complete production Grobaax web app. If the preview window blocks automatic downloads, use <strong className="text-white">Copy Link</strong> or <strong className="text-white">Open in Tab ↗</strong>.
+                </p>
+              </div>
             </div>
+            <a
+              href="/download"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-[11px] flex items-center gap-1.5 shrink-0 shadow-sm transition cursor-pointer"
+            >
+              <span>Standalone Download Hub</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
           </div>
 
           {/* Download Cards Grid */}
@@ -113,14 +136,37 @@ export const MobilePackagingModal: React.FC<MobilePackagingModalProps> = ({
                 </div>
               </div>
 
-              <a
-                href="/api/download/android"
-                download="grobaax-android-project.zip"
-                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download Android Project (.zip)</span>
-              </a>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownload('/api/download/android', 'grobaax-android-project.zip', 'android')}
+                  disabled={downloadingId === 'android'}
+                  className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer disabled:opacity-50"
+                >
+                  {downloadingId === 'android' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  <span>{downloadingId === 'android' ? 'Downloading...' : 'Download Android Project (.zip)'}</span>
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(getAbsoluteDownloadUrl('/api/download/android'), 'android_link')}
+                    className="py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700 transition cursor-pointer"
+                  >
+                    {copiedCmd === 'android_link' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCmd === 'android_link' ? 'Copied Link!' : 'Copy Link'}</span>
+                  </button>
+                  <a
+                    href="/api/download/android"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700 transition cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open in Tab ↗</span>
+                  </a>
+                </div>
+              </div>
             </div>
 
             {/* 2. iOS Card */}
@@ -146,16 +192,40 @@ export const MobilePackagingModal: React.FC<MobilePackagingModalProps> = ({
                 </div>
               </div>
 
-              <a
-                href="/api/download/ios"
-                download="grobaax-ios-project.zip"
-                className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download iOS Project (.zip)</span>
-              </a>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownload('/api/download/ios', 'grobaax-ios-project.zip', 'ios')}
+                  disabled={downloadingId === 'ios'}
+                  className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer disabled:opacity-50"
+                >
+                  {downloadingId === 'ios' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  <span>{downloadingId === 'ios' ? 'Downloading...' : 'Download iOS Project (.zip)'}</span>
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(getAbsoluteDownloadUrl('/api/download/ios'), 'ios_link')}
+                    className="py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700 transition cursor-pointer"
+                  >
+                    {copiedCmd === 'ios_link' ? <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCmd === 'ios_link' ? 'Copied Link!' : 'Copy Link'}</span>
+                  </button>
+                  <a
+                    href="/api/download/ios"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700 transition cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open in Tab ↗</span>
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
+
 
           {/* 3. Complete Suite & Guide Downloads */}
           <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -170,23 +240,33 @@ export const MobilePackagingModal: React.FC<MobilePackagingModalProps> = ({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <a
-                href="/api/download/guide"
-                download="MOBILE_PACKAGING_GUIDE.md"
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => handleDownload('/api/download/guide', 'MOBILE_PACKAGING_GUIDE.md', 'guide')}
+                disabled={downloadingId === 'guide'}
                 className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
               >
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>Guide (.md)</span>
-              </a>
-              <a
-                href="/api/download/mobile-suite"
-                download="grobaax-mobile-packaging-suite.zip"
-                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownload('/api/download/mobile-suite', 'grobaax-mobile-packaging-suite.zip', 'suite')}
+                disabled={downloadingId === 'suite'}
+                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer disabled:opacity-50"
               >
-                <Download className="w-3.5 h-3.5" />
-                <span>Download Suite (.zip)</span>
-              </a>
+                {downloadingId === 'suite' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                <span>{downloadingId === 'suite' ? 'Downloading...' : 'Download Suite (.zip)'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(getAbsoluteDownloadUrl('/api/download/mobile-suite'), 'suite_link')}
+                className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                title="Copy Direct Suite Link"
+              >
+                {copiedCmd === 'suite_link' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
             </div>
           </div>
 

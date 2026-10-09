@@ -845,6 +845,7 @@ apiApp.use('/system-settings', systemSettingsRouter);
 // Mobile Packaging Downloads Router (Android APK/AAB & iOS Packaging Suite)
 apiApp.use('/api/download', mobileDownloadRouter);
 apiApp.use('/download', mobileDownloadRouter);
+apiApp.use('/downloads', mobileDownloadRouter);
 
 // AI Academic Library Handout Generation Route
 const libraryGenerateHandler = async (req: Request, res: Response) => {
