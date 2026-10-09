@@ -21,6 +21,11 @@ import {
   Play,
   ExternalLink,
   Clipboard,
+  Smartphone,
+  Apple,
+  Download,
+  PackageCheck,
+  BookOpen,
 } from 'lucide-react';
 import { AdminContactSupportView } from './AdminContactSupportView';
 import { getYouTubeEmbedUrl } from '../../lib/youtubeUtils';
@@ -30,7 +35,7 @@ export function AdminSettingsView() {
   const [formData, setFormData] = useState<SystemSettings>(systemSettings);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'academic' | 'competition' | 'wallet' | 'infrastructure' | 'contact'>('general');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'academic' | 'competition' | 'wallet' | 'infrastructure' | 'contact' | 'mobile'>('general');
 
   // Dedicated save state for Platform Guide Video section
   const [videoSaving, setVideoSaving] = useState(false);
@@ -121,6 +126,7 @@ export function AdminSettingsView() {
           { id: 'wallet', label: 'Economy & GP Limits', icon: Coins },
           { id: 'infrastructure', label: 'Firebase & Security', icon: Server },
           { id: 'contact', label: 'Contact Channels & Support', icon: Headphones },
+          { id: 'mobile', label: 'Android & iOS App Packaging', icon: Smartphone },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -711,6 +717,146 @@ export function AdminSettingsView() {
         {activeSettingsTab === 'contact' && (
           <div className="space-y-6">
             <AdminContactSupportView />
+          </div>
+        )}
+
+        {/* TAB 7: ANDROID & iOS APP PACKAGING */}
+        {activeSettingsTab === 'mobile' && (
+          <div className="space-y-6 text-xs">
+            {/* Header Banner */}
+            <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 text-white space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center">
+                    <Smartphone className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base text-white">
+                      Grobaax Native App Distribution Suite
+                    </h3>
+                    <p className="text-slate-400 text-xs">
+                      Single-codebase packaging for Google Play (Android .apk / .aab) &amp; Apple App Store (iOS)
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Application ID: com.grobaax.app
+                  </span>
+                </div>
+              </div>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                The packaged applications display the exact same Grobaax experience, connecting to the live backend, Firestore database, and authentication. When users open Grobaax inside the packaged Android or iOS apps, PWA install prompts are automatically suppressed. Normal browser users at <strong className="text-white">https://www.grobaax.com/</strong> continue to receive the full PWA experience.
+              </p>
+            </div>
+
+            {/* Download Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Android Card */}
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 font-black text-sm text-slate-900 dark:text-white">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <Smartphone className="w-4 h-4" />
+                      </div>
+                      <span>Android Package</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      .APK &amp; .AAB
+                    </span>
+                  </div>
+                  <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
+                    Complete Android Studio / Gradle project containing all web assets, AndroidManifest.xml, and build targets.
+                  </p>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 font-mono text-[11px] space-y-1.5">
+                    <div className="text-slate-500 dark:text-slate-400">1. Build testing APK:</div>
+                    <div className="text-emerald-600 dark:text-emerald-400 font-bold">cd android &amp;&amp; ./gradlew assembleDebug</div>
+                    <div className="text-slate-500 dark:text-slate-400 pt-1">2. Build Google Play Store AAB:</div>
+                    <div className="text-emerald-600 dark:text-emerald-400 font-bold">cd android &amp;&amp; ./gradlew bundleRelease</div>
+                  </div>
+                </div>
+
+                <a
+                  href="/api/download/android"
+                  download="grobaax-android-project.zip"
+                  className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Android Project (.zip)</span>
+                </a>
+              </div>
+
+              {/* iOS Card */}
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 font-black text-sm text-slate-900 dark:text-white">
+                      <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <Apple className="w-4 h-4" />
+                      </div>
+                      <span>iOS Package</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                      Xcode Project
+                    </span>
+                  </div>
+                  <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
+                    Complete Xcode project with configured bundle identifier, App Store privacy descriptions, and launch screen.
+                  </p>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 font-mono text-[11px] space-y-1.5">
+                    <div className="text-slate-500 dark:text-slate-400">1. Open in Xcode:</div>
+                    <div className="text-blue-600 dark:text-blue-400 font-bold">npx cap open ios</div>
+                    <div className="text-slate-500 dark:text-slate-400 pt-1">2. Distribute to App Store:</div>
+                    <div className="text-blue-600 dark:text-blue-400 font-bold">Product &gt; Archive &gt; Distribute App</div>
+                  </div>
+                </div>
+
+                <a
+                  href="/api/download/ios"
+                  download="grobaax-ios-project.zip"
+                  className="w-full py-3 px-4 rounded-2xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download iOS Project (.zip)</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Complete Suite & Guide */}
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                  <PackageCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-900 dark:text-white text-xs">
+                    Complete Mobile Packaging Suite (.zip)
+                  </h4>
+                  <p className="text-slate-500 dark:text-slate-400 text-xs">
+                    Contains both Android &amp; iOS native projects plus the distribution guide.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <a
+                  href="/api/download/guide"
+                  download="MOBILE_PACKAGING_GUIDE.md"
+                  className="py-2.5 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>View Guide (.md)</span>
+                </a>
+                <a
+                  href="/api/download/mobile-suite"
+                  download="grobaax-mobile-packaging-suite.zip"
+                  className="py-2.5 px-5 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black text-xs flex items-center gap-2 shadow-md transition cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Suite (.zip)</span>
+                </a>
+              </div>
+            </div>
           </div>
         )}
 

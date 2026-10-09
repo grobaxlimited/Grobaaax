@@ -10,6 +10,7 @@ import { walletRouter } from './walletRouter';
 import { supabaseRouter } from './supabaseRouter';
 import { spinRouter } from './spinRouter';
 import { systemSettingsRouter } from './systemSettingsRouter';
+import { mobileDownloadRouter } from './mobileDownloadRouter';
 import {
   enrichHandoutWithFullChaptersAndImages,
   getAcademicPhotoForChapter,
@@ -840,6 +841,10 @@ apiApp.use('/api/admin/system-settings', systemSettingsRouter);
 apiApp.use('/admin/system-settings', systemSettingsRouter);
 apiApp.use('/api/system-settings', systemSettingsRouter);
 apiApp.use('/system-settings', systemSettingsRouter);
+
+// Mobile Packaging Downloads Router (Android APK/AAB & iOS Packaging Suite)
+apiApp.use('/api/download', mobileDownloadRouter);
+apiApp.use('/download', mobileDownloadRouter);
 
 // AI Academic Library Handout Generation Route
 const libraryGenerateHandler = async (req: Request, res: Response) => {

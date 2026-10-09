@@ -17,6 +17,7 @@ import { InAppPushToast } from './components/Navigation/InAppPushToast';
 import { PWASplashScreen } from './components/PWA/PWASplashScreen';
 import { PWAInstallBanner } from './components/PWA/PWAInstallBanner';
 import { OfflineIndicator } from './components/PWA/OfflineIndicator';
+import { MobilePackagingModal } from './components/PWA/MobilePackagingModal';
 import { AuthCallbackReturn } from './components/Auth/AuthCallbackReturn';
 import { useDevicePlatform } from './hooks/useDevicePlatform';
 
@@ -154,12 +155,24 @@ function MainLayout() {
 }
 
 export default function App() {
+  const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    const handleOpenMobileModal = () => setIsMobileModalOpen(true);
+    window.addEventListener('open_mobile_packaging_modal', handleOpenMobileModal);
+    return () => window.removeEventListener('open_mobile_packaging_modal', handleOpenMobileModal);
+  }, []);
+
   return (
     <AppProvider>
       <PWASplashScreen />
       <MainLayout />
       <PWAInstallBanner />
       <OfflineIndicator />
+      <MobilePackagingModal
+        isOpen={isMobileModalOpen}
+        onClose={() => setIsMobileModalOpen(false)}
+      />
     </AppProvider>
   );
 }

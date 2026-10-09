@@ -1,5 +1,9 @@
+var __create = Object.create;
 var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -7,6 +11,22 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 
 // src/data/mockMinimartData.ts
 var DEFAULT_MINIMART_CONFIG, INITIAL_MINIMART_CATEGORIES, INITIAL_MINIMART_PRODUCTS;
@@ -154,7 +174,6 @@ var init_mockMinimartData = __esm({
 });
 
 // src/lib/supabase.ts
-import { createClient } from "@supabase/supabase-js";
 function isSuperAdmin(uid, email) {
   if (!uid && !email) return false;
   if (uid === PRIMARY_SUPER_ADMIN_UID || uid === "4403bd2b-e385-479b-af16-058582fa4ee3") return true;
@@ -789,9 +808,10 @@ function subscribeToSupabase(tableName, onData, options) {
     activeChannels.delete(channelId);
   };
 }
-var safeGetEnv, rawUrl, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, PRIMARY_SUPER_ADMIN_UID, SUPER_ADMIN_EMAIL, LEGACY_SUPER_ADMIN_UID, SUPER_ADMIN_EMAILS, supabase, supabaseAdmin, activeChannels, GLOBAL_SYNC_CHANNEL_NAME, globalBusChannel, globalBusSubscribed, crossTabChannel, inMemoryTableSubscribers;
+var import_supabase_js, safeGetEnv, rawUrl, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, PRIMARY_SUPER_ADMIN_UID, SUPER_ADMIN_EMAIL, LEGACY_SUPER_ADMIN_UID, SUPER_ADMIN_EMAILS, supabase, supabaseAdmin, activeChannels, GLOBAL_SYNC_CHANNEL_NAME, globalBusChannel, globalBusSubscribed, crossTabChannel, inMemoryTableSubscribers;
 var init_supabase = __esm({
   "src/lib/supabase.ts"() {
+    import_supabase_js = require("@supabase/supabase-js");
     safeGetEnv = (key) => {
       if (typeof process !== "undefined" && process?.env && process.env[key]) {
         return process.env[key];
@@ -816,7 +836,7 @@ var init_supabase = __esm({
       "grobaxycompany@gmail.com",
       "grobaxlimited@gmail.com"
     ];
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    supabase = (0, import_supabase_js.createClient)(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -828,7 +848,7 @@ var init_supabase = __esm({
         }
       }
     });
-    supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    supabaseAdmin = (0, import_supabase_js.createClient)(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: {
         persistSession: false,
         autoRefreshToken: false
@@ -2687,7 +2707,7 @@ __export(firebase_exports, {
   where: () => where,
   writeBatch: () => writeBatch
 });
-function handleFirestoreError(error, operationType, path6) {
+function handleFirestoreError(error, operationType, path7) {
   const errInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -2697,7 +2717,7 @@ function handleFirestoreError(error, operationType, path6) {
       isAnonymous: auth.currentUser?.isAnonymous
     },
     operationType,
-    path: path6
+    path: path7
   };
   console.warn("Firestore Operation Notice: ", JSON.stringify(errInfo));
 }
@@ -2734,9 +2754,9 @@ function cleanFirestoreData(data) {
 }
 async function uploadEventCatalogImage(file, eventId) {
   const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path6 = `eventCatalog/${eventId}/${Date.now()}_${cleanFileName}`;
+  const path7 = `eventCatalog/${eventId}/${Date.now()}_${cleanFileName}`;
   try {
-    const fileRef = storageRef(storage, path6);
+    const fileRef = storageRef(storage, path7);
     const snapshot = await uploadBytes(fileRef, file, {
       contentType: file.type,
       customMetadata: {
@@ -2745,19 +2765,19 @@ async function uploadEventCatalogImage(file, eventId) {
       }
     });
     const downloadUrl = await getDownloadURL(snapshot.ref);
-    return { downloadUrl, storagePath: path6 };
+    return { downloadUrl, storagePath: path7 };
   } catch (storageErr) {
     console.warn("Firebase Storage upload notice, falling back to data URL encoding:", storageErr);
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result || "";
-        resolve({ downloadUrl: dataUrl, storagePath: path6 });
+        resolve({ downloadUrl: dataUrl, storagePath: path7 });
       };
       reader.onerror = () => {
         resolve({
           downloadUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80",
-          storagePath: path6
+          storagePath: path7
         });
       };
       reader.readAsDataURL(file);
@@ -4112,7 +4132,7 @@ var init_firebase = __esm({
     };
     uploadUserProfilePicture = async (file, uid) => {
       const fileName = file.name ? file.name.replace(/[^a-zA-Z0-9._-]/g, "_") : "avatar.jpg";
-      const path6 = `userAvatars/${uid}/${Date.now()}_${fileName}`;
+      const path7 = `userAvatars/${uid}/${Date.now()}_${fileName}`;
       let compressedBlob = file;
       let compressedDataUrl = "";
       try {
@@ -4123,7 +4143,7 @@ var init_firebase = __esm({
         console.warn("Image pre-compression warning:", compErr);
       }
       try {
-        const fileRef = storageRef(storage, path6);
+        const fileRef = storageRef(storage, path7);
         const uploadPromise = uploadBytes(fileRef, compressedBlob, {
           contentType: "image/jpeg",
           customMetadata: {
@@ -4141,7 +4161,7 @@ var init_firebase = __esm({
             localStorage.setItem(`grobax_avatar_${uid}`, downloadUrl);
           } catch (e) {
           }
-          return { downloadUrl, storagePath: path6 };
+          return { downloadUrl, storagePath: path7 };
         }
       } catch (err) {
         console.warn("Firebase Storage upload note, using resilient compressed Data URL fallback:", err);
@@ -4151,7 +4171,7 @@ var init_firebase = __esm({
         localStorage.setItem(`grobax_avatar_${uid}`, finalFallbackUrl);
       } catch (e) {
       }
-      return { downloadUrl: finalFallbackUrl, storagePath: path6 };
+      return { downloadUrl: finalFallbackUrl, storagePath: path7 };
     };
     updateUserProfileInFirestore = async (uid, updates) => {
       const userDocRef = doc(db, "users", uid);
@@ -10098,13 +10118,18 @@ var init_firebase = __esm({
   }
 });
 
+// server.ts
+var import_express12 = __toESM(require("express"), 1);
+var import_path6 = __toESM(require("path"), 1);
+var import_vite = require("vite");
+
 // server/apiApp.ts
-import express3 from "express";
-import { GoogleGenAI as GoogleGenAI2 } from "@google/genai";
-import dotenv2 from "dotenv";
+var import_express11 = __toESM(require("express"), 1);
+var import_genai2 = require("@google/genai");
+var import_dotenv2 = __toESM(require("dotenv"), 1);
 
 // server/vtuRoutes.ts
-import { Router } from "express";
+var import_express = require("express");
 
 // src/lib/vtuTypes.ts
 var DEFAULT_AIRTIME_DATA_SETTINGS = {
@@ -12449,7 +12474,7 @@ var VtuProviderService = class {
 var vtuProvider = new VtuProviderService();
 
 // server/vtuRoutes.ts
-var vtuRouter = Router();
+var vtuRouter = (0, import_express.Router)();
 var currentSettings = { ...DEFAULT_AIRTIME_DATA_SETTINGS };
 var inMemoryTransactions = /* @__PURE__ */ new Map();
 var inMemoryAuditLogs = [];
@@ -13005,9 +13030,9 @@ vtuRouter.post("/admin/reconcile", async (req, res) => {
 });
 
 // server/minimartRouter.ts
+var import_express2 = require("express");
 init_mockMinimartData();
-import { Router as Router2 } from "express";
-var minimartRouter = Router2();
+var minimartRouter = (0, import_express2.Router)();
 var currentConfig = { ...DEFAULT_MINIMART_CONFIG };
 var categories = [...INITIAL_MINIMART_CATEGORIES];
 var products = [...INITIAL_MINIMART_PRODUCTS];
@@ -13476,8 +13501,8 @@ minimartRouter.post("/admin/moderate-product", (req, res) => {
 });
 
 // server/paystackRouter.ts
-import express from "express";
-import crypto from "crypto";
+var import_express3 = __toESM(require("express"), 1);
+var import_crypto = __toESM(require("crypto"), 1);
 
 // server/paystackCore.ts
 function getPaystackBaseUrl() {
@@ -13559,7 +13584,7 @@ async function safeActivateSubscription(options) {
   }
   return { success: true, isLocalFallback: true };
 }
-var paystackRouter = express.Router();
+var paystackRouter = import_express3.default.Router();
 paystackRouter.get("/public-key", (_req, res) => {
   const publicKey = getPublicKey();
   res.json({
@@ -14046,7 +14071,7 @@ paystackRouter.post("/webhook", async (req, res) => {
       const bodyBuffer = req.body;
       const bodyStr = typeof bodyBuffer === "string" ? bodyBuffer : bodyBuffer.toString("utf8");
       if (secretKey && signature) {
-        const hash = crypto.createHmac("sha512", secretKey).update(bodyStr).digest("hex");
+        const hash = import_crypto.default.createHmac("sha512", secretKey).update(bodyStr).digest("hex");
         if (hash !== signature) {
           console.warn("[Paystack Webhook] Invalid signature mismatch");
           return res.status(400).send("Invalid signature");
@@ -14152,14 +14177,14 @@ paystackRouter.get("/sensor-status", async (req, res) => {
 });
 
 // server/libraryRouter.ts
-import { Router as Router3 } from "express";
-import fs2 from "fs";
-import path2 from "path";
+var import_express4 = require("express");
+var import_fs2 = __toESM(require("fs"), 1);
+var import_path2 = __toESM(require("path"), 1);
 
 // server/geminiService.ts
-import { GoogleGenAI } from "@google/genai";
-import dotenv from "dotenv";
-dotenv.config();
+var import_genai = require("@google/genai");
+var import_dotenv = __toESM(require("dotenv"), 1);
+import_dotenv.default.config();
 var cachedKey = "";
 var aiClient = null;
 function getEffectiveGeminiKey() {
@@ -14178,7 +14203,7 @@ function getAiClient() {
   const currentKey = getEffectiveGeminiKey();
   if (!aiClient || cachedKey !== currentKey) {
     cachedKey = currentKey;
-    aiClient = new GoogleGenAI({
+    aiClient = new import_genai.GoogleGenAI({
       apiKey: currentKey,
       httpOptions: {
         headers: {
@@ -14234,21 +14259,21 @@ async function callGeminiApi(options) {
 }
 
 // server/academicKnowledgeBase.ts
-import fs from "fs";
-import path from "path";
-var KNOWLEDGE_BASE_DIR = path.join(process.cwd(), "server", "knowledge_base");
-var KNOWLEDGE_BASE_FILE = path.join(KNOWLEDGE_BASE_DIR, "academic_materials.json");
+var import_fs = __toESM(require("fs"), 1);
+var import_path = __toESM(require("path"), 1);
+var KNOWLEDGE_BASE_DIR = import_path.default.join(process.cwd(), "server", "knowledge_base");
+var KNOWLEDGE_BASE_FILE = import_path.default.join(KNOWLEDGE_BASE_DIR, "academic_materials.json");
 function ensureKnowledgeDir() {
-  if (!fs.existsSync(KNOWLEDGE_BASE_DIR)) {
-    fs.mkdirSync(KNOWLEDGE_BASE_DIR, { recursive: true });
+  if (!import_fs.default.existsSync(KNOWLEDGE_BASE_DIR)) {
+    import_fs.default.mkdirSync(KNOWLEDGE_BASE_DIR, { recursive: true });
   }
 }
 var customAcademicDocuments = [];
 function loadCustomAcademicDocuments() {
   try {
     ensureKnowledgeDir();
-    if (fs.existsSync(KNOWLEDGE_BASE_FILE)) {
-      const raw = fs.readFileSync(KNOWLEDGE_BASE_FILE, "utf-8");
+    if (import_fs.default.existsSync(KNOWLEDGE_BASE_FILE)) {
+      const raw = import_fs.default.readFileSync(KNOWLEDGE_BASE_FILE, "utf-8");
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         customAcademicDocuments = parsed;
@@ -14268,7 +14293,7 @@ function saveCustomAcademicDocument(doc2) {
   };
   customAcademicDocuments.unshift(newDoc);
   try {
-    fs.writeFileSync(KNOWLEDGE_BASE_FILE, JSON.stringify(customAcademicDocuments, null, 2), "utf-8");
+    import_fs.default.writeFileSync(KNOWLEDGE_BASE_FILE, JSON.stringify(customAcademicDocuments, null, 2), "utf-8");
   } catch (err) {
     console.error("[Academic Knowledge Base] Failed to write custom materials:", err);
   }
@@ -14581,8 +14606,8 @@ ${d.content.slice(0, 600)}...`);
 }
 
 // server/libraryRouter.ts
-var libraryRouter = Router3();
-var DATA_FILE = path2.join(process.cwd(), "server", "handout_library_data.json");
+var libraryRouter = (0, import_express4.Router)();
+var DATA_FILE = import_path2.default.join(process.cwd(), "server", "handout_library_data.json");
 var DEFAULT_SETTINGS = {
   freeDailyLimit: 2,
   premiumDailyLimit: 30,
@@ -14615,8 +14640,8 @@ var state = {
 };
 function loadState() {
   try {
-    if (fs2.existsSync(DATA_FILE)) {
-      const raw = fs2.readFileSync(DATA_FILE, "utf-8");
+    if (import_fs2.default.existsSync(DATA_FILE)) {
+      const raw = import_fs2.default.readFileSync(DATA_FILE, "utf-8");
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === "object") {
         state = {
@@ -14638,11 +14663,11 @@ function loadState() {
 }
 function saveState() {
   try {
-    const dir = path2.dirname(DATA_FILE);
-    if (!fs2.existsSync(dir)) {
-      fs2.mkdirSync(dir, { recursive: true });
+    const dir = import_path2.default.dirname(DATA_FILE);
+    if (!import_fs2.default.existsSync(dir)) {
+      import_fs2.default.mkdirSync(dir, { recursive: true });
     }
-    fs2.writeFileSync(DATA_FILE, JSON.stringify(state, null, 2), "utf-8");
+    import_fs2.default.writeFileSync(DATA_FILE, JSON.stringify(state, null, 2), "utf-8");
   } catch (err) {
     console.warn("[AI Handout Server] Error saving handout state:", err);
   }
@@ -15389,9 +15414,9 @@ ATTENTION TO QUALITY: Previous attempt failed validation because: ${qc.reasons.j
 });
 
 // server/campusRouter.ts
+var import_express5 = require("express");
 init_supabaseFirestoreAdapter();
-import { Router as Router4 } from "express";
-var campusRouter = Router4();
+var campusRouter = (0, import_express5.Router)();
 var membershipsCache = /* @__PURE__ */ new Map();
 var connectionRequestsCache = /* @__PURE__ */ new Map();
 function formatWhatsAppNumber(phone) {
@@ -16130,9 +16155,9 @@ campusRouter.post("/whatsapp-link", async (req, res) => {
 });
 
 // server/walletRouter.ts
+var import_express6 = require("express");
 init_supabaseFirestoreAdapter();
-import { Router as Router5 } from "express";
-var walletRouter = Router5();
+var walletRouter = (0, import_express6.Router)();
 var processedQuizRewardKeys = /* @__PURE__ */ new Set();
 var userDailyQuizRewards = /* @__PURE__ */ new Map();
 var processedPaystackRefs = /* @__PURE__ */ new Set();
@@ -16442,9 +16467,9 @@ walletRouter.get("/balance/:userId", async (req, res) => {
 });
 
 // server/supabaseRouter.ts
+var import_express7 = require("express");
 init_supabase();
-import { Router as Router6 } from "express";
-var supabaseRouter = Router6();
+var supabaseRouter = (0, import_express7.Router)();
 supabaseRouter.post("/upsert", async (req, res) => {
   try {
     const { table, docId, data, now } = req.body;
@@ -16521,16 +16546,16 @@ supabaseRouter.post("/delete", async (req, res) => {
 });
 
 // server/spinRouter.ts
+var import_express8 = require("express");
+var import_fs3 = __toESM(require("fs"), 1);
+var import_path3 = __toESM(require("path"), 1);
 init_supabaseFirestoreAdapter();
-import { Router as Router7 } from "express";
-import fs3 from "fs";
-import path3 from "path";
-var spinRouter = Router7();
-var DOME_SPINS_FILE = path3.resolve(process.cwd(), "server", "school_dome_spins.json");
+var spinRouter = (0, import_express8.Router)();
+var DOME_SPINS_FILE = import_path3.default.resolve(process.cwd(), "server", "school_dome_spins.json");
 function loadDomeSpinStore() {
   try {
-    if (fs3.existsSync(DOME_SPINS_FILE)) {
-      const content = fs3.readFileSync(DOME_SPINS_FILE, "utf-8");
+    if (import_fs3.default.existsSync(DOME_SPINS_FILE)) {
+      const content = import_fs3.default.readFileSync(DOME_SPINS_FILE, "utf-8");
       const parsed = JSON.parse(content);
       if (parsed && typeof parsed === "object") {
         return {
@@ -16546,11 +16571,11 @@ function loadDomeSpinStore() {
 }
 function saveDomeSpinStore(store) {
   try {
-    const dir = path3.dirname(DOME_SPINS_FILE);
-    if (!fs3.existsSync(dir)) {
-      fs3.mkdirSync(dir, { recursive: true });
+    const dir = import_path3.default.dirname(DOME_SPINS_FILE);
+    if (!import_fs3.default.existsSync(dir)) {
+      import_fs3.default.mkdirSync(dir, { recursive: true });
     }
-    fs3.writeFileSync(DOME_SPINS_FILE, JSON.stringify(store, null, 2), "utf-8");
+    import_fs3.default.writeFileSync(DOME_SPINS_FILE, JSON.stringify(store, null, 2), "utf-8");
   } catch (err) {
     console.warn("[School Dome Spin Store] Notice writing store file:", err);
   }
@@ -17341,12 +17366,12 @@ spinRouter.post("/school-dome/reset-season", async (req, res) => {
 });
 
 // server/systemSettingsRouter.ts
+var import_express9 = require("express");
+var import_fs4 = __toESM(require("fs"), 1);
+var import_path4 = __toESM(require("path"), 1);
 init_supabase();
-import { Router as Router8 } from "express";
-import fs4 from "fs";
-import path4 from "path";
-var systemSettingsRouter = Router8();
-var SETTINGS_FILE = path4.resolve(process.cwd(), "server", "system_settings.json");
+var systemSettingsRouter = (0, import_express9.Router)();
+var SETTINGS_FILE = import_path4.default.resolve(process.cwd(), "server", "system_settings.json");
 var DEFAULT_SETTINGS2 = {
   platformName: "Grobaax Academic Competition Platform",
   maintenanceMode: false,
@@ -17372,8 +17397,8 @@ var DEFAULT_SETTINGS2 = {
 };
 function loadSettingsFromDisk() {
   try {
-    if (fs4.existsSync(SETTINGS_FILE)) {
-      const raw = fs4.readFileSync(SETTINGS_FILE, "utf-8");
+    if (import_fs4.default.existsSync(SETTINGS_FILE)) {
+      const raw = import_fs4.default.readFileSync(SETTINGS_FILE, "utf-8");
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
         return { ...DEFAULT_SETTINGS2, ...parsed };
@@ -17387,7 +17412,7 @@ function loadSettingsFromDisk() {
 function saveSettingsToDisk(data) {
   try {
     const merged = { ...loadSettingsFromDisk(), ...data };
-    fs4.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2), "utf-8");
+    import_fs4.default.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2), "utf-8");
   } catch (err) {
     console.warn("[SystemSettings] Failed to write disk file:", err);
   }
@@ -17463,19 +17488,19 @@ systemSettingsRouter.post("/", async (req, res) => {
 });
 
 // server/mobileDownloadRouter.ts
-import express2 from "express";
-import path5 from "path";
-import fs5 from "fs";
-var mobileDownloadRouter = express2.Router();
+var import_express10 = __toESM(require("express"), 1);
+var import_path5 = __toESM(require("path"), 1);
+var import_fs5 = __toESM(require("fs"), 1);
+var mobileDownloadRouter = import_express10.default.Router();
 function getFilePath(filename) {
   const root = process.cwd();
   const candidates = [
-    path5.join(root, "public", "downloads", filename),
-    path5.join(root, "dist", "downloads", filename),
-    path5.join(root, filename)
+    import_path5.default.join(root, "public", "downloads", filename),
+    import_path5.default.join(root, "dist", "downloads", filename),
+    import_path5.default.join(root, filename)
   ];
   for (const candidate of candidates) {
-    if (fs5.existsSync(candidate)) {
+    if (import_fs5.default.existsSync(candidate)) {
       return candidate;
     }
   }
@@ -17531,7 +17556,7 @@ mobileDownloadRouter.get(["/info", "/status"], (_req, res) => {
         directStaticUrl: "/downloads/grobaax-android-project.zip",
         filename: "grobaax-android-project.zip",
         available: Boolean(androidFile),
-        sizeBytes: androidFile ? fs5.statSync(androidFile).size : 0,
+        sizeBytes: androidFile ? import_fs5.default.statSync(androidFile).size : 0,
         instructions: {
           testApk: "cd android && ./gradlew assembleDebug (outputs: app/build/outputs/apk/debug/app-debug.apk)",
           playStoreAab: "cd android && ./gradlew bundleRelease (outputs: app/build/outputs/bundle/release/app-release.aab)"
@@ -17542,7 +17567,7 @@ mobileDownloadRouter.get(["/info", "/status"], (_req, res) => {
         directStaticUrl: "/downloads/grobaax-ios-project.zip",
         filename: "grobaax-ios-project.zip",
         available: Boolean(iosFile),
-        sizeBytes: iosFile ? fs5.statSync(iosFile).size : 0,
+        sizeBytes: iosFile ? import_fs5.default.statSync(iosFile).size : 0,
         instructions: {
           openXcode: "npx cap open ios or open ios/App/App.xcworkspace in Xcode",
           appStoreArchive: "Product > Archive > Distribute App in Xcode"
@@ -17553,7 +17578,7 @@ mobileDownloadRouter.get(["/info", "/status"], (_req, res) => {
         directStaticUrl: "/downloads/grobaax-mobile-packaging-suite.zip",
         filename: "grobaax-mobile-packaging-suite.zip",
         available: Boolean(suiteFile),
-        sizeBytes: suiteFile ? fs5.statSync(suiteFile).size : 0
+        sizeBytes: suiteFile ? import_fs5.default.statSync(suiteFile).size : 0
       },
       packagingGuide: {
         url: "/api/download/guide",
@@ -18222,8 +18247,8 @@ var getAuthCallbackHtml = () => {
 };
 
 // server/apiApp.ts
-dotenv2.config();
-var apiApp = express3();
+import_dotenv2.default.config();
+var apiApp = (0, import_express11.default)();
 apiApp.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
@@ -18257,9 +18282,9 @@ apiApp.use((req, res, next) => {
   if (req.body && typeof req.body === "object" && Object.keys(req.body).length > 0) {
     return next();
   }
-  express3.json({ limit: "10mb" })(req, res, (err) => {
+  import_express11.default.json({ limit: "10mb" })(req, res, (err) => {
     if (err) return next(err);
-    express3.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
+    import_express11.default.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
   });
 });
 apiApp.get(["/auth/callback", "/auth/callback/", "/api/auth/callback", "/api/auth/callback/"], (_req, res) => {
@@ -18269,7 +18294,7 @@ apiApp.get(["/auth/callback", "/auth/callback/", "/api/auth/callback", "/api/aut
 var aiClient2 = null;
 function getAi() {
   if (!aiClient2) {
-    aiClient2 = new GoogleGenAI2({
+    aiClient2 = new import_genai2.GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY || "",
       httpOptions: {
         headers: {
@@ -19157,21 +19182,43 @@ apiApp.use((err, _req, res, _next) => {
   });
 });
 
-// server/vercelEntry.ts
-async function handler(req, res) {
-  try {
-    return apiApp(req, res);
-  } catch (err) {
-    console.error("Vercel Serverless Handler Error:", err);
-    if (!res.headersSent) {
-      res.status(500).json({
-        success: false,
-        error: err?.message || "Internal server error in serverless handler"
-      });
-    }
+// server.ts
+async function startServer() {
+  const app = (0, import_express12.default)();
+  const PORT = 3e3;
+  app.use(apiApp);
+  app.get(["/auth/callback", "/auth/callback/"], (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(getAuthCallbackHtml());
+  });
+  app.get("/robots.txt", (_req, res) => {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    const robotsPath = import_path6.default.join(process.cwd(), process.env.NODE_ENV === "production" ? "dist" : "public", "robots.txt");
+    res.sendFile(robotsPath);
+  });
+  app.get("/sitemap.xml", (_req, res) => {
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    const sitemapPath = import_path6.default.join(process.cwd(), process.env.NODE_ENV === "production" ? "dist" : "public", "sitemap.xml");
+    res.sendFile(sitemapPath);
+  });
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await (0, import_vite.createServer)({
+      server: { middlewareMode: true },
+      appType: "spa"
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = import_path6.default.join(process.cwd(), "dist");
+    app.use(import_express12.default.static(distPath));
+    app.get("*", (_req, res) => {
+      res.sendFile(import_path6.default.join(distPath, "index.html"));
+    });
   }
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Grobaax Server running on http://localhost:${PORT}`);
+  });
 }
-export {
-  apiApp as app,
-  handler as default
-};
+startServer().catch((err) => {
+  console.error("Failed to start Grobaax server:", err);
+});
+//# sourceMappingURL=server.cjs.map
