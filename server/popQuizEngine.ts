@@ -85,6 +85,8 @@ function appendSubmissionToDisk(submission: PopQuizSubmission): void {
 export function normalizeAnswer(ans: string): string {
   if (!ans) return '';
   return ans
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '') // remove diacritics
     .toLowerCase()
     .trim()
     .replace(/^["'‘“]+|["'’”]+$/g, '') // remove surrounding quotes
@@ -94,18 +96,154 @@ export function normalizeAnswer(ans: string): string {
 }
 
 /**
+ * Strips common conversational and filler prefixes/suffixes from student answers
+ */
+function stripFillers(str: string): string {
+  return str
+    .replace(/^(?:it\s+is|it\'s|the\s+answer\s+is|answer\s+is|answer\s*[:\-])\s+/i, '')
+    .replace(/^(?:the|a|an|option|choice)\s+/i, '')
+    .replace(/\s+(?:organelle|planet|process|blood\s+group|group|type)$/i, '')
+    .replace(/^(?:planet|blood\s+group|group|type)\s+/i, '')
+    .trim();
+}
+
+/**
+ * Computes Levenshtein edit distance for typo tolerance
+ */
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+/**
+ * Extracts all valid semantic variants from an answer string
+ */
+function getAnswerVariants(text: string): string[] {
+  const c = normalizeAnswer(text);
+  if (!c) return [];
+  const variants = new Set<string>([c]);
+
+  const stripped = stripFillers(c);
+  if (stripped) variants.add(stripped);
+
+  // Split on slashes, semicolons, or 'or' (e.g., "Mitochondria / Mitochondrion", "O / O-")
+  const parts = c.split(/[\/\|\;]|\s+or\s+/);
+  if (parts.length > 1) {
+    parts.forEach((p) => {
+      const pc = normalizeAnswer(p);
+      if (pc) {
+        variants.add(pc);
+        const ps = stripFillers(pc);
+        if (ps) variants.add(ps);
+      }
+    });
+  }
+
+  // Remove parenthetical details: e.g. "O (negative)" -> "o", "Metamorphosis (complete)" -> "metamorphosis"
+  const noParen = c.replace(/\([^\)]*\)/g, '').trim();
+  if (noParen && noParen !== c) {
+    variants.add(normalizeAnswer(noParen));
+    variants.add(stripFillers(normalizeAnswer(noParen)));
+  }
+
+  // Biological and scientific plurals/singulars & synonyms
+  const bioEquivalents: Record<string, string> = {
+    mitochondria: 'mitochondrion',
+    mitochondrion: 'mitochondria',
+    amoeba: 'amoebae',
+    amoebae: 'amoeba',
+    bacteria: 'bacterium',
+    bacterium: 'bacteria',
+    fungus: 'fungi',
+    fungi: 'fungus',
+    nucleus: 'nuclei',
+    nuclei: 'nucleus',
+    protozoa: 'protozoon',
+    protozoon: 'protozoa',
+    metamorphosis: 'complete metamorphosis',
+    'complete metamorphosis': 'metamorphosis',
+  };
+
+  Array.from(variants).forEach((v) => {
+    if (bioEquivalents[v]) {
+      variants.add(bioEquivalents[v]);
+    }
+  });
+
+  return Array.from(variants);
+}
+
+/**
  * Checks if a submitted answer matches the correct answer
+ * Supports:
+ * - Direct matches & multi-word normalization
+ * - Biological plurals/singulars (Mitochondria / Mitochondrion)
+ * - Blood groups (O, O negative, O-, Type O, Blood group O)
+ * - Conversational prefixes ("It is mitochondria", "Planet Venus")
+ * - Typo tolerance (Levenshtein distance <= 1-2 for longer scientific words)
  */
 export function isAnswerCorrect(submitted: string, correct: string): boolean {
-  const normSub = normalizeAnswer(submitted);
-  const normCor = normalizeAnswer(correct);
-  if (!normSub || !normCor) return false;
+  const subClean = normalizeAnswer(submitted);
+  const corClean = normalizeAnswer(correct);
+  if (!subClean || !corClean) return false;
 
-  // Direct match
-  if (normSub === normCor) return true;
+  const subVariants = getAnswerVariants(submitted);
+  const corVariants = getAnswerVariants(correct);
 
-  // Numbers written as words or vice versa (e.g., 'o' blood group, 'zero')
-  if (normSub.replace(/^the\s+/, '') === normCor.replace(/^the\s+/, '')) return true;
+  // 1. Direct or variant cross-match
+  for (const sv of subVariants) {
+    for (const cv of corVariants) {
+      if (sv === cv) return true;
+    }
+  }
+
+  // 2. Special blood group logic (e.g. Universal donor 'O' matches O-, O negative, Type O, etc.)
+  const isCorBloodGroupO = corVariants.some(
+    (v) => v === 'o' || v === 'group o' || v === 'blood group o' || v === 'type o'
+  );
+  if (isCorBloodGroupO) {
+    const isSubBloodGroupO = subVariants.some((v) =>
+      ['o', 'o-', 'o+', 'o negative', 'o positive', 'group o', 'type o', 'blood group o', 'o neg', 'o pos'].includes(v)
+    );
+    if (isSubBloodGroupO) return true;
+  }
+
+  // 3. Typo tolerance (Levenshtein distance)
+  for (const sv of subVariants) {
+    for (const cv of corVariants) {
+      if (cv.length >= 5) {
+        const dist = levenshteinDistance(sv, cv);
+        const maxDist = cv.length >= 8 ? 2 : 1;
+        if (dist <= maxDist) return true;
+      }
+    }
+  }
+
+  // 4. Substring / Word inclusion for specific multi-word answers
+  for (const cv of corVariants) {
+    if (cv.length >= 5) {
+      const words = subClean.split(/\s+/);
+      if (words.includes(cv)) return true;
+    }
+  }
 
   return false;
 }
@@ -645,20 +783,62 @@ export async function submitStudentAnswer(params: {
     };
   }
 
-  // Check deadline
+  // Verify correctness first so we know whether the student's answer was right
+  const isCorrect = isAnswerCorrect(submittedAnswer, question.correctAnswer);
+
+  // Check deadline with a 3-second network transit grace period
   const now = Date.now();
-  if (question.expiresAt && now > new Date(question.expiresAt).getTime()) {
-    return {
-      success: false,
-      isCorrect: false,
+  const expiresAtMs = question.expiresAt ? new Date(question.expiresAt).getTime() : 0;
+  const isLate = expiresAtMs > 0 && now > expiresAtMs + 3000;
+
+  if (isLate) {
+    // Record late submission so admin can still inspect who submitted and if it was right
+    const subRecord: PopQuizSubmission = {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      sessionId,
+      questionId,
+      userId,
+      userName,
+      userEmail,
+      userInstitution,
+      submittedAnswer,
+      isCorrect,
       isWinner: false,
       gpAwarded: 0,
-      message: 'Time expired for this question.',
+      submittedAt: new Date().toISOString(),
+    };
+
+    appendSubmissionToDisk(subRecord);
+
+    try {
+      await supabaseAdmin.from('pop_quiz_submissions').upsert({
+        id: subRecord.id,
+        session_id: sessionId,
+        question_id: questionId,
+        user_id: userId,
+        user_name: userName,
+        user_email: userEmail || '',
+        user_institution: userInstitution || '',
+        submitted_answer: submittedAnswer,
+        is_correct: isCorrect,
+        is_winner: false,
+        gp_awarded: 0,
+        submitted_at: subRecord.submittedAt,
+        data: subRecord,
+        created_at: subRecord.submittedAt,
+      });
+    } catch {}
+
+    return {
+      success: false,
+      isCorrect,
+      isWinner: false,
+      gpAwarded: 0,
+      message: isCorrect
+        ? 'Correct answer, but time expired for this question! Your answer has been logged.'
+        : 'Time has expired for this question.',
     };
   }
-
-  // Verify correctness
-  const isCorrect = isAnswerCorrect(submittedAnswer, question.correctAnswer);
 
   if (!isCorrect) {
     // Record incorrect submission
@@ -685,6 +865,14 @@ export async function submitStudentAnswer(params: {
         session_id: sessionId,
         question_id: questionId,
         user_id: userId,
+        user_name: userName,
+        user_email: userEmail || '',
+        user_institution: userInstitution || '',
+        submitted_answer: submittedAnswer,
+        is_correct: false,
+        is_winner: false,
+        gp_awarded: 0,
+        submitted_at: subRecord.submittedAt,
         data: subRecord,
         created_at: subRecord.submittedAt,
       });
@@ -702,7 +890,43 @@ export async function submitStudentAnswer(params: {
   // The answer IS correct! Concurrency-Safe Winner selection using Question Mutex
   const lockKey = `lock_${questionId}`;
   if (questionWinnerLocks.has(lockKey) || question.winnerUserId) {
-    // Another student beat them to it!
+    // Another student beat them to it, but record this correct answer for Admin audit!
+    const subRecord: PopQuizSubmission = {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      sessionId,
+      questionId,
+      userId,
+      userName,
+      userEmail,
+      userInstitution,
+      submittedAnswer,
+      isCorrect: true,
+      isWinner: false,
+      gpAwarded: 0,
+      submittedAt: new Date().toISOString(),
+    };
+
+    appendSubmissionToDisk(subRecord);
+
+    try {
+      await supabaseAdmin.from('pop_quiz_submissions').upsert({
+        id: subRecord.id,
+        session_id: sessionId,
+        question_id: questionId,
+        user_id: userId,
+        user_name: userName,
+        user_email: userEmail || '',
+        user_institution: userInstitution || '',
+        submitted_answer: submittedAnswer,
+        is_correct: true,
+        is_winner: false,
+        gp_awarded: 0,
+        submitted_at: subRecord.submittedAt,
+        data: subRecord,
+        created_at: subRecord.submittedAt,
+      });
+    } catch {}
+
     return {
       success: true,
       isCorrect: true,
@@ -766,6 +990,14 @@ export async function submitStudentAnswer(params: {
         session_id: sessionId,
         question_id: questionId,
         user_id: userId,
+        user_name: userName,
+        user_email: userEmail || '',
+        user_institution: userInstitution || '',
+        submitted_answer: submittedAnswer,
+        is_correct: true,
+        is_winner: true,
+        gp_awarded: gpReward,
+        submitted_at: wonAtIso,
         data: subRecord,
         created_at: wonAtIso,
       });
@@ -880,4 +1112,219 @@ export async function submitStudentAnswer(params: {
     // Release question lock
     questionWinnerLocks.delete(lockKey);
   }
+}
+
+/**
+ * Loads all student submissions for a given session (merges disk cache + Supabase DB)
+ */
+export async function getSubmissionsForSession(sessionId: string): Promise<PopQuizSubmission[]> {
+  const map = new Map<string, PopQuizSubmission>();
+
+  // 1. Read from disk cache
+  try {
+    if (fs.existsSync(SUBMISSIONS_FILE)) {
+      const raw = fs.readFileSync(SUBMISSIONS_FILE, 'utf-8');
+      const diskList: PopQuizSubmission[] = JSON.parse(raw) || [];
+      diskList
+        .filter((sub) => sub.sessionId === sessionId)
+        .forEach((sub) => map.set(sub.id, sub));
+    }
+  } catch (err) {
+    console.warn('[Pop Quiz Engine] Notice reading submissions disk cache:', err);
+  }
+
+  // 2. Read from Supabase DB table
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('pop_quiz_submissions')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('submitted_at', { ascending: true });
+
+    if (!error && Array.isArray(data)) {
+      data.forEach((row: any) => {
+        const subData: PopQuizSubmission = row.data || {
+          id: row.id,
+          sessionId: row.session_id,
+          questionId: row.question_id,
+          userId: row.user_id,
+          userName: row.user_name || 'Scholar',
+          userEmail: row.user_email || '',
+          userInstitution: row.user_institution || '',
+          submittedAnswer: row.submitted_answer || '',
+          isCorrect: Boolean(row.is_correct),
+          isWinner: Boolean(row.is_winner),
+          gpAwarded: Number(row.gp_awarded) || 0,
+          submittedAt: row.submitted_at || row.created_at,
+        };
+        // Normalize properties
+        if (row.user_name) subData.userName = row.user_name;
+        if (row.submitted_answer) subData.submittedAnswer = row.submitted_answer;
+        if (row.is_correct !== undefined) subData.isCorrect = Boolean(row.is_correct);
+        if (row.is_winner !== undefined) subData.isWinner = Boolean(row.is_winner);
+        if (row.gp_awarded !== undefined) subData.gpAwarded = Number(row.gp_awarded);
+        if (row.submitted_at) subData.submittedAt = row.submitted_at;
+        map.set(row.id, subData);
+      });
+    }
+  } catch (err: any) {
+    console.warn('[Pop Quiz Engine] Notice querying submissions from DB:', err?.message || err);
+  }
+
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()
+  );
+}
+
+/**
+ * Admin manually awards a student as the winner for a question
+ */
+export async function manualAwardWinner(params: {
+  sessionId: string;
+  questionId: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  userInstitution?: string;
+  submittedAnswer: string;
+  customGpReward?: number;
+}): Promise<{ success: boolean; message: string; gpAwarded: number }> {
+  await ensureSessionsLoaded();
+  const { sessionId, questionId, userId, userName, userEmail, userInstitution, submittedAnswer, customGpReward } = params;
+
+  const session = await getSessionById(sessionId);
+  if (!session) {
+    return { success: false, message: 'Session not found', gpAwarded: 0 };
+  }
+
+  const question = (session.questions || []).find((q) => q.id === questionId);
+  if (!question) {
+    return { success: false, message: 'Question not found in session', gpAwarded: 0 };
+  }
+
+  const gpReward = customGpReward || question.gpReward || session.defaultGpReward || 25;
+  const wonAtIso = new Date().toISOString();
+
+  // Set winner details on question
+  question.winnerUserId = userId;
+  question.winnerName = userName;
+  question.winnerInstitution = userInstitution || '';
+  question.winningAnswer = submittedAnswer;
+  question.wonAt = wonAtIso;
+  question.gpAwarded = gpReward;
+  question.status = 'closed';
+  question.closedAt = wonAtIso;
+  question.closeReason = 'answered';
+
+  // Persist updated session
+  await persistSession(session);
+
+  // Update submission record to isCorrect: true, isWinner: true, gpAwarded: gpReward
+  try {
+    await supabaseAdmin
+      .from('pop_quiz_submissions')
+      .update({
+        is_correct: true,
+        is_winner: true,
+        gp_awarded: gpReward,
+      })
+      .eq('session_id', sessionId)
+      .eq('question_id', questionId)
+      .eq('user_id', userId);
+  } catch {}
+
+  // Credit user's wallet
+  try {
+    const userDocRes = await supabaseAdmin.from('users').select('id, data').eq('id', userId).maybeSingle();
+    let currentGp = 0;
+    let currentWallet = 0;
+    let currentTotalGp = 0;
+    let userData: any = {};
+
+    if (userDocRes?.data) {
+      userData = userDocRes.data.data || {};
+      currentGp = Number(userData.gpBalance || 0);
+      currentWallet = Number(userData.walletBalance || currentGp);
+      currentTotalGp = Number(userData.totalGpEarned || 0);
+    }
+
+    const newGp = currentGp + gpReward;
+    const newWallet = currentWallet + gpReward;
+    const newTotalGp = currentTotalGp + gpReward;
+
+    await supabaseAdmin.from('users').upsert({
+      id: userId,
+      data: {
+        ...userData,
+        id: userId,
+        gpBalance: newGp,
+        walletBalance: newWallet,
+        totalGpEarned: newTotalGp,
+        updatedAt: wonAtIso,
+      },
+      updated_at: wonAtIso,
+    });
+
+    try {
+      const walletRes = await supabaseAdmin.from('wallets').select('id, data').eq('id', userId).maybeSingle();
+      const existingWallet = walletRes?.data?.data || {};
+      await supabaseAdmin.from('wallets').upsert({
+        id: userId,
+        data: {
+          ...existingWallet,
+          id: userId,
+          userId,
+          gpBalance: newGp,
+          balanceGP: newGp,
+          updatedAt: wonAtIso,
+        },
+        updated_at: wonAtIso,
+      });
+    } catch {}
+
+    const txId = `TX_POPQUIZ_MANUAL_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+    const txPayload = {
+      id: txId,
+      transactionId: txId,
+      userId,
+      userName: userData.name || userData.fullName || userName || 'Scholar',
+      userEmail: userData.email || userEmail || '',
+      userAvatar: userData.profileImage || userData.avatar || '',
+      institutionName: userData.institutionName || userData.institution || userInstitution || '',
+      type: 'gp_earned',
+      amount: gpReward,
+      unit: 'GP',
+      title: '⚡ Grobaax Pop Quiz Winner (Admin Verified)',
+      description: `Awarded Question #${question.order} in "${session.title}" (+${gpReward} GP)`,
+      isCredit: true,
+      status: 'completed',
+      createdAt: wonAtIso,
+    };
+
+    await supabaseAdmin.from('walletTransactions').upsert({
+      id: txId,
+      data: txPayload,
+      updated_at: wonAtIso,
+    });
+  } catch (err) {
+    console.error('[Pop Quiz Engine] Error manual crediting wallet:', err);
+  }
+
+  // Broadcast winner to all connected clients
+  await broadcastPopQuizEvent('question_closed', {
+    sessionId,
+    questionId,
+    order: question.order,
+    revealedCorrectAnswer: question.correctAnswer,
+    winnerName: userName,
+    winnerInstitution: userInstitution || null,
+    closeReason: 'answered',
+    gpAwarded: gpReward,
+  });
+
+  return {
+    success: true,
+    message: `Awarded +${gpReward} GP to ${userName} as winner of Question #${question.order}!`,
+    gpAwarded: gpReward,
+  };
 }

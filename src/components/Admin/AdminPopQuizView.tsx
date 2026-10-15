@@ -2,9 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   PopQuizSession,
   PopQuizQuestion,
+  PopQuizSubmission,
   PopQuizStatus,
 } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { supabase } from '../../lib/supabase';
 import {
   parseBulkQuestionsText,
   convertParsedToQuestions,
@@ -20,6 +22,7 @@ import {
   Calendar,
   Award,
   CheckCircle2,
+  XCircle,
   AlertCircle,
   AlertTriangle,
   Edit3,
@@ -32,6 +35,7 @@ import {
   Users,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Info,
   Check,
   X,
@@ -91,6 +95,11 @@ export function AdminPopQuizView() {
   const [previewModalSession, setPreviewModalSession] = useState<PopQuizSession | null>(null);
   const [confirmStartSession, setConfirmStartSession] = useState<PopQuizSession | null>(null);
   const [confirmDeleteSession, setConfirmDeleteSession] = useState<PopQuizSession | null>(null);
+
+  // Submissions state for live questions inspection & manual winner awarding
+  const [sessionSubmissions, setSessionSubmissions] = useState<Record<string, PopQuizSubmission[]>>({});
+  const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
+  const [awardingLoading, setAwardingLoading] = useState<string | null>(null);
 
   // Auto-parse on load if items empty
   useEffect(() => {
@@ -309,6 +318,97 @@ export function AdminPopQuizView() {
 
   // Find currently running session
   const runningSession = sessions.find((s) => s.status === 'running') || null;
+
+  // Fetch student submissions for a session
+  const fetchSubmissions = async (sessionId: string) => {
+    try {
+      const res = await fetch(`/api/pop-quiz/submissions/${sessionId}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.submissions)) {
+        const grouped: Record<string, PopQuizSubmission[]> = {};
+        data.submissions.forEach((sub: PopQuizSubmission) => {
+          if (!grouped[sub.questionId]) {
+            grouped[sub.questionId] = [];
+          }
+          grouped[sub.questionId].push(sub);
+        });
+        setSessionSubmissions(grouped);
+      }
+    } catch (err) {
+      console.warn('Error fetching submissions:', err);
+    }
+  };
+
+  // Poll submissions whenever a running session is active
+  useEffect(() => {
+    if (runningSession?.id) {
+      fetchSubmissions(runningSession.id);
+      const subInterval = setInterval(() => {
+        fetchSubmissions(runningSession.id);
+      }, 3000);
+      return () => clearInterval(subInterval);
+    }
+  }, [runningSession?.id]);
+
+  // Subscribe to real-time events for instant submission & winner refresh
+  useEffect(() => {
+    const channel = supabase.channel('grobaax-admin-popquiz-bus');
+    channel
+      .on('broadcast', { event: 'pop_quiz_question_published' }, () => {
+        fetchSessions();
+        if (runningSession?.id) fetchSubmissions(runningSession.id);
+      })
+      .on('broadcast', { event: 'pop_quiz_question_closed' }, () => {
+        fetchSessions();
+        if (runningSession?.id) fetchSubmissions(runningSession.id);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [runningSession?.id]);
+
+  // Manual Award Winner handler for Admin override
+  const handleManualAward = async (sub: PopQuizSubmission, question: PopQuizQuestion, sessionId: string) => {
+    setAwardingLoading(sub.id);
+    setStatusMessage(null);
+    try {
+      const res = await fetch('/api/pop-quiz/manual-award', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          questionId: question.id,
+          userId: sub.userId,
+          userName: sub.userName,
+          userEmail: sub.userEmail,
+          userInstitution: sub.userInstitution,
+          submittedAnswer: sub.submittedAnswer,
+          customGpReward: question.gpReward,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStatusMessage({ type: 'success', text: data.message || 'Winner awarded successfully!' });
+        await fetchSessions();
+        await fetchSubmissions(sessionId);
+      } else {
+        setStatusMessage({ type: 'error', text: data.message || 'Failed to award winner.' });
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err?.message || 'Server error awarding winner.' });
+    } finally {
+      setAwardingLoading(null);
+    }
+  };
+
+  const toggleQuestionExpanded = (qId: string) => {
+    setExpandedQuestions((prev) => ({
+      ...prev,
+      [qId]: !prev[qId],
+    }));
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-2 sm:px-4 pb-12">
@@ -1085,11 +1185,14 @@ export function AdminPopQuizView() {
                     const isActive = q.status === 'active';
                     const isClosed = q.status === 'closed';
                     const hasWinner = Boolean(q.winnerUserId);
+                    const qSubs = sessionSubmissions[q.id] || [];
+                    const isExpanded = expandedQuestions[q.id] ?? (qSubs.length > 0 || isActive);
+                    const correctSubs = qSubs.filter((s) => s.isCorrect);
 
                     return (
                       <div
                         key={q.id}
-                        className={`p-4 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        className={`rounded-2xl border transition overflow-hidden ${
                           isActive
                             ? 'bg-blue-50/50 dark:bg-blue-950/30 border-blue-500 shadow-md ring-2 ring-blue-500/20'
                             : isClosed
@@ -1097,56 +1200,182 @@ export function AdminPopQuizView() {
                             : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800/60 opacity-60'
                         }`}
                       >
-                        <div className="space-y-1 max-w-xl">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-blue-600 dark:text-blue-400">
-                              Question #{q.order}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                isActive
-                                  ? 'bg-emerald-500 text-white animate-pulse'
-                                  : isClosed
-                                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                              }`}
-                            >
-                              {q.status}
-                            </span>
-                            <span className="text-[11px] font-bold text-amber-500">+{q.gpReward} GP</span>
+                        {/* Question Top Header Bar */}
+                        <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="space-y-1 max-w-xl">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-xs text-blue-600 dark:text-blue-400">
+                                Question #{q.order}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                  isActive
+                                    ? 'bg-emerald-500 text-white animate-pulse'
+                                    : isClosed
+                                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                }`}
+                              >
+                                {q.status}
+                              </span>
+                              <span className="text-[11px] font-bold text-amber-500">+{q.gpReward} GP</span>
+
+                              {/* Submissions count pill */}
+                              <button
+                                onClick={() => toggleQuestionExpanded(q.id)}
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 transition cursor-pointer ${
+                                  qSubs.length > 0
+                                    ? correctSubs.length > 0
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                                      : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30'
+                                    : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                                }`}
+                                title="Click to expand/collapse student answers"
+                              >
+                                <Users className="w-3 h-3" />
+                                <span>{qSubs.length} answer{qSubs.length === 1 ? '' : 's'}</span>
+                                {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                              </button>
+                            </div>
+                            <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">{q.questionText}</p>
+                            <p className="text-[11px] text-slate-500 font-mono">
+                              Correct Answer: <strong className="text-emerald-500">{q.correctAnswer}</strong>
+                            </p>
                           </div>
-                          <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">{q.questionText}</p>
-                          <p className="text-[11px] text-slate-500 font-mono">
-                            Correct Answer: <strong className="text-emerald-500">{q.correctAnswer}</strong>
-                          </p>
+
+                          {/* Winner details if answered */}
+                          <div className="text-right">
+                            {hasWinner ? (
+                              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-left sm:text-right space-y-0.5">
+                                <div className="text-[10px] font-bold text-amber-500 flex items-center sm:justify-end gap-1">
+                                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>WINNER</span>
+                                </div>
+                                <div className="text-xs font-bold text-slate-900 dark:text-white">{q.winnerName}</div>
+                                {q.winnerInstitution && (
+                                  <div className="text-[10px] text-slate-400">{q.winnerInstitution}</div>
+                                )}
+                                <div className="text-[10px] text-slate-500 font-mono">
+                                  Answer: <strong className="text-emerald-500">{q.winningAnswer}</strong>
+                                </div>
+                                <div className="text-[10px] font-bold text-emerald-500">+{q.gpAwarded || q.gpReward} GP Awarded</div>
+                              </div>
+                            ) : isClosed ? (
+                              <div className="text-xs text-slate-400 italic">
+                                {q.closeReason === 'expired' ? 'Time expired (No winner)' : 'Closed'}
+                              </div>
+                            ) : isActive ? (
+                              <div className="text-xs font-bold text-blue-500 animate-pulse">
+                                Awaiting student answers...
+                              </div>
+                            ) : (
+                              <div className="text-xs text-slate-400">Scheduled next</div>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Winner details if answered */}
-                        <div className="text-right">
-                          {hasWinner ? (
-                            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-left sm:text-right space-y-0.5">
-                              <div className="text-[10px] font-bold text-amber-500 flex items-center sm:justify-end gap-1">
-                                <Trophy className="w-3 h-3 text-amber-500" />
-                                <span>WINNER</span>
+                        {/* STUDENT ANSWERS & SUBMISSIONS DRAWER */}
+                        {isExpanded && (
+                          <div className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 p-4 space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5 text-blue-500" />
+                                <span>Student Answers Log ({qSubs.length})</span>
+                              </span>
+                              <span className="text-[11px] text-slate-400">
+                                {correctSubs.length > 0 ? (
+                                  <span className="text-emerald-500 font-bold">
+                                    {correctSubs.length} answered correctly
+                                  </span>
+                                ) : (
+                                  '0 correct answers'
+                                )}
+                              </span>
+                            </div>
+
+                            {qSubs.length === 0 ? (
+                              <div className="p-3 text-center rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 text-xs text-slate-400 italic">
+                                {isActive ? 'No submissions yet for this question. Waiting for students to answer...' : 'No student answers were recorded for this question.'}
                               </div>
-                              <div className="text-xs font-bold text-slate-900 dark:text-white">{q.winnerName}</div>
-                              {q.winnerInstitution && (
-                                <div className="text-[10px] text-slate-400">{q.winnerInstitution}</div>
-                              )}
-                              <div className="text-[10px] font-bold text-emerald-500">+{q.gpAwarded || q.gpReward} GP Awarded</div>
-                            </div>
-                          ) : isClosed ? (
-                            <div className="text-xs text-slate-400 italic">
-                              {q.closeReason === 'expired' ? 'Time expired (No winner)' : 'Closed'}
-                            </div>
-                          ) : isActive ? (
-                            <div className="text-xs font-bold text-blue-500 animate-pulse">
-                              Awaiting student answers...
-                            </div>
-                          ) : (
-                            <div className="text-xs text-slate-400">Scheduled next</div>
-                          )}
-                        </div>
+                            ) : (
+                              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                {qSubs.map((sub, idx) => {
+                                  const isWinningSub = sub.isWinner || (hasWinner && q.winnerUserId === sub.userId);
+                                  const isCorrectSub = sub.isCorrect || isWinningSub;
+
+                                  return (
+                                    <div
+                                      key={sub.id || idx}
+                                      className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition ${
+                                        isWinningSub
+                                          ? 'bg-amber-500/10 border-amber-500/30 ring-1 ring-amber-500/20'
+                                          : isCorrectSub
+                                          ? 'bg-emerald-500/10 border-emerald-500/20'
+                                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80'
+                                      }`}
+                                    >
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-bold text-slate-900 dark:text-white">
+                                            {sub.userName || 'Student'}
+                                          </span>
+                                          {sub.userInstitution && (
+                                            <span className="text-[10px] text-slate-400">
+                                              • {sub.userInstitution}
+                                            </span>
+                                          )}
+                                          <span className="text-[10px] text-slate-400 font-mono">
+                                            {sub.submittedAt ? new Date(sub.submittedAt).toLocaleTimeString() : ''}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs text-slate-500">Submitted:</span>
+                                          <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700">
+                                            "{sub.submittedAnswer}"
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 sm:self-center">
+                                        {/* Status Badge */}
+                                        {isWinningSub ? (
+                                          <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-white text-[10px] font-black tracking-wide flex items-center gap-1 shadow-sm">
+                                            <Trophy className="w-3 h-3" />
+                                            <span>WINNER (+{sub.gpAwarded || q.gpReward} GP)</span>
+                                          </span>
+                                        ) : isCorrectSub ? (
+                                          <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-500 text-[10px] font-bold flex items-center gap-1 border border-emerald-500/20">
+                                            <CheckCircle2 className="w-3 h-3" />
+                                            <span>Correct Answer</span>
+                                          </span>
+                                        ) : (
+                                          <span className="px-2 py-0.5 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-bold flex items-center gap-1 border border-rose-500/20">
+                                            <XCircle className="w-3 h-3" />
+                                            <span>Incorrect</span>
+                                          </span>
+                                        )}
+
+                                        {/* Manual Award Override Button */}
+                                        {!isWinningSub && (
+                                          <button
+                                            onClick={() => handleManualAward(sub, q, runningSession.id)}
+                                            disabled={Boolean(awardingLoading)}
+                                            className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold flex items-center gap-1 transition shadow-sm cursor-pointer disabled:opacity-50"
+                                            title="Manually award this student as the winner for this question"
+                                          >
+                                            <Award className="w-3 h-3" />
+                                            <span>{awardingLoading === sub.id ? 'Awarding...' : 'Award as Winner'}</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

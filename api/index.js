@@ -17960,14 +17960,113 @@ function appendSubmissionToDisk(submission) {
 }
 function normalizeAnswer(ans) {
   if (!ans) return "";
-  return ans.toLowerCase().trim().replace(/^["'‘“]+|["'’”]+$/g, "").replace(/\s+/g, " ").replace(/[\.\,\!\?]+$/g, "").trim();
+  return ans.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/^["'‘“]+|["'’”]+$/g, "").replace(/\s+/g, " ").replace(/[\.\,\!\?]+$/g, "").trim();
+}
+function stripFillers(str) {
+  return str.replace(/^(?:it\s+is|it\'s|the\s+answer\s+is|answer\s+is|answer\s*[:\-])\s+/i, "").replace(/^(?:the|a|an|option|choice)\s+/i, "").replace(/\s+(?:organelle|planet|process|blood\s+group|group|type)$/i, "").replace(/^(?:planet|blood\s+group|group|type)\s+/i, "").trim();
+}
+function levenshteinDistance(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+function getAnswerVariants2(text) {
+  const c = normalizeAnswer(text);
+  if (!c) return [];
+  const variants = /* @__PURE__ */ new Set([c]);
+  const stripped = stripFillers(c);
+  if (stripped) variants.add(stripped);
+  const parts = c.split(/[\/\|\;]|\s+or\s+/);
+  if (parts.length > 1) {
+    parts.forEach((p) => {
+      const pc = normalizeAnswer(p);
+      if (pc) {
+        variants.add(pc);
+        const ps = stripFillers(pc);
+        if (ps) variants.add(ps);
+      }
+    });
+  }
+  const noParen = c.replace(/\([^\)]*\)/g, "").trim();
+  if (noParen && noParen !== c) {
+    variants.add(normalizeAnswer(noParen));
+    variants.add(stripFillers(normalizeAnswer(noParen)));
+  }
+  const bioEquivalents = {
+    mitochondria: "mitochondrion",
+    mitochondrion: "mitochondria",
+    amoeba: "amoebae",
+    amoebae: "amoeba",
+    bacteria: "bacterium",
+    bacterium: "bacteria",
+    fungus: "fungi",
+    fungi: "fungus",
+    nucleus: "nuclei",
+    nuclei: "nucleus",
+    protozoa: "protozoon",
+    protozoon: "protozoa",
+    metamorphosis: "complete metamorphosis",
+    "complete metamorphosis": "metamorphosis"
+  };
+  Array.from(variants).forEach((v) => {
+    if (bioEquivalents[v]) {
+      variants.add(bioEquivalents[v]);
+    }
+  });
+  return Array.from(variants);
 }
 function isAnswerCorrect(submitted, correct) {
-  const normSub = normalizeAnswer(submitted);
-  const normCor = normalizeAnswer(correct);
-  if (!normSub || !normCor) return false;
-  if (normSub === normCor) return true;
-  if (normSub.replace(/^the\s+/, "") === normCor.replace(/^the\s+/, "")) return true;
+  const subClean = normalizeAnswer(submitted);
+  const corClean = normalizeAnswer(correct);
+  if (!subClean || !corClean) return false;
+  const subVariants = getAnswerVariants2(submitted);
+  const corVariants = getAnswerVariants2(correct);
+  for (const sv of subVariants) {
+    for (const cv of corVariants) {
+      if (sv === cv) return true;
+    }
+  }
+  const isCorBloodGroupO = corVariants.some(
+    (v) => v === "o" || v === "group o" || v === "blood group o" || v === "type o"
+  );
+  if (isCorBloodGroupO) {
+    const isSubBloodGroupO = subVariants.some(
+      (v) => ["o", "o-", "o+", "o negative", "o positive", "group o", "type o", "blood group o", "o neg", "o pos"].includes(v)
+    );
+    if (isSubBloodGroupO) return true;
+  }
+  for (const sv of subVariants) {
+    for (const cv of corVariants) {
+      if (cv.length >= 5) {
+        const dist = levenshteinDistance(sv, cv);
+        const maxDist = cv.length >= 8 ? 2 : 1;
+        if (dist <= maxDist) return true;
+      }
+    }
+  }
+  for (const cv of corVariants) {
+    if (cv.length >= 5) {
+      const words = subClean.split(/\s+/);
+      if (words.includes(cv)) return true;
+    }
+  }
   return false;
 }
 async function broadcastPopQuizEvent(event, payload) {
@@ -18079,6 +18178,30 @@ async function getSessionById(sessionId) {
   } catch {
   }
   return null;
+}
+async function deleteSessionFromDatabase(sessionId) {
+  await ensureSessionsLoaded();
+  sessionsCache.delete(sessionId);
+  try {
+    const allSessions = Array.from(sessionsCache.values());
+    writeSessionsToDisk(allSessions);
+  } catch (diskErr) {
+    console.warn(`[Pop Quiz Engine] Notice disk delete for session ${sessionId}:`, diskErr);
+  }
+  try {
+    await supabaseAdmin.from("pop_quiz_sessions").delete().eq("id", sessionId);
+  } catch (err) {
+    console.warn(`[Pop Quiz Engine] Notice DB delete for session ${sessionId}:`, err?.message || err);
+  }
+  try {
+    await supabaseAdmin.from("liveSessions").delete().eq("id", sessionId);
+  } catch {
+  }
+  try {
+    await broadcastPopQuizEvent("session_deleted", { sessionId });
+  } catch {
+  }
+  return true;
 }
 function parseLagosTimeMs(dateStr, timeStr) {
   if (!dateStr || !timeStr) return null;
@@ -18323,17 +18446,53 @@ async function submitStudentAnswer(params) {
       message: "This question is no longer active."
     };
   }
+  const isCorrect = isAnswerCorrect(submittedAnswer, question.correctAnswer);
   const now = Date.now();
-  if (question.expiresAt && now > new Date(question.expiresAt).getTime()) {
-    return {
-      success: false,
-      isCorrect: false,
+  const expiresAtMs = question.expiresAt ? new Date(question.expiresAt).getTime() : 0;
+  const isLate = expiresAtMs > 0 && now > expiresAtMs + 3e3;
+  if (isLate) {
+    const subRecord = {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      sessionId,
+      questionId,
+      userId,
+      userName,
+      userEmail,
+      userInstitution,
+      submittedAnswer,
+      isCorrect,
       isWinner: false,
       gpAwarded: 0,
-      message: "Time expired for this question."
+      submittedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    appendSubmissionToDisk(subRecord);
+    try {
+      await supabaseAdmin.from("pop_quiz_submissions").upsert({
+        id: subRecord.id,
+        session_id: sessionId,
+        question_id: questionId,
+        user_id: userId,
+        user_name: userName,
+        user_email: userEmail || "",
+        user_institution: userInstitution || "",
+        submitted_answer: submittedAnswer,
+        is_correct: isCorrect,
+        is_winner: false,
+        gp_awarded: 0,
+        submitted_at: subRecord.submittedAt,
+        data: subRecord,
+        created_at: subRecord.submittedAt
+      });
+    } catch {
+    }
+    return {
+      success: false,
+      isCorrect,
+      isWinner: false,
+      gpAwarded: 0,
+      message: isCorrect ? "Correct answer, but time expired for this question! Your answer has been logged." : "Time has expired for this question."
     };
   }
-  const isCorrect = isAnswerCorrect(submittedAnswer, question.correctAnswer);
   if (!isCorrect) {
     const subRecord = {
       id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -18356,6 +18515,14 @@ async function submitStudentAnswer(params) {
         session_id: sessionId,
         question_id: questionId,
         user_id: userId,
+        user_name: userName,
+        user_email: userEmail || "",
+        user_institution: userInstitution || "",
+        submitted_answer: submittedAnswer,
+        is_correct: false,
+        is_winner: false,
+        gp_awarded: 0,
+        submitted_at: subRecord.submittedAt,
         data: subRecord,
         created_at: subRecord.submittedAt
       });
@@ -18371,6 +18538,40 @@ async function submitStudentAnswer(params) {
   }
   const lockKey = `lock_${questionId}`;
   if (questionWinnerLocks.has(lockKey) || question.winnerUserId) {
+    const subRecord = {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      sessionId,
+      questionId,
+      userId,
+      userName,
+      userEmail,
+      userInstitution,
+      submittedAnswer,
+      isCorrect: true,
+      isWinner: false,
+      gpAwarded: 0,
+      submittedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    appendSubmissionToDisk(subRecord);
+    try {
+      await supabaseAdmin.from("pop_quiz_submissions").upsert({
+        id: subRecord.id,
+        session_id: sessionId,
+        question_id: questionId,
+        user_id: userId,
+        user_name: userName,
+        user_email: userEmail || "",
+        user_institution: userInstitution || "",
+        submitted_answer: submittedAnswer,
+        is_correct: true,
+        is_winner: false,
+        gp_awarded: 0,
+        submitted_at: subRecord.submittedAt,
+        data: subRecord,
+        created_at: subRecord.submittedAt
+      });
+    } catch {
+    }
     return {
       success: true,
       isCorrect: true,
@@ -18419,6 +18620,14 @@ async function submitStudentAnswer(params) {
         session_id: sessionId,
         question_id: questionId,
         user_id: userId,
+        user_name: userName,
+        user_email: userEmail || "",
+        user_institution: userInstitution || "",
+        submitted_answer: submittedAnswer,
+        is_correct: true,
+        is_winner: true,
+        gp_awarded: gpReward,
+        submitted_at: wonAtIso,
         data: subRecord,
         created_at: wonAtIso
       });
@@ -18520,6 +18729,168 @@ async function submitStudentAnswer(params) {
   } finally {
     questionWinnerLocks.delete(lockKey);
   }
+}
+async function getSubmissionsForSession(sessionId) {
+  const map = /* @__PURE__ */ new Map();
+  try {
+    if (fs6.existsSync(SUBMISSIONS_FILE)) {
+      const raw = fs6.readFileSync(SUBMISSIONS_FILE, "utf-8");
+      const diskList = JSON.parse(raw) || [];
+      diskList.filter((sub) => sub.sessionId === sessionId).forEach((sub) => map.set(sub.id, sub));
+    }
+  } catch (err) {
+    console.warn("[Pop Quiz Engine] Notice reading submissions disk cache:", err);
+  }
+  try {
+    const { data, error } = await supabaseAdmin.from("pop_quiz_submissions").select("*").eq("session_id", sessionId).order("submitted_at", { ascending: true });
+    if (!error && Array.isArray(data)) {
+      data.forEach((row) => {
+        const subData = row.data || {
+          id: row.id,
+          sessionId: row.session_id,
+          questionId: row.question_id,
+          userId: row.user_id,
+          userName: row.user_name || "Scholar",
+          userEmail: row.user_email || "",
+          userInstitution: row.user_institution || "",
+          submittedAnswer: row.submitted_answer || "",
+          isCorrect: Boolean(row.is_correct),
+          isWinner: Boolean(row.is_winner),
+          gpAwarded: Number(row.gp_awarded) || 0,
+          submittedAt: row.submitted_at || row.created_at
+        };
+        if (row.user_name) subData.userName = row.user_name;
+        if (row.submitted_answer) subData.submittedAnswer = row.submitted_answer;
+        if (row.is_correct !== void 0) subData.isCorrect = Boolean(row.is_correct);
+        if (row.is_winner !== void 0) subData.isWinner = Boolean(row.is_winner);
+        if (row.gp_awarded !== void 0) subData.gpAwarded = Number(row.gp_awarded);
+        if (row.submitted_at) subData.submittedAt = row.submitted_at;
+        map.set(row.id, subData);
+      });
+    }
+  } catch (err) {
+    console.warn("[Pop Quiz Engine] Notice querying submissions from DB:", err?.message || err);
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()
+  );
+}
+async function manualAwardWinner(params) {
+  await ensureSessionsLoaded();
+  const { sessionId, questionId, userId, userName, userEmail, userInstitution, submittedAnswer, customGpReward } = params;
+  const session = await getSessionById(sessionId);
+  if (!session) {
+    return { success: false, message: "Session not found", gpAwarded: 0 };
+  }
+  const question = (session.questions || []).find((q) => q.id === questionId);
+  if (!question) {
+    return { success: false, message: "Question not found in session", gpAwarded: 0 };
+  }
+  const gpReward = customGpReward || question.gpReward || session.defaultGpReward || 25;
+  const wonAtIso = (/* @__PURE__ */ new Date()).toISOString();
+  question.winnerUserId = userId;
+  question.winnerName = userName;
+  question.winnerInstitution = userInstitution || "";
+  question.winningAnswer = submittedAnswer;
+  question.wonAt = wonAtIso;
+  question.gpAwarded = gpReward;
+  question.status = "closed";
+  question.closedAt = wonAtIso;
+  question.closeReason = "answered";
+  await persistSession(session);
+  try {
+    await supabaseAdmin.from("pop_quiz_submissions").update({
+      is_correct: true,
+      is_winner: true,
+      gp_awarded: gpReward
+    }).eq("session_id", sessionId).eq("question_id", questionId).eq("user_id", userId);
+  } catch {
+  }
+  try {
+    const userDocRes = await supabaseAdmin.from("users").select("id, data").eq("id", userId).maybeSingle();
+    let currentGp = 0;
+    let currentWallet = 0;
+    let currentTotalGp = 0;
+    let userData = {};
+    if (userDocRes?.data) {
+      userData = userDocRes.data.data || {};
+      currentGp = Number(userData.gpBalance || 0);
+      currentWallet = Number(userData.walletBalance || currentGp);
+      currentTotalGp = Number(userData.totalGpEarned || 0);
+    }
+    const newGp = currentGp + gpReward;
+    const newWallet = currentWallet + gpReward;
+    const newTotalGp = currentTotalGp + gpReward;
+    await supabaseAdmin.from("users").upsert({
+      id: userId,
+      data: {
+        ...userData,
+        id: userId,
+        gpBalance: newGp,
+        walletBalance: newWallet,
+        totalGpEarned: newTotalGp,
+        updatedAt: wonAtIso
+      },
+      updated_at: wonAtIso
+    });
+    try {
+      const walletRes = await supabaseAdmin.from("wallets").select("id, data").eq("id", userId).maybeSingle();
+      const existingWallet = walletRes?.data?.data || {};
+      await supabaseAdmin.from("wallets").upsert({
+        id: userId,
+        data: {
+          ...existingWallet,
+          id: userId,
+          userId,
+          gpBalance: newGp,
+          balanceGP: newGp,
+          updatedAt: wonAtIso
+        },
+        updated_at: wonAtIso
+      });
+    } catch {
+    }
+    const txId = `TX_POPQUIZ_MANUAL_${Date.now()}_${Math.floor(1e3 + Math.random() * 9e3)}`;
+    const txPayload = {
+      id: txId,
+      transactionId: txId,
+      userId,
+      userName: userData.name || userData.fullName || userName || "Scholar",
+      userEmail: userData.email || userEmail || "",
+      userAvatar: userData.profileImage || userData.avatar || "",
+      institutionName: userData.institutionName || userData.institution || userInstitution || "",
+      type: "gp_earned",
+      amount: gpReward,
+      unit: "GP",
+      title: "\u26A1 Grobaax Pop Quiz Winner (Admin Verified)",
+      description: `Awarded Question #${question.order} in "${session.title}" (+${gpReward} GP)`,
+      isCredit: true,
+      status: "completed",
+      createdAt: wonAtIso
+    };
+    await supabaseAdmin.from("walletTransactions").upsert({
+      id: txId,
+      data: txPayload,
+      updated_at: wonAtIso
+    });
+  } catch (err) {
+    console.error("[Pop Quiz Engine] Error manual crediting wallet:", err);
+  }
+  await broadcastPopQuizEvent("question_closed", {
+    sessionId,
+    questionId,
+    order: question.order,
+    revealedCorrectAnswer: question.correctAnswer,
+    winnerName: userName,
+    winnerInstitution: userInstitution || null,
+    closeReason: "answered",
+    gpAwarded: gpReward
+  });
+  return {
+    success: true,
+    message: `Awarded +${gpReward} GP to ${userName} as winner of Question #${question.order}!`,
+    gpAwarded: gpReward
+  };
 }
 
 // src/utils/popQuizParser.ts
@@ -18682,6 +19053,19 @@ popQuizRouter.get("/session/:id", async (req, res) => {
     }
     return res.json({ success: true, session });
   } catch (err) {
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+popQuizRouter.delete("/session/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, message: "Session ID is required." });
+    }
+    await deleteSessionFromDatabase(id);
+    return res.json({ success: true, message: "Quiz permanently deleted." });
+  } catch (err) {
+    console.error("[Pop Quiz Router] Error deleting session:", err?.message || err);
     return res.status(500).json({ success: false, error: err?.message || "Server error" });
   }
 });
@@ -18908,9 +19292,8 @@ popQuizRouter.post("/control", async (req, res) => {
         return res.json({ success: true, message: "Draft saved.", session });
       }
       case "delete": {
-        session.status = "cancelled";
-        await persistSession(session);
-        return res.json({ success: true, message: "Quiz deleted/cancelled." });
+        await deleteSessionFromDatabase(sessionId);
+        return res.json({ success: true, message: "Quiz permanently deleted." });
       }
       default:
         return res.status(400).json({ success: false, message: `Unknown action "${action}"` });
@@ -18953,6 +19336,44 @@ popQuizRouter.get("/cron-tick", async (_req, res) => {
     return res.json({ success: true, message: "Pop Quiz tick executed successfully.", timestamp: Date.now() });
   } catch (err) {
     return res.status(500).json({ success: false, error: err?.message || "Tick failed" });
+  }
+});
+popQuizRouter.get("/submissions/:sessionId", async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    if (!sessionId) {
+      return res.status(400).json({ success: false, message: "Session ID is required." });
+    }
+    const submissions = await getSubmissionsForSession(sessionId);
+    return res.json({ success: true, submissions });
+  } catch (err) {
+    console.error("[Pop Quiz Router] Error fetching submissions:", err?.message || err);
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+popQuizRouter.post("/manual-award", async (req, res) => {
+  try {
+    const { sessionId, questionId, userId, userName, userEmail, userInstitution, submittedAnswer, customGpReward } = req.body || {};
+    if (!sessionId || !questionId || !userId || !submittedAnswer) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required parameters: sessionId, questionId, userId, submittedAnswer."
+      });
+    }
+    const result = await manualAwardWinner({
+      sessionId,
+      questionId,
+      userId,
+      userName: userName || "Scholar",
+      userEmail,
+      userInstitution,
+      submittedAnswer,
+      customGpReward: customGpReward ? Number(customGpReward) : void 0
+    });
+    return res.json(result);
+  } catch (err) {
+    console.error("[Pop Quiz Router] Error manual awarding winner:", err?.message || err);
+    return res.status(500).json({ success: false, message: err?.message || "Server error awarding winner." });
   }
 });
 

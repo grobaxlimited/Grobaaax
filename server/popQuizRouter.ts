@@ -8,6 +8,8 @@ import {
   persistSession,
   broadcastPopQuizEvent,
   deleteSessionFromDatabase,
+  getSubmissionsForSession,
+  manualAwardWinner,
 } from './popQuizEngine';
 import { PopQuizSession, PopQuizQuestion } from '../src/types';
 import { parseBulkQuestionsText, convertParsedToQuestions } from '../src/utils/popQuizParser';
@@ -460,5 +462,57 @@ popQuizRouter.get('/cron-tick', async (_req: Request, res: Response) => {
     return res.json({ success: true, message: 'Pop Quiz tick executed successfully.', timestamp: Date.now() });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Tick failed' });
+  }
+});
+
+/**
+ * GET /api/pop-quiz/submissions/:sessionId
+ * Admin fetches all student submissions for a session to review live answers
+ */
+popQuizRouter.get('/submissions/:sessionId', async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    if (!sessionId) {
+      return res.status(400).json({ success: false, message: 'Session ID is required.' });
+    }
+    const submissions = await getSubmissionsForSession(sessionId);
+    return res.json({ success: true, submissions });
+  } catch (err: any) {
+    console.error('[Pop Quiz Router] Error fetching submissions:', err?.message || err);
+    return res.status(500).json({ success: false, error: err?.message || 'Server error' });
+  }
+});
+
+/**
+ * POST /api/pop-quiz/manual-award
+ * Admin manually awards a student as the winner for a question
+ */
+popQuizRouter.post('/manual-award', async (req: Request, res: Response) => {
+  try {
+    const { sessionId, questionId, userId, userName, userEmail, userInstitution, submittedAnswer, customGpReward } =
+      req.body || {};
+
+    if (!sessionId || !questionId || !userId || !submittedAnswer) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: sessionId, questionId, userId, submittedAnswer.',
+      });
+    }
+
+    const result = await manualAwardWinner({
+      sessionId,
+      questionId,
+      userId,
+      userName: userName || 'Scholar',
+      userEmail,
+      userInstitution,
+      submittedAnswer,
+      customGpReward: customGpReward ? Number(customGpReward) : undefined,
+    });
+
+    return res.json(result);
+  } catch (err: any) {
+    console.error('[Pop Quiz Router] Error manual awarding winner:', err?.message || err);
+    return res.status(500).json({ success: false, message: err?.message || 'Server error awarding winner.' });
   }
 });
