@@ -1143,28 +1143,22 @@ export async function getSubmissionsForSession(sessionId: string): Promise<PopQu
 
     if (!error && Array.isArray(data)) {
       data.forEach((row: any) => {
-        const subData: PopQuizSubmission = row.data || {
-          id: row.id,
-          sessionId: row.session_id,
-          questionId: row.question_id,
-          userId: row.user_id,
-          userName: row.user_name || 'Scholar',
-          userEmail: row.user_email || '',
-          userInstitution: row.user_institution || '',
-          submittedAnswer: row.submitted_answer || '',
-          isCorrect: Boolean(row.is_correct),
-          isWinner: Boolean(row.is_winner),
-          gpAwarded: Number(row.gp_awarded) || 0,
-          submittedAt: row.submitted_at || row.created_at,
+        const rawJson = row.data && typeof row.data === 'object' ? row.data : {};
+        const subData: PopQuizSubmission = {
+          id: row.id || rawJson.id,
+          sessionId: row.session_id || rawJson.sessionId,
+          questionId: row.question_id || rawJson.questionId,
+          userId: row.user_id || rawJson.userId,
+          userName: row.user_name || rawJson.userName || 'Scholar',
+          userEmail: row.user_email || rawJson.userEmail || '',
+          userInstitution: row.user_institution || rawJson.userInstitution || '',
+          submittedAnswer: row.submitted_answer || rawJson.submittedAnswer || '',
+          isCorrect: Boolean(row.is_correct || rawJson.isCorrect),
+          isWinner: Boolean(row.is_winner || rawJson.isWinner),
+          gpAwarded: Number(row.gp_awarded ?? rawJson.gpAwarded ?? 0),
+          submittedAt: row.submitted_at || rawJson.submittedAt || row.created_at || new Date().toISOString(),
         };
-        // Normalize properties
-        if (row.user_name) subData.userName = row.user_name;
-        if (row.submitted_answer) subData.submittedAnswer = row.submitted_answer;
-        if (row.is_correct !== undefined) subData.isCorrect = Boolean(row.is_correct);
-        if (row.is_winner !== undefined) subData.isWinner = Boolean(row.is_winner);
-        if (row.gp_awarded !== undefined) subData.gpAwarded = Number(row.gp_awarded);
-        if (row.submitted_at) subData.submittedAt = row.submitted_at;
-        map.set(row.id, subData);
+        map.set(subData.id, subData);
       });
     }
   } catch (err: any) {
