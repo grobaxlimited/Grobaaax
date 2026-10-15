@@ -7,6 +7,7 @@ import {
   getSessionById,
   persistSession,
   broadcastPopQuizEvent,
+  deleteSessionFromDatabase,
 } from './popQuizEngine';
 import { PopQuizSession, PopQuizQuestion } from '../src/types';
 import { parseBulkQuestionsText, convertParsedToQuestions } from '../src/utils/popQuizParser';
@@ -94,6 +95,24 @@ popQuizRouter.get('/session/:id', async (req: Request, res: Response) => {
     }
     return res.json({ success: true, session });
   } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Server error' });
+  }
+});
+
+/**
+ * DELETE /api/pop-quiz/session/:id
+ * Admin deletes a Pop Quiz session permanently
+ */
+popQuizRouter.delete('/session/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Session ID is required.' });
+    }
+    await deleteSessionFromDatabase(id);
+    return res.json({ success: true, message: 'Quiz permanently deleted.' });
+  } catch (err: any) {
+    console.error('[Pop Quiz Router] Error deleting session:', err?.message || err);
     return res.status(500).json({ success: false, error: err?.message || 'Server error' });
   }
 });
@@ -382,9 +401,8 @@ popQuizRouter.post('/control', async (req: Request, res: Response) => {
       }
 
       case 'delete': {
-        session.status = 'cancelled';
-        await persistSession(session);
-        return res.json({ success: true, message: 'Quiz deleted/cancelled.' });
+        await deleteSessionFromDatabase(sessionId);
+        return res.json({ success: true, message: 'Quiz permanently deleted.' });
       }
 
       default:

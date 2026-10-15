@@ -275,6 +275,43 @@ export async function getSessionById(sessionId: string): Promise<PopQuizSession 
 }
 
 /**
+ * Permanently deletes a session across all storage tiers (Memory + Disk + Supabase DB)
+ */
+export async function deleteSessionFromDatabase(sessionId: string): Promise<boolean> {
+  await ensureSessionsLoaded();
+
+  // 1. Remove from in-memory cache
+  sessionsCache.delete(sessionId);
+
+  // 2. Persist updated session list to disk
+  try {
+    const allSessions = Array.from(sessionsCache.values());
+    writeSessionsToDisk(allSessions);
+  } catch (diskErr) {
+    console.warn(`[Pop Quiz Engine] Notice disk delete for session ${sessionId}:`, diskErr);
+  }
+
+  // 3. Delete from Supabase pop_quiz_sessions table
+  try {
+    await supabaseAdmin.from('pop_quiz_sessions').delete().eq('id', sessionId);
+  } catch (err: any) {
+    console.warn(`[Pop Quiz Engine] Notice DB delete for session ${sessionId}:`, err?.message || err);
+  }
+
+  // 4. Delete from Supabase liveSessions backup table
+  try {
+    await supabaseAdmin.from('liveSessions').delete().eq('id', sessionId);
+  } catch {}
+
+  // 5. Broadcast deletion event to all connected realtime clients
+  try {
+    await broadcastPopQuizEvent('session_deleted', { sessionId });
+  } catch {}
+
+  return true;
+}
+
+/**
  * Helper to parse a date + time string in Africa/Lagos (WAT, UTC+1)
  */
 function parseLagosTimeMs(dateStr?: string, timeStr?: string): number | null {

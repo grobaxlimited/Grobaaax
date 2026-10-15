@@ -90,6 +90,7 @@ export function AdminPopQuizView() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [previewModalSession, setPreviewModalSession] = useState<PopQuizSession | null>(null);
   const [confirmStartSession, setConfirmStartSession] = useState<PopQuizSession | null>(null);
+  const [confirmDeleteSession, setConfirmDeleteSession] = useState<PopQuizSession | null>(null);
 
   // Auto-parse on load if items empty
   useEffect(() => {
@@ -236,8 +237,51 @@ export function AdminPopQuizView() {
     }
   };
 
+  // Dedicated delete handler with optimistic UI update
+  const handleDeleteSession = async (sessionId: string) => {
+    setActionLoading(true);
+    setStatusMessage(null);
+    try {
+      // Optimistically update UI so user immediately sees the quiz removed
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (previewModalSession?.id === sessionId) {
+        setPreviewModalSession(null);
+      }
+      if (confirmStartSession?.id === sessionId) {
+        setConfirmStartSession(null);
+      }
+      setConfirmDeleteSession(null);
+
+      const res = await fetch(`/api/pop-quiz/session/${sessionId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStatusMessage({ type: 'success', text: 'Quiz deleted successfully.' });
+        await fetchSessions();
+      } else {
+        setStatusMessage({ type: 'error', text: data.message || 'Failed to delete quiz.' });
+        await fetchSessions(); // rollback
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err?.message || 'Server error deleting quiz.' });
+      await fetchSessions();
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Quiz control handler
   const handleQuizControl = async (sessionId: string, action: string) => {
+    if (action === 'delete') {
+      const target = sessions.find((s) => s.id === sessionId);
+      if (target) {
+        setConfirmDeleteSession(target);
+        return;
+      }
+      return handleDeleteSession(sessionId);
+    }
+
     setActionLoading(true);
     setStatusMessage(null);
 
@@ -567,10 +611,10 @@ export function AdminPopQuizView() {
                         )}
 
                         <button
-                          onClick={() => handleQuizControl(session.id, 'delete')}
+                          onClick={() => setConfirmDeleteSession(session)}
                           disabled={actionLoading}
                           className="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 transition cursor-pointer"
-                          title="Delete session"
+                          title="Delete quiz"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1288,12 +1332,86 @@ export function AdminPopQuizView() {
               ))}
             </div>
 
-            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  const s = previewModalSession;
+                  setPreviewModalSession(null);
+                  setConfirmDeleteSession(s);
+                }}
+                className="px-3 py-2 rounded-xl text-rose-500 hover:bg-rose-500/10 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                title="Delete this quiz"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete Quiz</span>
+              </button>
               <button
                 onClick={() => setPreviewModalSession(null)}
                 className="px-5 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-500 transition cursor-pointer"
               >
                 Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE MODAL */}
+      {confirmDeleteSession && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-rose-500">
+                <div className="w-8 h-8 rounded-xl bg-rose-500/10 flex items-center justify-center">
+                  <Trash2 className="w-4 h-4 text-rose-500" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Pop Quiz</h3>
+              </div>
+              <button
+                onClick={() => setConfirmDeleteSession(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Are you sure you want to permanently delete this quiz?
+              </p>
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-1">
+                <div className="text-sm font-bold text-slate-900 dark:text-white">
+                  {confirmDeleteSession.title}
+                </div>
+                <div className="text-xs text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                  <span>Questions: <strong>{(confirmDeleteSession.questions || []).length}</strong></span>
+                  <span>Date: <strong>{confirmDeleteSession.date}</strong></span>
+                  <span>Time: <strong>{confirmDeleteSession.startTime} - {confirmDeleteSession.endTime}</strong></span>
+                  <span>Status: <strong className="capitalize">{confirmDeleteSession.status}</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-500 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>This will delete all questions, configuration, and session records permanently. This action cannot be undone.</span>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => setConfirmDeleteSession(null)}
+                disabled={actionLoading}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteSession(confirmDeleteSession.id)}
+                disabled={actionLoading}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-lg shadow-rose-600/30 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{actionLoading ? 'Deleting...' : 'Yes, Delete Quiz'}</span>
               </button>
             </div>
           </div>
