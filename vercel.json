@@ -31,11 +31,5 @@
         }
       ]
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/pop-quiz/cron-tick",
-      "schedule": "* * * * *"
-    }
   ]
 }
