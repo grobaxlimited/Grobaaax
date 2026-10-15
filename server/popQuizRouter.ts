@@ -263,11 +263,42 @@ popQuizRouter.post('/control', async (req: Request, res: Response) => {
           return res.status(400).json({ success: false, message: 'Cannot start a quiz without any questions.' });
         }
 
+        // If all questions were already closed (from a previous session/run), reset them to pending
+        const hasPendingOrActive = questions.some((q) => q.status === 'pending' || q.status === 'active');
+        if (!hasPendingOrActive) {
+          questions.forEach((q) => {
+            q.status = 'pending';
+            q.winnerUserId = undefined;
+            q.winnerName = undefined;
+            q.winningAnswer = undefined;
+            q.wonAt = undefined;
+            q.gpAwarded = undefined;
+            q.startedAt = undefined;
+            q.expiresAt = undefined;
+            q.closedAt = undefined;
+            q.closeReason = undefined;
+          });
+        }
+
+        // Validate end time window: Ensure session doesn't instantly expire if scheduled time was earlier
+        const now = Date.now();
+        const lagosNow = new Date(now + 3600000); // UTC+1
+        const todayDateStr = lagosNow.toISOString().split('T')[0];
+        session.date = todayDateStr;
+
+        // Ensure endTime is comfortably in the future to allow all questions to run
+        const minNeededMs = Math.max(3600000, questions.length * (session.intervalSeconds || 300) * 1000 + 1800000);
+        const futureDate = new Date(now + minNeededMs + 3600000);
+        const futureHours = String(futureDate.getUTCHours()).padStart(2, '0');
+        const futureMins = String(futureDate.getUTCMinutes()).padStart(2, '0');
+        session.endTime = `${futureHours}:${futureMins}`;
+
         session.status = 'running';
         session.startedAt = nowIso;
+        session.endedAt = undefined;
 
-        // Immediately publish Question 1!
-        const firstQ = questions[0];
+        // Find the first question to play
+        const firstQ = questions.find((q) => q.status === 'pending') || questions[0];
         const durationSeconds = session.questionDurationSeconds || 45;
         const expiresAtIso = new Date(Date.now() + durationSeconds * 1000).toISOString();
         const intervalSeconds = session.intervalSeconds || 300;
@@ -276,7 +307,7 @@ popQuizRouter.post('/control', async (req: Request, res: Response) => {
         firstQ.startedAt = nowIso;
         firstQ.expiresAt = expiresAtIso;
 
-        session.currentQuestionIndex = 1;
+        session.currentQuestionIndex = firstQ.order;
         session.activeQuestionStartedAt = nowIso;
         session.activeQuestionExpiresAt = expiresAtIso;
         session.nextQuestionScheduledAt = new Date(Date.now() + intervalSeconds * 1000).toISOString();
@@ -295,7 +326,7 @@ popQuizRouter.post('/control', async (req: Request, res: Response) => {
 
         return res.json({
           success: true,
-          message: 'Grobaax Pop Quiz started! Question 1 is now live.',
+          message: `Grobaax Pop Quiz started! Question #${firstQ.order} is now live.`,
           session,
         });
       }

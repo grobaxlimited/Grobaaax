@@ -1,0 +1,56 @@
+[
+  {
+    "id": "quiz_1792058016374_8vduv",
+    "title": "Grobaax Speed Test Quiz",
+    "description": "Validation run",
+    "date": "2026-10-15",
+    "startTime": "10:00",
+    "endTime": "11:53",
+    "timezone": "Africa/Lagos",
+    "intervalMinutes": 1,
+    "intervalSeconds": 60,
+    "questionDurationSeconds": 30,
+    "defaultGpReward": 25,
+    "status": "running",
+    "currentQuestionIndex": 1,
+    "totalQuestions": 2,
+    "questions": [
+      {
+        "id": "q_1792058016374_0",
+        "sessionId": "quiz_1792058016374_8vduv",
+        "order": 1,
+        "questionText": "Which organelle is known as the powerhouse of the cell?",
+        "correctAnswer": "Mitochondria",
+        "gpReward": 25,
+        "status": "closed",
+        "validationStatus": "valid",
+        "startedAt": "2026-10-15T09:53:36.505Z",
+        "expiresAt": "2026-10-15T09:54:06.505Z",
+        "winnerUserId": "test_student_2",
+        "winnerName": "Bayo Adeleke",
+        "winnerInstitution": "",
+        "winningAnswer": "mitochondria",
+        "wonAt": "2026-10-15T09:53:36.731Z",
+        "gpAwarded": 25,
+        "closedAt": "2026-10-15T09:53:36.731Z",
+        "closeReason": "answered"
+      },
+      {
+        "id": "q_1792058016374_1",
+        "sessionId": "quiz_1792058016374_8vduv",
+        "order": 2,
+        "questionText": "Which planet rotates in the opposite direction to most planets?",
+        "correctAnswer": "Venus",
+        "gpReward": 30,
+        "status": "pending",
+        "validationStatus": "valid"
+      }
+    ],
+    "createdAt": "2026-10-15T09:53:36.374Z",
+    "updatedAt": "2026-10-15T09:53:36.731Z",
+    "startedAt": "2026-10-15T09:53:36.505Z",
+    "activeQuestionStartedAt": null,
+    "activeQuestionExpiresAt": null,
+    "nextQuestionScheduledAt": "2026-10-15T09:54:36.731Z"
+  }
+]

@@ -61,8 +61,18 @@ export function AdminPopQuizView() {
   const [quizTitle, setQuizTitle] = useState<string>('Grobaax Campus Pop Quiz #1');
   const [quizDescription, setQuizDescription] = useState<string>('Live speed quiz competition. First scholar to submit correct answer wins GP!');
   const [quizDate, setQuizDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
-  const [startTime, setStartTime] = useState<string>('16:00');
-  const [endTime, setEndTime] = useState<string>('17:00');
+  const [startTime, setStartTime] = useState<string>(() => {
+    const d = new Date();
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(Math.floor(d.getMinutes() / 5) * 5).padStart(2, '0');
+    return `${h}:${m}`;
+  });
+  const [endTime, setEndTime] = useState<string>(() => {
+    const d = new Date(Date.now() + 3600000 * 2);
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(Math.floor(d.getMinutes() / 5) * 5).padStart(2, '0');
+    return `${h}:${m}`;
+  });
   const [intervalMinutes, setIntervalMinutes] = useState<number>(3);
   const [questionDurationSeconds, setQuestionDurationSeconds] = useState<number>(45);
   const [defaultGpReward, setDefaultGpReward] = useState<number>(25);
@@ -513,14 +523,14 @@ export function AdminPopQuizView() {
                           </button>
                         )}
 
-                        {(isDraft || isScheduled) && (
+                        {(isDraft || isScheduled || isCompleted) && (
                           <button
                             onClick={() => setConfirmStartSession(session)}
                             disabled={actionLoading}
                             className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 text-xs font-bold flex items-center gap-1 transition shadow-sm cursor-pointer"
                           >
                             <Play className="w-3.5 h-3.5 fill-white" />
-                            <span>Start Quiz</span>
+                            <span>{isCompleted ? 'Restart' : 'Start Quiz'}</span>
                           </button>
                         )}
 

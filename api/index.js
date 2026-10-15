@@ -2687,7 +2687,7 @@ __export(firebase_exports, {
   where: () => where,
   writeBatch: () => writeBatch
 });
-function handleFirestoreError(error, operationType, path6) {
+function handleFirestoreError(error, operationType, path7) {
   const errInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -2697,7 +2697,7 @@ function handleFirestoreError(error, operationType, path6) {
       isAnonymous: auth.currentUser?.isAnonymous
     },
     operationType,
-    path: path6
+    path: path7
   };
   console.warn("Firestore Operation Notice: ", JSON.stringify(errInfo));
 }
@@ -2734,9 +2734,9 @@ function cleanFirestoreData(data) {
 }
 async function uploadEventCatalogImage(file, eventId) {
   const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path6 = `eventCatalog/${eventId}/${Date.now()}_${cleanFileName}`;
+  const path7 = `eventCatalog/${eventId}/${Date.now()}_${cleanFileName}`;
   try {
-    const fileRef = storageRef(storage, path6);
+    const fileRef = storageRef(storage, path7);
     const snapshot = await uploadBytes(fileRef, file, {
       contentType: file.type,
       customMetadata: {
@@ -2745,19 +2745,19 @@ async function uploadEventCatalogImage(file, eventId) {
       }
     });
     const downloadUrl = await getDownloadURL(snapshot.ref);
-    return { downloadUrl, storagePath: path6 };
+    return { downloadUrl, storagePath: path7 };
   } catch (storageErr) {
     console.warn("Firebase Storage upload notice, falling back to data URL encoding:", storageErr);
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result || "";
-        resolve({ downloadUrl: dataUrl, storagePath: path6 });
+        resolve({ downloadUrl: dataUrl, storagePath: path7 });
       };
       reader.onerror = () => {
         resolve({
           downloadUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80",
-          storagePath: path6
+          storagePath: path7
         });
       };
       reader.readAsDataURL(file);
@@ -4112,7 +4112,7 @@ var init_firebase = __esm({
     };
     uploadUserProfilePicture = async (file, uid) => {
       const fileName = file.name ? file.name.replace(/[^a-zA-Z0-9._-]/g, "_") : "avatar.jpg";
-      const path6 = `userAvatars/${uid}/${Date.now()}_${fileName}`;
+      const path7 = `userAvatars/${uid}/${Date.now()}_${fileName}`;
       let compressedBlob = file;
       let compressedDataUrl = "";
       try {
@@ -4123,7 +4123,7 @@ var init_firebase = __esm({
         console.warn("Image pre-compression warning:", compErr);
       }
       try {
-        const fileRef = storageRef(storage, path6);
+        const fileRef = storageRef(storage, path7);
         const uploadPromise = uploadBytes(fileRef, compressedBlob, {
           contentType: "image/jpeg",
           customMetadata: {
@@ -4141,7 +4141,7 @@ var init_firebase = __esm({
             localStorage.setItem(`grobax_avatar_${uid}`, downloadUrl);
           } catch (e) {
           }
-          return { downloadUrl, storagePath: path6 };
+          return { downloadUrl, storagePath: path7 };
         }
       } catch (err) {
         console.warn("Firebase Storage upload note, using resilient compressed Data URL fallback:", err);
@@ -4151,7 +4151,7 @@ var init_firebase = __esm({
         localStorage.setItem(`grobax_avatar_${uid}`, finalFallbackUrl);
       } catch (e) {
       }
-      return { downloadUrl: finalFallbackUrl, storagePath: path6 };
+      return { downloadUrl: finalFallbackUrl, storagePath: path7 };
     };
     updateUserProfileInFirestore = async (uid, updates) => {
       const userDocRef = doc(db, "users", uid);
@@ -17906,9 +17906,58 @@ import { Router as Router9 } from "express";
 
 // server/popQuizEngine.ts
 init_supabase();
+import fs6 from "fs";
+import path6 from "path";
+var DATA_DIR = path6.join(process.cwd(), "server");
+var SESSIONS_FILE = path6.join(DATA_DIR, "pop_quiz_sessions.json");
+var SUBMISSIONS_FILE = path6.join(DATA_DIR, "pop_quiz_submissions.json");
 var sessionsCache = /* @__PURE__ */ new Map();
+var hasInitializedFromStorage = false;
 var questionWinnerLocks = /* @__PURE__ */ new Set();
 var processedSubmissionKeys = /* @__PURE__ */ new Set();
+function readSessionsFromDisk() {
+  try {
+    if (fs6.existsSync(SESSIONS_FILE)) {
+      const raw = fs6.readFileSync(SESSIONS_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn("[Pop Quiz Engine] Notice reading sessions disk cache:", err);
+  }
+  return [];
+}
+function writeSessionsToDisk(sessions) {
+  try {
+    if (!fs6.existsSync(DATA_DIR)) {
+      fs6.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs6.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("[Pop Quiz Engine] Notice writing sessions disk cache:", err);
+  }
+}
+function appendSubmissionToDisk(submission) {
+  try {
+    let submissions = [];
+    if (fs6.existsSync(SUBMISSIONS_FILE)) {
+      try {
+        const raw = fs6.readFileSync(SUBMISSIONS_FILE, "utf-8");
+        submissions = JSON.parse(raw) || [];
+      } catch {
+      }
+    }
+    submissions.push(submission);
+    if (submissions.length > 1e3) {
+      submissions = submissions.slice(-1e3);
+    }
+    fs6.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(submissions, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("[Pop Quiz Engine] Notice writing submissions disk cache:", err);
+  }
+}
 function normalizeAnswer(ans) {
   if (!ans) return "";
   return ans.toLowerCase().trim().replace(/^["'‘“]+|["'’”]+$/g, "").replace(/\s+/g, " ").replace(/[\.\,\!\?]+$/g, "").trim();
@@ -17939,6 +17988,12 @@ async function persistSession(session) {
   session.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
   sessionsCache.set(session.id, session);
   try {
+    const allSessions = Array.from(sessionsCache.values());
+    writeSessionsToDisk(allSessions);
+  } catch (diskErr) {
+    console.warn(`[Pop Quiz Engine] Notice disk save for session ${session.id}:`, diskErr);
+  }
+  try {
     const row = {
       id: session.id,
       data: session,
@@ -17946,10 +18001,55 @@ async function persistSession(session) {
     };
     await supabaseAdmin.from("pop_quiz_sessions").upsert(row, { onConflict: "id" });
   } catch (err) {
-    console.warn(`[Pop Quiz Engine] Notice saving session ${session.id}:`, err?.message || err);
+    console.warn(`[Pop Quiz Engine] Notice DB save for session ${session.id}:`, err?.message || err);
+  }
+  try {
+    await supabaseAdmin.from("liveSessions").upsert(
+      {
+        id: session.id,
+        data: {
+          ...session,
+          type: "pop_quiz"
+        },
+        updated_at: session.updatedAt
+      },
+      { onConflict: "id" }
+    );
+  } catch {
   }
 }
+async function ensureSessionsLoaded() {
+  if (hasInitializedFromStorage && sessionsCache.size > 0) {
+    return;
+  }
+  const diskSessions = readSessionsFromDisk();
+  for (const s of diskSessions) {
+    if (s && s.id) {
+      sessionsCache.set(s.id, s);
+    }
+  }
+  try {
+    const { data, error } = await supabaseAdmin.from("pop_quiz_sessions").select("id, data, updated_at").order("updated_at", { ascending: false }).limit(100);
+    if (!error && Array.isArray(data)) {
+      data.forEach((row) => {
+        if (row?.data?.id) {
+          const existing = sessionsCache.get(row.data.id);
+          if (!existing || new Date(row.updated_at).getTime() >= new Date(existing.updatedAt).getTime()) {
+            sessionsCache.set(row.data.id, row.data);
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.warn("[Pop Quiz Engine] Notice loading sessions from db:", err?.message || err);
+  }
+  if (sessionsCache.size > 0) {
+    writeSessionsToDisk(Array.from(sessionsCache.values()));
+  }
+  hasInitializedFromStorage = true;
+}
 async function loadSessionsFromDatabase() {
+  await ensureSessionsLoaded();
   try {
     const { data, error } = await supabaseAdmin.from("pop_quiz_sessions").select("id, data, updated_at").order("updated_at", { ascending: false }).limit(100);
     if (!error && Array.isArray(data)) {
@@ -17958,13 +18058,15 @@ async function loadSessionsFromDatabase() {
           sessionsCache.set(row.data.id, row.data);
         }
       });
+      writeSessionsToDisk(Array.from(sessionsCache.values()));
     }
   } catch (err) {
-    console.warn("[Pop Quiz Engine] Notice loading sessions from db:", err?.message || err);
+    console.warn("[Pop Quiz Engine] Notice refreshing sessions from db:", err?.message || err);
   }
   return Array.from(sessionsCache.values());
 }
 async function getSessionById(sessionId) {
+  await ensureSessionsLoaded();
   if (sessionsCache.has(sessionId)) {
     return sessionsCache.get(sessionId);
   }
@@ -17978,23 +18080,26 @@ async function getSessionById(sessionId) {
   }
   return null;
 }
+function parseLagosTimeMs(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return null;
+  try {
+    let cleanTime = timeStr.trim();
+    if (/^\d{1,2}:\d{2}$/.test(cleanTime)) {
+      cleanTime = `${cleanTime}:00`;
+    }
+    const isoString = `${dateStr}T${cleanTime}+01:00`;
+    const ms = new Date(isoString).getTime();
+    return isNaN(ms) ? null : ms;
+  } catch {
+    return null;
+  }
+}
 async function evaluatePopQuizSessions() {
+  await ensureSessionsLoaded();
   const now = Date.now();
   const sessions = Array.from(sessionsCache.values());
   for (const session of sessions) {
     let hasChanged = false;
-    if (session.status === "scheduled") {
-      try {
-        const scheduledStartMs = (/* @__PURE__ */ new Date(`${session.date}T${session.startTime}:00+01:00`)).getTime();
-        if (now >= scheduledStartMs) {
-          session.status = "running";
-          session.startedAt = (/* @__PURE__ */ new Date()).toISOString();
-          hasChanged = true;
-          console.info(`[Pop Quiz Engine] Scheduled session ${session.id} ("${session.title}") has started!`);
-        }
-      } catch {
-      }
-    }
     if (session.status !== "running") {
       continue;
     }
@@ -18004,25 +18109,6 @@ async function evaluatePopQuizSessions() {
       session.endedAt = (/* @__PURE__ */ new Date()).toISOString();
       await persistSession(session);
       continue;
-    }
-    if (session.date && session.endTime) {
-      try {
-        const sessionEndMs = (/* @__PURE__ */ new Date(`${session.date}T${session.endTime}:00+01:00`)).getTime();
-        if (now >= sessionEndMs) {
-          const activeQ = questions.find((q) => q.status === "active");
-          if (activeQ) {
-            activeQ.status = "closed";
-            activeQ.closedAt = (/* @__PURE__ */ new Date()).toISOString();
-            activeQ.closeReason = "expired";
-          }
-          session.status = "completed";
-          session.endedAt = (/* @__PURE__ */ new Date()).toISOString();
-          await persistSession(session);
-          await broadcastPopQuizEvent("session_completed", { sessionId: session.id });
-          continue;
-        }
-      } catch {
-      }
     }
     const activeQuestion = questions.find((q) => q.status === "active");
     if (activeQuestion) {
@@ -18055,45 +18141,61 @@ async function evaluatePopQuizSessions() {
       if (!nextPendingQuestion) {
         session.status = "completed";
         session.endedAt = (/* @__PURE__ */ new Date()).toISOString();
+        session.activeQuestionStartedAt = null;
+        session.activeQuestionExpiresAt = null;
+        session.nextQuestionScheduledAt = null;
         hasChanged = true;
         console.info(`[Pop Quiz Engine] Session ${session.id} ("${session.title}") completed all questions!`);
         await broadcastPopQuizEvent("session_completed", { sessionId: session.id });
       } else {
-        let shouldPublish = false;
-        if (!session.nextQuestionScheduledAt) {
-          shouldPublish = true;
-        } else {
-          const nextScheduledMs = new Date(session.nextQuestionScheduledAt).getTime();
-          if (now >= nextScheduledMs) {
-            shouldPublish = true;
-          }
-        }
-        if (shouldPublish) {
-          const durationSeconds = session.questionDurationSeconds || 45;
-          const startedAtIso = (/* @__PURE__ */ new Date()).toISOString();
-          const expiresAtIso = new Date(now + durationSeconds * 1e3).toISOString();
-          const intervalSeconds = session.intervalSeconds || 300;
-          const nextScheduledAtIso = new Date(now + intervalSeconds * 1e3).toISOString();
-          nextPendingQuestion.status = "active";
-          nextPendingQuestion.startedAt = startedAtIso;
-          nextPendingQuestion.expiresAt = expiresAtIso;
-          session.currentQuestionIndex = nextPendingQuestion.order;
-          session.activeQuestionStartedAt = startedAtIso;
-          session.activeQuestionExpiresAt = expiresAtIso;
-          session.nextQuestionScheduledAt = nextScheduledAtIso;
+        const sessionEndMs = parseLagosTimeMs(session.date, session.endTime);
+        const isPastEndTime = sessionEndMs !== null && now >= sessionEndMs;
+        if (isPastEndTime) {
+          session.status = "completed";
+          session.endedAt = (/* @__PURE__ */ new Date()).toISOString();
+          session.activeQuestionStartedAt = null;
+          session.activeQuestionExpiresAt = null;
+          session.nextQuestionScheduledAt = null;
           hasChanged = true;
-          console.info(
-            `[Pop Quiz Engine] Published Question #${nextPendingQuestion.order} in session ${session.id}: "${nextPendingQuestion.questionText}"`
-          );
-          await broadcastPopQuizEvent("question_published", {
-            sessionId: session.id,
-            questionId: nextPendingQuestion.id,
-            order: nextPendingQuestion.order,
-            questionText: nextPendingQuestion.questionText,
-            gpReward: nextPendingQuestion.gpReward,
-            startedAt: startedAtIso,
-            expiresAt: expiresAtIso
-          });
+          console.info(`[Pop Quiz Engine] Session ${session.id} ("${session.title}") ended at configured end time.`);
+          await broadcastPopQuizEvent("session_completed", { sessionId: session.id });
+        } else {
+          let shouldPublish = false;
+          if (!session.nextQuestionScheduledAt) {
+            shouldPublish = true;
+          } else {
+            const nextScheduledMs = new Date(session.nextQuestionScheduledAt).getTime();
+            if (now >= nextScheduledMs) {
+              shouldPublish = true;
+            }
+          }
+          if (shouldPublish) {
+            const durationSeconds = session.questionDurationSeconds || 45;
+            const startedAtIso = (/* @__PURE__ */ new Date()).toISOString();
+            const expiresAtIso = new Date(now + durationSeconds * 1e3).toISOString();
+            const intervalSeconds = session.intervalSeconds || 300;
+            const nextScheduledAtIso = new Date(now + intervalSeconds * 1e3).toISOString();
+            nextPendingQuestion.status = "active";
+            nextPendingQuestion.startedAt = startedAtIso;
+            nextPendingQuestion.expiresAt = expiresAtIso;
+            session.currentQuestionIndex = nextPendingQuestion.order;
+            session.activeQuestionStartedAt = startedAtIso;
+            session.activeQuestionExpiresAt = expiresAtIso;
+            session.nextQuestionScheduledAt = nextScheduledAtIso;
+            hasChanged = true;
+            console.info(
+              `[Pop Quiz Engine] Published Question #${nextPendingQuestion.order} in session ${session.id}: "${nextPendingQuestion.questionText}"`
+            );
+            await broadcastPopQuizEvent("question_published", {
+              sessionId: session.id,
+              questionId: nextPendingQuestion.id,
+              order: nextPendingQuestion.order,
+              questionText: nextPendingQuestion.questionText,
+              gpReward: nextPendingQuestion.gpReward,
+              startedAt: startedAtIso,
+              expiresAt: expiresAtIso
+            });
+          }
         }
       }
     }
@@ -18103,6 +18205,7 @@ async function evaluatePopQuizSessions() {
   }
 }
 async function getPublicPopQuizState() {
+  await ensureSessionsLoaded();
   await evaluatePopQuizSessions();
   const sessions = Array.from(sessionsCache.values());
   const runningSession = sessions.find((s) => s.status === "running") || null;
@@ -18169,6 +18272,7 @@ async function getPublicPopQuizState() {
   };
 }
 async function submitStudentAnswer(params) {
+  await ensureSessionsLoaded();
   const { sessionId, questionId, userId, userName, userEmail, userInstitution, submittedAnswer } = params;
   if (!sessionId || !questionId || !userId || !submittedAnswer?.trim()) {
     return {
@@ -18245,11 +18349,15 @@ async function submitStudentAnswer(params) {
       gpAwarded: 0,
       submittedAt: (/* @__PURE__ */ new Date()).toISOString()
     };
+    appendSubmissionToDisk(subRecord);
     try {
       await supabaseAdmin.from("pop_quiz_submissions").upsert({
         id: subRecord.id,
+        session_id: sessionId,
+        question_id: questionId,
+        user_id: userId,
         data: subRecord,
-        updated_at: subRecord.submittedAt
+        created_at: subRecord.submittedAt
       });
     } catch {
     }
@@ -18304,11 +18412,15 @@ async function submitStudentAnswer(params) {
       gpAwarded: gpReward,
       submittedAt: wonAtIso
     };
+    appendSubmissionToDisk(subRecord);
     try {
       await supabaseAdmin.from("pop_quiz_submissions").upsert({
         id: subRecord.id,
+        session_id: sessionId,
+        question_id: questionId,
+        user_id: userId,
         data: subRecord,
-        updated_at: wonAtIso
+        created_at: wonAtIso
       });
     } catch {
     }
@@ -18339,26 +18451,49 @@ async function submitStudentAnswer(params) {
         },
         updated_at: (/* @__PURE__ */ new Date()).toISOString()
       });
+      try {
+        const walletRes = await supabaseAdmin.from("wallets").select("id, data").eq("id", userId).maybeSingle();
+        const existingWallet = walletRes?.data?.data || {};
+        await supabaseAdmin.from("wallets").upsert({
+          id: userId,
+          data: {
+            ...existingWallet,
+            id: userId,
+            userId,
+            gpBalance: newGp,
+            balanceGP: newGp,
+            updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+          },
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        });
+      } catch {
+      }
       const txId = `TX_POPQUIZ_${Date.now()}_${Math.floor(1e3 + Math.random() * 9e3)}`;
+      const txPayload = {
+        id: txId,
+        transactionId: txId,
+        userId,
+        userName: userData.name || userData.fullName || userName || "Scholar",
+        userEmail: userData.email || userEmail || "",
+        userAvatar: userData.profileImage || userData.avatar || "",
+        institutionName: userData.institutionName || userData.institution || userInstitution || "",
+        type: "gp_earned",
+        amount: gpReward,
+        unit: "GP",
+        title: "\u26A1 Grobaax Pop Quiz Winner",
+        description: `Won Question #${question.order} in "${session.title}" (+${gpReward} GP)`,
+        isCredit: true,
+        status: "completed",
+        createdAt: wonAtIso
+      };
       await supabaseAdmin.from("walletTransactions").upsert({
         id: txId,
-        data: {
-          id: txId,
-          transactionId: txId,
-          userId,
-          userName: userData.name || userData.fullName || userName || "Scholar",
-          userEmail: userData.email || userEmail || "",
-          userAvatar: userData.profileImage || userData.avatar || "",
-          institutionName: userData.institutionName || userData.institution || userInstitution || "",
-          type: "gp_earned",
-          amount: gpReward,
-          unit: "GP",
-          title: "\u26A1 Grobaax Pop Quiz Winner",
-          description: `Won Question #${question.order} in "${session.title}" (+${gpReward} GP)`,
-          isCredit: true,
-          status: "completed",
-          createdAt: wonAtIso
-        },
+        data: txPayload,
+        updated_at: wonAtIso
+      });
+      await supabaseAdmin.from("transactions").upsert({
+        id: txId,
+        data: txPayload,
         updated_at: wonAtIso
       });
     } catch (walletErr) {
@@ -18674,16 +18809,41 @@ popQuizRouter.post("/control", async (req, res) => {
         if (questions.length === 0) {
           return res.status(400).json({ success: false, message: "Cannot start a quiz without any questions." });
         }
+        const hasPendingOrActive = questions.some((q) => q.status === "pending" || q.status === "active");
+        if (!hasPendingOrActive) {
+          questions.forEach((q) => {
+            q.status = "pending";
+            q.winnerUserId = void 0;
+            q.winnerName = void 0;
+            q.winningAnswer = void 0;
+            q.wonAt = void 0;
+            q.gpAwarded = void 0;
+            q.startedAt = void 0;
+            q.expiresAt = void 0;
+            q.closedAt = void 0;
+            q.closeReason = void 0;
+          });
+        }
+        const now = Date.now();
+        const lagosNow = new Date(now + 36e5);
+        const todayDateStr = lagosNow.toISOString().split("T")[0];
+        session.date = todayDateStr;
+        const minNeededMs = Math.max(36e5, questions.length * (session.intervalSeconds || 300) * 1e3 + 18e5);
+        const futureDate = new Date(now + minNeededMs + 36e5);
+        const futureHours = String(futureDate.getUTCHours()).padStart(2, "0");
+        const futureMins = String(futureDate.getUTCMinutes()).padStart(2, "0");
+        session.endTime = `${futureHours}:${futureMins}`;
         session.status = "running";
         session.startedAt = nowIso;
-        const firstQ = questions[0];
+        session.endedAt = void 0;
+        const firstQ = questions.find((q) => q.status === "pending") || questions[0];
         const durationSeconds = session.questionDurationSeconds || 45;
         const expiresAtIso = new Date(Date.now() + durationSeconds * 1e3).toISOString();
         const intervalSeconds = session.intervalSeconds || 300;
         firstQ.status = "active";
         firstQ.startedAt = nowIso;
         firstQ.expiresAt = expiresAtIso;
-        session.currentQuestionIndex = 1;
+        session.currentQuestionIndex = firstQ.order;
         session.activeQuestionStartedAt = nowIso;
         session.activeQuestionExpiresAt = expiresAtIso;
         session.nextQuestionScheduledAt = new Date(Date.now() + intervalSeconds * 1e3).toISOString();
@@ -18699,7 +18859,7 @@ popQuizRouter.post("/control", async (req, res) => {
         });
         return res.json({
           success: true,
-          message: "Grobaax Pop Quiz started! Question 1 is now live.",
+          message: `Grobaax Pop Quiz started! Question #${firstQ.order} is now live.`,
           session
         });
       }

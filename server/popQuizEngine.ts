@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { supabaseAdmin, isSuperAdmin } from '../src/lib/supabase';
 import {
   PopQuizSession,
@@ -7,14 +9,75 @@ import {
   PopQuizStatus,
 } from '../src/types';
 
+// Paths for durable file persistence (survives process restarts and cold starts)
+const DATA_DIR = path.join(process.cwd(), 'server');
+const SESSIONS_FILE = path.join(DATA_DIR, 'pop_quiz_sessions.json');
+const SUBMISSIONS_FILE = path.join(DATA_DIR, 'pop_quiz_submissions.json');
+
 // In-memory cache of sessions for zero-latency retrieval and resilient recovery
 const sessionsCache = new Map<string, PopQuizSession>();
+let hasInitializedFromStorage = false;
 
 // Active question winner lock mutex per questionId
 const questionWinnerLocks = new Set<string>();
 
 // Track processed submission IDs to prevent replays
 const processedSubmissionKeys = new Set<string>();
+
+/**
+ * Reads sessions from local JSON file
+ */
+function readSessionsFromDisk(): PopQuizSession[] {
+  try {
+    if (fs.existsSync(SESSIONS_FILE)) {
+      const raw = fs.readFileSync(SESSIONS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('[Pop Quiz Engine] Notice reading sessions disk cache:', err);
+  }
+  return [];
+}
+
+/**
+ * Writes sessions to local JSON file
+ */
+function writeSessionsToDisk(sessions: PopQuizSession[]): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Pop Quiz Engine] Notice writing sessions disk cache:', err);
+  }
+}
+
+/**
+ * Appends submission to local JSON file
+ */
+function appendSubmissionToDisk(submission: PopQuizSubmission): void {
+  try {
+    let submissions: PopQuizSubmission[] = [];
+    if (fs.existsSync(SUBMISSIONS_FILE)) {
+      try {
+        const raw = fs.readFileSync(SUBMISSIONS_FILE, 'utf-8');
+        submissions = JSON.parse(raw) || [];
+      } catch {}
+    }
+    submissions.push(submission);
+    // Keep last 1000 submissions
+    if (submissions.length > 1000) {
+      submissions = submissions.slice(-1000);
+    }
+    fs.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(submissions, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Pop Quiz Engine] Notice writing submissions disk cache:', err);
+  }
+}
 
 /**
  * Normalizes answer text for fair, robust comparison
@@ -67,12 +130,21 @@ export async function broadcastPopQuizEvent(event: string, payload: any) {
 }
 
 /**
- * Persists session to Supabase database (with resilient fallback)
+ * Persists session across all storage layers (Memory + Disk + Supabase DB)
  */
 export async function persistSession(session: PopQuizSession): Promise<void> {
   session.updatedAt = new Date().toISOString();
   sessionsCache.set(session.id, session);
 
+  // 1. Immediately persist to disk file
+  try {
+    const allSessions = Array.from(sessionsCache.values());
+    writeSessionsToDisk(allSessions);
+  } catch (diskErr) {
+    console.warn(`[Pop Quiz Engine] Notice disk save for session ${session.id}:`, diskErr);
+  }
+
+  // 2. Persist to Supabase pop_quiz_sessions table
   try {
     const row = {
       id: session.id,
@@ -81,14 +153,79 @@ export async function persistSession(session: PopQuizSession): Promise<void> {
     };
     await supabaseAdmin.from('pop_quiz_sessions').upsert(row, { onConflict: 'id' });
   } catch (err: any) {
-    console.warn(`[Pop Quiz Engine] Notice saving session ${session.id}:`, err?.message || err);
+    console.warn(`[Pop Quiz Engine] Notice DB save for session ${session.id}:`, err?.message || err);
   }
+
+  // 3. Dual-backup to liveSessions table
+  try {
+    await supabaseAdmin.from('liveSessions').upsert(
+      {
+        id: session.id,
+        data: {
+          ...session,
+          type: 'pop_quiz',
+        },
+        updated_at: session.updatedAt,
+      },
+      { onConflict: 'id' }
+    );
+  } catch {}
 }
 
 /**
- * Loads all sessions from database into in-memory cache
+ * Ensures sessions are loaded into memory cache from disk and database
+ */
+export async function ensureSessionsLoaded(): Promise<void> {
+  if (hasInitializedFromStorage && sessionsCache.size > 0) {
+    return;
+  }
+
+  // 1. Load from disk first (instant)
+  const diskSessions = readSessionsFromDisk();
+  for (const s of diskSessions) {
+    if (s && s.id) {
+      sessionsCache.set(s.id, s);
+    }
+  }
+
+  // 2. Load from Supabase DB to get freshest remote state
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('pop_quiz_sessions')
+      .select('id, data, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(100);
+
+    if (!error && Array.isArray(data)) {
+      data.forEach((row: any) => {
+        if (row?.data?.id) {
+          const existing = sessionsCache.get(row.data.id);
+          // If remote is newer or not in memory, use it
+          if (!existing || new Date(row.updated_at).getTime() >= new Date(existing.updatedAt).getTime()) {
+            sessionsCache.set(row.data.id, row.data);
+          }
+        }
+      });
+    }
+  } catch (err: any) {
+    console.warn('[Pop Quiz Engine] Notice loading sessions from db:', err?.message || err);
+  }
+
+  // Sync back to disk
+  if (sessionsCache.size > 0) {
+    writeSessionsToDisk(Array.from(sessionsCache.values()));
+  }
+
+  hasInitializedFromStorage = true;
+}
+
+/**
+ * Loads all sessions from database/disk into in-memory cache
  */
 export async function loadSessionsFromDatabase(): Promise<PopQuizSession[]> {
+  await ensureSessionsLoaded();
+
+  // Try refreshing from remote DB
   try {
     const { data, error } = await supabaseAdmin
       .from('pop_quiz_sessions')
@@ -102,9 +239,10 @@ export async function loadSessionsFromDatabase(): Promise<PopQuizSession[]> {
           sessionsCache.set(row.data.id, row.data);
         }
       });
+      writeSessionsToDisk(Array.from(sessionsCache.values()));
     }
   } catch (err: any) {
-    console.warn('[Pop Quiz Engine] Notice loading sessions from db:', err?.message || err);
+    console.warn('[Pop Quiz Engine] Notice refreshing sessions from db:', err?.message || err);
   }
 
   return Array.from(sessionsCache.values());
@@ -114,6 +252,8 @@ export async function loadSessionsFromDatabase(): Promise<PopQuizSession[]> {
  * Gets a session by ID
  */
 export async function getSessionById(sessionId: string): Promise<PopQuizSession | null> {
+  await ensureSessionsLoaded();
+
   if (sessionsCache.has(sessionId)) {
     return sessionsCache.get(sessionId)!;
   }
@@ -135,31 +275,41 @@ export async function getSessionById(sessionId: string): Promise<PopQuizSession 
 }
 
 /**
+ * Helper to parse a date + time string in Africa/Lagos (WAT, UTC+1)
+ */
+function parseLagosTimeMs(dateStr?: string, timeStr?: string): number | null {
+  if (!dateStr || !timeStr) return null;
+  try {
+    // Standardize time string (e.g. "16:00" -> "16:00:00")
+    let cleanTime = timeStr.trim();
+    if (/^\d{1,2}:\d{2}$/.test(cleanTime)) {
+      cleanTime = `${cleanTime}:00`;
+    }
+    const isoString = `${dateStr}T${cleanTime}+01:00`;
+    const ms = new Date(isoString).getTime();
+    return isNaN(ms) ? null : ms;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Main Scheduling Engine Reconciliation Loop
- * Evaluates running or scheduled sessions, publishes questions, closes expired ones.
- * Server-authoritative and idempotent.
+ * Evaluates running sessions, publishes questions, closes expired ones.
+ * Server-authoritative and durable.
  */
 export async function evaluatePopQuizSessions(): Promise<void> {
+  await ensureSessionsLoaded();
+
   const now = Date.now();
   const sessions = Array.from(sessionsCache.values());
 
   for (const session of sessions) {
     let hasChanged = false;
 
-    // 1. Auto-transition from scheduled to running if scheduled start time has arrived
-    if (session.status === 'scheduled') {
-      try {
-        const scheduledStartMs = new Date(`${session.date}T${session.startTime}:00+01:00`).getTime();
-        if (now >= scheduledStartMs) {
-          session.status = 'running';
-          session.startedAt = new Date().toISOString();
-          hasChanged = true;
-          console.info(`[Pop Quiz Engine] Scheduled session ${session.id} ("${session.title}") has started!`);
-        }
-      } catch {}
-    }
-
-    // Only process running sessions
+    // Strict Rule: Saving or scheduling a quiz must NOT automatically start it.
+    // The administrator must explicitly click "Start Quiz" before questions can be published.
+    // Therefore, do NOT auto-transition from 'scheduled' or 'draft' to 'running'.
     if (session.status !== 'running') {
       continue;
     }
@@ -172,35 +322,14 @@ export async function evaluatePopQuizSessions(): Promise<void> {
       continue;
     }
 
-    // 2. Check session end time window
-    if (session.date && session.endTime) {
-      try {
-        const sessionEndMs = new Date(`${session.date}T${session.endTime}:00+01:00`).getTime();
-        if (now >= sessionEndMs) {
-          // Close any active question
-          const activeQ = questions.find((q) => q.status === 'active');
-          if (activeQ) {
-            activeQ.status = 'closed';
-            activeQ.closedAt = new Date().toISOString();
-            activeQ.closeReason = 'expired';
-          }
-          session.status = 'completed';
-          session.endedAt = new Date().toISOString();
-          await persistSession(session);
-          await broadcastPopQuizEvent('session_completed', { sessionId: session.id });
-          continue;
-        }
-      } catch {}
-    }
-
-    // 3. Find current active question, if any
+    // 1. Check current active question, if any
     const activeQuestion = questions.find((q) => q.status === 'active');
 
     if (activeQuestion) {
       // Check if question timer has expired
       const expiresAtMs = activeQuestion.expiresAt ? new Date(activeQuestion.expiresAt).getTime() : 0;
       if (expiresAtMs > 0 && now >= expiresAtMs) {
-        // Close expired question
+        // Close expired question cleanly
         activeQuestion.status = 'closed';
         activeQuestion.closedAt = new Date().toISOString();
         if (!activeQuestion.winnerUserId) {
@@ -229,61 +358,81 @@ export async function evaluatePopQuizSessions(): Promise<void> {
         });
       }
     } else {
-      // No question is currently active. Check if we should activate the next pending question.
+      // No question is currently active.
+      // Check if there are pending questions remaining
       const nextPendingQuestion = questions.find((q) => q.status === 'pending');
 
       if (!nextPendingQuestion) {
         // All questions have been played! Mark session as completed
         session.status = 'completed';
         session.endedAt = new Date().toISOString();
+        session.activeQuestionStartedAt = null;
+        session.activeQuestionExpiresAt = null;
+        session.nextQuestionScheduledAt = null;
         hasChanged = true;
         console.info(`[Pop Quiz Engine] Session ${session.id} ("${session.title}") completed all questions!`);
         await broadcastPopQuizEvent('session_completed', { sessionId: session.id });
       } else {
-        // Check if schedule time has arrived
-        let shouldPublish = false;
+        // Check end time constraint: Do not publish questions beyond configured end time!
+        const sessionEndMs = parseLagosTimeMs(session.date, session.endTime);
+        const isPastEndTime = sessionEndMs !== null && now >= sessionEndMs;
 
-        if (!session.nextQuestionScheduledAt) {
-          // If no next question time has been recorded yet, start immediately
-          shouldPublish = true;
-        } else {
-          const nextScheduledMs = new Date(session.nextQuestionScheduledAt).getTime();
-          if (now >= nextScheduledMs) {
-            shouldPublish = true;
-          }
-        }
-
-        if (shouldPublish) {
-          // Activate the next question!
-          const durationSeconds = session.questionDurationSeconds || 45;
-          const startedAtIso = new Date().toISOString();
-          const expiresAtIso = new Date(now + durationSeconds * 1000).toISOString();
-          const intervalSeconds = session.intervalSeconds || 300;
-          const nextScheduledAtIso = new Date(now + intervalSeconds * 1000).toISOString();
-
-          nextPendingQuestion.status = 'active';
-          nextPendingQuestion.startedAt = startedAtIso;
-          nextPendingQuestion.expiresAt = expiresAtIso;
-
-          session.currentQuestionIndex = nextPendingQuestion.order;
-          session.activeQuestionStartedAt = startedAtIso;
-          session.activeQuestionExpiresAt = expiresAtIso;
-          session.nextQuestionScheduledAt = nextScheduledAtIso;
+        if (isPastEndTime) {
+          // Reached session end time window, complete the session
+          session.status = 'completed';
+          session.endedAt = new Date().toISOString();
+          session.activeQuestionStartedAt = null;
+          session.activeQuestionExpiresAt = null;
+          session.nextQuestionScheduledAt = null;
           hasChanged = true;
+          console.info(`[Pop Quiz Engine] Session ${session.id} ("${session.title}") ended at configured end time.`);
+          await broadcastPopQuizEvent('session_completed', { sessionId: session.id });
+        } else {
+          // Check if scheduled interval has arrived
+          let shouldPublish = false;
 
-          console.info(
-            `[Pop Quiz Engine] Published Question #${nextPendingQuestion.order} in session ${session.id}: "${nextPendingQuestion.questionText}"`
-          );
+          if (!session.nextQuestionScheduledAt) {
+            // First question or immediate continuation
+            shouldPublish = true;
+          } else {
+            const nextScheduledMs = new Date(session.nextQuestionScheduledAt).getTime();
+            if (now >= nextScheduledMs) {
+              shouldPublish = true;
+            }
+          }
 
-          await broadcastPopQuizEvent('question_published', {
-            sessionId: session.id,
-            questionId: nextPendingQuestion.id,
-            order: nextPendingQuestion.order,
-            questionText: nextPendingQuestion.questionText,
-            gpReward: nextPendingQuestion.gpReward,
-            startedAt: startedAtIso,
-            expiresAt: expiresAtIso,
-          });
+          if (shouldPublish) {
+            // Activate the next question!
+            const durationSeconds = session.questionDurationSeconds || 45;
+            const startedAtIso = new Date().toISOString();
+            const expiresAtIso = new Date(now + durationSeconds * 1000).toISOString();
+            const intervalSeconds = session.intervalSeconds || 300;
+            const nextScheduledAtIso = new Date(now + intervalSeconds * 1000).toISOString();
+
+            nextPendingQuestion.status = 'active';
+            nextPendingQuestion.startedAt = startedAtIso;
+            nextPendingQuestion.expiresAt = expiresAtIso;
+
+            session.currentQuestionIndex = nextPendingQuestion.order;
+            session.activeQuestionStartedAt = startedAtIso;
+            session.activeQuestionExpiresAt = expiresAtIso;
+            session.nextQuestionScheduledAt = nextScheduledAtIso;
+            hasChanged = true;
+
+            console.info(
+              `[Pop Quiz Engine] Published Question #${nextPendingQuestion.order} in session ${session.id}: "${nextPendingQuestion.questionText}"`
+            );
+
+            await broadcastPopQuizEvent('question_published', {
+              sessionId: session.id,
+              questionId: nextPendingQuestion.id,
+              order: nextPendingQuestion.order,
+              questionText: nextPendingQuestion.questionText,
+              gpReward: nextPendingQuestion.gpReward,
+              startedAt: startedAtIso,
+              expiresAt: expiresAtIso,
+            });
+          }
         }
       }
     }
@@ -299,6 +448,7 @@ export async function evaluatePopQuizSessions(): Promise<void> {
  * CRITICAL: NEVER reveals correct answers for pending or active questions!
  */
 export async function getPublicPopQuizState(): Promise<PopQuizPublicState> {
+  await ensureSessionsLoaded();
   await evaluatePopQuizSessions();
 
   const sessions = Array.from(sessionsCache.values());
@@ -398,6 +548,8 @@ export async function submitStudentAnswer(params: {
   message: string;
   correctAnswer?: string;
 }> {
+  await ensureSessionsLoaded();
+
   const { sessionId, questionId, userId, userName, userEmail, userInstitution, submittedAnswer } = params;
 
   if (!sessionId || !questionId || !userId || !submittedAnswer?.trim()) {
@@ -487,11 +639,17 @@ export async function submitStudentAnswer(params: {
       gpAwarded: 0,
       submittedAt: new Date().toISOString(),
     };
+
+    appendSubmissionToDisk(subRecord);
+
     try {
       await supabaseAdmin.from('pop_quiz_submissions').upsert({
         id: subRecord.id,
+        session_id: sessionId,
+        question_id: questionId,
+        user_id: userId,
         data: subRecord,
-        updated_at: subRecord.submittedAt,
+        created_at: subRecord.submittedAt,
       });
     } catch {}
 
@@ -544,7 +702,7 @@ export async function submitStudentAnswer(params: {
     session.activeQuestionStartedAt = null;
     session.activeQuestionExpiresAt = null;
 
-    // Persist updated session to database
+    // Persist updated session to database & disk
     await persistSession(session);
 
     // Record winning submission
@@ -562,11 +720,17 @@ export async function submitStudentAnswer(params: {
       gpAwarded: gpReward,
       submittedAt: wonAtIso,
     };
+
+    appendSubmissionToDisk(subRecord);
+
     try {
       await supabaseAdmin.from('pop_quiz_submissions').upsert({
         id: subRecord.id,
+        session_id: sessionId,
+        question_id: questionId,
+        user_id: userId,
         data: subRecord,
-        updated_at: wonAtIso,
+        created_at: wonAtIso,
       });
     } catch {}
 
@@ -602,27 +766,53 @@ export async function submitStudentAnswer(params: {
         updated_at: new Date().toISOString(),
       });
 
-      // Insert transaction ledger record
+      // Update wallets table as well
+      try {
+        const walletRes = await supabaseAdmin.from('wallets').select('id, data').eq('id', userId).maybeSingle();
+        const existingWallet = walletRes?.data?.data || {};
+        await supabaseAdmin.from('wallets').upsert({
+          id: userId,
+          data: {
+            ...existingWallet,
+            id: userId,
+            userId,
+            gpBalance: newGp,
+            balanceGP: newGp,
+            updatedAt: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        });
+      } catch {}
+
+      // Insert transaction ledger record into both tables
       const txId = `TX_POPQUIZ_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+      const txPayload = {
+        id: txId,
+        transactionId: txId,
+        userId,
+        userName: userData.name || userData.fullName || userName || 'Scholar',
+        userEmail: userData.email || userEmail || '',
+        userAvatar: userData.profileImage || userData.avatar || '',
+        institutionName: userData.institutionName || userData.institution || userInstitution || '',
+        type: 'gp_earned',
+        amount: gpReward,
+        unit: 'GP',
+        title: '⚡ Grobaax Pop Quiz Winner',
+        description: `Won Question #${question.order} in "${session.title}" (+${gpReward} GP)`,
+        isCredit: true,
+        status: 'completed',
+        createdAt: wonAtIso,
+      };
+
       await supabaseAdmin.from('walletTransactions').upsert({
         id: txId,
-        data: {
-          id: txId,
-          transactionId: txId,
-          userId,
-          userName: userData.name || userData.fullName || userName || 'Scholar',
-          userEmail: userData.email || userEmail || '',
-          userAvatar: userData.profileImage || userData.avatar || '',
-          institutionName: userData.institutionName || userData.institution || userInstitution || '',
-          type: 'gp_earned',
-          amount: gpReward,
-          unit: 'GP',
-          title: '⚡ Grobaax Pop Quiz Winner',
-          description: `Won Question #${question.order} in "${session.title}" (+${gpReward} GP)`,
-          isCredit: true,
-          status: 'completed',
-          createdAt: wonAtIso,
-        },
+        data: txPayload,
+        updated_at: wonAtIso,
+      });
+
+      await supabaseAdmin.from('transactions').upsert({
+        id: txId,
+        data: txPayload,
         updated_at: wonAtIso,
       });
     } catch (walletErr: any) {
@@ -650,6 +840,7 @@ export async function submitStudentAnswer(params: {
       correctAnswer: question.correctAnswer,
     };
   } finally {
+    // Release question lock
     questionWinnerLocks.delete(lockKey);
   }
 }
