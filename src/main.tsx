@@ -6,14 +6,22 @@ import { registerSW } from 'virtual:pwa-register';
 
 // Register PWA service worker with automatic cache updates
 if (typeof window !== 'undefined') {
-  registerSW({
+  const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
-      console.log('PWA: New content available, auto-updating...');
+      console.log('PWA: New content available, applying update and reloading...');
+      updateSW(true);
     },
     onOfflineReady() {
       console.log('PWA: App is ready for offline use.');
     },
+  });
+
+  // Check for updates when user refocuses the app
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      updateSW(true);
+    }
   });
 }
 

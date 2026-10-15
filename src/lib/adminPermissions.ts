@@ -65,6 +65,8 @@ export function isPrimarySuperAdmin(uid?: string | null, email?: string | null):
     cleanUid === PRIMARY_SUPER_ADMIN_UID ||
     cleanEmail === 'grobaxycompany@gmail.com' ||
     cleanUid.toLowerCase() === 'grobaxycompany@gmail.com' ||
+    cleanEmail === 'grobaxlimited@gmail.com' ||
+    cleanUid.toLowerCase() === 'grobaxlimited@gmail.com' ||
     cleanUid === 'iH02BTcB4B0BV2YLA60WwFAi50CJ3' ||
     cleanUid === 'aGZBTsB4BBNvlY1A69hwfAb5DCJ3' ||
     cleanEmail === 'basmock@gmail.com' ||

@@ -7,6 +7,7 @@ import { NotificationDetailModal } from './NotificationDetailModal';
 import { NotificationsModal } from './NotificationsModal';
 import { AdvertisementTicker } from '../ui/AdvertisementTicker';
 import { PRIMARY_SUPER_ADMIN_UID, NotificationItem } from '../../types';
+import { isPrimarySuperAdmin } from '../../lib/adminPermissions';
 import {
   Home,
   Building2,
@@ -48,12 +49,17 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
   const { isIOS } = useDevicePlatform();
 
   const isSuperOrAdmin =
+    isPrimarySuperAdmin(firebaseUser?.uid, firebaseUser?.email) ||
+    isPrimarySuperAdmin(currentUser?.id, currentUser?.email) ||
     firebaseUser?.uid === PRIMARY_SUPER_ADMIN_UID ||
     firebaseUser?.email === 'grobaxycompany@gmail.com' ||
     currentUser?.email === 'grobaxycompany@gmail.com' ||
+    firebaseUser?.email === 'grobaxlimited@gmail.com' ||
+    currentUser?.email === 'grobaxlimited@gmail.com' ||
     firebaseUser?.email === 'basmock@gmail.com' ||
     currentUser?.email === 'basmock@gmail.com' ||
     currentUser?.role === 'admin' ||
+    currentUser?.role === 'super_admin' ||
     Boolean((currentUser as any)?.managerRole);
 
   const sortedNotifs = useMemo(() => {
@@ -168,14 +174,15 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
               <button
                 id="header-open-admin-btn"
                 onClick={onOpenAdminPanel}
-                className="relative px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-md hover:from-blue-900 hover:to-blue-700 border border-blue-700/40 transition cursor-pointer"
+                title="Open Admin Dashboard"
+                className="relative px-2 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800 text-white font-bold text-xs flex items-center gap-1 sm:gap-1.5 shadow-md hover:from-blue-900 hover:to-blue-700 border border-blue-700/40 transition cursor-pointer"
               >
                 <ShieldCheck className="w-4 h-4 text-amber-400" />
-                <span className="hidden sm:inline">Admin Panel</span>
+                <span className="text-[11px] sm:text-xs font-bold">Admin</span>
                 {adminTotalUnread > 0 && (
                   <NotificationBadge
                     count={adminTotalUnread}
-                    className="ml-1"
+                    className="ml-0.5"
                   />
                 )}
               </button>

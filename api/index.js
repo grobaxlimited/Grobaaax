@@ -1940,7 +1940,7 @@ function isPrimarySuperAdmin(uid, email) {
   if (!uid && !email) return false;
   const cleanUid = (uid || "").trim();
   const cleanEmail = (email || "").toLowerCase().trim();
-  return cleanUid === "4403bd2b-e385-479b-af16-058582fa4ee3" || cleanUid === PRIMARY_SUPER_ADMIN_UID2 || cleanEmail === "grobaxycompany@gmail.com" || cleanUid.toLowerCase() === "grobaxycompany@gmail.com" || cleanUid === "iH02BTcB4B0BV2YLA60WwFAi50CJ3" || cleanUid === "aGZBTsB4BBNvlY1A69hwfAb5DCJ3" || cleanEmail === "basmock@gmail.com" || cleanUid.toLowerCase() === "basmock@gmail.com";
+  return cleanUid === "4403bd2b-e385-479b-af16-058582fa4ee3" || cleanUid === PRIMARY_SUPER_ADMIN_UID2 || cleanEmail === "grobaxycompany@gmail.com" || cleanUid.toLowerCase() === "grobaxycompany@gmail.com" || cleanEmail === "grobaxlimited@gmail.com" || cleanUid.toLowerCase() === "grobaxlimited@gmail.com" || cleanUid === "iH02BTcB4B0BV2YLA60WwFAi50CJ3" || cleanUid === "aGZBTsB4BBNvlY1A69hwfAb5DCJ3" || cleanEmail === "basmock@gmail.com" || cleanUid.toLowerCase() === "basmock@gmail.com";
 }
 var init_adminPermissions = __esm({
   "src/lib/adminPermissions.ts"() {
@@ -17901,6 +17901,901 @@ curl -O ${baseUrl}/downloads/grobaax-mobile-packaging-suite.zip</div>
   res.send(html);
 });
 
+// server/popQuizRouter.ts
+import { Router as Router9 } from "express";
+
+// server/popQuizEngine.ts
+init_supabase();
+var sessionsCache = /* @__PURE__ */ new Map();
+var questionWinnerLocks = /* @__PURE__ */ new Set();
+var processedSubmissionKeys = /* @__PURE__ */ new Set();
+function normalizeAnswer(ans) {
+  if (!ans) return "";
+  return ans.toLowerCase().trim().replace(/^["'‘“]+|["'’”]+$/g, "").replace(/\s+/g, " ").replace(/[\.\,\!\?]+$/g, "").trim();
+}
+function isAnswerCorrect(submitted, correct) {
+  const normSub = normalizeAnswer(submitted);
+  const normCor = normalizeAnswer(correct);
+  if (!normSub || !normCor) return false;
+  if (normSub === normCor) return true;
+  if (normSub.replace(/^the\s+/, "") === normCor.replace(/^the\s+/, "")) return true;
+  return false;
+}
+async function broadcastPopQuizEvent(event, payload) {
+  try {
+    const channel = supabaseAdmin.channel("grobaax-realtime-bus");
+    await channel.send({
+      type: "broadcast",
+      event: `pop_quiz_${event}`,
+      payload: {
+        ...payload,
+        timestamp: Date.now()
+      }
+    });
+  } catch (err) {
+  }
+}
+async function persistSession(session) {
+  session.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+  sessionsCache.set(session.id, session);
+  try {
+    const row = {
+      id: session.id,
+      data: session,
+      updated_at: session.updatedAt
+    };
+    await supabaseAdmin.from("pop_quiz_sessions").upsert(row, { onConflict: "id" });
+  } catch (err) {
+    console.warn(`[Pop Quiz Engine] Notice saving session ${session.id}:`, err?.message || err);
+  }
+}
+async function loadSessionsFromDatabase() {
+  try {
+    const { data, error } = await supabaseAdmin.from("pop_quiz_sessions").select("id, data, updated_at").order("updated_at", { ascending: false }).limit(100);
+    if (!error && Array.isArray(data)) {
+      data.forEach((row) => {
+        if (row?.data?.id) {
+          sessionsCache.set(row.data.id, row.data);
+        }
+      });
+    }
+  } catch (err) {
+    console.warn("[Pop Quiz Engine] Notice loading sessions from db:", err?.message || err);
+  }
+  return Array.from(sessionsCache.values());
+}
+async function getSessionById(sessionId) {
+  if (sessionsCache.has(sessionId)) {
+    return sessionsCache.get(sessionId);
+  }
+  try {
+    const { data } = await supabaseAdmin.from("pop_quiz_sessions").select("id, data").eq("id", sessionId).maybeSingle();
+    if (data?.data) {
+      sessionsCache.set(sessionId, data.data);
+      return data.data;
+    }
+  } catch {
+  }
+  return null;
+}
+async function evaluatePopQuizSessions() {
+  const now = Date.now();
+  const sessions = Array.from(sessionsCache.values());
+  for (const session of sessions) {
+    let hasChanged = false;
+    if (session.status === "scheduled") {
+      try {
+        const scheduledStartMs = (/* @__PURE__ */ new Date(`${session.date}T${session.startTime}:00+01:00`)).getTime();
+        if (now >= scheduledStartMs) {
+          session.status = "running";
+          session.startedAt = (/* @__PURE__ */ new Date()).toISOString();
+          hasChanged = true;
+          console.info(`[Pop Quiz Engine] Scheduled session ${session.id} ("${session.title}") has started!`);
+        }
+      } catch {
+      }
+    }
+    if (session.status !== "running") {
+      continue;
+    }
+    const questions = session.questions || [];
+    if (questions.length === 0) {
+      session.status = "completed";
+      session.endedAt = (/* @__PURE__ */ new Date()).toISOString();
+      await persistSession(session);
+      continue;
+    }
+    if (session.date && session.endTime) {
+      try {
+        const sessionEndMs = (/* @__PURE__ */ new Date(`${session.date}T${session.endTime}:00+01:00`)).getTime();
+        if (now >= sessionEndMs) {
+          const activeQ = questions.find((q) => q.status === "active");
+          if (activeQ) {
+            activeQ.status = "closed";
+            activeQ.closedAt = (/* @__PURE__ */ new Date()).toISOString();
+            activeQ.closeReason = "expired";
+          }
+          session.status = "completed";
+          session.endedAt = (/* @__PURE__ */ new Date()).toISOString();
+          await persistSession(session);
+          await broadcastPopQuizEvent("session_completed", { sessionId: session.id });
+          continue;
+        }
+      } catch {
+      }
+    }
+    const activeQuestion = questions.find((q) => q.status === "active");
+    if (activeQuestion) {
+      const expiresAtMs = activeQuestion.expiresAt ? new Date(activeQuestion.expiresAt).getTime() : 0;
+      if (expiresAtMs > 0 && now >= expiresAtMs) {
+        activeQuestion.status = "closed";
+        activeQuestion.closedAt = (/* @__PURE__ */ new Date()).toISOString();
+        if (!activeQuestion.winnerUserId) {
+          activeQuestion.closeReason = "expired";
+        }
+        const startedMs = activeQuestion.startedAt ? new Date(activeQuestion.startedAt).getTime() : now;
+        const intervalMs = (session.intervalSeconds || 300) * 1e3;
+        const nextTargetMs = Math.max(now, startedMs + intervalMs);
+        session.nextQuestionScheduledAt = new Date(nextTargetMs).toISOString();
+        session.activeQuestionStartedAt = null;
+        session.activeQuestionExpiresAt = null;
+        hasChanged = true;
+        console.info(`[Pop Quiz Engine] Question #${activeQuestion.order} in session ${session.id} expired.`);
+        await broadcastPopQuizEvent("question_closed", {
+          sessionId: session.id,
+          questionId: activeQuestion.id,
+          order: activeQuestion.order,
+          revealedCorrectAnswer: activeQuestion.correctAnswer,
+          winnerName: activeQuestion.winnerName || null,
+          closeReason: activeQuestion.closeReason
+        });
+      }
+    } else {
+      const nextPendingQuestion = questions.find((q) => q.status === "pending");
+      if (!nextPendingQuestion) {
+        session.status = "completed";
+        session.endedAt = (/* @__PURE__ */ new Date()).toISOString();
+        hasChanged = true;
+        console.info(`[Pop Quiz Engine] Session ${session.id} ("${session.title}") completed all questions!`);
+        await broadcastPopQuizEvent("session_completed", { sessionId: session.id });
+      } else {
+        let shouldPublish = false;
+        if (!session.nextQuestionScheduledAt) {
+          shouldPublish = true;
+        } else {
+          const nextScheduledMs = new Date(session.nextQuestionScheduledAt).getTime();
+          if (now >= nextScheduledMs) {
+            shouldPublish = true;
+          }
+        }
+        if (shouldPublish) {
+          const durationSeconds = session.questionDurationSeconds || 45;
+          const startedAtIso = (/* @__PURE__ */ new Date()).toISOString();
+          const expiresAtIso = new Date(now + durationSeconds * 1e3).toISOString();
+          const intervalSeconds = session.intervalSeconds || 300;
+          const nextScheduledAtIso = new Date(now + intervalSeconds * 1e3).toISOString();
+          nextPendingQuestion.status = "active";
+          nextPendingQuestion.startedAt = startedAtIso;
+          nextPendingQuestion.expiresAt = expiresAtIso;
+          session.currentQuestionIndex = nextPendingQuestion.order;
+          session.activeQuestionStartedAt = startedAtIso;
+          session.activeQuestionExpiresAt = expiresAtIso;
+          session.nextQuestionScheduledAt = nextScheduledAtIso;
+          hasChanged = true;
+          console.info(
+            `[Pop Quiz Engine] Published Question #${nextPendingQuestion.order} in session ${session.id}: "${nextPendingQuestion.questionText}"`
+          );
+          await broadcastPopQuizEvent("question_published", {
+            sessionId: session.id,
+            questionId: nextPendingQuestion.id,
+            order: nextPendingQuestion.order,
+            questionText: nextPendingQuestion.questionText,
+            gpReward: nextPendingQuestion.gpReward,
+            startedAt: startedAtIso,
+            expiresAt: expiresAtIso
+          });
+        }
+      }
+    }
+    if (hasChanged) {
+      await persistSession(session);
+    }
+  }
+}
+async function getPublicPopQuizState() {
+  await evaluatePopQuizSessions();
+  const sessions = Array.from(sessionsCache.values());
+  const runningSession = sessions.find((s) => s.status === "running") || null;
+  if (!runningSession) {
+    return {
+      hasActiveQuiz: false,
+      session: null,
+      activeQuestion: null,
+      lastClosedQuestion: null,
+      nextQuestionInSeconds: null,
+      serverTime: Date.now()
+    };
+  }
+  const questions = runningSession.questions || [];
+  const activeQ = questions.find((q) => q.status === "active") || null;
+  const closedQuestions = questions.filter((q) => q.status === "closed" && q.closedAt).sort((a, b) => new Date(b.closedAt).getTime() - new Date(a.closedAt).getTime());
+  const lastClosedQ = closedQuestions[0] || null;
+  const now = Date.now();
+  let remainingSeconds = 0;
+  if (activeQ && activeQ.expiresAt) {
+    const expMs = new Date(activeQ.expiresAt).getTime();
+    remainingSeconds = Math.max(0, Math.ceil((expMs - now) / 1e3));
+  }
+  let nextQuestionInSeconds = null;
+  if (!activeQ && runningSession.nextQuestionScheduledAt) {
+    const nextMs = new Date(runningSession.nextQuestionScheduledAt).getTime();
+    nextQuestionInSeconds = Math.max(0, Math.ceil((nextMs - now) / 1e3));
+  }
+  return {
+    hasActiveQuiz: true,
+    session: {
+      id: runningSession.id,
+      title: runningSession.title,
+      status: runningSession.status,
+      totalQuestions: questions.length,
+      currentQuestionIndex: runningSession.currentQuestionIndex,
+      questionDurationSeconds: runningSession.questionDurationSeconds,
+      intervalSeconds: runningSession.intervalSeconds,
+      endTime: runningSession.endTime
+    },
+    activeQuestion: activeQ ? {
+      id: activeQ.id,
+      order: activeQ.order,
+      questionText: activeQ.questionText,
+      gpReward: activeQ.gpReward,
+      startedAt: activeQ.startedAt || "",
+      expiresAt: activeQ.expiresAt || "",
+      remainingSeconds,
+      status: activeQ.status
+    } : null,
+    lastClosedQuestion: lastClosedQ ? {
+      id: lastClosedQ.id,
+      order: lastClosedQ.order,
+      questionText: lastClosedQ.questionText,
+      revealedCorrectAnswer: lastClosedQ.correctAnswer,
+      // Safe to reveal now that question is closed!
+      winnerName: lastClosedQ.winnerName || null,
+      winnerInstitution: lastClosedQ.winnerInstitution || null,
+      closeReason: lastClosedQ.closeReason || null,
+      gpAwarded: lastClosedQ.gpAwarded || null
+    } : null,
+    nextQuestionInSeconds,
+    serverTime: now
+  };
+}
+async function submitStudentAnswer(params) {
+  const { sessionId, questionId, userId, userName, userEmail, userInstitution, submittedAnswer } = params;
+  if (!sessionId || !questionId || !userId || !submittedAnswer?.trim()) {
+    return {
+      success: false,
+      isCorrect: false,
+      isWinner: false,
+      gpAwarded: 0,
+      message: "Missing required submission parameters."
+    };
+  }
+  const dedupeKey = `sub_${sessionId}_${questionId}_${userId}`;
+  if (processedSubmissionKeys.has(dedupeKey)) {
+    return {
+      success: false,
+      isCorrect: false,
+      isWinner: false,
+      gpAwarded: 0,
+      message: "You have already submitted an answer for this question."
+    };
+  }
+  const session = await getSessionById(sessionId);
+  if (!session || session.status !== "running") {
+    return {
+      success: false,
+      isCorrect: false,
+      isWinner: false,
+      gpAwarded: 0,
+      message: "This quiz is not currently running."
+    };
+  }
+  const questions = session.questions || [];
+  const question = questions.find((q) => q.id === questionId);
+  if (!question) {
+    return {
+      success: false,
+      isCorrect: false,
+      isWinner: false,
+      gpAwarded: 0,
+      message: "Question not found in this session."
+    };
+  }
+  if (question.status !== "active") {
+    return {
+      success: false,
+      isCorrect: false,
+      isWinner: false,
+      gpAwarded: 0,
+      message: "This question is no longer active."
+    };
+  }
+  const now = Date.now();
+  if (question.expiresAt && now > new Date(question.expiresAt).getTime()) {
+    return {
+      success: false,
+      isCorrect: false,
+      isWinner: false,
+      gpAwarded: 0,
+      message: "Time expired for this question."
+    };
+  }
+  const isCorrect = isAnswerCorrect(submittedAnswer, question.correctAnswer);
+  if (!isCorrect) {
+    const subRecord = {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      sessionId,
+      questionId,
+      userId,
+      userName,
+      userEmail,
+      userInstitution,
+      submittedAnswer,
+      isCorrect: false,
+      isWinner: false,
+      gpAwarded: 0,
+      submittedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    try {
+      await supabaseAdmin.from("pop_quiz_submissions").upsert({
+        id: subRecord.id,
+        data: subRecord,
+        updated_at: subRecord.submittedAt
+      });
+    } catch {
+    }
+    return {
+      success: true,
+      isCorrect: false,
+      isWinner: false,
+      gpAwarded: 0,
+      message: "Incorrect answer. Try again before time runs out!"
+    };
+  }
+  const lockKey = `lock_${questionId}`;
+  if (questionWinnerLocks.has(lockKey) || question.winnerUserId) {
+    return {
+      success: true,
+      isCorrect: true,
+      isWinner: false,
+      gpAwarded: 0,
+      message: "Correct answer, but another student submitted milliseconds earlier!"
+    };
+  }
+  questionWinnerLocks.add(lockKey);
+  try {
+    processedSubmissionKeys.add(dedupeKey);
+    const gpReward = question.gpReward || session.defaultGpReward || 25;
+    const wonAtIso = (/* @__PURE__ */ new Date()).toISOString();
+    question.winnerUserId = userId;
+    question.winnerName = userName;
+    question.winnerInstitution = userInstitution || "";
+    question.winningAnswer = submittedAnswer;
+    question.wonAt = wonAtIso;
+    question.gpAwarded = gpReward;
+    question.status = "closed";
+    question.closedAt = wonAtIso;
+    question.closeReason = "answered";
+    const intervalSeconds = session.intervalSeconds || 300;
+    session.nextQuestionScheduledAt = new Date(Date.now() + intervalSeconds * 1e3).toISOString();
+    session.activeQuestionStartedAt = null;
+    session.activeQuestionExpiresAt = null;
+    await persistSession(session);
+    const subRecord = {
+      id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      sessionId,
+      questionId,
+      userId,
+      userName,
+      userEmail,
+      userInstitution,
+      submittedAnswer,
+      isCorrect: true,
+      isWinner: true,
+      gpAwarded: gpReward,
+      submittedAt: wonAtIso
+    };
+    try {
+      await supabaseAdmin.from("pop_quiz_submissions").upsert({
+        id: subRecord.id,
+        data: subRecord,
+        updated_at: wonAtIso
+      });
+    } catch {
+    }
+    try {
+      const userDocRes = await supabaseAdmin.from("users").select("id, data").eq("id", userId).single();
+      let currentGp = 0;
+      let currentWallet = 0;
+      let currentTotalGp = 0;
+      let userData = {};
+      if (userDocRes.data) {
+        userData = userDocRes.data.data || {};
+        currentGp = Number(userData.gpBalance || 0);
+        currentWallet = Number(userData.walletBalance || currentGp);
+        currentTotalGp = Number(userData.totalGpEarned || 0);
+      }
+      const newGp = currentGp + gpReward;
+      const newWallet = currentWallet + gpReward;
+      const newTotalGp = currentTotalGp + gpReward;
+      await supabaseAdmin.from("users").upsert({
+        id: userId,
+        data: {
+          ...userData,
+          id: userId,
+          gpBalance: newGp,
+          walletBalance: newWallet,
+          totalGpEarned: newTotalGp,
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      const txId = `TX_POPQUIZ_${Date.now()}_${Math.floor(1e3 + Math.random() * 9e3)}`;
+      await supabaseAdmin.from("walletTransactions").upsert({
+        id: txId,
+        data: {
+          id: txId,
+          transactionId: txId,
+          userId,
+          userName: userData.name || userData.fullName || userName || "Scholar",
+          userEmail: userData.email || userEmail || "",
+          userAvatar: userData.profileImage || userData.avatar || "",
+          institutionName: userData.institutionName || userData.institution || userInstitution || "",
+          type: "gp_earned",
+          amount: gpReward,
+          unit: "GP",
+          title: "\u26A1 Grobaax Pop Quiz Winner",
+          description: `Won Question #${question.order} in "${session.title}" (+${gpReward} GP)`,
+          isCredit: true,
+          status: "completed",
+          createdAt: wonAtIso
+        },
+        updated_at: wonAtIso
+      });
+    } catch (walletErr) {
+      console.error("[Pop Quiz Engine] Wallet credit error:", walletErr?.message || walletErr);
+    }
+    await broadcastPopQuizEvent("question_closed", {
+      sessionId,
+      questionId,
+      order: question.order,
+      revealedCorrectAnswer: question.correctAnswer,
+      winnerName: userName,
+      winnerInstitution: userInstitution || null,
+      closeReason: "answered",
+      gpAwarded: gpReward
+    });
+    return {
+      success: true,
+      isCorrect: true,
+      isWinner: true,
+      gpAwarded: gpReward,
+      message: `\u{1F389} CONGRATULATIONS! You answered first and won +${gpReward} GP!`,
+      correctAnswer: question.correctAnswer
+    };
+  } finally {
+    questionWinnerLocks.delete(lockKey);
+  }
+}
+
+// src/utils/popQuizParser.ts
+function stripQuestionNumbering(text) {
+  if (!text) return "";
+  return text.replace(/^[\s]*(?:(?:q(?:uestion)?\s*)?\d+[\.\)\:\-]\s*|\[\d+\]\s*|\(\d+\)\s*)/i, "").trim();
+}
+function splitQuestionAndAnswer(line) {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return { questionPart: "", answerPart: "", separatorFound: false };
+  }
+  const emDashRegex = /[\u2014\u2013\u2015]/;
+  if (emDashRegex.test(trimmed)) {
+    const match2 = trimmed.search(emDashRegex);
+    const questionPart = trimmed.substring(0, match2).trim();
+    const answerPart = trimmed.substring(match2 + 1).trim();
+    return { questionPart, answerPart, separatorFound: true };
+  }
+  const doubleHyphenIdx = trimmed.indexOf("--");
+  if (doubleHyphenIdx !== -1) {
+    const questionPart = trimmed.substring(0, doubleHyphenIdx).trim();
+    const answerPart = trimmed.substring(doubleHyphenIdx + 2).trim();
+    return { questionPart, answerPart, separatorFound: true };
+  }
+  const spacedHyphenRegex = /\s+-\s+/;
+  const match = trimmed.search(spacedHyphenRegex);
+  if (match !== -1) {
+    const questionPart = trimmed.substring(0, match).trim();
+    const rest = trimmed.substring(match).replace(/^\s+-\s+/, "");
+    return { questionPart, answerPart: rest.trim(), separatorFound: true };
+  }
+  return { questionPart: trimmed, answerPart: "", separatorFound: false };
+}
+function parseBulkQuestionsText(rawText, defaultGpReward = 25, sessionId = "") {
+  if (!rawText || !rawText.trim()) {
+    return {
+      items: [],
+      totalLines: 0,
+      validCount: 0,
+      invalidCount: 0,
+      hasErrors: false
+    };
+  }
+  const lines = rawText.split(/\r?\n/);
+  const items = [];
+  let validOrder = 1;
+  lines.forEach((line, index) => {
+    const lineNumber = index + 1;
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      return;
+    }
+    const { questionPart, answerPart, separatorFound } = splitQuestionAndAnswer(trimmedLine);
+    const cleanedQuestion = stripQuestionNumbering(questionPart);
+    const cleanedAnswer = answerPart.trim();
+    let isValid = true;
+    let validationError;
+    if (!separatorFound) {
+      isValid = false;
+      validationError = "Missing answer separator ('\u2014'). Format: Question \u2014 Answer";
+    } else if (!cleanedQuestion) {
+      isValid = false;
+      validationError = "Question text cannot be empty";
+    } else if (!cleanedAnswer) {
+      isValid = false;
+      validationError = "Correct answer cannot be empty";
+    }
+    const item = {
+      id: `q_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 7)}`,
+      order: validOrder++,
+      questionText: cleanedQuestion,
+      correctAnswer: cleanedAnswer,
+      gpReward: Math.max(1, Number(defaultGpReward) || 25),
+      rawLine: line,
+      lineNumber,
+      isValid,
+      validationError
+    };
+    items.push(item);
+  });
+  const validCount = items.filter((i) => i.isValid).length;
+  const invalidCount = items.length - validCount;
+  return {
+    items,
+    totalLines: items.length,
+    validCount,
+    invalidCount,
+    hasErrors: invalidCount > 0
+  };
+}
+function convertParsedToQuestions(parsedItems, sessionId) {
+  return parsedItems.map((item, idx) => ({
+    id: item.id,
+    sessionId,
+    order: idx + 1,
+    questionText: item.questionText,
+    correctAnswer: item.correctAnswer,
+    gpReward: Number(item.gpReward) || 25,
+    status: "pending",
+    validationStatus: item.isValid ? "valid" : "invalid",
+    validationError: item.validationError
+  }));
+}
+
+// server/popQuizRouter.ts
+var popQuizRouter = Router9();
+loadSessionsFromDatabase().catch((err) => {
+  console.warn("[Pop Quiz Router] Initial sessions load notice:", err?.message || err);
+});
+popQuizRouter.get("/active", async (_req, res) => {
+  try {
+    const state2 = await getPublicPopQuizState();
+    return res.json({ success: true, ...state2 });
+  } catch (err) {
+    console.error("[Pop Quiz Router] Error fetching active state:", err?.message || err);
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+popQuizRouter.post("/submit-answer", async (req, res) => {
+  try {
+    const { sessionId, questionId, userId, userName, userEmail, userInstitution, submittedAnswer } = req.body || {};
+    if (!sessionId || !questionId || !userId || !submittedAnswer) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required parameters (sessionId, questionId, userId, submittedAnswer)."
+      });
+    }
+    const result = await submitStudentAnswer({
+      sessionId,
+      questionId,
+      userId,
+      userName: userName || "Student Scholar",
+      userEmail,
+      userInstitution,
+      submittedAnswer
+    });
+    return res.json(result);
+  } catch (err) {
+    console.error("[Pop Quiz Router] Answer submission error:", err?.message || err);
+    return res.status(500).json({ success: false, message: "Server error processing answer submission." });
+  }
+});
+popQuizRouter.get("/sessions", async (_req, res) => {
+  try {
+    await evaluatePopQuizSessions();
+    const sessions = await loadSessionsFromDatabase();
+    return res.json({ success: true, sessions });
+  } catch (err) {
+    console.error("[Pop Quiz Router] Error listing sessions:", err?.message || err);
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+popQuizRouter.get("/session/:id", async (req, res) => {
+  try {
+    await evaluatePopQuizSessions();
+    const session = await getSessionById(req.params.id);
+    if (!session) {
+      return res.status(404).json({ success: false, message: "Session not found" });
+    }
+    return res.json({ success: true, session });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+popQuizRouter.post("/create-session", async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      date,
+      startTime,
+      endTime,
+      timezone = "Africa/Lagos",
+      intervalMinutes = 5,
+      questionDurationSeconds = 45,
+      defaultGpReward = 25,
+      rawQuestionsText,
+      questions: clientQuestions,
+      status = "draft",
+      createdByUid,
+      createdByName
+    } = req.body || {};
+    if (!title || !date || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, date, start time, and end time are required."
+      });
+    }
+    const sessionId = `quiz_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const intervalMins = Math.max(0.5, Number(intervalMinutes) || 5);
+    const intervalSecs = Math.round(intervalMins * 60);
+    let parsedQuestions = [];
+    if (Array.isArray(clientQuestions) && clientQuestions.length > 0) {
+      parsedQuestions = clientQuestions.map((q, idx) => ({
+        id: q.id || `q_${Date.now()}_${idx}`,
+        sessionId,
+        order: idx + 1,
+        questionText: q.questionText,
+        correctAnswer: q.correctAnswer,
+        gpReward: Number(q.gpReward) || Number(defaultGpReward) || 25,
+        status: "pending",
+        validationStatus: "valid"
+      }));
+    } else if (rawQuestionsText && typeof rawQuestionsText === "string") {
+      const parsed = parseBulkQuestionsText(rawQuestionsText, defaultGpReward, sessionId);
+      parsedQuestions = convertParsedToQuestions(parsed.items, sessionId);
+    }
+    const newSession = {
+      id: sessionId,
+      title: title.trim(),
+      description: description ? description.trim() : "",
+      date,
+      startTime,
+      endTime,
+      timezone,
+      intervalMinutes: intervalMins,
+      intervalSeconds: intervalSecs,
+      questionDurationSeconds: Number(questionDurationSeconds) || 45,
+      defaultGpReward: Number(defaultGpReward) || 25,
+      status: status === "scheduled" ? "scheduled" : "draft",
+      currentQuestionIndex: -1,
+      totalQuestions: parsedQuestions.length,
+      questions: parsedQuestions,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      createdByUid,
+      createdByName
+    };
+    await persistSession(newSession);
+    return res.json({
+      success: true,
+      message: "Pop Quiz session created successfully.",
+      session: newSession
+    });
+  } catch (err) {
+    console.error("[Pop Quiz Router] Create session error:", err?.message || err);
+    return res.status(500).json({ success: false, message: "Failed to create quiz session." });
+  }
+});
+popQuizRouter.post("/update-session", async (req, res) => {
+  try {
+    const { sessionId, sessionData } = req.body || {};
+    if (!sessionId || !sessionData) {
+      return res.status(400).json({ success: false, message: "Missing sessionId or sessionData" });
+    }
+    const session = await getSessionById(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, message: "Session not found" });
+    }
+    const updated = {
+      ...session,
+      ...sessionData,
+      id: session.id,
+      // Immutable ID
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    if (updated.intervalMinutes) {
+      updated.intervalSeconds = Math.round(Number(updated.intervalMinutes) * 60);
+    }
+    if (Array.isArray(updated.questions)) {
+      updated.totalQuestions = updated.questions.length;
+    }
+    await persistSession(updated);
+    return res.json({ success: true, session: updated });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Failed to update session." });
+  }
+});
+popQuizRouter.post("/control", async (req, res) => {
+  try {
+    const { sessionId, action } = req.body || {};
+    if (!sessionId || !action) {
+      return res.status(400).json({ success: false, message: "sessionId and action are required." });
+    }
+    const session = await getSessionById(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, message: "Session not found." });
+    }
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    switch (action) {
+      case "start": {
+        if (session.status === "running") {
+          return res.status(400).json({ success: false, message: "This quiz is already running." });
+        }
+        const questions = session.questions || [];
+        if (questions.length === 0) {
+          return res.status(400).json({ success: false, message: "Cannot start a quiz without any questions." });
+        }
+        session.status = "running";
+        session.startedAt = nowIso;
+        const firstQ = questions[0];
+        const durationSeconds = session.questionDurationSeconds || 45;
+        const expiresAtIso = new Date(Date.now() + durationSeconds * 1e3).toISOString();
+        const intervalSeconds = session.intervalSeconds || 300;
+        firstQ.status = "active";
+        firstQ.startedAt = nowIso;
+        firstQ.expiresAt = expiresAtIso;
+        session.currentQuestionIndex = 1;
+        session.activeQuestionStartedAt = nowIso;
+        session.activeQuestionExpiresAt = expiresAtIso;
+        session.nextQuestionScheduledAt = new Date(Date.now() + intervalSeconds * 1e3).toISOString();
+        await persistSession(session);
+        await broadcastPopQuizEvent("question_published", {
+          sessionId: session.id,
+          questionId: firstQ.id,
+          order: firstQ.order,
+          questionText: firstQ.questionText,
+          gpReward: firstQ.gpReward,
+          startedAt: nowIso,
+          expiresAt: expiresAtIso
+        });
+        return res.json({
+          success: true,
+          message: "Grobaax Pop Quiz started! Question 1 is now live.",
+          session
+        });
+      }
+      case "pause": {
+        if (session.status !== "running") {
+          return res.status(400).json({ success: false, message: "Only running quizzes can be paused." });
+        }
+        session.status = "paused";
+        await persistSession(session);
+        await broadcastPopQuizEvent("session_paused", { sessionId });
+        return res.json({ success: true, message: "Quiz paused.", session });
+      }
+      case "resume": {
+        if (session.status !== "paused") {
+          return res.status(400).json({ success: false, message: "Only paused quizzes can be resumed." });
+        }
+        session.status = "running";
+        await persistSession(session);
+        await broadcastPopQuizEvent("session_resumed", { sessionId });
+        return res.json({ success: true, message: "Quiz resumed.", session });
+      }
+      case "end": {
+        session.status = "completed";
+        session.endedAt = nowIso;
+        if (session.questions) {
+          session.questions.forEach((q) => {
+            if (q.status === "active") {
+              q.status = "closed";
+              q.closedAt = nowIso;
+              q.closeReason = "manual";
+            }
+          });
+        }
+        await persistSession(session);
+        await broadcastPopQuizEvent("session_completed", { sessionId });
+        return res.json({ success: true, message: "Quiz ended.", session });
+      }
+      case "schedule": {
+        session.status = "scheduled";
+        await persistSession(session);
+        return res.json({ success: true, message: "Quiz scheduled.", session });
+      }
+      case "save_draft": {
+        session.status = "draft";
+        await persistSession(session);
+        return res.json({ success: true, message: "Draft saved.", session });
+      }
+      case "delete": {
+        session.status = "cancelled";
+        await persistSession(session);
+        return res.json({ success: true, message: "Quiz deleted/cancelled." });
+      }
+      default:
+        return res.status(400).json({ success: false, message: `Unknown action "${action}"` });
+    }
+  } catch (err) {
+    console.error("[Pop Quiz Router] Control action error:", err?.message || err);
+    return res.status(500).json({ success: false, message: "Server error processing quiz control." });
+  }
+});
+popQuizRouter.get("/leaderboard/:sessionId", async (req, res) => {
+  try {
+    const session = await getSessionById(req.params.sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, message: "Session not found" });
+    }
+    const winners = (session.questions || []).filter((q) => q.status === "closed" && q.winnerUserId).map((q) => ({
+      questionOrder: q.order,
+      questionText: q.questionText,
+      correctAnswer: q.correctAnswer,
+      winnerName: q.winnerName,
+      winnerInstitution: q.winnerInstitution,
+      winningAnswer: q.winningAnswer,
+      gpAwarded: q.gpAwarded || q.gpReward,
+      wonAt: q.wonAt
+    }));
+    return res.json({
+      success: true,
+      title: session.title,
+      status: session.status,
+      totalQuestions: (session.questions || []).length,
+      winners
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err?.message || "Server error" });
+  }
+});
+popQuizRouter.get("/cron-tick", async (_req, res) => {
+  try {
+    await evaluatePopQuizSessions();
+    return res.json({ success: true, message: "Pop Quiz tick executed successfully.", timestamp: Date.now() });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err?.message || "Tick failed" });
+  }
+});
+
 // src/lib/academicIllustrationService.ts
 var ACADEMIC_PHOTO_REGISTRY = {
   photosynthesis_botany: [
@@ -19294,6 +20189,8 @@ apiApp.use("/system-settings", systemSettingsRouter);
 apiApp.use("/api/download", mobileDownloadRouter);
 apiApp.use("/download", mobileDownloadRouter);
 apiApp.use("/downloads", mobileDownloadRouter);
+apiApp.use("/api/pop-quiz", popQuizRouter);
+apiApp.use("/pop-quiz", popQuizRouter);
 var libraryGenerateHandler = async (req, res) => {
   const {
     faculty,

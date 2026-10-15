@@ -145,6 +145,7 @@ export const WalletModal: React.FC = () => {
     isBalanceHidden,
     toggleBalanceHidden,
     isUserSubscribed,
+    setViewMode,
   } = useApp();
 
   const effectiveMinGp = Number(
@@ -734,6 +735,23 @@ export const WalletModal: React.FC = () => {
                     <Edit className="w-3.5 h-3.5" />
                     <span>{isEditingProfile ? 'Close Editor' : 'Edit Profile'}</span>
                   </button>
+
+                  {(isPrimarySuperAdmin(currentUser.id, currentUser.email) ||
+                    currentUser.role === 'admin' ||
+                    currentUser.role === 'super_admin' ||
+                    currentUser.email === 'grobaxlimited@gmail.com' ||
+                    currentUser.email === 'grobaxycompany@gmail.com') && (
+                    <button
+                      onClick={() => {
+                        setIsWalletModalOpen(false);
+                        setViewMode('admin');
+                      }}
+                      className="flex-1 md:flex-initial px-4 py-2.5 bg-gradient-to-r from-slate-900 to-blue-950 hover:from-slate-800 hover:to-blue-900 text-white text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md border border-blue-600/40"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Admin Dashboard</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -1062,7 +1062,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {}
     return MOCK_USERS.student;
   });
-  const [viewMode, setViewMode] = useState<'app' | 'admin'>('app');
+  const [viewMode, setViewMode] = useState<'app' | 'admin'>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('view') === 'admin' || params.get('admin') === 'true' || window.location.hash === '#admin') {
+          return 'admin';
+        }
+      }
+    } catch {}
+    return 'app';
+  });
   const [adminActiveTab, setAdminActiveTab] = useState<AdminTabType>('dashboard');
   const [pendingPastQuestions, setPendingPastQuestions] = useState<any[]>([]);
 
