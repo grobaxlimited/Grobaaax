@@ -3,6 +3,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { apiApp } from './server/apiApp';
 import { getAuthCallbackHtml } from './server/authCallbackHtml';
+import { evaluatePopQuizSessions } from './server/popQuizEngine';
 
 async function startServer() {
   const app = express();
@@ -47,6 +48,13 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Grobaax Server running on http://localhost:${PORT}`);
+
+    // Persistent server-authoritative Pop Quiz scheduling engine interval (ticks every 3 seconds)
+    setInterval(() => {
+      evaluatePopQuizSessions().catch((err) => {
+        // Non-blocking background tick
+      });
+    }, 3000);
   });
 }
 

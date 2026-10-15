@@ -186,6 +186,7 @@ export type AdminTabType =
   | 'subscriptions'
   | 'library'
   | 'hints'
+  | 'pop_quiz'
   | 'settings'
   | 'contact';
 
@@ -3094,6 +3095,117 @@ export interface SchoolDomeMessage extends ChatroomLiveMessage {
   questionNumber?: number;
 }
 
+// ==========================================
+// GROBAAX POP QUIZ TYPES & SCHEMAS
+// ==========================================
 
+export type PopQuizStatus =
+  | 'draft'
+  | 'scheduled'
+  | 'running'
+  | 'paused'
+  | 'completed'
+  | 'cancelled';
 
+export type PopQuizQuestionStatus = 'pending' | 'active' | 'closed';
 
+export interface PopQuizQuestion {
+  id: string;
+  sessionId: string;
+  order: number;
+  questionText: string;
+  correctAnswer: string; // Secret on server while question is pending or active
+  gpReward: number; // Configurable per question
+  status: PopQuizQuestionStatus;
+  validationStatus?: 'valid' | 'invalid' | 'warning';
+  validationError?: string;
+  startedAt?: string | null;
+  expiresAt?: string | null;
+  closedAt?: string | null;
+  winnerUserId?: string | null;
+  winnerName?: string | null;
+  winnerInstitution?: string | null;
+  winnerAvatar?: string | null;
+  winningAnswer?: string | null;
+  wonAt?: string | null;
+  gpAwarded?: number | null;
+  closeReason?: 'answered' | 'expired' | 'manual' | null;
+}
+
+export interface PopQuizSession {
+  id: string;
+  title: string;
+  description?: string;
+  date: string; // YYYY-MM-DD (e.g. "2026-10-15")
+  startTime: string; // HH:MM (e.g. "14:00")
+  endTime: string; // HH:MM (e.g. "15:30")
+  timezone: string; // Default: 'Africa/Lagos'
+  intervalMinutes: number; // Configurable, e.g. 5, 2, 1
+  intervalSeconds: number;
+  questionDurationSeconds: number; // e.g. 45, 60
+  defaultGpReward: number; // e.g. 25
+  status: PopQuizStatus;
+  currentQuestionIndex: number;
+  totalQuestions: number;
+  activeQuestionStartedAt?: string | null;
+  activeQuestionExpiresAt?: string | null;
+  nextQuestionScheduledAt?: string | null;
+  questions?: PopQuizQuestion[];
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  createdByUid?: string;
+  createdByName?: string;
+}
+
+export interface PopQuizPublicState {
+  hasActiveQuiz: boolean;
+  session: {
+    id: string;
+    title: string;
+    status: PopQuizStatus;
+    totalQuestions: number;
+    currentQuestionIndex: number;
+    questionDurationSeconds: number;
+    intervalSeconds: number;
+    endTime: string;
+  } | null;
+  activeQuestion: {
+    id: string;
+    order: number;
+    questionText: string;
+    gpReward: number;
+    startedAt: string;
+    expiresAt: string;
+    remainingSeconds: number;
+    status: PopQuizQuestionStatus;
+  } | null;
+  lastClosedQuestion?: {
+    id: string;
+    order: number;
+    questionText: string;
+    revealedCorrectAnswer: string;
+    winnerName: string | null;
+    winnerInstitution: string | null;
+    closeReason: 'answered' | 'expired' | 'manual' | null;
+    gpAwarded: number | null;
+  } | null;
+  nextQuestionInSeconds: number | null;
+  serverTime: number;
+}
+
+export interface PopQuizSubmission {
+  id: string;
+  sessionId: string;
+  questionId: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  userInstitution?: string;
+  submittedAnswer: string;
+  isCorrect: boolean;
+  isWinner: boolean;
+  gpAwarded: number;
+  submittedAt: string;
+}

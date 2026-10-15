@@ -26,6 +26,7 @@ import { AdminTransactionsView } from './AdminTransactionsView';
 import { AdminSchoolDomeView } from './AdminSchoolDomeView';
 import { AdminContactSupportView } from './AdminContactSupportView';
 import { AdminHintsView } from './AdminHintsView';
+import { AdminPopQuizView } from './AdminPopQuizView';
 
 import {
   LayoutDashboard,
@@ -138,6 +139,7 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
       items: [
         { id: 'events' as AdminTabType, label: 'Official Events Catalog', icon: Calendar, badge: 'Live' },
         { id: 'school_dome' as AdminTabType, label: 'School Dome Arena', icon: Swords, badge: 'Arena' },
+        { id: 'pop_quiz' as AdminTabType, label: 'Grobaax Pop Quiz', icon: Zap, badge: 'Speed' },
       ],
     },
     {
@@ -222,6 +224,8 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
         return <AdminContactSupportView />;
       case 'hints':
         return <AdminHintsView />;
+      case 'pop_quiz':
+        return <AdminPopQuizView />;
       default:
         return <AdminDashboardView onNavigateTab={(tab) => setActiveTab(tab)} />;
     }

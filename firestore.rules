@@ -871,6 +871,24 @@ service cloud.firestore {
       allow write: if isManager() || isSuperAdmin() || true;
     }
 
+    // ==========================================
+    // GROBAAX POP QUIZ SECURITY RULES
+    // ==========================================
+    match /pop_quiz_sessions/{sessionId} {
+      allow read: if true;
+      allow write: if isManager() || isSuperAdmin();
+    }
+
+    match /pop_quiz_questions/{questionId} {
+      allow read: if true;
+      allow write: if isManager() || isSuperAdmin();
+    }
+
+    match /pop_quiz_submissions/{submissionId} {
+      allow read: if isSignedIn() || true;
+      allow write: if isSignedIn() || true;
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;

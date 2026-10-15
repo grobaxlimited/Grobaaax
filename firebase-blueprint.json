@@ -701,6 +701,36 @@
     },
     "handout_library_settings": {
       "indexes": []
+    },
+    "pop_quiz_sessions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "status", "order": "ASCENDING" },
+            { "fieldPath": "date", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    "pop_quiz_questions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "sessionId", "order": "ASCENDING" },
+            { "fieldPath": "order", "order": "ASCENDING" }
+          ]
+        }
+      ]
+    },
+    "pop_quiz_submissions": {
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "questionId", "order": "ASCENDING" },
+            { "fieldPath": "submittedAt", "order": "ASCENDING" }
+          ]
+        }
+      ]
     }
   }
 }

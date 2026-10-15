@@ -11,6 +11,7 @@ import { supabaseRouter } from './supabaseRouter';
 import { spinRouter } from './spinRouter';
 import { systemSettingsRouter } from './systemSettingsRouter';
 import { mobileDownloadRouter } from './mobileDownloadRouter';
+import { popQuizRouter } from './popQuizRouter';
 import {
   enrichHandoutWithFullChaptersAndImages,
   getAcademicPhotoForChapter,
@@ -846,6 +847,10 @@ apiApp.use('/system-settings', systemSettingsRouter);
 apiApp.use('/api/download', mobileDownloadRouter);
 apiApp.use('/download', mobileDownloadRouter);
 apiApp.use('/downloads', mobileDownloadRouter);
+
+// Grobaax Pop Quiz Competition Engine Router
+apiApp.use('/api/pop-quiz', popQuizRouter);
+apiApp.use('/pop-quiz', popQuizRouter);
 
 // AI Academic Library Handout Generation Route
 const libraryGenerateHandler = async (req: Request, res: Response) => {

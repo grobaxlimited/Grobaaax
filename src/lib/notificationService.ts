@@ -110,6 +110,7 @@ class GrobaaxNotificationService {
     badges: 0,
     contact: 0,
     hints: 0,
+    pop_quiz: 0,
   };
 
   constructor() {
@@ -616,6 +617,7 @@ class GrobaaxNotificationService {
       badges: this.eventCounts['admin_badges'] || 0,
       contact: this.eventCounts['admin_contact'] || 0,
       hints: this.eventCounts['admin_hints'] || 0,
+      pop_quiz: this.eventCounts['admin_pop_quiz'] || 0,
     };
 
     // Broadcast to all active subscribers
