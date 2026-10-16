@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { supabaseAdmin, isSuperAdmin } from '../src/lib/supabase';
+import { Pool } from 'pg';
+import { supabaseAdmin, isSuperAdmin, DATABASE_URL } from '../src/lib/supabase';
 import {
   PopQuizSession,
   PopQuizQuestion,
@@ -8,6 +9,14 @@ import {
   PopQuizPublicState,
   PopQuizStatus,
 } from '../src/types';
+
+// Direct PostgreSQL Pool for resilient, permanent database transactions
+const pgPool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 4,
+  idleTimeoutMillis: 10000,
+});
 
 // Paths for durable file persistence (survives process restarts and cold starts)
 const DATA_DIR = path.join(process.cwd(), 'server');
@@ -76,6 +85,22 @@ function appendSubmissionToDisk(submission: PopQuizSubmission): void {
     fs.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(submissions, null, 2), 'utf-8');
   } catch (err) {
     console.warn('[Pop Quiz Engine] Notice writing submissions disk cache:', err);
+  }
+}
+
+/**
+ * Removes submissions for a deleted session from local JSON file
+ */
+function removeSubmissionsForSessionFromDisk(sessionId: string): void {
+  try {
+    if (fs.existsSync(SUBMISSIONS_FILE)) {
+      const raw = fs.readFileSync(SUBMISSIONS_FILE, 'utf-8');
+      const submissions: PopQuizSubmission[] = JSON.parse(raw) || [];
+      const filtered = submissions.filter((s) => s.sessionId !== sessionId);
+      fs.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.warn('[Pop Quiz Engine] Notice removing submissions disk cache:', err);
   }
 }
 
@@ -311,6 +336,53 @@ export async function persistSession(session: PopQuizSession): Promise<void> {
 }
 
 /**
+ * Reconciles session question winners with submissions table
+ * Guarantees that if a student answered correctly and won, it is reflected on the question object
+ */
+export async function reconcileSessionWinnersWithSubmissions(session: PopQuizSession): Promise<boolean> {
+  let modified = false;
+  if (!session || !session.id || !Array.isArray(session.questions)) return false;
+
+  try {
+    const { data: subs, error } = await supabaseAdmin
+      .from('pop_quiz_submissions')
+      .select('*')
+      .eq('session_id', session.id)
+      .order('submitted_at', { ascending: true });
+
+    if (!error && Array.isArray(subs) && subs.length > 0) {
+      const qMap = new Map((session.questions || []).map((q) => [q.id, q]));
+
+      for (const row of subs) {
+        const rawJson = row.data && typeof row.data === 'object' ? row.data : {};
+        const qId = row.question_id || rawJson.questionId;
+        const q = qMap.get(qId);
+        if (!q) continue;
+
+        const isWinner = Boolean(row.is_winner || rawJson.isWinner);
+        const isCorrect = Boolean(row.is_correct || rawJson.isCorrect || isWinner);
+
+        if (isWinner && (!q.winnerUserId || q.closeReason !== 'answered')) {
+          q.winnerUserId = row.user_id || rawJson.userId;
+          q.winnerName = row.user_name || rawJson.userName || 'Scholar';
+          q.winnerInstitution = row.user_institution || rawJson.userInstitution || '';
+          q.winningAnswer = row.submitted_answer || rawJson.submittedAnswer || q.correctAnswer;
+          q.gpAwarded = Number(row.gp_awarded ?? rawJson.gpAwarded ?? q.gpReward);
+          q.wonAt = row.submitted_at || rawJson.submittedAt || row.created_at;
+          q.status = 'closed';
+          q.closeReason = 'answered';
+          modified = true;
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn(`[Pop Quiz Engine] Notice reconciling winners for session ${session.id}:`, err?.message || err);
+  }
+
+  return modified;
+}
+
+/**
  * Ensures sessions are loaded into memory cache from disk and database
  */
 export async function ensureSessionsLoaded(): Promise<void> {
@@ -335,25 +407,28 @@ export async function ensureSessionsLoaded(): Promise<void> {
       .limit(100);
 
     if (!error && Array.isArray(data)) {
-      data.forEach((row: any) => {
-        if (row?.data?.id) {
-          const existing = sessionsCache.get(row.data.id);
-          // If remote is newer or not in memory, use it
-          if (!existing || new Date(row.updated_at).getTime() >= new Date(existing.updatedAt).getTime()) {
-            sessionsCache.set(row.data.id, row.data);
-          }
+      const activeIds = new Set(data.map((r: any) => r.id));
+      // Prune deleted sessions so they do not resurrect from disk
+      for (const cachedId of sessionsCache.keys()) {
+        if (!activeIds.has(cachedId)) {
+          sessionsCache.delete(cachedId);
         }
-      });
+      }
+
+      for (const row of data) {
+        if (row?.data?.id) {
+          const session = row.data as PopQuizSession;
+          await reconcileSessionWinnersWithSubmissions(session);
+          sessionsCache.set(session.id, session);
+        }
+      }
     }
   } catch (err: any) {
     console.warn('[Pop Quiz Engine] Notice loading sessions from db:', err?.message || err);
   }
 
   // Sync back to disk
-  if (sessionsCache.size > 0) {
-    writeSessionsToDisk(Array.from(sessionsCache.values()));
-  }
-
+  writeSessionsToDisk(Array.from(sessionsCache.values()));
   hasInitializedFromStorage = true;
 }
 
@@ -372,11 +447,21 @@ export async function loadSessionsFromDatabase(): Promise<PopQuizSession[]> {
       .limit(100);
 
     if (!error && Array.isArray(data)) {
-      data.forEach((row: any) => {
-        if (row?.data?.id) {
-          sessionsCache.set(row.data.id, row.data);
+      const activeIds = new Set(data.map((r: any) => r.id));
+      // Prune deleted sessions
+      for (const cachedId of sessionsCache.keys()) {
+        if (!activeIds.has(cachedId)) {
+          sessionsCache.delete(cachedId);
         }
-      });
+      }
+
+      for (const row of data) {
+        if (row?.data?.id) {
+          const session = row.data as PopQuizSession;
+          await reconcileSessionWinnersWithSubmissions(session);
+          sessionsCache.set(session.id, session);
+        }
+      }
       writeSessionsToDisk(Array.from(sessionsCache.values()));
     }
   } catch (err: any) {
@@ -404,8 +489,10 @@ export async function getSessionById(sessionId: string): Promise<PopQuizSession 
       .maybeSingle();
 
     if (data?.data) {
-      sessionsCache.set(sessionId, data.data);
-      return data.data;
+      const session = data.data as PopQuizSession;
+      await reconcileSessionWinnersWithSubmissions(session);
+      sessionsCache.set(sessionId, session);
+      return session;
     }
   } catch {}
 
@@ -413,7 +500,7 @@ export async function getSessionById(sessionId: string): Promise<PopQuizSession 
 }
 
 /**
- * Permanently deletes a session across all storage tiers (Memory + Disk + Supabase DB)
+ * Permanently deletes a session across all storage tiers (Memory + Disk + Supabase DB + Direct Postgres)
  */
 export async function deleteSessionFromDatabase(sessionId: string): Promise<boolean> {
   await ensureSessionsLoaded();
@@ -421,25 +508,34 @@ export async function deleteSessionFromDatabase(sessionId: string): Promise<bool
   // 1. Remove from in-memory cache
   sessionsCache.delete(sessionId);
 
-  // 2. Persist updated session list to disk
+  // 2. Persist updated session list to disk & clean submissions file
   try {
     const allSessions = Array.from(sessionsCache.values());
     writeSessionsToDisk(allSessions);
+    removeSubmissionsForSessionFromDisk(sessionId);
   } catch (diskErr) {
     console.warn(`[Pop Quiz Engine] Notice disk delete for session ${sessionId}:`, diskErr);
   }
 
-  // 3. Delete from Supabase pop_quiz_sessions table
+  // 3. Delete from Supabase pop_quiz_sessions & pop_quiz_submissions & liveSessions tables
   try {
-    await supabaseAdmin.from('pop_quiz_sessions').delete().eq('id', sessionId);
+    await Promise.allSettled([
+      supabaseAdmin.from('pop_quiz_sessions').delete().eq('id', sessionId),
+      supabaseAdmin.from('pop_quiz_submissions').delete().eq('session_id', sessionId),
+      supabaseAdmin.from('liveSessions').delete().eq('id', sessionId),
+    ]);
   } catch (err: any) {
     console.warn(`[Pop Quiz Engine] Notice DB delete for session ${sessionId}:`, err?.message || err);
   }
 
-  // 4. Delete from Supabase liveSessions backup table
+  // 4. Redundant direct PostgreSQL purge (guarantees permanent deletion)
   try {
-    await supabaseAdmin.from('liveSessions').delete().eq('id', sessionId);
-  } catch {}
+    await pgPool.query('DELETE FROM pop_quiz_submissions WHERE session_id = $1;', [sessionId]);
+    await pgPool.query('DELETE FROM pop_quiz_sessions WHERE id = $1;', [sessionId]);
+    await pgPool.query('DELETE FROM "liveSessions" WHERE id = $1;', [sessionId]).catch(() => {});
+  } catch (pgErr: any) {
+    console.warn(`[Pop Quiz Engine] Notice direct PG purge for session ${sessionId}:`, pgErr?.message || pgErr);
+  }
 
   // 5. Broadcast deletion event to all connected realtime clients
   try {
@@ -1144,6 +1240,8 @@ export async function getSubmissionsForSession(sessionId: string): Promise<PopQu
     if (!error && Array.isArray(data)) {
       data.forEach((row: any) => {
         const rawJson = row.data && typeof row.data === 'object' ? row.data : {};
+        const isWinner = Boolean(row.is_winner || rawJson.isWinner);
+        const isCorrect = Boolean(row.is_correct || rawJson.isCorrect || isWinner);
         const subData: PopQuizSubmission = {
           id: row.id || rawJson.id,
           sessionId: row.session_id || rawJson.sessionId,
@@ -1153,8 +1251,8 @@ export async function getSubmissionsForSession(sessionId: string): Promise<PopQu
           userEmail: row.user_email || rawJson.userEmail || '',
           userInstitution: row.user_institution || rawJson.userInstitution || '',
           submittedAnswer: row.submitted_answer || rawJson.submittedAnswer || '',
-          isCorrect: Boolean(row.is_correct || rawJson.isCorrect),
-          isWinner: Boolean(row.is_winner || rawJson.isWinner),
+          isCorrect,
+          isWinner,
           gpAwarded: Number(row.gp_awarded ?? rawJson.gpAwarded ?? 0),
           submittedAt: row.submitted_at || rawJson.submittedAt || row.created_at || new Date().toISOString(),
         };

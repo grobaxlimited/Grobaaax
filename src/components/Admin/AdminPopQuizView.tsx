@@ -246,7 +246,7 @@ export function AdminPopQuizView() {
     }
   };
 
-  // Dedicated delete handler with optimistic UI update
+  // Dedicated delete handler with optimistic UI update and permanent deletion across tiers
   const handleDeleteSession = async (sessionId: string) => {
     setActionLoading(true);
     setStatusMessage(null);
@@ -261,12 +261,23 @@ export function AdminPopQuizView() {
       }
       setConfirmDeleteSession(null);
 
+      // 1. Call server-authoritative permanent deletion endpoint
       const res = await fetch(`/api/pop-quiz/session/${sessionId}`, {
         method: 'DELETE',
       });
       const data = await res.json();
+
+      // 2. Client-side redundant Supabase purge to guarantee instant consistency
+      try {
+        await Promise.allSettled([
+          supabase.from('pop_quiz_sessions').delete().eq('id', sessionId),
+          supabase.from('pop_quiz_submissions').delete().eq('session_id', sessionId),
+          supabase.from('liveSessions').delete().eq('id', sessionId),
+        ]);
+      } catch {}
+
       if (data.success) {
-        setStatusMessage({ type: 'success', text: 'Quiz deleted successfully.' });
+        setStatusMessage({ type: 'success', text: 'Quiz permanently deleted from all storage tiers.' });
         await fetchSessions();
       } else {
         setStatusMessage({ type: 'error', text: data.message || 'Failed to delete quiz.' });
@@ -319,6 +330,13 @@ export function AdminPopQuizView() {
   // Find currently running session
   const runningSession = sessions.find((s) => s.status === 'running') || null;
 
+  // Active target session to monitor/inspect (defaults to selected session, running session, or newest session)
+  const activeInspectSession =
+    (selectedSessionId ? sessions.find((s) => s.id === selectedSessionId) : null) ||
+    runningSession ||
+    sessions[0] ||
+    null;
+
   // Fetch student submissions for a session
   const fetchSubmissions = async (sessionId: string) => {
     try {
@@ -339,16 +357,16 @@ export function AdminPopQuizView() {
     }
   };
 
-  // Poll submissions whenever a running session is active
+  // Poll submissions whenever active inspect session is selected
   useEffect(() => {
-    if (runningSession?.id) {
-      fetchSubmissions(runningSession.id);
+    if (activeInspectSession?.id) {
+      fetchSubmissions(activeInspectSession.id);
       const subInterval = setInterval(() => {
-        fetchSubmissions(runningSession.id);
-      }, 3000);
+        fetchSubmissions(activeInspectSession.id);
+      }, 3500);
       return () => clearInterval(subInterval);
     }
-  }, [runningSession?.id]);
+  }, [activeInspectSession?.id]);
 
   // Subscribe to real-time events for instant submission & winner refresh
   useEffect(() => {
@@ -356,18 +374,21 @@ export function AdminPopQuizView() {
     channel
       .on('broadcast', { event: 'pop_quiz_question_published' }, () => {
         fetchSessions();
-        if (runningSession?.id) fetchSubmissions(runningSession.id);
+        if (activeInspectSession?.id) fetchSubmissions(activeInspectSession.id);
       })
       .on('broadcast', { event: 'pop_quiz_question_closed' }, () => {
         fetchSessions();
-        if (runningSession?.id) fetchSubmissions(runningSession.id);
+        if (activeInspectSession?.id) fetchSubmissions(activeInspectSession.id);
+      })
+      .on('broadcast', { event: 'pop_quiz_session_deleted' }, () => {
+        fetchSessions();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [runningSession?.id]);
+  }, [activeInspectSession?.id]);
 
   // Manual Award Winner handler for Admin override
   const handleManualAward = async (sub: PopQuizSubmission, question: PopQuizQuestion, sessionId: string) => {
@@ -647,14 +668,27 @@ export function AdminPopQuizView() {
 
                     {/* Action Controls */}
                     <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => setPreviewModalSession(session)}
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
-                        title="Preview questions"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Preview</span>
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setPreviewModalSession(session)}
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                          title="Preview questions"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Preview</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedSessionId(session.id);
+                            setActiveTab('live');
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                          title="Inspect questions, winners, and student submissions"
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          <span>Submissions</span>
+                        </button>
+                      </div>
 
                       <div className="flex items-center gap-1.5">
                         {isDraft && (
@@ -1097,91 +1131,142 @@ export function AdminPopQuizView() {
         </div>
       )}
 
-      {/* TAB 3: LIVE MONITOR */}
+      {/* TAB 3: LIVE MONITOR & SUBMISSIONS INSPECTOR */}
       {activeTab === 'live' && (
         <div className="space-y-6">
-          {!runningSession ? (
+          {!activeInspectSession ? (
             <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
               <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
                 <Clock className="w-7 h-7" />
               </div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">No Live Quiz Currently Running</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">No Quiz Available</h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Start a quiz from the "All Quizzes" list or create a new quiz session to begin real-time question publishing.
+                Create a quiz session or start a scheduled quiz to monitor student submissions and live questions.
               </p>
               <button
-                onClick={() => setActiveTab('sessions')}
+                onClick={() => setActiveTab('create')}
                 className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs cursor-pointer"
               >
-                View Available Quizzes
+                Create Pop Quiz
               </button>
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Running Quiz Card */}
-              <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-indigo-950 border border-blue-500/30 text-white shadow-xl space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
-                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">LIVE SESSION</span>
+              {/* Session Banner & Quiz Switcher */}
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-blue-500/30 text-white shadow-xl space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {activeInspectSession.status === 'running' ? (
+                        <>
+                          <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+                          <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">LIVE SESSION IN PROGRESS</span>
+                        </>
+                      ) : (
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          activeInspectSession.status === 'completed' ? 'bg-purple-500/30 text-purple-300 border border-purple-500/40' :
+                          activeInspectSession.status === 'paused' ? 'bg-amber-500/30 text-amber-300 border border-amber-500/40' :
+                          'bg-blue-500/30 text-blue-300 border border-blue-500/40'
+                        }`}>
+                          {activeInspectSession.status} QUIZ
+                        </span>
+                      )}
                     </div>
-                    <h2 className="text-2xl font-black">{runningSession.title}</h2>
+                    <h2 className="text-2xl font-black">{activeInspectSession.title}</h2>
                     <p className="text-xs text-slate-300">
-                      Started at {runningSession.startedAt ? new Date(runningSession.startedAt).toLocaleTimeString() : 'now'} • Ends at {runningSession.endTime} (WAT)
+                      Date: {activeInspectSession.date} • Window: {activeInspectSession.startTime} - {activeInspectSession.endTime} (WAT)
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleQuizControl(runningSession.id, 'pause')}
-                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-                    >
-                      <Pause className="w-3.5 h-3.5" />
-                      <span>Pause Quiz</span>
-                    </button>
-                    <button
-                      onClick={() => handleQuizControl(runningSession.id, 'end')}
-                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-                    >
-                      <StopCircle className="w-3.5 h-3.5" />
-                      <span>End Quiz</span>
-                    </button>
+                  {/* Switch Quiz Dropdown & Action buttons */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    {sessions.length > 1 && (
+                      <div className="flex items-center gap-2 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700">
+                        <span className="text-[11px] text-slate-400 font-semibold">Quiz:</span>
+                        <select
+                          value={activeInspectSession.id}
+                          onChange={(e) => setSelectedSessionId(e.target.value)}
+                          className="bg-slate-900 text-white text-xs font-bold rounded-lg px-2.5 py-1 border border-slate-700 focus:outline-none cursor-pointer"
+                        >
+                          {sessions.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.title} ({s.status.toUpperCase()})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {activeInspectSession.status === 'running' ? (
+                      <>
+                        <button
+                          onClick={() => handleQuizControl(activeInspectSession.id, 'pause')}
+                          className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <Pause className="w-3.5 h-3.5" />
+                          <span>Pause Quiz</span>
+                        </button>
+                        <button
+                          onClick={() => handleQuizControl(activeInspectSession.id, 'end')}
+                          className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <StopCircle className="w-3.5 h-3.5" />
+                          <span>End Quiz</span>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmStartSession(activeInspectSession)}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-white" />
+                        <span>{activeInspectSession.status === 'completed' ? 'Restart Quiz' : 'Start Quiz'}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {/* Progress Indicators */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10">
-                    <div className="text-[10px] text-slate-400 font-bold uppercase">Current Question</div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Questions</div>
                     <div className="text-lg font-black text-blue-400 mt-1">
-                      #{runningSession.currentQuestionIndex > 0 ? runningSession.currentQuestionIndex : 1} of {runningSession.totalQuestions}
+                      {activeInspectSession.questions?.length || 0} Total
                     </div>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10">
-                    <div className="text-[10px] text-slate-400 font-bold uppercase">Question Interval</div>
-                    <div className="text-lg font-black text-indigo-400 mt-1">{runningSession.intervalMinutes} mins</div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Interval</div>
+                    <div className="text-lg font-black text-indigo-400 mt-1">{activeInspectSession.intervalMinutes} mins</div>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10">
-                    <div className="text-[10px] text-slate-400 font-bold uppercase">Time Allowed</div>
-                    <div className="text-lg font-black text-amber-400 mt-1">{runningSession.questionDurationSeconds}s</div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Time / Question</div>
+                    <div className="text-lg font-black text-amber-400 mt-1">{activeInspectSession.questionDurationSeconds}s</div>
                   </div>
                   <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10">
-                    <div className="text-[10px] text-slate-400 font-bold uppercase">GP Reward</div>
-                    <div className="text-lg font-black text-emerald-400 mt-1">{runningSession.defaultGpReward} GP</div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Reward / Question</div>
+                    <div className="text-lg font-black text-emerald-400 mt-1">{activeInspectSession.defaultGpReward} GP</div>
                   </div>
                 </div>
               </div>
 
-              {/* Real-time Questions Feed */}
+              {/* Questions & Student Submissions Feed */}
               <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-amber-500" />
-                  <span>Question Run-Down & Live Winners</span>
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-500" />
+                    <span>Question Run-Down & Student Submissions Log</span>
+                  </h3>
+                  <button
+                    onClick={() => fetchSubmissions(activeInspectSession.id)}
+                    className="text-xs text-blue-500 hover:text-blue-400 font-bold flex items-center gap-1 cursor-pointer self-start sm:self-auto"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Refresh Answers</span>
+                  </button>
+                </div>
 
                 <div className="space-y-3">
-                  {(runningSession.questions || []).map((q) => {
+                  {(activeInspectSession.questions || []).map((q) => {
                     const isActive = q.status === 'active';
                     const isClosed = q.status === 'closed';
                     const hasWinner = Boolean(q.winnerUserId);
@@ -1359,7 +1444,7 @@ export function AdminPopQuizView() {
                                         {/* Manual Award Override Button */}
                                         {!isWinningSub && (
                                           <button
-                                            onClick={() => handleManualAward(sub, q, runningSession.id)}
+                                            onClick={() => handleManualAward(sub, q, activeInspectSession.id)}
                                             disabled={Boolean(awardingLoading)}
                                             className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold flex items-center gap-1 transition shadow-sm cursor-pointer disabled:opacity-50"
                                             title="Manually award this student as the winner for this question"
@@ -1426,7 +1511,7 @@ export function AdminPopQuizView() {
                           <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1">{session.title}</h3>
                         </div>
 
-                        <div className="flex items-center gap-4 text-xs">
+                        <div className="flex flex-wrap items-center gap-3 text-xs">
                           <div>
                             <span className="text-slate-400">Winners: </span>
                             <strong className="text-blue-500 font-bold">{winnersCount}</strong>
@@ -1435,6 +1520,24 @@ export function AdminPopQuizView() {
                             <span className="text-slate-400">Total GP Won: </span>
                             <strong className="text-amber-500 font-bold">+{totalGpAwarded} GP</strong>
                           </div>
+                          <button
+                            onClick={() => {
+                              setSelectedSessionId(session.id);
+                              setActiveTab('live');
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                            title="Inspect questions and student submissions log"
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            <span>View All Answers</span>
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteSession(session)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                            title="Delete past quiz permanently"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 

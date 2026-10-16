@@ -17908,6 +17908,13 @@ import { Router as Router9 } from "express";
 init_supabase();
 import fs6 from "fs";
 import path6 from "path";
+import { Pool } from "pg";
+var pgPool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 4,
+  idleTimeoutMillis: 1e4
+});
 var DATA_DIR = path6.join(process.cwd(), "server");
 var SESSIONS_FILE = path6.join(DATA_DIR, "pop_quiz_sessions.json");
 var SUBMISSIONS_FILE = path6.join(DATA_DIR, "pop_quiz_submissions.json");
@@ -17956,6 +17963,18 @@ function appendSubmissionToDisk(submission) {
     fs6.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(submissions, null, 2), "utf-8");
   } catch (err) {
     console.warn("[Pop Quiz Engine] Notice writing submissions disk cache:", err);
+  }
+}
+function removeSubmissionsForSessionFromDisk(sessionId) {
+  try {
+    if (fs6.existsSync(SUBMISSIONS_FILE)) {
+      const raw = fs6.readFileSync(SUBMISSIONS_FILE, "utf-8");
+      const submissions = JSON.parse(raw) || [];
+      const filtered = submissions.filter((s) => s.sessionId !== sessionId);
+      fs6.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(filtered, null, 2), "utf-8");
+    }
+  } catch (err) {
+    console.warn("[Pop Quiz Engine] Notice removing submissions disk cache:", err);
   }
 }
 function normalizeAnswer(ans) {
@@ -18117,6 +18136,38 @@ async function persistSession(session) {
   } catch {
   }
 }
+async function reconcileSessionWinnersWithSubmissions(session) {
+  let modified = false;
+  if (!session || !session.id || !Array.isArray(session.questions)) return false;
+  try {
+    const { data: subs, error } = await supabaseAdmin.from("pop_quiz_submissions").select("*").eq("session_id", session.id).order("submitted_at", { ascending: true });
+    if (!error && Array.isArray(subs) && subs.length > 0) {
+      const qMap = new Map((session.questions || []).map((q) => [q.id, q]));
+      for (const row of subs) {
+        const rawJson = row.data && typeof row.data === "object" ? row.data : {};
+        const qId = row.question_id || rawJson.questionId;
+        const q = qMap.get(qId);
+        if (!q) continue;
+        const isWinner = Boolean(row.is_winner || rawJson.isWinner);
+        const isCorrect = Boolean(row.is_correct || rawJson.isCorrect || isWinner);
+        if (isWinner && (!q.winnerUserId || q.closeReason !== "answered")) {
+          q.winnerUserId = row.user_id || rawJson.userId;
+          q.winnerName = row.user_name || rawJson.userName || "Scholar";
+          q.winnerInstitution = row.user_institution || rawJson.userInstitution || "";
+          q.winningAnswer = row.submitted_answer || rawJson.submittedAnswer || q.correctAnswer;
+          q.gpAwarded = Number(row.gp_awarded ?? rawJson.gpAwarded ?? q.gpReward);
+          q.wonAt = row.submitted_at || rawJson.submittedAt || row.created_at;
+          q.status = "closed";
+          q.closeReason = "answered";
+          modified = true;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`[Pop Quiz Engine] Notice reconciling winners for session ${session.id}:`, err?.message || err);
+  }
+  return modified;
+}
 async function ensureSessionsLoaded() {
   if (hasInitializedFromStorage && sessionsCache.size > 0) {
     return;
@@ -18130,21 +18181,24 @@ async function ensureSessionsLoaded() {
   try {
     const { data, error } = await supabaseAdmin.from("pop_quiz_sessions").select("id, data, updated_at").order("updated_at", { ascending: false }).limit(100);
     if (!error && Array.isArray(data)) {
-      data.forEach((row) => {
-        if (row?.data?.id) {
-          const existing = sessionsCache.get(row.data.id);
-          if (!existing || new Date(row.updated_at).getTime() >= new Date(existing.updatedAt).getTime()) {
-            sessionsCache.set(row.data.id, row.data);
-          }
+      const activeIds = new Set(data.map((r) => r.id));
+      for (const cachedId of sessionsCache.keys()) {
+        if (!activeIds.has(cachedId)) {
+          sessionsCache.delete(cachedId);
         }
-      });
+      }
+      for (const row of data) {
+        if (row?.data?.id) {
+          const session = row.data;
+          await reconcileSessionWinnersWithSubmissions(session);
+          sessionsCache.set(session.id, session);
+        }
+      }
     }
   } catch (err) {
     console.warn("[Pop Quiz Engine] Notice loading sessions from db:", err?.message || err);
   }
-  if (sessionsCache.size > 0) {
-    writeSessionsToDisk(Array.from(sessionsCache.values()));
-  }
+  writeSessionsToDisk(Array.from(sessionsCache.values()));
   hasInitializedFromStorage = true;
 }
 async function loadSessionsFromDatabase() {
@@ -18152,11 +18206,19 @@ async function loadSessionsFromDatabase() {
   try {
     const { data, error } = await supabaseAdmin.from("pop_quiz_sessions").select("id, data, updated_at").order("updated_at", { ascending: false }).limit(100);
     if (!error && Array.isArray(data)) {
-      data.forEach((row) => {
-        if (row?.data?.id) {
-          sessionsCache.set(row.data.id, row.data);
+      const activeIds = new Set(data.map((r) => r.id));
+      for (const cachedId of sessionsCache.keys()) {
+        if (!activeIds.has(cachedId)) {
+          sessionsCache.delete(cachedId);
         }
-      });
+      }
+      for (const row of data) {
+        if (row?.data?.id) {
+          const session = row.data;
+          await reconcileSessionWinnersWithSubmissions(session);
+          sessionsCache.set(session.id, session);
+        }
+      }
       writeSessionsToDisk(Array.from(sessionsCache.values()));
     }
   } catch (err) {
@@ -18172,8 +18234,10 @@ async function getSessionById(sessionId) {
   try {
     const { data } = await supabaseAdmin.from("pop_quiz_sessions").select("id, data").eq("id", sessionId).maybeSingle();
     if (data?.data) {
-      sessionsCache.set(sessionId, data.data);
-      return data.data;
+      const session = data.data;
+      await reconcileSessionWinnersWithSubmissions(session);
+      sessionsCache.set(sessionId, session);
+      return session;
     }
   } catch {
   }
@@ -18185,17 +18249,26 @@ async function deleteSessionFromDatabase(sessionId) {
   try {
     const allSessions = Array.from(sessionsCache.values());
     writeSessionsToDisk(allSessions);
+    removeSubmissionsForSessionFromDisk(sessionId);
   } catch (diskErr) {
     console.warn(`[Pop Quiz Engine] Notice disk delete for session ${sessionId}:`, diskErr);
   }
   try {
-    await supabaseAdmin.from("pop_quiz_sessions").delete().eq("id", sessionId);
+    await Promise.allSettled([
+      supabaseAdmin.from("pop_quiz_sessions").delete().eq("id", sessionId),
+      supabaseAdmin.from("pop_quiz_submissions").delete().eq("session_id", sessionId),
+      supabaseAdmin.from("liveSessions").delete().eq("id", sessionId)
+    ]);
   } catch (err) {
     console.warn(`[Pop Quiz Engine] Notice DB delete for session ${sessionId}:`, err?.message || err);
   }
   try {
-    await supabaseAdmin.from("liveSessions").delete().eq("id", sessionId);
-  } catch {
+    await pgPool.query("DELETE FROM pop_quiz_submissions WHERE session_id = $1;", [sessionId]);
+    await pgPool.query("DELETE FROM pop_quiz_sessions WHERE id = $1;", [sessionId]);
+    await pgPool.query('DELETE FROM "liveSessions" WHERE id = $1;', [sessionId]).catch(() => {
+    });
+  } catch (pgErr) {
+    console.warn(`[Pop Quiz Engine] Notice direct PG purge for session ${sessionId}:`, pgErr?.message || pgErr);
   }
   try {
     await broadcastPopQuizEvent("session_deleted", { sessionId });
@@ -18746,6 +18819,8 @@ async function getSubmissionsForSession(sessionId) {
     if (!error && Array.isArray(data)) {
       data.forEach((row) => {
         const rawJson = row.data && typeof row.data === "object" ? row.data : {};
+        const isWinner = Boolean(row.is_winner || rawJson.isWinner);
+        const isCorrect = Boolean(row.is_correct || rawJson.isCorrect || isWinner);
         const subData = {
           id: row.id || rawJson.id,
           sessionId: row.session_id || rawJson.sessionId,
@@ -18755,8 +18830,8 @@ async function getSubmissionsForSession(sessionId) {
           userEmail: row.user_email || rawJson.userEmail || "",
           userInstitution: row.user_institution || rawJson.userInstitution || "",
           submittedAnswer: row.submitted_answer || rawJson.submittedAnswer || "",
-          isCorrect: Boolean(row.is_correct || rawJson.isCorrect),
-          isWinner: Boolean(row.is_winner || rawJson.isWinner),
+          isCorrect,
+          isWinner,
           gpAwarded: Number(row.gp_awarded ?? rawJson.gpAwarded ?? 0),
           submittedAt: row.submitted_at || rawJson.submittedAt || row.created_at || (/* @__PURE__ */ new Date()).toISOString()
         };
