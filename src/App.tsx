@@ -20,7 +20,6 @@ import { OfflineIndicator } from './components/PWA/OfflineIndicator';
 import { MobilePackagingModal } from './components/PWA/MobilePackagingModal';
 import { AuthCallbackReturn } from './components/Auth/AuthCallbackReturn';
 import { useDevicePlatform } from './hooks/useDevicePlatform';
-import { PopQuizActiveModal } from './components/PopQuiz/PopQuizActiveModal';
 
 function MainLayout() {
   const {
@@ -140,9 +139,6 @@ function MainLayout() {
 
       {/* Real-Time In-App Push Notification Toast Alerts */}
       <InAppPushToast />
-
-      {/* Grobaax Pop Quiz Live Question Competition Modal */}
-      <PopQuizActiveModal />
 
       {/* Firebase Authentication Modal */}
       <AuthModal

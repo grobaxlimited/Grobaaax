@@ -100,7 +100,6 @@ export function getTabsForRole(role?: ManagerRole | null, uid?: string | null): 
       'notifications',
       'subscriptions',
       'hints',
-      'pop_quiz',
       'settings',
       'contact',
     ];
@@ -131,7 +130,6 @@ export function getTabsForRole(role?: ManagerRole | null, uid?: string | null): 
       'notifications',
       'subscriptions',
       'hints',
-      'pop_quiz',
       'settings',
       'contact',
     ];
@@ -166,7 +164,6 @@ export function getTabsForRole(role?: ManagerRole | null, uid?: string | null): 
       tabs.add('events');
       tabs.add('school_dome');
       tabs.add('hints');
-      tabs.add('pop_quiz');
       break;
     case 'COMMUNITY_ANNOUNCEMENT_MANAGER':
       tabs.add('community');
@@ -184,7 +181,6 @@ export function getTabsForRole(role?: ManagerRole | null, uid?: string | null): 
       tabs.add('live_management');
       tabs.add('questions');
       tabs.add('hints');
-      tabs.add('pop_quiz');
       break;
     case 'QUESTION_MANAGER':
       tabs.add('questions');
