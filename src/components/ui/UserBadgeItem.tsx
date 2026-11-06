@@ -72,10 +72,10 @@ export const PremiumPackageBadge: React.FC<{
   if (isVip) {
     return (
       <span
-        className={`inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider shadow-sm bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-slate-950 border border-amber-300 ring-1 ring-amber-400/50 ${className}`}
+        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#ffd028] text-slate-950 border border-amber-300 shadow-2xs ${className}`}
         title={`Active VIP Scholar Package: ${tier}`}
       >
-        <Crown className="w-2.5 h-2.5 text-slate-950 fill-amber-950 shrink-0" />
+        <Crown className="w-2.5 h-2.5 text-slate-950 fill-slate-950 shrink-0" />
         <span className="truncate">VIP SCHOLAR</span>
       </span>
     );
@@ -84,10 +84,10 @@ export const PremiumPackageBadge: React.FC<{
   if (isFree) {
     return (
       <span
-        className={`inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 ${className}`}
+        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#eaf3fc] dark:bg-[#1a2d4b] text-[#1877f2] dark:text-blue-300 border border-[#cfe2f8] dark:border-blue-800 shadow-2xs ${className}`}
         title="Free Scholar Account"
       >
-        <User className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400 shrink-0" />
+        <User className="w-2.5 h-2.5 text-[#1877f2] dark:text-blue-300 shrink-0" />
         <span className="truncate">FREE SCHOLAR</span>
       </span>
     );
@@ -101,10 +101,10 @@ export const PremiumPackageBadge: React.FC<{
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider shadow-xs bg-gradient-to-r from-blue-900 to-indigo-900 text-blue-200 border border-blue-600/70 dark:bg-gradient-to-r dark:from-blue-950 dark:to-indigo-900 dark:text-blue-100 dark:border-blue-500/60 ${className}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-2xs bg-[#1877f2] text-white ${className}`}
       title={`Active Premium Package: ${tier}`}
     >
-      <Sparkles className="w-2.5 h-2.5 text-cyan-300 shrink-0" />
+      <Sparkles className="w-2.5 h-2.5 text-white shrink-0" />
       <span className="truncate">{label}</span>
     </span>
   );
@@ -254,9 +254,11 @@ export const UserBadgeItem: React.FC<UserBadgeItemProps> = ({
             isCm
               ? 'text-amber-500 dark:text-amber-400'
               : isStaff
-              ? 'text-blue-900 dark:text-blue-300'
+              ? 'text-[#1565c0] dark:text-blue-400'
               : isVipUser
-              ? 'text-amber-600 dark:text-amber-300'
+              ? 'text-[#1565c0] dark:text-blue-400'
+              : hasPremium
+              ? 'text-[#1565c0] dark:text-blue-400'
               : 'text-slate-900 dark:text-slate-100'
           } ${textSizeClass}`}
         >
@@ -296,7 +298,7 @@ export const UserBadgeItem: React.FC<UserBadgeItemProps> = ({
             <span>Community Manager</span>
           </span>
         ) : isStaff ? (
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-950 text-blue-200 border border-blue-700/50 flex items-center gap-1">
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#0b1b36] text-white flex items-center gap-1 shadow-2xs">
             <span>Staff / Admin</span>
           </span>
         ) : null}

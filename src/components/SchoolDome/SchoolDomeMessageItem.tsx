@@ -19,6 +19,7 @@ import {
   Zap,
   Send,
   UserCheck,
+  Megaphone,
 } from 'lucide-react';
 import { UserBadgeItem } from '../ui/UserBadgeItem';
 import { useApp } from '../../context/AppContext';
@@ -417,27 +418,105 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
     return null;
   }, [message, questions, activeQuestion]);
 
+  // 1. DEDICATED ANNOUNCEMENT CARD (Matching Screenshot Card 1)
+  if (message.type === 'announcement' || message.type === 'system' || (message as any).isAnnouncement) {
+    return (
+      <div
+        id={`dome-msg-${message.id}`}
+        className="p-3.5 sm:p-4 rounded-2xl bg-[#f4f9ff] dark:bg-[#111e33] border border-[#d6e7fa] dark:border-[#1e3458] shadow-xs transition-all"
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/40 text-[#1877f2] flex items-center justify-center shrink-0 mt-0.5">
+            <Megaphone className="w-5 h-5 fill-current text-[#1877f2]" />
+          </div>
+
+          <div className="flex-1 min-w-0 space-y-2">
+            <p className="text-sm font-bold text-slate-900 dark:text-white leading-relaxed">
+              {message.messageText}
+            </p>
+
+            {/* Reactions & Reply Row */}
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              {Object.entries(reactions).map(([emoji, count]) => {
+                const numericCount = typeof count === 'number'
+                  ? count
+                  : (count && typeof count === 'object' && (count as any).value !== undefined
+                    ? Number((count as any).value)
+                    : Number(count));
+                if (isNaN(numericCount) || numericCount <= 0) return null;
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReact && onReact(message.id, emoji);
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-100/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold border border-sky-200 dark:border-slate-700 cursor-pointer transition active:scale-90 select-none"
+                  >
+                    <span>{emoji}</span>
+                    <span className="text-[11px] font-black text-[#1565c0] dark:text-blue-300">{numericCount}</span>
+                  </button>
+                );
+              })}
+
+              {/* Quick Reaction Emojis */}
+              {['🔥', '❤️', '👏'].map(emoji => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReact && onReact(message.id, emoji);
+                  }}
+                  title={`React ${emoji}`}
+                  className="text-xs p-1 hover:bg-sky-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer select-none"
+                >
+                  {emoji}
+                </button>
+              ))}
+
+              <span className="text-slate-300 dark:text-slate-700 font-light select-none">|</span>
+
+              {onReply && (
+                <button
+                  type="button"
+                  onClick={() => onReply(message)}
+                  className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 font-semibold cursor-pointer"
+                >
+                  <Reply className="w-3.5 h-3.5 -scale-x-100" />
+                  <span>Reply</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       id={`dome-msg-${message.id}`}
       className={`group relative flex flex-col transition-all ${
         message.type === 'question'
           ? 'px-0 py-1'
-          : isSelf
-          ? 'px-3 py-2.5 rounded-2xl bg-[#d9fdd3]/95 dark:bg-[#005c4b]/35 border border-emerald-500/25 shadow-xs'
-          : 'px-3 py-2.5 rounded-2xl bg-white/95 dark:bg-[#202c33]/95 border border-slate-200/70 dark:border-slate-800/80 shadow-xs hover:bg-white dark:hover:bg-[#202c33]'
+          : 'p-3.5 sm:p-4 rounded-2xl bg-[#f4f9ff] dark:bg-[#111e33] border border-[#d6e7fa] dark:border-[#1e3458] shadow-xs hover:border-blue-300 dark:hover:border-blue-800'
       }`}
     >
-      {/* Discord-style Curved Reply Header */}
+      {/* Quoted Reply Header (if replying to a message) */}
       {message.replyTo && (
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pl-6 pb-1 relative">
-          {/* L-shaped curved connector line */}
-          <div className="absolute left-3 top-2 w-3 h-2.5 border-l-2 border-t-2 border-slate-300 dark:border-slate-600 rounded-tl-lg" />
-          <span className="font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1">
-            @{message.replyTo.userName}
-          </span>
-          <span className="truncate max-w-[240px] sm:max-w-md text-[11px] text-slate-500 dark:text-slate-400">
-            {message.replyTo.messageSnippet}
+        <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2 pb-1.5 border-b border-sky-100 dark:border-slate-800/80">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-bold text-[#1565c0] dark:text-blue-400 shrink-0">
+              @{message.replyTo.userName}
+            </span>
+            <span className="truncate text-slate-600 dark:text-slate-300 font-medium">
+              {message.replyTo.messageSnippet}
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-400 shrink-0 font-medium ml-auto">
+            {formattedTime}
           </span>
         </div>
       )}
@@ -452,10 +531,10 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
               'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
             }
             alt={message.userName}
-            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover ring-1 ${
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover ring-2 ${
               isStaffOrAdmin
                 ? 'ring-amber-500 shadow-xs'
-                : 'ring-slate-200 dark:ring-slate-700'
+                : 'ring-sky-200 dark:ring-sky-900'
             }`}
           />
         </div>
@@ -814,18 +893,14 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
                 );
               })()}
             </div>
-          ) : message.type === 'announcement' || message.type === 'system' ? (
-            <div className="mt-1 p-2.5 bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-amber-100 leading-relaxed font-medium">
-              {message.messageText}
-            </div>
           ) : (
-            <div className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed break-words font-normal whitespace-pre-wrap mt-1 flex items-center flex-wrap gap-2">
+            <div className="text-sm font-medium text-slate-900 dark:text-slate-100 leading-relaxed break-words whitespace-pre-wrap mt-1">
               <span>{message.messageText}</span>
             </div>
           )}
 
           {/* Reactions Row + Inline Quick Reply / React Buttons */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-1 border-t border-sky-100/60 dark:border-slate-800/40">
             {/* Existing Reactions */}
             {Object.entries(reactions).map(([emoji, count]) => {
               const numericCount = typeof count === 'number'
@@ -837,46 +912,49 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
               return (
                 <button
                   key={emoji}
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onReact && onReact(message.id, emoji);
                   }}
-                  className="flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-100/60 dark:hover:bg-blue-900/30 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 cursor-pointer transition active:scale-90 select-none"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold border border-sky-200/90 dark:border-slate-700 cursor-pointer transition active:scale-90 select-none"
                 >
                   <span className="transform active:scale-125 transition-transform">{emoji}</span>
-                  <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">{numericCount}</span>
+                  <span className="text-[11px] font-black text-[#1565c0] dark:text-blue-300">{numericCount}</span>
                 </button>
               );
             })}
 
-            {/* Quick Emoji Reaction Buttons */}
-            <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition">
-              {COMMON_EMOJIS.slice(0, 3).map(emoji => (
-                <button
-                  key={emoji}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReact && onReact(message.id, emoji);
-                  }}
-                  title={`React ${emoji}`}
-                  className="text-xs px-1 py-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition cursor-pointer active:scale-125 select-none"
-                >
-                  {emoji}
-                </button>
-              ))}
+            {/* Quick Emoji Reaction Buttons: 🔥, ❤️, 👏 */}
+            {['🔥', '❤️', '👏'].map(emoji => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReact && onReact(message.id, emoji);
+                }}
+                title={`React ${emoji}`}
+                className="text-xs p-1 hover:bg-sky-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer active:scale-125 select-none"
+              >
+                {emoji}
+              </button>
+            ))}
 
-              {/* Quick Reply Button */}
-              {onReply && (
-                <button
-                  onClick={() => onReply(message)}
-                  className="flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition cursor-pointer font-medium"
-                  title="Reply to message"
-                >
-                  <Reply className="w-3.5 h-3.5 -scale-x-100" />
-                  <span>Reply</span>
-                </button>
-              )}
-            </div>
+            <span className="text-slate-300 dark:text-slate-700 font-light select-none">|</span>
+
+            {/* Quick Reply Button */}
+            {onReply && (
+              <button
+                type="button"
+                onClick={() => onReply(message)}
+                className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 font-semibold cursor-pointer"
+                title="Reply to message"
+              >
+                <Reply className="w-3.5 h-3.5 -scale-x-100" />
+                <span>Reply</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

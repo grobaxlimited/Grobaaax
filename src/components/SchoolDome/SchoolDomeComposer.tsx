@@ -297,19 +297,19 @@ export const SchoolDomeComposer: React.FC<SchoolDomeComposerProps> = ({
         <button
           type="button"
           onClick={() => setShowEmojiBar(!showEmojiBar)}
-          className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center transition bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer"
+          className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center transition bg-[#e8f1fc] dark:bg-[#1a2842] hover:bg-blue-100 dark:hover:bg-blue-900/40 text-[#1976d2] dark:text-[#64b5f6] cursor-pointer shadow-2xs"
           title="Quick Reaction"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 stroke-[2.5]" />
         </button>
 
         {/* Input Box */}
-        <div className={`relative flex-1 flex items-center rounded-2xl border px-3 py-1.5 transition-all ${
+        <div className={`relative flex-1 flex items-center rounded-full border px-4 py-1.5 transition-all ${
           isInputDisabled
             ? 'bg-slate-100/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
             : replyToMessage?.type === 'question'
             ? 'bg-amber-500/5 dark:bg-amber-950/20 border-amber-500/50 dark:border-amber-500/50 focus-within:ring-2 focus-within:ring-amber-500/20'
-            : 'bg-slate-100 dark:bg-slate-800 border-slate-200/80 dark:border-slate-700/80 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20'
+            : 'bg-[#f0f6fd] dark:bg-[#111e33] border-[#d3e5f8] dark:border-[#1e3458] focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20'
         }`}>
           <input
             ref={inputRef}

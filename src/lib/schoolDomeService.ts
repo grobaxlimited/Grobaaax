@@ -360,7 +360,7 @@ export const DEFAULT_INITIAL_MESSAGES: SchoolDomeMessage[] = [
     level: 'Master',
     isPremium: true,
     isVip: true,
-    messageText: '🏛️ Welcome to School Dome Season #1!\n\nRegistration is now open! Compete for the 50,000 GP prize pool. All scholars standing when the tournament concludes will share the prize pool equally.',
+    messageText: 'Welcome to School Dome! Be part of an exciting academic competition for the 50,000 GP prize pool. Register now to claim your battle slot before Question #1 begins!',
     timestamp: Date.now(),
     type: 'announcement',
     reactions: { '🔥': 5, '⚔️': 3 },

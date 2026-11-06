@@ -15,7 +15,6 @@ import { SchoolDomeQuestionCard } from './SchoolDomeQuestionCard';
 import { CreateSchoolDomeQuestionModal } from './CreateSchoolDomeQuestionModal';
 import { SchoolDomeResultsTab } from './SchoolDomeResultsTab';
 import { SchoolDomeEliminationSpinModal } from './SchoolDomeEliminationSpinModal';
-import { WhatsAppChatBackground } from '../common/WhatsAppChatBackground';
 import {
   subscribeSchoolDomeActiveSeason,
   subscribeSchoolDomeActiveQuestion,
@@ -1466,82 +1465,84 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
       {/* Registration & Survival Status Banner */}
       {currentSeason && (
-        <div
-          onClick={() => setIsContendersModalOpen(true)}
-          className="px-3 sm:px-4 py-2 bg-transparent hover:bg-slate-50/50 dark:hover:bg-slate-800/40 text-slate-800 dark:text-slate-100 border-b border-slate-200/70 dark:border-slate-800/80 shrink-0 flex items-center justify-between gap-3 flex-wrap cursor-pointer transition"
-          title="Click to view full Contenders Breakdown (Registered, Standing, and Knockout members)"
-        >
-          <div className="flex items-center gap-2 text-xs min-w-0">
-            {currentSeason.status === 'ended' ? (
-              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold">
-                <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
-                <span>Season #{currentSeason.seasonNumber} Concluded! Prizes have been awarded. Awaiting the Arbiter to start the next season.</span>
-              </div>
-            ) : currentSeason.status === 'paused' ? (
-              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-black">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping shrink-0" />
-                <Pause className="w-4 h-4 text-amber-500 shrink-0" />
-                <span>PAUSED: Season #{currentSeason.seasonNumber} is currently on hold by Arbiter. Elimination questions, timers, and chat are frozen.</span>
-              </div>
-            ) : isRegistrationOpen ? (
-              isUserRegistered ? (
+        <div className="px-3 sm:px-4 pt-2 pb-1 shrink-0 bg-transparent">
+          <div
+            onClick={() => setIsContendersModalOpen(true)}
+            className="w-full px-3.5 sm:px-4 py-2 rounded-2xl bg-[#eaf8ee] dark:bg-[#0f2d1e] text-[#1b7a37] dark:text-[#4ade80] border border-[#c3ebcb] dark:border-[#1c4b31] flex items-center justify-between gap-3 flex-wrap cursor-pointer transition shadow-2xs hover:shadow-xs"
+            title="Click to view full Contenders Breakdown (Registered, Standing, and Knockout members)"
+          >
+            <div className="flex items-center gap-2 text-xs min-w-0">
+              {currentSeason.status === 'ended' ? (
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold">
+                  <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>Season #{currentSeason.seasonNumber} Concluded! Prizes have been awarded. Awaiting the Arbiter to start the next season.</span>
+                </div>
+              ) : currentSeason.status === 'paused' ? (
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-black">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping shrink-0" />
+                  <Pause className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>PAUSED: Season #{currentSeason.seasonNumber} is currently on hold by Arbiter. Elimination questions, timers, and chat are frozen.</span>
+                </div>
+              ) : isRegistrationOpen ? (
+                isUserRegistered ? (
+                  <div className="flex items-center gap-2 text-[#1b7a37] dark:text-[#4ade80] font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-[#1b7a37] dark:text-[#4ade80] shrink-0" />
+                    <span>You are Registered for Season #{currentSeason.seasonNumber}! Question #1 locks registration.</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold">
+                    <Swords className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>Season #{currentSeason.seasonNumber} Registration is OPEN! Register before Question #1 launches.</span>
+                  </div>
+                )
+              ) : isUserEliminated ? (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full text-rose-600 dark:text-rose-400 font-medium">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                    <span>You were eliminated from Season #{currentSeason.seasonNumber} (wrong answer or time expired). Spectator Mode active (watching live).</span>
+                  </div>
+                  {spinTierType !== 'free' && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEliminationSpinModalOpen(true)}
+                      className="self-start sm:self-auto px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs rounded-xl shadow-md transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                      <span>Spin Elimination Bonus {pendingDomeSpins > 0 ? `(${pendingDomeSpins} Left)` : ''}</span>
+                    </button>
+                  )}
+                </div>
+              ) : isUserStanding ? (
                 <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>You are Registered for Season #{currentSeason.seasonNumber}! Question #1 locks registration.</span>
+                  <Shield className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>Active Contender • {currentSeason.activeUserIds?.length || 0} scholars standing for {currentSeason.prizePool.toLocaleString()} {currentSeason.prizeCurrency || 'GP'}! (Answer correctly before time expires to survive)</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold">
-                  <Swords className="w-4 h-4 text-amber-500 shrink-0" />
-                  <span>Season #{currentSeason.seasonNumber} Registration is OPEN! Register before Question #1 launches.</span>
+                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-medium">
+                  <Eye className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span>Registration closed upon Question #1 launch. Users cannot participate or register after Question #1 (Spectator Mode active).</span>
                 </div>
-              )
-            ) : isUserEliminated ? (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full text-rose-600 dark:text-rose-400 font-medium">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                  <span>You were eliminated from Season #{currentSeason.seasonNumber} (wrong answer or time expired). Spectator Mode active (watching live).</span>
-                </div>
-                {spinTierType !== 'free' && (
-                  <button
-                    type="button"
-                    onClick={() => setIsEliminationSpinModalOpen(true)}
-                    className="self-start sm:self-auto px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs rounded-xl shadow-md transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-slate-950" />
-                    <span>Spin Elimination Bonus {pendingDomeSpins > 0 ? `(${pendingDomeSpins} Left)` : ''}</span>
-                  </button>
-                )}
-              </div>
-            ) : isUserStanding ? (
-              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
-                <Shield className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Active Contender • {currentSeason.activeUserIds?.length || 0} scholars standing for {currentSeason.prizePool.toLocaleString()} {currentSeason.prizeCurrency || 'GP'}! (Answer correctly before time expires to survive)</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-medium">
-                <Eye className="w-4 h-4 text-slate-400 shrink-0" />
-                <span>Registration closed upon Question #1 launch. Users cannot participate or register after Question #1 (Spectator Mode active).</span>
+              )}
+            </div>
+
+            {/* Register Button if open and user not yet registered */}
+            {isRegistrationOpen && !isUserRegistered && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  disabled={isRegistering}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRegister();
+                  }}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 shrink-0 hover:scale-105 active:scale-95"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>{isRegistering ? 'Registering...' : 'Register to Compete'}</span>
+                </button>
               </div>
             )}
           </div>
-
-          {/* Register Button if open and user not yet registered */}
-          {isRegistrationOpen && !isUserRegistered && (
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                disabled={isRegistering}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRegister();
-                }}
-                className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 shrink-0 hover:scale-105 active:scale-95"
-              >
-                <UserCheck className="w-4 h-4" />
-                <span>{isRegistering ? 'Registering...' : 'Register to Compete'}</span>
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -1697,13 +1698,13 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
             </div>
           )}
 
-          {/* 2. MAIN MESSAGE STREAM WITH WHATSAPP DOODLE WALLPAPER */}
-          <WhatsAppChatBackground className="flex-1">
+          {/* 2. MAIN MESSAGE STREAM WITH CLEAN PLAIN BACKGROUND (NO WHATSAPP DOODLES) */}
+          <div className="flex-1 bg-[#edf4fb] dark:bg-[#0c1527] relative flex flex-col min-h-0">
             <div
               ref={setScrollContainerRef}
               onScroll={handleScroll}
               style={{ scrollBehavior: 'auto' }}
-              className="flex-1 h-full overflow-y-auto p-2 sm:p-4 space-y-3"
+              className="flex-1 h-full overflow-y-auto p-2.5 sm:p-4 space-y-3.5 bg-transparent"
             >
               {filteredMessages.map((msg) => (
                 <SchoolDomeMessageItem
@@ -1757,7 +1758,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
 
               <div ref={messagesEndRef} />
             </div>
-          </WhatsAppChatBackground>
+          </div>
 
       {/* Floating Scroll To Bottom Button */}
       {showScrollBottom && (
