@@ -1,51 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
 import { EventDetailsModal } from './EventDetailsModal';
+import { WelcomeVideoModal } from './WelcomeVideoModal';
 import {
   PlatformEventItem,
-  PlatformEventCategory,
   PLATFORM_EVENT_CATEGORIES,
   OFFICIAL_EVENT_HOST,
 } from '../../types';
 import { resolveEventChannel } from '../../utils/eventNavigation';
-import { db, collection, onSnapshot, query, orderBy } from '../../lib/firebase';
 import {
   Trophy,
   ShieldCheck,
   Calendar,
   ArrowRight,
-  Sparkles,
-  Clock,
-  Search,
   ShoppingBag,
   GraduationCap,
-  Flame,
-  Award,
-  Zap,
-  Compass,
-  Building2,
   Users,
-  Smartphone,
-  Swords,
   Lightbulb,
+  Play,
+  Zap,
 } from 'lucide-react';
-
-
-import { WelcomeVideoBox } from './WelcomeVideoBox';
 
 export const HomeTab: React.FC = () => {
   const {
     setActiveTab,
     events: contextEvents,
     markSectionAsRead,
-    currentUser,
     navigateToCommunitySubTab,
     navigateToEventChannel,
     openWalletModal,
     systemSettings,
   } = useApp();
+
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [selectedEventForDetails, setSelectedEventForDetails] = useState<PlatformEventItem | null>(null);
+  const [eventCategoryFilter, setEventCategoryFilter] = useState<string>('All');
 
   // Clear home notification badge when user views Home tab
   useEffect(() => {
@@ -54,13 +43,7 @@ export const HomeTab: React.FC = () => {
     }
   }, [markSectionAsRead]);
 
-  // Use platform events from global AppContext to eliminate redundant Firestore listeners
-  const [selectedEventForDetails, setSelectedEventForDetails] = useState<PlatformEventItem | null>(null);
-  const [eventCategoryFilter, setEventCategoryFilter] = useState<string>('All');
   const platformEvents = (contextEvents as any as PlatformEventItem[]) || [];
-  const isLoadingEvents = false;
-
-  // Display platform events (Published events for users)
   const sourceEvents = platformEvents.length > 0 ? platformEvents : (contextEvents as any) || [];
   const publishedEvents = sourceEvents.filter((ev: PlatformEventItem) => {
     if (!ev.status) return true;
@@ -73,466 +56,463 @@ export const HomeTab: React.FC = () => {
     return ev.category === eventCategoryFilter;
   });
 
-  const getCategoryBadgeColor = (cat: PlatformEventCategory) => {
-    switch (cat) {
-      case 'school_dome':
-        return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
-      case 'gus':
-        return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
-      case 'academic_olympiad':
-        return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
-      case 'chatroom_live':
-        return 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20';
-      case 'campus_hackathon':
-        return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
-      case 'others':
-      default:
-        return 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20';
-    }
+  // Default featured event displayed when no published event matches
+  const fallbackEvent: PlatformEventItem = {
+    id: 'school-dome-s1-featured',
+    title: 'School Dome Season 1',
+    category: 'school_dome',
+    host: 'Global Academic Directorate',
+    startDate: '2026-11-07',
+    endDate: '2026-12-06',
+    date: '2026-11-07 to 2026-12-06',
+    time: '5:00PM',
+    eventTime: '5:00PM',
+    prizeReward: '50,000 GP Prize Pool',
+    status: 'Published',
+    imageUrl: '/images/campus_stadium_banner.jpg',
+    description: 'Survive rapid elimination rounds to earn academic glory and your equal share of the grand GP prize pool.',
+    audience: 'all_users',
   };
 
+  const displayEvents = filteredEvents.length > 0 ? filteredEvents : (eventCategoryFilter === 'All' || eventCategoryFilter === 'school_dome' ? [fallbackEvent] : []);
+
   return (
-    <div id="grobax-home-tab" className="pb-24 pt-4 space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div id="grobax-home-tab" className="pb-24 pt-2 space-y-4 sm:space-y-5 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
       {/* ======================================================== */}
-      {/* 1. PROFESSIONAL GROBAAX WELCOME & PILLARS INTRO SECTION */}
+      {/* 1. HERO BANNER CARD */}
       {/* ======================================================== */}
       <section
-        id="home-welcome-section"
-        className="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 sm:p-8 lg:p-10 border border-slate-200 dark:border-slate-800 shadow-sm"
+        id="home-welcome-hero-banner"
+        className="relative overflow-hidden rounded-[26px] sm:rounded-3xl bg-gradient-to-r from-[#0d3fa8] via-[#104ec7] to-[#1c64e6] text-white p-5 sm:p-7 md:p-8 shadow-xl"
       >
-        <div className="relative space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div className="space-y-2.5 max-w-2xl flex-1">
-              <div className="relative">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
-                  Welcome to{' '}
-                  <span className="bg-gradient-to-r from-blue-600 via-amber-500 to-indigo-600 dark:from-blue-400 dark:via-amber-400 dark:to-indigo-400 bg-clip-text text-transparent animate-shimmer-text">
-                    Grobaax
-                  </span>
-                </h1>
-                <div className="h-1 w-24 bg-gradient-to-r from-blue-600 via-amber-400 to-transparent rounded-full mt-2 animate-pulse" />
-              </div>
+        {/* Ambient background glow & soft university silhouette accents */}
+        <div className="absolute -top-16 -right-16 w-80 h-80 bg-blue-300/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 left-1/4 w-72 h-72 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm sm:text-base lg:text-lg font-black tracking-wider text-blue-600 dark:text-blue-400 uppercase">
-                  REPRESENT YOUR SCHOOL
-                </p>
-                <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-extrabold tracking-tight uppercase animate-pulse">
-                  🏆 Season Active
-                </span>
-              </div>
-
-              <p className="text-xs sm:text-sm lg:text-base text-slate-600 dark:text-slate-300 max-w-3xl leading-relaxed font-medium">
-                Grobaax is an education-focused platform where students represent their institution as the last school standing in the <strong>School Dome Arena</strong>, access 24/7 <strong>Airtime and Data Redemption</strong>, connect with fellow scholars via the <strong>Campus Mini Mart</strong>, build verified student networks on <strong>Campus</strong>, and unlock strategic competition intelligence in <strong>Hints</strong>.
-              </p>
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-8">
+          {/* Left Text Block */}
+          <div className="space-y-1.5 sm:space-y-2 flex-1 text-left w-full">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-none">
+              Welcome to
+            </h2>
+            <div className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-white leading-none">
+              Groba<span className="text-[#ffbe1a]">ax</span>
             </div>
+            <p className="text-sm sm:text-base italic font-semibold text-blue-100 tracking-wide pt-1">
+              Learn • Compete • Win
+            </p>
+            <p className="text-xs sm:text-sm text-blue-100/90 max-w-md leading-relaxed font-normal pt-1">
+              Represent your school, showcase your knowledge and earn GP rewards!
+            </p>
 
-            {/* YouTube Platform Guide Video Animation Box */}
-            <WelcomeVideoBox
-              videoUrl={systemSettings?.welcomeVideoUrl}
-              title={systemSettings?.welcomeVideoTitle}
-              description={systemSettings?.welcomeVideoDescription}
-              isActive={systemSettings?.welcomeVideoActive !== false}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('school_dome')}
+                className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-[#ffbe1a] hover:bg-[#ffcd38] active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Explore Competitions</span>
+                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              </button>
+            </div>
+          </div>
+
+          {/* Right 3D Trophy Visual */}
+          <div className="relative w-44 sm:w-56 md:w-64 lg:w-72 aspect-square flex items-center justify-center shrink-0">
+            {/* Glowing Golden Ring Behind Trophy */}
+            <div className="absolute inset-2 rounded-full bg-gradient-to-tr from-amber-400/30 via-yellow-300/20 to-blue-300/20 blur-xl animate-pulse" />
+            <img
+              src="/images/home_hero_trophy.jpg"
+              alt="Grobaax Academic Championship Trophy"
+              className="w-full h-full object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.45)] relative z-10 rounded-2xl"
+              onError={(e) => {
+                // Fallback to stylized SVG trophy if image is unavailable
+                (e.target as HTMLElement).style.display = 'none';
+              }}
             />
           </div>
+        </div>
 
-          {/* Academic & Platform Pillars Quick Action / Highlight Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-            {/* 1. School Dome Arena Pillar */}
-            <div
-              id="home-pillar-school-dome-card"
-              onClick={() => setActiveTab('school_dome')}
-              className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-slate-50 to-amber-500/5 dark:from-amber-950/20 dark:via-slate-800/80 dark:to-slate-900 hover:bg-white dark:hover:bg-slate-800 border border-amber-500/30 hover:border-amber-500/60 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
-                  <Swords className="w-5 h-5" />
-                </div>
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                      School Dome Arena
-                    </h2>
-                    <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[9px] font-black border border-amber-500/30">
-                      CHAMPIONSHIP
-                    </span>
-                  </div>
-
-                  {/* Starting Schedule Badge */}
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 dark:bg-amber-500/25 border border-amber-500/40 text-amber-800 dark:text-amber-200 text-[10.5px] font-extrabold tracking-tight">
-                    <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                    <span>Saturday &amp; Sunday • 5:00 PM</span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Represent your institution as the Last School Standing! Survive elimination rounds of rapid academic questions to claim achievement and your equal share of the grand GP prize pool.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-amber-500/20 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
-                <span>Enter School Dome</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* 2. Airtime & Data Redemption Pillar Card */}
-            <div
-              id="home-pillar-airtime-data-card"
-              onClick={() => openWalletModal('airtime_data')}
-              className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-slate-50 to-emerald-500/5 dark:from-emerald-950/20 dark:via-slate-800/80 dark:to-slate-900 hover:bg-white dark:hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-500/60 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
-                  <Smartphone className="w-5 h-5" />
-                </div>
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                      Airtime and Data Redemption
-                    </h2>
-                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[9px] font-black border border-emerald-500/30">
-                      24/7 ACTIVE
-                    </span>
-                  </div>
-
-                  {/* 24/7 Availability Badge */}
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 dark:bg-emerald-500/25 border border-emerald-500/40 text-emerald-800 dark:text-emerald-200 text-[10.5px] font-extrabold tracking-tight">
-                    <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>Redemption Available 24/7 • Instant Delivery</span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Automated 24/7 airtime recharge and affordable high-speed data bundles for MTN, Airtel, Glo, and 9mobile. Redeem your earned GP points or wallet balance anytime, round the clock.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-emerald-500/20 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                <span>Redeem Airtime &amp; Data (24/7)</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* 4. Mini Mart & Skills Listing Pillar */}
-            <div
-              id="home-pillar-minimart-card"
-              onClick={() => navigateToCommunitySubTab('minimart')}
-              className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
-                  <ShoppingBag className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                      Mini Mart & Skills Listing
-                    </h2>
-                    <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 text-[9px] font-black border border-amber-500/30">
-                      MARKET
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Buy, sell campus essentials, textbooks, gadgets, and list student freelance services safely in your institution.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
-                <span>Explore Mini Mart</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* 5. Campus Pillar */}
-            <div
-              id="home-pillar-campus-card"
-              onClick={() => navigateToCommunitySubTab('campus')}
-              className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 group-hover:scale-105 transition-transform">
-                  <GraduationCap className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                      Campus
-                    </h2>
-                    <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[9px] font-black border border-indigo-500/30">
-                      SCHOLARS
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Connect with verified students, course coursemates, and faculty peers across institutions with verified WhatsApp study chats.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                <span>Explore Campus</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* 6. Hints Pillar Card */}
-            <div
-              id="home-pillar-hints-card"
-              onClick={() => setActiveTab('hints')}
-              className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
-                  <Lightbulb className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                      Hints
-                    </h2>
-                    <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 text-[9px] font-black border border-amber-500/30">
-                      STRATEGY
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Access official competition hints, syllabus breakdowns, and tactical question clues for School Dome Arena.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
-                <span>Explore Hints</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-          </div>
+        {/* Carousel Indicator Dots */}
+        <div className="relative z-10 flex items-center justify-center gap-1.5 mt-3 sm:mt-4">
+          <span className="w-6 h-1.5 rounded-full bg-[#ffbe1a]" />
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-200/40" />
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-200/40" />
         </div>
       </section>
 
       {/* ======================================================== */}
-      {/* 2. ADMIN-CREATED EVENTS SECTION (REAL-TIME FIRESTORE) */}
+      {/* 2. THREE QUICK ACTION CARDS (3 COLUMNS) */}
       {/* ======================================================== */}
-      <section id="admin-created-events-section" className="space-y-4">
+      <section id="home-quick-action-cards" className="grid grid-cols-3 gap-2 sm:gap-4">
+        {/* Card 1: School Dome Season 1 (Blue) */}
+        <div className="bg-gradient-to-b from-[#1877f2] via-[#1264df] to-[#0a47b8] rounded-2xl sm:rounded-3xl p-3 sm:p-4 text-white text-center flex flex-col items-center justify-between shadow-md relative overflow-hidden group">
+          <div className="flex flex-col items-center w-full">
+            <Trophy className="w-7 h-7 sm:w-9 sm:h-9 text-white mb-1 drop-shadow-sm group-hover:scale-110 transition-transform" />
+            <h3 className="text-[11px] sm:text-sm font-black leading-tight text-white mt-1">
+              School Dome<br />Season 1
+            </h3>
+            <p className="text-[9px] sm:text-[11px] text-blue-100 font-medium mt-1">
+              Watch this Guide
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsVideoModalOpen(true)}
+            className="mt-2.5 sm:mt-3 w-full py-1.5 sm:py-2 px-1 sm:px-2 rounded-full bg-white hover:bg-blue-50 text-[#1264df] font-black text-[10px] sm:text-xs shadow-sm flex items-center justify-center gap-1 transition-all cursor-pointer active:scale-95"
+          >
+            <span className="truncate">Watch Video</span>
+            <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current shrink-0" />
+          </button>
+        </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
-              <Calendar className="w-4 h-4" />
+        {/* Card 2: Championship (Purple) */}
+        <div className="bg-gradient-to-b from-[#8b5cf6] via-[#7c3aed] to-[#6d28d9] rounded-2xl sm:rounded-3xl p-3 sm:p-4 text-white text-center flex flex-col items-center justify-between shadow-md relative overflow-hidden group">
+          <div className="flex flex-col items-center w-full">
+            <Calendar className="w-7 h-7 sm:w-9 sm:h-9 text-white mb-1 drop-shadow-sm group-hover:scale-110 transition-transform" />
+            <h3 className="text-[11px] sm:text-sm font-black leading-tight text-white mt-1">
+              Championship
+            </h3>
+            <p className="text-[9px] sm:text-[11px] text-purple-100 font-medium mt-1 leading-tight">
+              Saturday &amp; Sunday • 5:00 PM
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('school_dome')}
+            className="mt-2.5 sm:mt-3 w-full py-1.5 sm:py-2 px-1 sm:px-2 rounded-full bg-white hover:bg-purple-50 text-[#7c3aed] font-black text-[10px] sm:text-xs shadow-sm flex items-center justify-center gap-1 transition-all cursor-pointer active:scale-95"
+          >
+            <span className="truncate">Enter School Dome</span>
+            <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
+          </button>
+        </div>
+
+        {/* Card 3: 24/7 Redemption (Teal/Emerald) */}
+        <div className="bg-gradient-to-b from-[#10b981] via-[#059669] to-[#047857] rounded-2xl sm:rounded-3xl p-3 sm:p-4 text-white text-center flex flex-col items-center justify-between shadow-md relative overflow-hidden group">
+          <div className="flex flex-col items-center w-full">
+            <Calendar className="w-7 h-7 sm:w-9 sm:h-9 text-white mb-1 drop-shadow-sm group-hover:scale-110 transition-transform" />
+            <h3 className="text-[11px] sm:text-sm font-black leading-tight text-white mt-1">
+              24/7 Redemption
+            </h3>
+            <p className="text-[9px] sm:text-[11px] text-emerald-100 font-medium mt-1 leading-tight">
+              Instant top-up &amp; more...
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => openWalletModal('airtime_data')}
+            className="mt-2.5 sm:mt-3 w-full py-1.5 sm:py-2 px-1 sm:px-2 rounded-full bg-white hover:bg-emerald-50 text-[#059669] font-black text-[10px] sm:text-xs shadow-sm flex items-center justify-center gap-1 transition-all cursor-pointer active:scale-95"
+          >
+            <span className="truncate">Redeem Now</span>
+            <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
+          </button>
+        </div>
+      </section>
+
+      {/* ======================================================== */}
+      {/* 3. THREE HORIZONTAL FEATURE CARDS */}
+      {/* ======================================================== */}
+      <section id="home-feature-cards" className="space-y-3 sm:space-y-3.5">
+        {/* Card A: Mini Mart & Skills (Peach/Amber) */}
+        <div className="bg-gradient-to-r from-[#fff9ea] via-[#fff5e3] to-[#ffeac9] border border-amber-200/90 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 relative overflow-hidden shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:shadow-md transition-all">
+          {/* Faint Shopping Cart Watermark Background */}
+          <div className="absolute right-28 sm:right-40 -top-4 -bottom-4 w-32 pointer-events-none opacity-[0.08] flex items-center justify-center text-amber-600">
+            <ShoppingBag className="w-32 h-32" />
+          </div>
+
+          <div className="flex items-start sm:items-center gap-3 relative z-10">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#ffeed0] border border-[#ffcf87] flex items-center justify-center text-[#ff7a00] shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <span>Official Campus Events</span>
-                <span className="px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 text-[9px] font-black border border-blue-500/20">
-                  REAL-TIME
+            <div className="space-y-0.5 sm:space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">
+                  Mini Mart &amp; Skills
+                </h3>
+                <span className="px-2 py-0.5 rounded-md bg-[#ffc107]/25 border border-[#ffc107]/50 text-amber-900 text-[10px] font-black uppercase tracking-wider">
+                  MARKET
                 </span>
-              </h2>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                Official tournaments, academic olympiads & verified campus competitions created by administrators
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-600 max-w-xl leading-relaxed">
+                Buy, sell campus essentials, textbooks, gadgets, and list student freelance services safely in your institution.
               </p>
             </div>
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-            <button
-              onClick={() => setEventCategoryFilter('All')}
-              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${
-                eventCategoryFilter === 'All'
-                  ? 'bg-blue-900 text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              All Events
-            </button>
-            {PLATFORM_EVENT_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setEventCategoryFilter(cat.id)}
-                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${
-                  eventCategoryFilter === cat.id
-                    ? 'bg-blue-900 text-white shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                {cat.shortLabel}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => navigateToCommunitySubTab('minimart')}
+            className="relative z-10 px-4 py-2 rounded-full bg-gradient-to-r from-[#ff7a00] to-[#ff9800] hover:from-[#f06e00] hover:to-[#e68900] active:scale-95 text-white font-black text-xs shadow-sm flex items-center gap-1.5 self-start sm:self-auto shrink-0 transition-all cursor-pointer"
+          >
+            <span>Explore Mini Mart</span>
+            <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+          </button>
         </div>
 
-        {/* Events Grid */}
-        {isLoadingEvents ? (
-          <div className="p-8 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-400">
-            Loading official events...
+        {/* Card B: Campus (Lavender/Purple) */}
+        <div className="bg-gradient-to-r from-[#fbf8ff] via-[#f4edff] to-[#ebdfff] border border-purple-200/90 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 relative overflow-hidden shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:shadow-md transition-all">
+          {/* Faint Scholars Watermark Background */}
+          <div className="absolute right-28 sm:right-40 -top-4 -bottom-4 w-32 pointer-events-none opacity-[0.08] flex items-center justify-center text-purple-700">
+            <Users className="w-32 h-32" />
           </div>
-        ) : filteredEvents.length === 0 ? (
-          <div className="p-8 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-400">
-            No published events found right now. Check back soon for new official tournaments and academic events!
+
+          <div className="flex items-start sm:items-center gap-3 relative z-10">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#eee4ff] border border-[#d3beff] flex items-center justify-center text-[#7c3aed] shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="space-y-0.5 sm:space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">
+                  Campus
+                </h3>
+                <span className="px-2 py-0.5 rounded-md bg-[#c084fc]/25 border border-[#c084fc]/50 text-purple-900 text-[10px] font-black uppercase tracking-wider">
+                  SCHOLARS
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-600 max-w-xl leading-relaxed">
+                Connect with verified students, course coursemates, and faculty peers across institutions with verified WhatsApp study chats.
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-            {filteredEvents.map((ev: PlatformEventItem) => {
+
+          <button
+            type="button"
+            onClick={() => navigateToCommunitySubTab('campus')}
+            className="relative z-10 px-4 py-2 rounded-full bg-gradient-to-r from-[#5b4fe9] to-[#7c3aed] hover:from-[#4b3ed9] hover:to-[#6d28d9] active:scale-95 text-white font-black text-xs shadow-sm flex items-center gap-1.5 self-start sm:self-auto shrink-0 transition-all cursor-pointer"
+          >
+            <span>Explore Campus</span>
+            <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+          </button>
+        </div>
+
+        {/* Card C: Hints (Mint/Emerald) */}
+        <div className="bg-gradient-to-r from-[#f1fdf7] via-[#e5faf0] to-[#d6f6e5] border border-emerald-200/90 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 relative overflow-hidden shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:shadow-md transition-all">
+          {/* Faint Target Watermark Background */}
+          <div className="absolute right-28 sm:right-40 -top-4 -bottom-4 w-32 pointer-events-none opacity-[0.08] flex items-center justify-center text-emerald-700">
+            <Zap className="w-32 h-32" />
+          </div>
+
+          <div className="flex items-start sm:items-center gap-3 relative z-10">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#daf5e6] border border-[#a6e8c4] flex items-center justify-center text-[#ff9800] shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <Lightbulb className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="space-y-0.5 sm:space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">
+                  Hints
+                </h3>
+                <span className="px-2 py-0.5 rounded-md bg-[#34d399]/25 border border-[#34d399]/50 text-emerald-950 text-[10px] font-black uppercase tracking-wider">
+                  STRATEGY
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-600 max-w-xl leading-relaxed">
+                Access official competition hints, syllabus breakdowns, and tactical question clues for School Dome Arena.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('hints')}
+            className="relative z-10 px-4 py-2 rounded-full bg-gradient-to-r from-[#0d9488] to-[#059669] hover:from-[#0f766e] hover:to-[#047857] active:scale-95 text-white font-black text-xs shadow-sm flex items-center gap-1.5 self-start sm:self-auto shrink-0 transition-all cursor-pointer"
+          >
+            <span>Explore Hints</span>
+            <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+          </button>
+        </div>
+      </section>
+
+      {/* ======================================================== */}
+      {/* 4. OFFICIAL CAMPUS EVENTS SECTION CARD */}
+      {/* ======================================================== */}
+      <section
+        id="admin-created-events-section"
+        className="bg-[#080f24] border border-blue-950/80 rounded-[26px] sm:rounded-3xl p-4 sm:p-5 md:p-6 text-white shadow-2xl space-y-4"
+      >
+        {/* Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-blue-900/40">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#ff9800] text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-md">
+              <Calendar className="w-4 h-4 stroke-[2.5]" />
+            </div>
+            <div>
+              <h2 className="text-xs sm:text-sm font-black tracking-wider text-white uppercase flex items-center gap-2">
+                OFFICIAL CAMPUS EVENTS
+              </h2>
+              <p className="text-[10px] sm:text-[11px] text-slate-300">
+                Official tournaments, academic olympiads &amp; verified campus competitions
+              </p>
+            </div>
+          </div>
+
+          <span className="self-start sm:self-auto px-2.5 py-0.5 rounded-full bg-[#1877f2] text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+            REAL-TIME
+          </span>
+        </div>
+
+        {/* Filter Pills Row */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setEventCategoryFilter('All')}
+            className={`px-3.5 py-1 rounded-full text-xs font-black transition whitespace-nowrap cursor-pointer ${
+              eventCategoryFilter === 'All'
+                ? 'bg-[#ffbe1a] text-slate-950 shadow-sm'
+                : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/80'
+            }`}
+          >
+            All Events
+          </button>
+          {PLATFORM_EVENT_CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setEventCategoryFilter(cat.id)}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                eventCategoryFilter === cat.id
+                  ? 'bg-[#ffbe1a] text-slate-950 shadow-sm'
+                  : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/80'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Events Cards */}
+        <div className="space-y-3.5 pt-1">
+          {displayEvents.length === 0 ? (
+            <div className="p-8 text-center rounded-2xl bg-slate-900/80 border border-blue-900/40 text-xs text-slate-400">
+              No campus events found under this category right now.
+            </div>
+          ) : (
+            displayEvents.map((ev: PlatformEventItem) => {
               const catObj = PLATFORM_EVENT_CATEGORIES.find((c) => c.id === ev.category);
               const catLabel = catObj?.label || ev.category;
               const hasPrize = Boolean(ev.prizeReward && ev.prizeReward.trim() !== '' && ev.prizeReward.trim() !== '0');
               const channelInfo = resolveEventChannel(ev);
 
               return (
-                <Card
+                <div
                   key={ev.id}
                   id={`home-event-card-${ev.id}`}
-                  className="p-0 overflow-hidden transition-all hover:border-blue-500/40 hover:shadow-md flex flex-col justify-between group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs"
+                  onClick={() => {
+                    if (navigateToEventChannel) {
+                      navigateToEventChannel(ev);
+                    }
+                  }}
+                  className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-md hover:shadow-xl transition-all cursor-pointer flex flex-col md:flex-row group"
                 >
-                  {/* Card Cover Image: Direct click navigates to proper channel */}
-                  <div
-                    className="relative h-36 w-full bg-slate-950 overflow-hidden cursor-pointer"
-                    onClick={() => {
-                      if (navigateToEventChannel) {
-                        navigateToEventChannel(ev);
-                      }
-                    }}
-                    title={`Click to enter ${channelInfo.label}`}
-                  >
+                  {/* Left: Stadium Image Banner */}
+                  <div className="relative md:w-5/12 lg:w-4/12 h-44 md:h-auto min-h-[170px] bg-slate-950 overflow-hidden shrink-0">
                     <img
                       src={
                         ev.imageUrl ||
                         ev.image ||
-                        'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80'
+                        '/images/campus_stadium_banner.jpg'
                       }
                       alt={ev.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-85"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80';
+                        (e.target as HTMLImageElement).src = '/images/campus_stadium_banner.jpg';
                       }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:to-slate-950/40" />
 
-                    {/* Category & Status Overlay */}
-                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider backdrop-blur-md border ${getCategoryBadgeColor(
-                          ev.category
-                        )} bg-slate-950/80`}
-                      >
-                        {catObj?.shortLabel || catLabel}
+                    {/* Yellow Category Tag on Image */}
+                    <div className="absolute top-3 left-3 z-10">
+                      <span className="px-3 py-1 rounded-full bg-[#ffbe1a] text-slate-950 text-[10px] sm:text-[11px] font-black uppercase tracking-wider shadow-sm">
+                        {catObj?.shortLabel || 'SCHOOL DOME'}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-400/30 backdrop-blur-md">
-                        Official Event
-                      </span>
-                    </div>
-
-                    {/* Event Title */}
-                    <div className="absolute bottom-2.5 left-3 right-3">
-                      <h3 className="text-sm font-black text-white leading-tight drop-shadow-sm line-clamp-1 group-hover:text-blue-300 transition-colors">
-                        {ev.title}
-                      </h3>
                     </div>
                   </div>
 
-                  {/* Body Content */}
-                  <div className="p-3.5 space-y-2.5 flex-1 flex flex-col justify-between text-xs">
+                  {/* Right: Event Information */}
+                  <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between text-slate-900 dark:text-white space-y-2.5">
                     <div className="space-y-2">
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                        <span>
-                          Hosted by{' '}
-                          <strong className="text-slate-700 dark:text-slate-300">
-                            {ev.host || OFFICIAL_EVENT_HOST}
-                          </strong>
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {ev.title}
+                        </h3>
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#1877f2]/15 text-[#1877f2] dark:text-blue-400 text-[10px] font-black uppercase tracking-wider shrink-0 border border-blue-500/20">
+                          OFFICIAL EVENT
                         </span>
-                      </p>
+                      </div>
 
-                      <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" /> Date Window
-                          </span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {ev.startDate && ev.endDate ? `${ev.startDate} to ${ev.endDate}` : ev.date || 'Active Event'}
+                      <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                        {/* Hosted by */}
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                          <span className="font-semibold">
+                            Hosted by <strong className="text-slate-900 dark:text-white">{ev.host || OFFICIAL_EVENT_HOST}</strong>
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-blue-500" /> Time & Audience
-                          </span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {ev.eventTime || ev.time || '18:00 UTC'} • All Users
+                        {/* Date Window */}
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                          <span className="font-medium">
+                            Date Window: <strong className="text-slate-800 dark:text-slate-200">{ev.startDate && ev.endDate ? `${ev.startDate} to ${ev.endDate}` : ev.date || '2026-11-07 to 2026-12-06'}</strong>
                           </span>
                         </div>
 
-                        {/* Reward field ONLY rendered if configured */}
+                        {/* Time & Audience */}
+                        <div className="flex items-center gap-2">
+                          <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                          <span className="font-medium">
+                            Time &amp; Audience: <strong className="text-slate-800 dark:text-slate-200">{ev.eventTime || ev.time || '5:00PM'} • {ev.audience || 'All Users'}</strong>
+                          </span>
+                        </div>
+
+                        {/* Reward */}
                         {hasPrize && (
-                          <div className="flex items-center justify-between text-xs pt-0.5 border-t border-slate-200 dark:border-slate-700">
-                            <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                              <Trophy className="w-3.5 h-3.5 text-amber-500" /> Reward
-                            </span>
-                            <span className="font-black text-amber-600 dark:text-amber-400">
-                              {ev.prizeReward}
+                          <div className="flex items-center gap-2 pt-0.5">
+                            <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <span className="font-medium">
+                              Reward: <strong className="text-[#ff7a00] dark:text-amber-400 font-black text-sm">{ev.prizeReward}</strong>
                             </span>
                           </div>
                         )}
-
-                        {/* Destination Channel Route */}
-                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200 dark:border-slate-700">
-                          <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                            <Compass className="w-3.5 h-3.5 text-blue-500" /> Destination
-                          </span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${channelInfo.badgeClass}`}>
-                            {channelInfo.label}
-                          </span>
-                        </div>
                       </div>
-
-                      {ev.description && (
-                        <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed font-medium">
-                          {ev.description}
-                        </p>
-                      )}
                     </div>
 
-                    {/* Action Buttons: Direct to proper channel + Details */}
-                    <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-800">
-                      <Button
-                        id={`enter-event-channel-btn-${ev.id}`}
-                        variant="primary"
-                        size="sm"
-                        className="flex-1 justify-center font-bold text-xs cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (navigateToEventChannel) {
-                            navigateToEventChannel(ev);
-                          }
-                        }}
-                        rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-                      >
-                        {channelInfo.actionText}
-                      </Button>
+                    {/* Bottom Action Footer */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                        <span>{channelInfo.actionText || 'Enter School Dome Arena'}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
 
-                      <Button
-                        id={`view-event-details-btn-${ev.id}`}
-                        variant="outline"
-                        size="sm"
-                        className="px-3 text-xs font-bold shrink-0 cursor-pointer"
+                      <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedEventForDetails(ev);
                         }}
+                        className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold transition cursor-pointer"
                       >
                         Details
-                      </Button>
+                      </button>
                     </div>
                   </div>
-                </Card>
+                </div>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </section>
 
-      {/* EVENT DETAILS MODAL OVERLAY */}
+      {/* Pop-up Video Lightbox Modal */}
+      <WelcomeVideoModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        videoUrl={systemSettings?.welcomeVideoUrl}
+        title={systemSettings?.welcomeVideoTitle || 'School Dome Season 1 Guide'}
+        description={systemSettings?.welcomeVideoDescription || 'Watch this quick video walkthrough to learn every platform function, compete in School Dome Arena, and earn GP.'}
+      />
+
+      {/* Event Details Modal */}
       {selectedEventForDetails && (
         <EventDetailsModal
           event={selectedEventForDetails}
@@ -542,3 +522,4 @@ export const HomeTab: React.FC = () => {
     </div>
   );
 };
+
