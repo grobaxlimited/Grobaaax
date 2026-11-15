@@ -589,36 +589,99 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
       );
     };
 
-    // 1. Query Firestore users collection for matching institution
+    // 1. Preload users collection as lookup map to enrich joined Campus members (never expose unjoined users)
+    const rawUsersMap = new Map<string, any>();
     try {
       const usersRef = collection(db, 'users');
       const usersSnap = await getDocs(usersRef);
       usersSnap.forEach((docSnap) => {
-        const data = docSnap.data();
-        const userInst = (data.institution || data.institutionName || data.academicProfile?.institutionName || '').trim().toLowerCase();
+        rawUsersMap.set(docSnap.id, docSnap.data());
+      });
+    } catch (usersErr) {
+      console.warn('Error reading users from Firestore:', usersErr);
+    }
 
-        // Strict institution match check
-        if (userInst && (userInst === targetInstitution || userInst.includes(targetInstitution) || targetInstitution.includes(userInst))) {
-          const userFaculty = data.faculty || data.facultyName || data.academicProfile?.facultyName || data.academicProfile?.faculty || '';
-          const userDept = data.department || data.departmentName || data.academicProfile?.departmentName || data.academicProfile?.department || '';
-          const userLevel = data.level || data.academicProfile?.level || '100 Level';
-          const userName = data.name || data.fullName || data.username || 'Scholar';
-          const userUsername = data.username ? (data.username.startsWith('@') ? data.username : `@${data.username}`) : '@scholar';
-          const userAvatar = data.avatar || data.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userName)}`;
-          const userTier = getUserTier(data);
+    // 2. Strictly list ONLY students who have joined Campus (active records in campus_memberships)
+    try {
+      const memRef = collection(db, 'campus_memberships');
+      const memSnap = await getDocs(memRef);
+      memSnap.forEach((docSnap) => {
+        const data = docSnap.data() as CampusMembership;
+        const memberId = data.userId || docSnap.id;
+        if (!memberId || memberId.startsWith('scholar_peer_') || data.status === 'suspended') {
+          return;
+        }
 
-          const relSkills = userSkillsMap.get(docSnap.id);
-          const skillsList: string[] = relSkills?.skills?.length
+        const rawUser = rawUsersMap.get(memberId);
+        const memInstRaw = (
+          data.institution ||
+          rawUser?.institution ||
+          rawUser?.institutionName ||
+          rawUser?.academicProfile?.institutionName ||
+          ''
+        ).trim();
+        const memInst = memInstRaw.toLowerCase();
+
+        if (
+          memInst &&
+          (memInst === targetInstitution ||
+            memInst.includes(targetInstitution) ||
+            targetInstitution.includes(memInst))
+        ) {
+          const userFaculty = (
+            data.faculty ||
+            rawUser?.faculty ||
+            rawUser?.facultyName ||
+            rawUser?.academicProfile?.facultyName ||
+            rawUser?.academicProfile?.faculty ||
+            ''
+          ).trim();
+          const userDept = (
+            data.department ||
+            rawUser?.department ||
+            rawUser?.departmentName ||
+            rawUser?.academicProfile?.departmentName ||
+            rawUser?.academicProfile?.department ||
+            ''
+          ).trim();
+          const userLevel = data.level || rawUser?.level || rawUser?.academicProfile?.level || '100 Level';
+          const userName = rawUser?.name || rawUser?.fullName || rawUser?.username || 'Scholar';
+          const userUsername = rawUser?.username
+            ? (rawUser.username.startsWith('@') ? rawUser.username : `@${rawUser.username}`)
+            : `@scholar_${memberId.substring(0, 5)}`;
+          const userAvatar =
+            rawUser?.avatar ||
+            rawUser?.profileImage ||
+            `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userName || memberId)}`;
+          const userTier = rawUser ? getUserTier(rawUser) : 'free';
+
+          const relSkills = userSkillsMap.get(memberId);
+          const mSkills: string[] = relSkills?.skills?.length
             ? relSkills.skills
-            : (Array.isArray(data.skills) ? data.skills : []);
-          const skillIdsList: string[] = relSkills?.skillIds?.length
+            : Array.isArray(data.skills) && data.skills.length > 0
+            ? data.skills
+            : Array.isArray(rawUser?.skills)
+            ? rawUser.skills
+            : [];
+          const mSkillIds: string[] = relSkills?.skillIds?.length
             ? relSkills.skillIds
-            : (Array.isArray(data.skillIds) ? data.skillIds : []);
+            : Array.isArray(data.skillIds) && data.skillIds.length > 0
+            ? data.skillIds
+            : Array.isArray(rawUser?.skillIds)
+            ? rawUser.skillIds
+            : [];
 
-          // Check faculty, department, skill, and search filters
-          const matchesFaculty = !faculty || userFaculty.toLowerCase().includes(faculty.toLowerCase()) || faculty.toLowerCase().includes(userFaculty.toLowerCase());
-          const matchesDepartment = !department || userDept.toLowerCase().includes(department.toLowerCase()) || department.toLowerCase().includes(userDept.toLowerCase());
-          const matchesSkill = matchesSkillFilter(skillsList, skillIdsList);
+          const matchesFaculty =
+            !faculty ||
+            (userFaculty.length > 0 &&
+              (userFaculty.toLowerCase().includes(faculty.toLowerCase()) ||
+                faculty.toLowerCase().includes(userFaculty.toLowerCase())));
+          const matchesDepartment =
+            !department ||
+            (userDept.length > 0 &&
+              (userDept.toLowerCase().includes(department.toLowerCase()) ||
+                department.toLowerCase().includes(userDept.toLowerCase())));
+          const matchesSkill = matchesSkillFilter(mSkills, mSkillIds);
 
           let matchesSearch = true;
           if (search && search.trim()) {
@@ -628,92 +691,36 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
               userUsername.toLowerCase().includes(s) ||
               userDept.toLowerCase().includes(s) ||
               userFaculty.toLowerCase().includes(s) ||
-              skillsList.some((sk) => sk.toLowerCase().includes(s));
-          }
-
-          if (matchesFaculty && matchesDepartment && matchesSkill && matchesSearch) {
-            const hasBlue = userTier === 'premium' || userTier === 'vip' || data.isVerified || data.hasBlueBadge || data.verifiedBadge;
-            studentsMap.set(docSnap.id, {
-              id: docSnap.id,
-              name: userName,
-              username: userUsername,
-              avatar: userAvatar,
-              institution: data.institution || data.institutionName || institution,
-              institutionId: data.institutionId || data.academicProfile?.institutionId,
-              faculty: userFaculty,
-              department: userDept,
-              level: userLevel,
-              bio: data.bio || '',
-              skills: skillsList,
-              skillIds: skillIdsList,
-              tier: userTier,
-              hasBlueBadge: hasBlue,
-              isVerified: hasBlue,
-              isOnline: true,
-              connectionStatus: docSnap.id === requestingUserId ? 'self' : 'none',
-              joinedCampus: true,
-            });
-          }
-        }
-      });
-    } catch (usersErr) {
-      console.warn('Error reading users from Firestore:', usersErr);
-    }
-
-    // 2. Also check campus_memberships collection
-    try {
-      const memRef = collection(db, 'campus_memberships');
-      const memSnap = await getDocs(memRef);
-      memSnap.forEach((docSnap) => {
-        const data = docSnap.data() as CampusMembership;
-        const memInst = (data.institution || '').trim().toLowerCase();
-        if (memInst && (memInst === targetInstitution || memInst.includes(targetInstitution) || targetInstitution.includes(memInst))) {
-          const relSkills = userSkillsMap.get(data.userId);
-          const mSkills: string[] = relSkills?.skills?.length
-            ? relSkills.skills
-            : (Array.isArray(data.skills) ? data.skills : []);
-          const mSkillIds: string[] = relSkills?.skillIds?.length
-            ? relSkills.skillIds
-            : (Array.isArray(data.skillIds) ? data.skillIds : []);
-
-          if (studentsMap.has(data.userId)) {
-            const existing = studentsMap.get(data.userId)!;
-            if ((!existing.skills || existing.skills.length === 0) && mSkills.length > 0) {
-              existing.skills = mSkills;
-              existing.skillIds = mSkillIds;
-            }
-            return;
-          }
-
-          const matchesFaculty = !faculty || data.faculty.toLowerCase().includes(faculty.toLowerCase()) || faculty.toLowerCase().includes(data.faculty.toLowerCase());
-          const matchesDepartment = !department || data.department.toLowerCase().includes(department.toLowerCase()) || department.toLowerCase().includes(data.department.toLowerCase());
-          const matchesSkill = matchesSkillFilter(mSkills, mSkillIds);
-
-          let matchesSearch = true;
-          if (search && search.trim()) {
-            const s = search.trim().toLowerCase();
-            matchesSearch =
-              data.department.toLowerCase().includes(s) ||
-              data.faculty.toLowerCase().includes(s) ||
               mSkills.some((sk) => sk.toLowerCase().includes(s));
           }
 
           if (matchesFaculty && matchesDepartment && matchesSkill && matchesSearch) {
-            studentsMap.set(data.userId, {
-              id: data.userId,
-              name: 'Grobaax Scholar',
-              username: `@scholar_${data.userId.substring(0, 5)}`,
-              avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(data.userId)}`,
-              institution: data.institution,
-              institutionId: data.institutionId,
-              faculty: data.faculty,
-              department: data.department,
-              level: data.level || '100 Level',
+            const hasBlue = Boolean(
+              userTier === 'premium' ||
+                userTier === 'vip' ||
+                rawUser?.isVerified ||
+                rawUser?.hasBlueBadge ||
+                rawUser?.verifiedBadge
+            );
+            studentsMap.set(memberId, {
+              id: memberId,
+              name: userName,
+              username: userUsername,
+              avatar: userAvatar,
+              institution: memInstRaw || institution,
+              institutionId:
+                data.institutionId || rawUser?.institutionId || rawUser?.academicProfile?.institutionId,
+              faculty: userFaculty,
+              department: userDept,
+              level: userLevel,
+              bio: rawUser?.bio || '',
               skills: mSkills,
               skillIds: mSkillIds,
-              tier: 'free',
+              tier: userTier,
+              hasBlueBadge: hasBlue,
+              isVerified: hasBlue,
               isOnline: true,
-              connectionStatus: data.userId === requestingUserId ? 'self' : 'none',
+              connectionStatus: memberId === requestingUserId ? 'self' : 'none',
               joinedCampus: true,
             });
           }
@@ -721,72 +728,6 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
       });
     } catch (memErr) {
       console.warn('Error reading campus memberships:', memErr);
-    }
-
-    // 3. If department is selected without a skill filter and list has few students, seed realistic verified scholars for that department
-    if (department && !targetSkill && studentsMap.size < 4) {
-      const sampleNames = [
-        { name: 'John Abdul', tier: 'premium' as const, level: '300 Level', gender: 'male', phone: '+2348031234567' },
-        { name: 'Sarah Ibrahim', tier: 'vip' as const, level: '400 Level', gender: 'female', phone: '+2348029876543' },
-        { name: 'David Musa', tier: 'free' as const, level: '200 Level', gender: 'male', phone: '+2348145551234' },
-        { name: 'Chinedu Eze', tier: 'premium' as const, level: '500 Level', gender: 'male', phone: '+2348057778899' },
-        { name: 'Fatima Bello', tier: 'vip' as const, level: '100 Level', gender: 'female', phone: '+2348134443322' },
-        { name: 'Emmanuel Okafor', tier: 'free' as const, level: '300 Level', gender: 'male', phone: '+2348091112233' },
-        { name: 'Aisha Mohammed', tier: 'premium' as const, level: '400 Level', gender: 'female', phone: '+2348076665544' },
-        { name: 'Oluwaseun Adeleke', tier: 'vip' as const, level: '200 Level', gender: 'male', phone: '+2348162223344' },
-      ];
-
-      sampleNames.forEach((item, index) => {
-        const id = `scholar_peer_${institution.substring(0, 4).toLowerCase()}_${department.substring(0, 4).toLowerCase()}_${index + 1}`;
-        if (!studentsMap.has(id) && id !== requestingUserId) {
-          const username = `@${item.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-          const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(item.name)}`;
-
-          let matchesSearch = true;
-          if (search && search.trim()) {
-            const s = search.trim().toLowerCase();
-            matchesSearch =
-              item.name.toLowerCase().includes(s) ||
-              username.toLowerCase().includes(s) ||
-              department.toLowerCase().includes(s);
-          }
-
-          if (matchesSearch) {
-            studentsMap.set(id, {
-              id,
-              name: item.name,
-              username,
-              avatar,
-              institution,
-              faculty: faculty || 'General Faculty',
-              department,
-              level: item.level,
-              skills: [],
-              skillIds: [],
-              tier: item.tier,
-              isOnline: true,
-              connectionStatus: 'none',
-              joinedCampus: true,
-            });
-
-            if (!membershipsCache.has(id)) {
-              membershipsCache.set(id, {
-                id,
-                userId: id,
-                institution,
-                faculty: faculty || '',
-                department,
-                level: item.level,
-                whatsappNumber: item.phone,
-                whatsappVerified: true,
-                joinedAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                status: 'active',
-              });
-            }
-          }
-        }
-      });
     }
 
     // 4. Fetch connection requests for the requesting user to set connectionStatus

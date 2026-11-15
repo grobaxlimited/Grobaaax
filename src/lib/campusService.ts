@@ -556,48 +556,87 @@ export async function fetchCampusStudents(params: {
     );
   };
 
-  // 1. Direct Firestore fetch from users collection (Quota-optimized limit 80)
+  // 1. Preload users lookup map for enriching joined Campus members (never expose unjoined users)
   const rawUsersMap = new Map<string, any>();
   try {
     const usersRef = collection(db, 'users');
-    const usersSnap = await getDocs(query(usersRef, limit(80)));
-
+    const usersSnap = await getDocs(query(usersRef, limit(250)));
     usersSnap.forEach((d) => {
-      const data = d.data();
-      rawUsersMap.set(d.id, data);
-      const uInst = (data.institution || data.institutionName || data.academicProfile?.institutionName || '').trim().toLowerCase();
+      rawUsersMap.set(d.id, d.data());
+    });
+  } catch (err) {
+    console.warn('Direct Firestore users read notice:', err);
+  }
 
-      if (uInst && (uInst === targetInst || uInst.includes(targetInst) || targetInst.includes(uInst))) {
-        const uFaculty = (data.faculty || data.facultyName || data.academicProfile?.facultyName || '').trim();
-        const uDept = (data.department || data.departmentName || data.academicProfile?.departmentName || '').trim();
-        const uLevel = data.level || data.academicProfile?.level || '100 Level';
-        const uName = data.name || data.fullName || data.username || 'Scholar';
-        const uUsername = data.username ? (data.username.startsWith('@') ? data.username : `@${data.username}`) : '@scholar';
-        const uAvatar = data.avatar || data.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(uName)}`;
-        const uTier = resolveUserSubscriptionTier(data);
-        const blueBadge = isUserBlueBadge(data);
+  // 2. Strictly read ONLY joined members from campus_memberships collection
+  try {
+    const memRef = collection(db, CAMPUS_MEMBERSHIPS_COLLECTION);
+    const memSnap = await getDocs(query(memRef, limit(250)));
+    memSnap.forEach((d) => {
+      const data = d.data() as CampusMembership;
+      const memberId = data.userId || d.id;
+      if (!memberId || memberId.startsWith('scholar_peer_') || data.status === 'suspended') {
+        return;
+      }
 
-        const rel = userSkillsMap.get(d.id);
-        const uSkills: string[] = rel?.skills?.length
+      const rawUser = rawUsersMap.get(memberId);
+      const mInstRaw = (
+        data.institution ||
+        rawUser?.institution ||
+        rawUser?.institutionName ||
+        rawUser?.academicProfile?.institutionName ||
+        ''
+      ).trim();
+      const mInst = mInstRaw.toLowerCase();
+
+      if (mInst && (mInst === targetInst || mInst.includes(targetInst) || targetInst.includes(mInst))) {
+        const rel = userSkillsMap.get(memberId);
+        const mSkills: string[] = rel?.skills?.length
           ? rel.skills
-          : (Array.isArray(data.skills) ? data.skills : []);
-        const uSkillIds: string[] = rel?.skillIds?.length
+          : Array.isArray(data.skills) && data.skills.length > 0
+          ? data.skills
+          : Array.isArray(rawUser?.skills)
+          ? rawUser.skills
+          : [];
+        const mSkillIds: string[] = rel?.skillIds?.length
           ? rel.skillIds
-          : (Array.isArray(data.skillIds) ? data.skillIds : []);
+          : Array.isArray(data.skillIds) && data.skillIds.length > 0
+          ? data.skillIds
+          : Array.isArray(rawUser?.skillIds)
+          ? rawUser.skillIds
+          : [];
 
-        const matchesFaculty = !faculty || (
-          uFaculty.length > 0 && (
-            uFaculty.toLowerCase().includes(faculty.toLowerCase()) ||
-            faculty.toLowerCase().includes(uFaculty.toLowerCase())
-          )
-        );
-        const matchesDepartment = !department || (
-          uDept.length > 0 && (
-            uDept.toLowerCase().includes(department.toLowerCase()) ||
-            department.toLowerCase().includes(uDept.toLowerCase())
-          )
-        );
-        const matchesSkillFilter = matchesSkill(uSkills, uSkillIds);
+        const mFaculty = (
+          data.faculty ||
+          rawUser?.faculty ||
+          rawUser?.facultyName ||
+          rawUser?.academicProfile?.facultyName ||
+          ''
+        ).trim();
+        const mDept = (
+          data.department ||
+          rawUser?.department ||
+          rawUser?.departmentName ||
+          rawUser?.academicProfile?.departmentName ||
+          ''
+        ).trim();
+
+        const uName = rawUser?.name || rawUser?.fullName || rawUser?.username || 'Scholar';
+        const uUsername = rawUser?.username
+          ? (rawUser.username.startsWith('@') ? rawUser.username : `@${rawUser.username}`)
+          : `@scholar_${memberId.substring(0, 5)}`;
+
+        const matchesFaculty =
+          !faculty ||
+          (mFaculty.length > 0 &&
+            (mFaculty.toLowerCase().includes(faculty.toLowerCase()) ||
+              faculty.toLowerCase().includes(mFaculty.toLowerCase())));
+        const matchesDepartment =
+          !department ||
+          (mDept.length > 0 &&
+            (mDept.toLowerCase().includes(department.toLowerCase()) ||
+              department.toLowerCase().includes(mDept.toLowerCase())));
+        const matchesSkillFilter = matchesSkill(mSkills, mSkillIds);
 
         let matchesSearch = true;
         if (search && search.trim()) {
@@ -605,108 +644,30 @@ export async function fetchCampusStudents(params: {
           matchesSearch =
             Boolean(uName && String(uName).toLowerCase().includes(s)) ||
             Boolean(uUsername && String(uUsername).toLowerCase().includes(s)) ||
-            Boolean(uDept && String(uDept).toLowerCase().includes(s)) ||
-            Boolean(uFaculty && String(uFaculty).toLowerCase().includes(s)) ||
-            uSkills.some((sk) => sk.toLowerCase().includes(s));
-        }
-
-        if (matchesFaculty && matchesDepartment && matchesSkillFilter && matchesSearch) {
-          studentsMap.set(d.id, {
-            id: d.id,
-            name: uName,
-            username: uUsername,
-            avatar: uAvatar,
-            institution: data.institution || data.institutionName || institution,
-            institutionId: data.institutionId || data.academicProfile?.institutionId,
-            faculty: uFaculty,
-            department: uDept,
-            level: uLevel,
-            bio: data.bio || '',
-            skills: uSkills,
-            skillIds: uSkillIds,
-            tier: uTier,
-            hasBlueBadge: blueBadge,
-            isVerified: blueBadge,
-            isOnline: true,
-            connectionStatus: d.id === currentUserId ? 'self' : 'none',
-            joinedCampus: true,
-          });
-        }
-      }
-    });
-  } catch (err) {
-    console.warn('Direct Firestore users read notice:', err);
-  }
-
-  // 2. Also check campus_memberships collection to include members who joined
-  try {
-    const memRef = collection(db, CAMPUS_MEMBERSHIPS_COLLECTION);
-    const memSnap = await getDocs(query(memRef, limit(80)));
-    memSnap.forEach((d) => {
-      const data = d.data() as CampusMembership;
-      const mInst = (data.institution || '').trim().toLowerCase();
-      if (mInst && (mInst === targetInst || mInst.includes(targetInst) || targetInst.includes(mInst))) {
-        const rel = userSkillsMap.get(data.userId);
-        const mSkills: string[] = rel?.skills?.length
-          ? rel.skills
-          : (Array.isArray(data.skills) ? data.skills : []);
-        const mSkillIds: string[] = rel?.skillIds?.length
-          ? rel.skillIds
-          : (Array.isArray(data.skillIds) ? data.skillIds : []);
-
-        if (studentsMap.has(data.userId)) {
-          const existing = studentsMap.get(data.userId)!;
-          if ((!existing.skills || existing.skills.length === 0) && mSkills.length > 0) {
-            existing.skills = mSkills;
-            existing.skillIds = mSkillIds;
-          }
-          return;
-        }
-
-        const mFaculty = (data.faculty || '').trim();
-        const mDept = (data.department || '').trim();
-
-        const matchesFaculty = !faculty || (
-          mFaculty.length > 0 && (
-            mFaculty.toLowerCase().includes(faculty.toLowerCase()) ||
-            faculty.toLowerCase().includes(mFaculty.toLowerCase())
-          )
-        );
-        const matchesDepartment = !department || (
-          mDept.length > 0 && (
-            mDept.toLowerCase().includes(department.toLowerCase()) ||
-            department.toLowerCase().includes(mDept.toLowerCase())
-          )
-        );
-        const matchesSkillFilter = matchesSkill(mSkills, mSkillIds);
-
-        let matchesSearch = true;
-        if (search && search.trim()) {
-          const s = search.trim().toLowerCase();
-          matchesSearch =
             Boolean(mDept && String(mDept).toLowerCase().includes(s)) ||
             Boolean(mFaculty && String(mFaculty).toLowerCase().includes(s)) ||
             mSkills.some((sk) => sk.toLowerCase().includes(s));
         }
 
         if (matchesFaculty && matchesDepartment && matchesSkillFilter && matchesSearch) {
-          const rawUser = rawUsersMap.get(data.userId);
-          const uName = rawUser?.name || rawUser?.fullName || rawUser?.username || 'Scholar';
-          const uUsername = rawUser?.username ? (rawUser.username.startsWith('@') ? rawUser.username : `@${rawUser.username}`) : '@scholar';
-          const uAvatar = rawUser?.avatar || rawUser?.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${data.userId}`;
+          const uAvatar =
+            rawUser?.avatar ||
+            rawUser?.profileImage ||
+            `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(uName || memberId)}`;
           const uTier = rawUser ? resolveUserSubscriptionTier(rawUser) : 'free';
           const blueBadge = rawUser ? isUserBlueBadge(rawUser) : false;
 
-          studentsMap.set(data.userId, {
-            id: data.userId,
+          studentsMap.set(memberId, {
+            id: memberId,
             name: uName,
             username: uUsername,
             avatar: uAvatar,
-            institution: data.institution,
-            institutionId: data.institutionId,
+            institution: mInstRaw || institution,
+            institutionId:
+              data.institutionId || rawUser?.institutionId || rawUser?.academicProfile?.institutionId,
             faculty: mFaculty,
             department: mDept,
-            level: data.level || rawUser?.level || '100 Level',
+            level: data.level || rawUser?.level || rawUser?.academicProfile?.level || '100 Level',
             bio: rawUser?.bio || '',
             skills: mSkills,
             skillIds: mSkillIds,
@@ -714,7 +675,7 @@ export async function fetchCampusStudents(params: {
             hasBlueBadge: blueBadge,
             isVerified: blueBadge,
             isOnline: true,
-            connectionStatus: data.userId === currentUserId ? 'self' : 'none',
+            connectionStatus: memberId === currentUserId ? 'self' : 'none',
             joinedCampus: true,
           });
         }
