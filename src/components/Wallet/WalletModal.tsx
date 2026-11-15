@@ -2265,7 +2265,7 @@ export const WalletModal: React.FC = () => {
                     if (ledgerTypeFilter === 'withdrawal' && tx.type !== 'gp_withdrawal' && tx.type !== 'withdrawal') return false;
                     if (ledgerTypeFilter === 'badge' && tx.type !== 'badge_purchase') return false;
                     if (ledgerTypeFilter === 'subscription' && tx.type !== 'subscription_purchase') return false;
-                    if (ledgerTypeFilter === 'reward' && tx.type !== 'reward' && tx.type !== 'grant' && tx.type !== 'GUS_PRIZE' && tx.type !== 'welcome_bonus') return false;
+                    if (ledgerTypeFilter === 'reward' && tx.type !== 'reward' && tx.type !== 'blogger_reward' && tx.type !== 'grant' && tx.type !== 'GUS_PRIZE' && tx.type !== 'welcome_bonus') return false;
                     if (ledgerTypeFilter === 'admin' && tx.type !== 'admin_adjustment') return false;
                   }
 
@@ -2291,6 +2291,12 @@ export const WalletModal: React.FC = () => {
                         label: 'Dome Elimination Spin',
                         icon: Sparkles,
                         bg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+                      };
+                    case 'blogger_reward':
+                      return {
+                        label: 'Blogger View Reward',
+                        icon: Sparkles,
+                        bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
                       };
                     case 'GUS_PRIZE':
                     case 'reward':

@@ -1,4 +1,6 @@
 import {
+  ArticleRewardProgress,
+  BloggerRewardSummary,
   SchoolBlogRecord,
   SchoolBlogArticle,
   SchoolBlogCategory,
@@ -8,6 +10,7 @@ import {
   SchoolBloggerAssignment,
   SchoolBlogReport,
   SchoolBlogAuditLog,
+  SchoolBlogRewardMilestone,
 } from '../types';
 import { getAuthBearerHeaders } from './campusService';
 
@@ -98,7 +101,13 @@ export async function fetchSchoolBlogArticle(articleId: string) {
 }
 
 export async function trackSchoolBlogArticleView(articleId: string) {
-  const res = await apiJson<{ success: boolean; counted?: boolean; viewsCount?: number }>(
+  const res = await apiJson<{
+    success: boolean;
+    counted?: boolean;
+    eligible?: boolean;
+    reason?: string;
+    viewsCount?: number;
+  }>(
     `/api/school-blogs/articles/${encodeURIComponent(articleId)}/view`,
     { method: 'POST', body: JSON.stringify({}) },
     true
@@ -196,6 +205,24 @@ export async function fetchBloggerStudioArticles() {
     articles?: SchoolBlogArticle[];
     error?: string;
   }>('/api/school-blogs/studio/articles', { method: 'GET' }, true);
+  return res.data;
+}
+
+export interface BloggerRewardsResponse {
+  success: boolean;
+  assignment?: SchoolBloggerAssignment;
+  summary?: BloggerRewardSummary;
+  articleProgress?: ArticleRewardProgress[];
+  milestones?: SchoolBlogRewardMilestone[];
+  error?: string;
+}
+
+export async function fetchBloggerRewards(): Promise<BloggerRewardsResponse> {
+  const res = await apiJson<BloggerRewardsResponse>(
+    '/api/school-blogs/studio/rewards',
+    { method: 'GET' },
+    true
+  );
   return res.data;
 }
 

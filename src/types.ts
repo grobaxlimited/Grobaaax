@@ -3243,3 +3243,53 @@ export interface SchoolBlogAuditLog {
   details: Record<string, any>;
   createdAt: string;
 }
+
+export interface SchoolBlogRewardMilestone {
+  id: string;
+  articleId: string;
+  articleTitle?: string;
+  bloggerUserId: string;
+  institutionId: string;
+  milestoneNumber: number;
+  eligibleViewThreshold: number;
+  gpAmount: number;
+  transactionReference: string;
+  createdAt: string;
+}
+
+export interface ArticleRewardProgress {
+  articleId: string;
+  title: string;
+  category: SchoolBlogCategory;
+  status: SchoolBlogArticleStatus;
+  publishedAt: string | null;
+  eligibleViews: number;
+  gpEarned: number;
+  milestonesAchieved: number;
+  nextMilestoneViews: number;
+  nextRewardGp: number;
+  remainingViews: number;
+  progressCurrent: number;
+  progressTarget: number;
+  progressPercent: number;
+}
+
+export interface BloggerRewardSummary {
+  viewsPerMilestone: number;
+  gpPerMilestone: number;
+  totalEligibleViews: number;
+  totalGpEarned: number;
+  publishedArticlesCount: number;
+  milestonesAchieved: number;
+  walletGpBalance: number;
+  nextMilestoneProgress: {
+    articleId: string | null;
+    articleTitle: string | null;
+    currentViews: number;
+    targetViews: number;
+    remainingViews: number;
+    nextRewardGp: number;
+    progressPercent: number;
+  };
+}
+

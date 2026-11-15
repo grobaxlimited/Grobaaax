@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { useApp } from '../../../../context/AppContext';
 import {
+  ArticleRewardProgress,
+  BloggerRewardSummary,
   SchoolBlogArticle,
   SchoolBlogCategory,
   SchoolBlogContentBlock,
   SchoolBloggerAssignment,
+  SchoolBlogRewardMilestone,
 } from '../../../../types';
 import {
   createSchoolBlogArticle,
+  fetchBloggerRewards,
   fetchBloggerStudioArticles,
   updateSchoolBlogArticle,
   uploadSchoolBlogImage,
@@ -17,8 +22,11 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  Award,
   CheckCircle2,
+  Coins,
   Edit3,
+  ExternalLink,
   Eye,
   FileText,
   Heading2,
@@ -27,8 +35,11 @@ import {
   PenTool,
   Plus,
   Send,
+  ShieldAlert,
+  Sparkles,
   Trash2,
   Upload,
+  Wallet,
 } from 'lucide-react';
 
 interface BloggerDashboardViewProps {
@@ -46,8 +57,14 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
   onBackToBlog,
   onArticlesChanged,
 }) => {
+  const { setIsWalletModalOpen, setWalletModalTab } = useApp();
+
   const [assignment, setAssignment] = useState<SchoolBloggerAssignment | null>(null);
   const [articles, setArticles] = useState<SchoolBlogArticle[]>([]);
+  const [rewardSummary, setRewardSummary] = useState<BloggerRewardSummary | null>(null);
+  const [articleProgress, setArticleProgress] = useState<ArticleRewardProgress[]>([]);
+  const [rewardMilestones, setRewardMilestones] = useState<SchoolBlogRewardMilestone[]>([]);
+  const [studioTab, setStudioTab] = useState<'articles' | 'rewards'>('articles');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -70,12 +87,28 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchBloggerStudioArticles();
-      if (res.success) {
-        setAssignment(res.assignment || null);
-        setArticles(res.articles || []);
+      const [articlesRes, rewardsRes] = await Promise.all([
+        fetchBloggerStudioArticles(),
+        fetchBloggerRewards(),
+      ]);
+
+      if (articlesRes.success) {
+        setAssignment(articlesRes.assignment || null);
+        setArticles(articlesRes.articles || []);
       } else {
-        setError(res.error || 'Could not load Blogger Studio.');
+        setAssignment(null);
+        setArticles([]);
+        setError(articlesRes.error || 'Could not load Blogger Studio.');
+      }
+
+      if (rewardsRes.success) {
+        setRewardSummary(rewardsRes.summary || null);
+        setArticleProgress(rewardsRes.articleProgress || []);
+        setRewardMilestones(rewardsRes.milestones || []);
+      } else {
+        setRewardSummary(null);
+        setArticleProgress([]);
+        setRewardMilestones([]);
       }
     } catch (err: any) {
       setError(err?.message || 'Error connecting to Blogger Studio.');
@@ -87,6 +120,11 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
   useEffect(() => {
     loadStudio();
   }, []);
+
+  const handleOpenGpWallet = () => {
+    setWalletModalTab('history');
+    setIsWalletModalOpen(true);
+  };
 
   const resetEditor = () => {
     setEditingArticleId(null);
@@ -334,113 +372,455 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
           <Loader2 className="w-6 h-6 text-blue-600 animate-spin mx-auto" />
           <p className="text-xs font-bold text-slate-500">Loading your editorial workspace...</p>
         </div>
+      ) : !assignment ? (
+        <div className="p-10 text-center rounded-3xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/40 space-y-3">
+          <ShieldAlert className="w-10 h-10 text-rose-500 mx-auto" />
+          <h3 className="text-base font-black text-slate-900 dark:text-white">
+            Approved School Blogger Access Required
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+            {error ||
+              'Only active approved School Bloggers can access Blogger Studio, article publishing, and GP reward tracking.'}
+          </p>
+        </div>
       ) : mode === 'list' ? (
-        <div className="space-y-3">
-          {articles.length === 0 ? (
-            <div className="p-10 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-              <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto" />
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
-                No Articles Written Yet
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                Publish your first campus news dispatch, event spotlight, or academic notice for {institutionName}.
-              </p>
+        <div className="space-y-4">
+          {/* Studio Section Tabs + Quick GP Reward Summary Strip */}
+          <div className="p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={openCreateEditor}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                onClick={() => setStudioTab('articles')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  studioTab === 'articles'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
               >
-                <Plus className="w-4 h-4" />
-                <span>Create First Article</span>
+                <FileText className="w-3.5 h-3.5" />
+                <span>My Articles ({articles.length})</span>
+              </button>
+              <button
+                type="button"
+                id="blogger-my-gp-rewards-tab"
+                onClick={() => setStudioTab('rewards')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  studioTab === 'rewards'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                <Coins className="w-3.5 h-3.5" />
+                <span>My GP Rewards</span>
+                {rewardSummary && (
+                  <span
+                    className={`tabular-nums text-[10px] px-1.5 py-0.5 rounded-md font-black ${
+                      studioTab === 'rewards'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300'
+                    }`}
+                  >
+                    {rewardSummary.totalGpEarned.toLocaleString()} GP
+                  </span>
+                )}
               </button>
             </div>
-          ) : (
-            articles.map((art) => (
-              <div
-                key={art.id}
-                className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-              >
-                <div className="flex items-start gap-3.5 min-w-0">
-                  {art.coverImageUrl ? (
-                    <img
-                      src={art.coverImageUrl}
-                      alt={art.title}
-                      referrerPolicy="no-referrer"
-                      className="w-20 h-14 rounded-xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800"
-                    />
-                  ) : (
-                    <div className="w-20 h-14 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 flex items-center justify-center shrink-0">
-                      <FileText className="w-6 h-6" />
-                    </div>
-                  )}
 
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2 text-[11px] font-bold flex-wrap">
-                      <span
-                        className={`uppercase tracking-wider ${
-                          art.status === 'published'
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : art.status === 'removed'
-                            ? 'text-rose-600 dark:text-rose-400'
-                            : 'text-amber-600 dark:text-amber-400'
-                        }`}
-                      >
-                        {art.status}
-                      </span>
-                      <span aria-hidden="true" className="text-slate-300">
-                        ·
-                      </span>
-                      <span className="text-blue-600 dark:text-blue-400">{art.category}</span>
-                      <span aria-hidden="true" className="text-slate-300">
-                        ·
-                      </span>
-                      <span className="text-slate-500 tabular-nums">
-                        {art.viewsCount} views · {art.reactionsCount} reactions
-                      </span>
+            {rewardSummary && (
+              <div className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 flex items-center justify-between sm:justify-end gap-3 text-xs">
+                <span className="text-slate-600 dark:text-slate-300 font-semibold tabular-nums">
+                  {rewardSummary.totalEligibleViews.toLocaleString()} eligible views
+                </span>
+                <button
+                  type="button"
+                  onClick={handleOpenGpWallet}
+                  className="text-blue-600 dark:text-blue-400 font-black hover:underline inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Wallet className="w-3.5 h-3.5" />
+                  <span>Wallet ({rewardSummary.walletGpBalance.toLocaleString()} GP)</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {studioTab === 'rewards' ? (
+            /* MY GP REWARDS SECTION */
+            <div id="blogger-gp-rewards-section" className="space-y-5">
+              {/* Top Reward Overview Banner (Grobaax Blue & White Identity) */}
+              <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white shadow-md space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="space-y-1.5 max-w-2xl">
+                    <div className="text-[11px] font-black uppercase tracking-wider text-blue-100 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>My GP Rewards · Automatic View Payouts</span>
                     </div>
-                    <h4 className="font-black text-sm sm:text-base text-slate-900 dark:text-white truncate">
-                      {art.title}
-                    </h4>
-                    {art.status === 'removed' && art.moderationReason && (
-                      <p className="text-[11px] text-rose-600 dark:text-rose-400">
-                        Removed by Admin: {art.moderationReason}
-                      </p>
-                    )}
+                    <h3 className="text-xl sm:text-2xl font-black text-white">
+                      Campus Blogger View Earnings
+                    </h3>
+                    <p className="text-xs sm:text-sm text-blue-100 leading-relaxed">
+                      Earn 1,000 GP for every 250 genuine unique views on your published articles.
+                      Each reader counts only once per article. Your GP rewards are credited
+                      automatically to your Grobaax wallet.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenGpWallet}
+                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-blue-50 text-blue-700 text-xs font-black shadow-sm flex items-center gap-2 shrink-0 self-start cursor-pointer transition-colors"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    <span>View GP Wallet &amp; History</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* 4 Key Metrics Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                  <div className="p-3.5 rounded-2xl bg-white/12 border border-white/20 backdrop-blur-xs">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-blue-100">
+                      Eligible Unique Views
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-white tabular-nums mt-1">
+                      {(rewardSummary?.totalEligibleViews ?? 0).toLocaleString()}
+                    </div>
+                    <div className="text-[11px] text-blue-100/80 mt-0.5">
+                      Across published articles
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-white/12 border border-white/20 backdrop-blur-xs">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-blue-100">
+                      Total GP Earned
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-white tabular-nums mt-1">
+                      {(rewardSummary?.totalGpEarned ?? 0).toLocaleString()} GP
+                    </div>
+                    <div className="text-[11px] text-blue-100/80 mt-0.5">
+                      Auto-credited to wallet
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-white/12 border border-white/20 backdrop-blur-xs">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-blue-100">
+                      Published Articles
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-white tabular-nums mt-1">
+                      {rewardSummary?.publishedArticlesCount ?? 0}
+                    </div>
+                    <div className="text-[11px] text-blue-100/80 mt-0.5">
+                      Active on {institutionName}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-white/12 border border-white/20 backdrop-blur-xs">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-blue-100">
+                      Milestones Achieved
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-white tabular-nums mt-1">
+                      {rewardSummary?.milestonesAchieved ?? 0}
+                    </div>
+                    <div className="text-[11px] text-blue-100/80 mt-0.5">
+                      250 views = 1,000 GP
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                  {art.status !== 'removed' && (
-                    <button
-                      type="button"
-                      onClick={() => openEditEditor(art)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>Edit</span>
-                    </button>
-                  )}
-                  {(art.status === 'draft' || art.status === 'unpublished') && (
-                    <button
-                      type="button"
-                      onClick={() => handleTogglePublish(art, 'published')}
-                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
-                    >
-                      Publish
-                    </button>
-                  )}
-                  {art.status === 'published' && (
-                    <button
-                      type="button"
-                      onClick={() => handleTogglePublish(art, 'unpublished')}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-xs font-bold cursor-pointer"
-                    >
-                      Unpublish
-                    </button>
-                  )}
-                </div>
+                {/* Closest Next Milestone Progress Bar */}
+                {rewardSummary && (
+                  <div className="p-4 rounded-2xl bg-white/12 border border-white/20 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                      <span className="font-bold text-white flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-blue-200 shrink-0" />
+                        <span>
+                          Next Milestone Progress
+                          {rewardSummary.nextMilestoneProgress.articleTitle
+                            ? ` · ${rewardSummary.nextMilestoneProgress.articleTitle}`
+                            : ''}
+                        </span>
+                      </span>
+                      <span className="font-black text-white tabular-nums">
+                        {rewardSummary.nextMilestoneProgress.currentViews.toLocaleString()} /{' '}
+                        {rewardSummary.nextMilestoneProgress.targetViews.toLocaleString()} views (
+                        {rewardSummary.nextMilestoneProgress.remainingViews.toLocaleString()} left for +1,000 GP)
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 rounded-full bg-white/20 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-white transition-all duration-300"
+                        style={{
+                          width: `${rewardSummary.nextMilestoneProgress.progressPercent}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
-            ))
+
+              {/* Per-Article Reward Progress Cards */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                    Per-Article Reward Progress
+                  </h4>
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Minimum payout: 250 eligible views / article
+                  </span>
+                </div>
+
+                {articleProgress.length === 0 ? (
+                  <div className="p-8 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                    <Coins className="w-8 h-8 text-blue-500 mx-auto opacity-75" />
+                    <h5 className="text-sm font-black text-slate-900 dark:text-white">
+                      No Published Articles Tracked Yet
+                    </h5>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                      Publish your first article to start earning 1,000 GP automatically for every
+                      250 eligible unique student views.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {articleProgress.map((item) => {
+                      const pubDate = item.publishedAt
+                        ? new Date(item.publishedAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : 'Draft';
+                      return (
+                        <div
+                          key={item.articleId}
+                          className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3.5"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2 text-[11px] font-bold">
+                              <span className="text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                                {item.category} · {pubDate}
+                              </span>
+                              <span className="text-slate-500 dark:text-slate-400 uppercase">
+                                {item.status}
+                              </span>
+                            </div>
+                            <h5 className="font-black text-sm sm:text-base text-slate-900 dark:text-white line-clamp-2">
+                              {item.title}
+                            </h5>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2.5 text-xs">
+                            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/70">
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                                Eligible Unique Views
+                              </div>
+                              <div className="font-black text-sm text-slate-900 dark:text-white tabular-nums mt-0.5">
+                                {item.eligibleViews.toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/50">
+                              <div className="text-[11px] text-blue-700 dark:text-blue-300 font-semibold">
+                                GP Earned
+                              </div>
+                              <div className="font-black text-sm text-blue-700 dark:text-blue-300 tabular-nums mt-0.5">
+                                {item.gpEarned.toLocaleString()} GP
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-2 text-xs font-bold">
+                              <span className="text-slate-700 dark:text-slate-300">
+                                Next milestone ({item.nextRewardGp.toLocaleString()} GP total)
+                              </span>
+                              <span className="text-blue-600 dark:text-blue-400 tabular-nums">
+                                {item.progressCurrent.toLocaleString()} /{' '}
+                                {item.progressTarget.toLocaleString()} views
+                              </span>
+                            </div>
+
+                            <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                                style={{ width: `${item.progressPercent}%` }}
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-semibold tabular-nums">
+                              <span>
+                                {item.milestonesAchieved} milestone
+                                {item.milestonesAchieved === 1 ? '' : 's'} credited
+                              </span>
+                              <span>
+                                {item.remainingViews.toLocaleString()} view
+                                {item.remainingViews === 1 ? '' : 's'} remaining for +1,000 GP
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Recent Automatic GP Milestone Payouts */}
+              {rewardMilestones.length > 0 && (
+                <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                      <span>Automatic Milestone Credits ({rewardMilestones.length})</span>
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handleOpenGpWallet}
+                      className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                    >
+                      Open Wallet Ledger
+                    </button>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {rewardMilestones.map((m) => (
+                      <div
+                        key={m.id}
+                        className="py-2.5 flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-bold text-slate-900 dark:text-white truncate">
+                            {m.articleTitle || 'School Blog Article'}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Milestone #{m.milestoneNumber} · {m.eligibleViewThreshold.toLocaleString()}{' '}
+                            eligible views · Ref: {m.transactionReference}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="font-black text-blue-600 dark:text-blue-400 tabular-nums">
+                            +{m.gpAmount.toLocaleString()} GP
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {new Date(m.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {articles.length === 0 ? (
+                <div className="p-10 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto" />
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    No Articles Written Yet
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                    Publish your first campus news dispatch, event spotlight, or academic notice for {institutionName}.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={openCreateEditor}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create First Article</span>
+                  </button>
+                </div>
+              ) : (
+                articles.map((art) => (
+                  <div
+                    key={art.id}
+                    className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div className="flex items-start gap-3.5 min-w-0">
+                      {art.coverImageUrl ? (
+                        <img
+                          src={art.coverImageUrl}
+                          alt={art.title}
+                          referrerPolicy="no-referrer"
+                          className="w-20 h-14 rounded-xl object-cover shrink-0 bg-slate-100 dark:bg-slate-800"
+                        />
+                      ) : (
+                        <div className="w-20 h-14 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 flex items-center justify-center shrink-0">
+                          <FileText className="w-6 h-6" />
+                        </div>
+                      )}
+
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 text-[11px] font-bold flex-wrap">
+                          <span
+                            className={`uppercase tracking-wider ${
+                              art.status === 'published'
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : art.status === 'removed'
+                                ? 'text-rose-600 dark:text-rose-400'
+                                : 'text-amber-600 dark:text-amber-400'
+                            }`}
+                          >
+                            {art.status}
+                          </span>
+                          <span aria-hidden="true" className="text-slate-300">
+                            ·
+                          </span>
+                          <span className="text-blue-600 dark:text-blue-400">{art.category}</span>
+                          <span aria-hidden="true" className="text-slate-300">
+                            ·
+                          </span>
+                          <span className="text-slate-500 tabular-nums">
+                            {art.viewsCount} views · {art.reactionsCount} reactions
+                          </span>
+                        </div>
+                        <h4 className="font-black text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                          {art.title}
+                        </h4>
+                        {art.status === 'removed' && art.moderationReason && (
+                          <p className="text-[11px] text-rose-600 dark:text-rose-400">
+                            Removed by Admin: {art.moderationReason}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                      {art.status !== 'removed' && (
+                        <button
+                          type="button"
+                          onClick={() => openEditEditor(art)}
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+                      )}
+                      {(art.status === 'draft' || art.status === 'unpublished') && (
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePublish(art, 'published')}
+                          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
+                        >
+                          Publish
+                        </button>
+                      )}
+                      {art.status === 'published' && (
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePublish(art, 'unpublished')}
+                          className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-xs font-bold cursor-pointer"
+                        >
+                          Unpublish
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
       ) : (

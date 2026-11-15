@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import crypto from 'crypto';
 import { supabaseAdmin } from '../src/lib/supabase';
 import { NIGERIAN_INSTITUTIONS } from '../src/data/nigerianInstitutions';
 import { optionalAuth, requireAuth, requireAdmin } from './utils/authMiddleware';
@@ -9,9 +8,12 @@ import {
   slugifyText,
 } from './utils/institutionResolver';
 import {
+  ArticleRewardProgress,
+  BloggerRewardSummary,
   SchoolBlogCategory,
   SchoolBlogContentBlock,
   SchoolBlogReactionType,
+  SchoolBlogRewardMilestone,
 } from '../src/types';
 
 export const schoolBlogRouter = Router();
@@ -20,6 +22,9 @@ const VALID_CATEGORIES: SchoolBlogCategory[] = ['News', 'Events', 'Academics', '
 const VALID_REACTIONS: SchoolBlogReactionType[] = ['like', 'helpful', 'insightful', 'celebrate'];
 const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const VIEWS_PER_REWARD_MILESTONE = 250;
+const GP_PER_REWARD_MILESTONE = 1000;
 
 // Map DB snake_case rows cleanly to frontend TypeScript interfaces
 function mapBlogRow(row: any) {
@@ -94,7 +99,7 @@ function mapArticleRow(row: any) {
     contentBlocks: Array.isArray(row.content_blocks) ? row.content_blocks : [],
     contentText: row.content_text || '',
     status: row.status,
-    viewsCount: Number(row.views_count || 0),
+    viewsCount: Number(row.eligible_views_count ?? row.views_count ?? 0),
     reactionsCount: Number(row.reactions_count || 0),
     moderationReason: row.moderation_reason || null,
     moderatedBy: row.moderated_by || null,
@@ -668,6 +673,9 @@ schoolBlogRouter.post('/applications/:applicationId/withdraw', requireAuth, asyn
 schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, res: Response) => {
   try {
     const { articleId } = req.params;
+    if (!UUID_RE.test(articleId)) {
+      return res.status(404).json({ success: false, error: 'Article not found.' });
+    }
     const { data: articleRow, error } = await supabaseAdmin
       .from('school_blog_articles')
       .select('*')
@@ -730,55 +738,80 @@ schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, 
   }
 });
 
-// Server-side deduplicated article view tracking
+// Server-side eligible unique article view tracking + automatic 250-view / 1,000 GP rewards
 schoolBlogRouter.post('/articles/:articleId/view', optionalAuth, async (req: Request, res: Response) => {
   try {
     const { articleId } = req.params;
-    const { data: articleRow } = await supabaseAdmin
-      .from('school_blog_articles')
-      .select('id, status, views_count')
-      .eq('id', articleId)
-      .maybeSingle();
-
-    if (!articleRow || articleRow.status !== 'published') {
+    if (!UUID_RE.test(articleId)) {
       return res.status(404).json({ success: false, error: 'Published article not found.' });
     }
 
-    const rawIp =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.socket?.remoteAddress ||
-      'unknown';
-    const ua = String(req.headers['user-agent'] || '').slice(0, 120);
-    const anonHash = crypto.createHash('sha256').update(`${rawIp}|${ua}`).digest('hex').slice(0, 24);
-    const viewerKey = req.authUser?.id ? `user:${req.authUser.id}` : `anon:${anonHash}`;
-    const viewBucket = new Date().toISOString().slice(0, 10); // UTC day bucket prevents refresh spam
+    const viewerUserId = req.authUser?.id || null;
 
-    const { error: insertErr } = await supabaseAdmin.from('school_blog_article_views').insert({
-      article_id: articleId,
-      viewer_key: viewerKey,
-      view_bucket: viewBucket,
-    });
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
+      'record_eligible_article_view_and_reward',
+      {
+        p_article_id: articleId,
+        p_viewer_user_id: viewerUserId,
+      }
+    );
 
-    if (!insertErr) {
-      // New unique view recorded; recount authoritatively
-      const { count } = await supabaseAdmin
-        .from('school_blog_article_views')
-        .select('id', { count: 'exact', head: true })
-        .eq('article_id', articleId);
+    if (rpcError) {
+      return res.status(500).json({ success: false, error: rpcError.message });
+    }
 
-      const newCount = typeof count === 'number' ? count : Number(articleRow.views_count || 0) + 1;
-      await supabaseAdmin
-        .from('school_blog_articles')
-        .update({ views_count: newCount })
-        .eq('id', articleId);
+    if (!rpcResult || rpcResult.success === false) {
+      const code = Number(rpcResult?.statusCode || 404);
+      return res.status(code).json({
+        success: false,
+        error: rpcResult?.error || 'Published article not found.',
+      });
+    }
 
-      return res.json({ success: true, counted: true, viewsCount: newCount });
+    // Dispatch notifications and audit records asynchronously when milestone rewards were credited
+    const creditedMilestones: Array<{
+      milestoneId?: string;
+      milestoneNumber: number;
+      eligibleViewThreshold: number;
+      gpAmount: number;
+      transactionReference: string;
+    }> = Array.isArray(rpcResult.creditedMilestones) ? rpcResult.creditedMilestones : [];
+
+    const totalCreditedNow = Number(rpcResult.totalCreditedNow || 0);
+    if (totalCreditedNow > 0 && creditedMilestones.length > 0 && rpcResult.authorUserId) {
+      const highestThreshold = creditedMilestones[creditedMilestones.length - 1]?.eligibleViewThreshold || 250;
+      await Promise.all([
+        writeAuditLog({
+          actorUserId: rpcResult.authorUserId,
+          actorName: rpcResult.authorName || 'Approved Blogger',
+          actorRole: 'blogger',
+          action: 'BLOGGER_MILESTONE_GP_CREDITED',
+          institutionId: rpcResult.institutionId,
+          institutionName: rpcResult.institutionName,
+          targetType: 'article',
+          targetId: articleId,
+          details: {
+            articleTitle: rpcResult.articleTitle,
+            totalCreditedGp: totalCreditedNow,
+            eligibleViewsCount: Number(rpcResult.eligibleViewsCount || 0),
+            milestones: creditedMilestones,
+          },
+        }),
+        notifyUserOrAdmins({
+          title: 'Campus Blogger GP Reward Credited!',
+          message: `+${totalCreditedNow.toLocaleString()} GP has been automatically credited to your Grobaax wallet for reaching ${highestThreshold.toLocaleString()} eligible unique views on "${rpcResult.articleTitle || 'your article'}".`,
+          targetUserId: rpcResult.authorUserId,
+          actionUrl: '/wallet',
+        }),
+      ]);
     }
 
     return res.json({
       success: true,
-      counted: false,
-      viewsCount: Number(articleRow.views_count || 0),
+      counted: Boolean(rpcResult.counted),
+      eligible: Boolean(rpcResult.eligible),
+      reason: String(rpcResult.reason || ''),
+      viewsCount: Number(rpcResult.viewsCount || 0),
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
@@ -958,6 +991,196 @@ schoolBlogRouter.get('/studio/articles', requireAuth, async (req: Request, res: 
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get blogger's private GP reward summary, per-article progress & milestone history
+// STRICTLY restricted to active approved bloggers only
+schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = req.authUser!;
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user.id);
+    if (!activeAssign) {
+      return res.status(403).json({
+        success: false,
+        error: 'Blogger GP rewards are strictly accessible to active approved School Bloggers.',
+      });
+    }
+
+    const [{ data: rawArticles }, { data: rawMilestones }, { data: userRow }] = await Promise.all([
+      supabaseAdmin
+        .from('school_blog_articles')
+        .select('*')
+        .eq('blog_institution_id', activeAssign.institution_id)
+        .eq('author_user_id', user.id)
+        .order('published_at', { ascending: false, nullsFirst: false })
+        .order('updated_at', { ascending: false }),
+      supabaseAdmin
+        .from('school_blog_reward_milestones')
+        .select('*')
+        .eq('blogger_user_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabaseAdmin.from('users').select('id, data').eq('id', user.id).maybeSingle(),
+    ]);
+
+    const articles = rawArticles || [];
+    const milestonesByArticle = new Map<string, any[]>();
+    for (const m of rawMilestones || []) {
+      const list = milestonesByArticle.get(m.article_id) || [];
+      list.push(m);
+      milestonesByArticle.set(m.article_id, list);
+    }
+
+    // Fetch authoritative exact count of eligible unique views for each article
+    const eligibleCountPairs = await Promise.all(
+      articles.map(async (art: any) => {
+        const { count } = await supabaseAdmin
+          .from('school_blog_eligible_article_views')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_id', art.id);
+        const authoritativeCount = typeof count === 'number' ? count : Number(art.eligible_views_count || 0);
+
+        // Idempotent self-healing check in case views reached a new 250-view milestone
+        const targetMilestones = Math.floor(authoritativeCount / VIEWS_PER_REWARD_MILESTONE);
+        const existingCount = (milestonesByArticle.get(art.id) || []).length;
+        if (art.status === 'published' && targetMilestones > existingCount) {
+          await supabaseAdmin.rpc('record_eligible_article_view_and_reward', {
+            p_article_id: art.id,
+            p_viewer_user_id: null,
+          });
+        }
+        return [art.id, authoritativeCount] as const;
+      })
+    );
+    const eligibleCountMap = new Map<string, number>(eligibleCountPairs);
+
+    // Re-read milestones & user wallet after any self-healing payout
+    const [{ data: finalMilestones }, { data: freshUserRow }] = await Promise.all([
+      supabaseAdmin
+        .from('school_blog_reward_milestones')
+        .select('*')
+        .eq('blogger_user_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabaseAdmin.from('users').select('id, data').eq('id', user.id).maybeSingle(),
+    ]);
+
+    const milestoneRows = finalMilestones || [];
+    const finalMilestonesByArticle = new Map<string, any[]>();
+    for (const m of milestoneRows) {
+      const list = finalMilestonesByArticle.get(m.article_id) || [];
+      list.push(m);
+      finalMilestonesByArticle.set(m.article_id, list);
+    }
+
+    const articleTitleMap = new Map<string, string>(
+      articles.map((a: any) => [a.id, a.title])
+    );
+
+    const publishedArticles = articles.filter((a: any) => a.status === 'published');
+    const trackableArticles = articles.filter(
+      (a: any) => a.status === 'published' || (finalMilestonesByArticle.get(a.id) || []).length > 0
+    );
+
+    const articleProgress: ArticleRewardProgress[] = trackableArticles.map((art: any) => {
+      const eligibleViews = eligibleCountMap.get(art.id) ?? 0;
+      const artMilestones = finalMilestonesByArticle.get(art.id) || [];
+      const gpEarned = artMilestones.reduce((sum: number, m: any) => sum + Number(m.gp_amount || 0), 0);
+      const achievedCount = artMilestones.length;
+      const cycleStart = Math.floor(eligibleViews / VIEWS_PER_REWARD_MILESTONE) * VIEWS_PER_REWARD_MILESTONE;
+      const nextMilestoneViews = cycleStart + VIEWS_PER_REWARD_MILESTONE;
+      const remainingViews = Math.max(0, nextMilestoneViews - eligibleViews);
+      const progressPercent = Math.min(
+        100,
+        Math.round(((eligibleViews - cycleStart) / VIEWS_PER_REWARD_MILESTONE) * 100)
+      );
+
+      return {
+        articleId: art.id,
+        title: art.title,
+        category: art.category,
+        status: art.status,
+        publishedAt: art.published_at || art.created_at || null,
+        eligibleViews,
+        gpEarned,
+        milestonesAchieved: achievedCount,
+        nextMilestoneViews,
+        nextRewardGp: (Math.floor(eligibleViews / VIEWS_PER_REWARD_MILESTONE) + 1) * GP_PER_REWARD_MILESTONE,
+        remainingViews,
+        progressCurrent: eligibleViews,
+        progressTarget: nextMilestoneViews,
+        progressPercent,
+      };
+    });
+
+    const totalEligibleViews = publishedArticles.reduce(
+      (sum: number, art: any) => sum + (eligibleCountMap.get(art.id) ?? 0),
+      0
+    );
+    const totalGpEarned = milestoneRows.reduce(
+      (sum: number, m: any) => sum + Number(m.gp_amount || 0),
+      0
+    );
+
+    const publishedProgress = articleProgress.filter((a) => a.status === 'published');
+    const closestArticle = publishedProgress.length > 0
+      ? [...publishedProgress].sort((a, b) => a.remainingViews - b.remainingViews)[0]
+      : null;
+
+    const walletGpBalance = Number(
+      (freshUserRow?.data || userRow?.data)?.gpBalance || 0
+    );
+
+    const summary: BloggerRewardSummary = {
+      viewsPerMilestone: VIEWS_PER_REWARD_MILESTONE,
+      gpPerMilestone: GP_PER_REWARD_MILESTONE,
+      totalEligibleViews,
+      totalGpEarned,
+      publishedArticlesCount: publishedArticles.length,
+      milestonesAchieved: milestoneRows.length,
+      walletGpBalance,
+      nextMilestoneProgress: closestArticle
+        ? {
+            articleId: closestArticle.articleId,
+            articleTitle: closestArticle.title,
+            currentViews: closestArticle.eligibleViews,
+            targetViews: closestArticle.nextMilestoneViews,
+            remainingViews: closestArticle.remainingViews,
+            nextRewardGp: GP_PER_REWARD_MILESTONE,
+            progressPercent: closestArticle.progressPercent,
+          }
+        : {
+            articleId: null,
+            articleTitle: null,
+            currentViews: 0,
+            targetViews: VIEWS_PER_REWARD_MILESTONE,
+            remainingViews: VIEWS_PER_REWARD_MILESTONE,
+            nextRewardGp: GP_PER_REWARD_MILESTONE,
+            progressPercent: 0,
+          },
+    };
+
+    const milestones: SchoolBlogRewardMilestone[] = milestoneRows.slice(0, 50).map((m: any) => ({
+      id: m.id,
+      articleId: m.article_id,
+      articleTitle: articleTitleMap.get(m.article_id) || 'School Blog Article',
+      bloggerUserId: m.blogger_user_id,
+      institutionId: m.institution_id,
+      milestoneNumber: Number(m.milestone_number || 1),
+      eligibleViewThreshold: Number(m.eligible_view_threshold || 250),
+      gpAmount: Number(m.gp_amount || 1000),
+      transactionReference: m.transaction_reference,
+      createdAt: m.created_at,
+    }));
+
+    return res.json({
+      success: true,
+      assignment: mapAssignmentRow(activeAssign),
+      summary,
+      articleProgress,
+      milestones,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || 'Failed to load blogger rewards.' });
   }
 });
 
