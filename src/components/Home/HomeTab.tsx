@@ -271,7 +271,7 @@ export const HomeTab: React.FC = () => {
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-600 max-w-xl leading-relaxed">
-                Connect with verified students, course coursemates, and faculty peers across institutions with verified WhatsApp study chats.
+                Connect with verified students across institutions on WhatsApp, discover skilled scholars, and follow official School Blogs.
               </p>
             </div>
           </div>
