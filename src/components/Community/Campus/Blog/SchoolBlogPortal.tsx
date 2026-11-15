@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../../../context/AppContext';
 import {
   SchoolBlogArticle,
@@ -6,12 +6,7 @@ import {
   SchoolBlogRecord,
 } from '../../../../types';
 import {
-  NIGERIAN_INSTITUTIONS,
-  searchNigerianInstitutions,
-} from '../../../../data/nigerianInstitutions';
-import {
   fetchSchoolBlogHomepage,
-  listAllSchoolBlogs,
   SchoolBlogViewerStatus,
 } from '../../../../lib/schoolBlogService';
 import { SchoolBlogArticleView } from './SchoolBlogArticleView';
@@ -21,10 +16,8 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
-  Building2,
   CheckCircle2,
   Eye,
-  Globe,
   Heart,
   Loader2,
   Newspaper,
@@ -85,9 +78,6 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
 
   // Modals
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
-  const [isBrowseSchoolsOpen, setIsBrowseSchoolsOpen] = useState(false);
-  const [schoolSearch, setSchoolSearch] = useState('');
-  const [activeBlogsList, setActiveBlogsList] = useState<SchoolBlogRecord[]>([]);
 
   const loadHomepage = async () => {
     setIsLoading(true);
@@ -134,40 +124,6 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
       loadHomepage();
     }
   }, [selectedCategory, searchQuery]);
-
-  // Preload active school blogs list when opening browser modal
-  useEffect(() => {
-    if (!isBrowseSchoolsOpen) return;
-    listAllSchoolBlogs()
-      .then((res) => {
-        if (res.success && Array.isArray(res.blogs)) {
-          setActiveBlogsList(res.blogs);
-        }
-      })
-      .catch(() => {});
-  }, [isBrowseSchoolsOpen]);
-
-  const browseInstitutions = useMemo(() => {
-    const matchedStatic = searchNigerianInstitutions(schoolSearch, 'All').slice(0, 60);
-    const blogById = new Map(activeBlogsList.map((b) => [b.institutionId, b]));
-    const blogByName = new Map(
-      activeBlogsList.map((b) => [b.institutionName.toLowerCase(), b])
-    );
-
-    return matchedStatic.map((inst) => {
-      const existingBlog = blogById.get(inst.id) || blogByName.get(inst.name.toLowerCase());
-      return {
-        id: inst.id,
-        name: inst.name,
-        shortName: inst.shortName,
-        category: inst.category,
-        state: inst.state,
-        logo: inst.logo,
-        publishedArticlesCount: existingBlog?.publishedArticlesCount || 0,
-        hasActiveBlogger: Boolean(existingBlog?.activeBlogger),
-      };
-    });
-  }, [schoolSearch, activeBlogsList]);
 
   const handleOpenArticle = (article: SchoolBlogArticle) => {
     setSelectedArticle(article);
@@ -234,16 +190,6 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         </button>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            id="school-blog-browse-schools-btn"
-            type="button"
-            onClick={() => setIsBrowseSchoolsOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5 cursor-pointer"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span>Browse Other School Blogs</span>
-          </button>
-
           {/* Publishing control strictly visible ONLY to authorized active blogger of this institution */}
           {viewerStatus?.isActiveBloggerForThisSchool && (
             <button
@@ -553,83 +499,6 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
           loadHomepage();
         }}
       />
-
-      {/* Browse All School Blogs Modal (Accessible to ALL tiers: Free, Premium, VIP) */}
-      {isBrowseSchoolsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                  <span>Browse Independent School Blogs</span>
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Select any registered Nigerian institution to read its independent School Blog.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsBrowseSchoolsOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={schoolSearch}
-                onChange={(e) => setSchoolSearch(e.target.value)}
-                placeholder="Search any university, polytechnic, or college (e.g., UI, UNILAG, OAU, ABU...)"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="overflow-y-auto flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5 pr-1">
-              {browseInstitutions.map((inst) => (
-                <button
-                  key={inst.id}
-                  type="button"
-                  onClick={() => {
-                    setIsBrowseSchoolsOpen(false);
-                    if (onSwitchBlogInstitution) {
-                      onSwitchBlogInstitution(inst.name, inst.category);
-                    }
-                  }}
-                  className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 hover:bg-blue-50 dark:hover:bg-blue-950/40 border border-slate-200 dark:border-slate-700 hover:border-blue-400 text-left transition-all flex items-start gap-3 cursor-pointer"
-                >
-                  <span className="text-2xl shrink-0">{inst.logo || '🏛️'}</span>
-                  <div className="min-w-0 space-y-0.5">
-                    <div className="text-xs font-black text-slate-900 dark:text-white line-clamp-2">
-                      {inst.name}
-                    </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {inst.shortName} · {inst.category} · {inst.state}
-                    </div>
-                    <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
-                      {inst.publishedArticlesCount > 0
-                        ? `${inst.publishedArticlesCount} published posts`
-                        : 'Open School Blog →'}
-                    </div>
-                  </div>
-                </button>
-              ))}
-              {browseInstitutions.length === 0 && (
-                <div className="col-span-full py-8 text-center text-xs text-slate-500">
-                  No registered institutions matched &ldquo;{schoolSearch}&rdquo;.
-                </div>
-              )}
-            </div>
-
-            <div className="text-[11px] text-slate-400 text-right">
-              Showing {browseInstitutions.length} of {NIGERIAN_INSTITUTIONS.length} registered institutions
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

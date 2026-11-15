@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useApp } from '../../../context/AppContext';
 import {
   CampusMembership,
@@ -39,6 +39,7 @@ import {
   BookOpen,
   Users,
   Search,
+  ChevronLeft,
   ChevronRight,
   ArrowLeft,
   Phone,
@@ -66,6 +67,27 @@ export const CampusView: React.FC = () => {
 
   // 2. Navigation State within Campus
   const [activeView, setActiveView] = useState<'directory' | 'connections' | 'other_schools' | 'school_blog'>('directory');
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollTabsLeft, setCanScrollTabsLeft] = useState(false);
+  const [canScrollTabsRight, setCanScrollTabsRight] = useState(false);
+
+  const updateTabsScrollState = useCallback(() => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    setCanScrollTabsLeft(el.scrollLeft > 4);
+    setCanScrollTabsRight(maxScroll > 4 && el.scrollLeft < maxScroll - 4);
+  }, []);
+
+  const scrollTabsBy = (direction: 'left' | 'right') => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    const delta = Math.max(180, Math.round(el.clientWidth * 0.65));
+    el.scrollBy({
+      left: direction === 'right' ? delta : -delta,
+      behavior: 'smooth',
+    });
+  };
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
 
@@ -203,6 +225,23 @@ export const CampusView: React.FC = () => {
       })
       .catch(() => {});
   }, []);
+
+  // 2c. Track horizontal overflow on Campus navigation tabs so mobile users know to scroll
+  useEffect(() => {
+    updateTabsScrollState();
+    const timer = setTimeout(updateTabsScrollState, 120);
+    window.addEventListener('resize', updateTabsScrollState);
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && tabsScrollRef.current) {
+      observer = new ResizeObserver(() => updateTabsScrollState());
+      observer.observe(tabsScrollRef.current);
+    }
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateTabsScrollState);
+      observer?.disconnect();
+    };
+  }, [updateTabsScrollState, membership, activeView, connections.received.length]);
 
   // 3. Load Students for selected department, skill filter, or search
   const loadStudents = async () => {
@@ -493,74 +532,139 @@ export const CampusView: React.FC = () => {
           </div>
         )}
 
-        {/* View Switcher: Directory vs Connections vs Other Schools */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 overflow-x-auto no-scrollbar">
-          <button
-            id="campus-tab-directory"
-            type="button"
-            onClick={() => setActiveView('directory')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeView === 'directory'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
-          >
-            <FolderTree className="w-4 h-4" />
-            <span>Academic Directory</span>
-          </button>
-
-          <button
-            id="campus-tab-connections"
-            type="button"
-            onClick={() => setActiveView('connections')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeView === 'connections'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>My Connections</span>
-            {connections.received.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
-                {connections.received.length}
+        {/* View Switcher: Directory vs Connections vs School Blog vs Other Schools */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
+          {(canScrollTabsLeft || canScrollTabsRight) && (
+            <div className="flex items-center justify-between gap-2 text-[11px] font-bold">
+              <span className="text-slate-500 dark:text-slate-400">
+                Swipe sideways to view all Campus tabs
               </span>
+              {canScrollTabsRight ? (
+                <button
+                  type="button"
+                  onClick={() => scrollTabsBy('right')}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors cursor-pointer shrink-0"
+                >
+                  <span>More tabs</span>
+                  <ChevronRight className="w-3.5 h-3.5 animate-pulse" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => scrollTabsBy('left')}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>Back</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="relative">
+            {canScrollTabsLeft && (
+              <>
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-white dark:from-slate-900 to-transparent z-10" />
+                <button
+                  type="button"
+                  aria-label="Scroll Campus tabs left"
+                  onClick={() => scrollTabsBy('left')}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-white/95 dark:bg-slate-800/95 border border-slate-200 dark:border-slate-700 shadow-md flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-blue-600 hover:border-blue-400 transition-all cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              </>
             )}
-          </button>
 
-          <button
-            id="campus-tab-school-blog"
-            type="button"
-            onClick={() => handleOpenSchoolBlogTab(activeInstitutionName, activeInstitutionCategory)}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeView === 'school_blog'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200/80 dark:border-blue-800/60'
-            }`}
-          >
-            <Newspaper className="w-4 h-4" />
-            <span>School Blog</span>
-          </button>
+            <div
+              ref={tabsScrollRef}
+              onScroll={updateTabsScrollState}
+              className={`flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth ${
+                canScrollTabsLeft ? 'pl-8' : ''
+              } ${canScrollTabsRight ? 'pr-8' : ''}`}
+            >
+              <button
+                id="campus-tab-directory"
+                type="button"
+                onClick={() => setActiveView('directory')}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${
+                  activeView === 'directory'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                <FolderTree className="w-4 h-4" />
+                <span>Academic Directory</span>
+              </button>
 
-          <button
-            id="campus-tab-other-schools"
-            type="button"
-            onClick={handleConnectWithOtherSchoolsClick}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeView === 'other_schools'
-                ? 'bg-gradient-to-r from-amber-600 to-yellow-600 text-white shadow-xs'
-                : isPremiumOrVip
-                ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30'
-                : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
-          >
-            <Globe className="w-4 h-4 text-amber-500" />
-            <span>Connect with Other Schools</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-0.5">
-              <Crown className="w-2.5 h-2.5" />
-              VIP / PRO
-            </span>
-          </button>
+              <button
+                id="campus-tab-connections"
+                type="button"
+                onClick={() => setActiveView('connections')}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${
+                  activeView === 'connections'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>My Connections</span>
+                {connections.received.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
+                    {connections.received.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                id="campus-tab-school-blog"
+                type="button"
+                onClick={() => handleOpenSchoolBlogTab(activeInstitutionName, activeInstitutionCategory)}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${
+                  activeView === 'school_blog'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200/80 dark:border-blue-800/60'
+                }`}
+              >
+                <Newspaper className="w-4 h-4" />
+                <span>School Blog</span>
+              </button>
+
+              <button
+                id="campus-tab-other-schools"
+                type="button"
+                onClick={handleConnectWithOtherSchoolsClick}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${
+                  activeView === 'other_schools'
+                    ? 'bg-gradient-to-r from-amber-600 to-yellow-600 text-white shadow-xs'
+                    : isPremiumOrVip
+                    ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                    : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                <Globe className="w-4 h-4 text-amber-500" />
+                <span>Connect with Other Schools</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-0.5">
+                  <Crown className="w-2.5 h-2.5" />
+                  VIP / PRO
+                </span>
+              </button>
+            </div>
+
+            {canScrollTabsRight && (
+              <>
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white dark:from-slate-900 to-transparent z-10" />
+                <button
+                  type="button"
+                  aria-label="Scroll Campus tabs right"
+                  onClick={() => scrollTabsBy('right')}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-blue-600 text-white shadow-md shadow-blue-600/30 flex items-center justify-center hover:bg-blue-700 transition-all cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
