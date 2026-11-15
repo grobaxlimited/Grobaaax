@@ -8,6 +8,8 @@ import { ProfilePictureUploader } from './ProfilePictureUploader';
 import { AirtimeDataPurchaseModal } from './AirtimeDataPurchaseModal';
 import { PaystackGatewayModal } from './PaystackGatewayModal';
 import { ContactSupportTab } from './ContactSupportTab';
+import { CampusSkillsSelector } from '../Community/Campus/CampusSkillsSelector';
+import { updateMyCampusSkills } from '../../lib/campusService';
 import { useDevicePlatform } from '../../hooks/useDevicePlatform';
 import {
   ACADEMIC_STRUCTURE_BY_CATEGORY,
@@ -210,6 +212,8 @@ export const WalletModal: React.FC = () => {
   const [editFaculty, setEditFaculty] = useState(currentUser.faculty || currentUser.facultyName || '');
   const [editDepartment, setEditDepartment] = useState(currentUser.department || currentUser.departmentName || '');
   const [editLevel, setEditLevel] = useState(currentUser.level || '100 Level');
+  const [editSkillIds, setEditSkillIds] = useState<string[]>(currentUser.skillIds || []);
+  const [editSkills, setEditSkills] = useState<string[]>(currentUser.skills || []);
 
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
@@ -420,6 +424,8 @@ export const WalletModal: React.FC = () => {
     setEditFaculty(currentUser.faculty || currentUser.facultyName || '');
     setEditDepartment(currentUser.department || currentUser.departmentName || (masterInstitutions[0]?.departments?.[0] || 'Computer Science'));
     setEditLevel(currentUser.level || '100 Level');
+    setEditSkillIds(currentUser.skillIds || []);
+    setEditSkills(currentUser.skills || []);
     setProfileSaveError(null);
     setProfileSaveSuccess(false);
     setIsEditingProfile(true);
@@ -438,7 +444,17 @@ export const WalletModal: React.FC = () => {
         username: editUsername.trim().replace(/^@/, ''),
         bio: editBio.trim(),
         level: editLevel,
+        skills: editSkills,
+        skillIds: editSkillIds,
       });
+
+      if (currentUser?.id) {
+        await updateMyCampusSkills({
+          userId: currentUser.id,
+          skillIds: editSkillIds,
+          skills: editSkills,
+        }).catch(() => {});
+      }
 
       setProfileSaveSuccess(true);
       setTimeout(() => {
@@ -932,6 +948,25 @@ export const WalletModal: React.FC = () => {
                             </div>
                           </div>
                         </div>
+
+                        {Array.isArray(currentUser.skills) && currentUser.skills.length > 0 && (
+                          <div className="p-3.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-800/50 space-y-2">
+                            <div className="text-[10px] text-blue-700 dark:text-blue-300 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Campus Skills</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {currentUser.skills.map((sk) => (
+                                <span
+                                  key={sk}
+                                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 text-[11px] font-bold text-slate-800 dark:text-slate-200"
+                                >
+                                  {sk}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mt-4">
@@ -1101,6 +1136,18 @@ export const WalletModal: React.FC = () => {
                         onChange={e => setEditBio(e.target.value)}
                         placeholder="Passionate scholar competing in university leagues..."
                         className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                      <CampusSkillsSelector
+                        selectedSkillNames={editSkills}
+                        selectedSkillIds={editSkillIds}
+                        compact
+                        onChange={(ids, names) => {
+                          setEditSkillIds(ids);
+                          setEditSkills(names);
+                        }}
                       />
                     </div>
                   </div>

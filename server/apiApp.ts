@@ -6,6 +6,7 @@ import { minimartRouter } from './minimartRouter';
 import { paystackRouter } from './paystackRouter';
 import { libraryRouter } from './libraryRouter';
 import { campusRouter } from './campusRouter';
+import { schoolBlogRouter } from './schoolBlogRouter';
 import { walletRouter } from './walletRouter';
 import { supabaseRouter } from './supabaseRouter';
 import { spinRouter } from './spinRouter';
@@ -827,6 +828,9 @@ apiApp.use('/library', libraryRouter);
 
 apiApp.use('/api/campus', campusRouter);
 apiApp.use('/campus', campusRouter);
+
+apiApp.use('/api/school-blogs', schoolBlogRouter);
+apiApp.use('/school-blogs', schoolBlogRouter);
 
 apiApp.use('/api/wallet', walletRouter);
 apiApp.use('/wallet', walletRouter);

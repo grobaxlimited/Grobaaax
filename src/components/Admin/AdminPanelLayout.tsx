@@ -26,6 +26,7 @@ import { AdminTransactionsView } from './AdminTransactionsView';
 import { AdminSchoolDomeView } from './AdminSchoolDomeView';
 import { AdminContactSupportView } from './AdminContactSupportView';
 import { AdminHintsView } from './AdminHintsView';
+import { AdminSchoolBlogsView } from './AdminSchoolBlogsView';
 
 import {
   LayoutDashboard,
@@ -56,6 +57,7 @@ import {
   Swords,
   Headphones,
   Lightbulb,
+  Newspaper,
 } from 'lucide-react';
 
 interface AdminPanelLayoutProps {
@@ -107,7 +109,7 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
     : (userProfile as any)?.managerRole || 'INSTITUTIONAL_LEAGUE_MANAGER';
 
   // Check tab permission
-  const canAccessCurrentTab = hasTabAccess(managerRole, activeTab);
+  const canAccessCurrentTab = hasTabAccess(managerRole, activeTab, currentUid);
 
   const navigationSections = [
     {
@@ -149,6 +151,7 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
     {
       title: 'COMMUNITY & MARKETING',
       items: [
+        { id: 'school_blogs' as AdminTabType, label: 'School Blogs & Bloggers', icon: Newspaper, badge: 'Campus' },
         { id: 'announcements' as AdminTabType, label: 'Admin Announcements', icon: MessageSquare },
         { id: 'sponsorship' as AdminTabType, label: 'Sponsorship & Ticker', icon: Tag },
       ],
@@ -202,6 +205,8 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
         return <AdminSchoolDomeView />;
       case 'community':
         return <AdminCommunityView />;
+      case 'school_blogs':
+        return <AdminSchoolBlogsView />;
       case 'announcements':
         return <AdminAnnouncementsView />;
       case 'sponsorship':
@@ -440,7 +445,7 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
                   {section.items.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
-                    const hasAccess = hasTabAccess(managerRole, item.id);
+                    const hasAccess = hasTabAccess(managerRole, item.id, currentUid);
                     const unreadBadgeCount = (adminSectionNotifications as any)?.[item.id] || 0;
 
                     return (

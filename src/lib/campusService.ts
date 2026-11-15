@@ -2,6 +2,7 @@ import {
   CampusMembership,
   CampusConnectionRequest,
   CampusStudentCard,
+  CampusSkillCategory,
   UserProfile,
   InstitutionCategory,
 } from '../types';
@@ -21,6 +22,8 @@ import {
   serverTimestamp,
   isSubscriptionExpired,
 } from './firebase';
+import { supabase } from './supabase';
+import { DEFAULT_CAMPUS_SKILL_CATEGORIES } from '../data/campusSkillsData';
 
 /**
  * ============================================================================
@@ -33,6 +36,19 @@ import {
 
 const CAMPUS_MEMBERSHIPS_COLLECTION = 'campus_memberships';
 const CAMPUS_REQUESTS_COLLECTION = 'campus_connection_requests';
+
+// Safe helper to obtain current user's Supabase Auth Bearer token for authenticated API calls
+export async function getAuthBearerHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch {}
+  return headers;
+}
 
 // Safe helper to parse JSON from fetch responses without throwing SyntaxErrors
 async function safeFetchJson<T = any>(url: string, options?: RequestInit): Promise<{ ok: boolean; data: T | null; status: number }> {
@@ -50,6 +66,105 @@ async function safeFetchJson<T = any>(url: string, options?: RequestInit): Promi
     }
   } catch {
     return { ok: false, data: null, status: 0 };
+  }
+}
+
+export function clearCampusStudentsCache() {
+  _campusStudentsCache.clear();
+}
+
+export async function fetchCampusSkillCategories(): Promise<CampusSkillCategory[]> {
+  try {
+    const res = await safeFetchJson<{ success: boolean; categories?: CampusSkillCategory[] }>(
+      '/api/campus/skills/categories'
+    );
+    if (res.ok && res.data?.success && Array.isArray(res.data.categories) && res.data.categories.length > 0) {
+      return res.data.categories;
+    }
+  } catch {}
+
+  try {
+    const { data, error } = await supabase
+      .from('campus_skill_categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    if (!error && data && data.length > 0) {
+      return data.map((row: any) => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        groupName: row.group_name || 'General Skills',
+        icon: row.icon || '✨',
+        isActive: Boolean(row.is_active),
+        sortOrder: Number(row.sort_order || 0),
+      }));
+    }
+  } catch {}
+
+  return DEFAULT_CAMPUS_SKILL_CATEGORIES;
+}
+
+export async function updateMyCampusSkills(params: {
+  userId: string;
+  skillIds: string[];
+  skills: string[];
+}): Promise<{ success: boolean; skills?: string[]; skillIds?: string[]; error?: string }> {
+  try {
+    const headers = await getAuthBearerHeaders();
+    const res = await safeFetchJson<{
+      success: boolean;
+      skills?: string[];
+      skillIds?: string[];
+      error?: string;
+    }>('/api/campus/skills', {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        skillIds: params.skillIds,
+        skills: params.skills,
+      }),
+    });
+
+    // Also update local Firestore profile & membership documents for real-time UI consistency
+    try {
+      await setDoc(
+        doc(db, CAMPUS_MEMBERSHIPS_COLLECTION, params.userId),
+        {
+          skills: params.skills,
+          skillIds: params.skillIds,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      await setDoc(
+        doc(db, 'users', params.userId),
+        {
+          skills: params.skills,
+          skillIds: params.skillIds,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch {}
+
+    clearCampusStudentsCache();
+
+    if (res.ok && res.data?.success) {
+      return {
+        success: true,
+        skills: res.data.skills || params.skills,
+        skillIds: res.data.skillIds || params.skillIds,
+      };
+    }
+
+    if (res.status === 401 || res.status === 403) {
+      return { success: false, error: res.data?.error || 'Authentication required to update skills.' };
+    }
+
+    return { success: true, skills: params.skills, skillIds: params.skillIds };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to update skills.' };
   }
 }
 
@@ -227,10 +342,13 @@ export async function joinGrobaaxCampus(params: {
   userId: string;
   whatsappNumber: string;
   institution: string;
+  institutionId?: string;
   institutionCategory?: InstitutionCategory;
   faculty?: string;
   department?: string;
   level?: string;
+  skillIds?: string[];
+  skills?: string[];
 }): Promise<{ success: boolean; membership?: CampusMembership; error?: string }> {
   try {
     const formatted = formatCampusWhatsAppNumber(params.whatsappNumber);
@@ -250,16 +368,22 @@ export async function joinGrobaaxCampus(params: {
       };
     }
 
+    const cleanSkills = Array.isArray(params.skills) ? params.skills : [];
+    const cleanSkillIds = Array.isArray(params.skillIds) ? params.skillIds : [];
+
     const membership: CampusMembership = {
       id: params.userId,
       userId: params.userId,
       institution: params.institution.trim(),
+      institutionId: params.institutionId || '',
       institutionCategory: params.institutionCategory || 'University',
       faculty: (params.faculty || '').trim(),
       department: (params.department || '').trim(),
       level: (params.level || '100 Level').trim(),
       whatsappNumber: formatted,
       whatsappVerified: true,
+      skills: cleanSkills,
+      skillIds: cleanSkillIds,
       joinedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: 'active',
@@ -286,6 +410,8 @@ export async function joinGrobaaxCampus(params: {
         department: (params.department || '').trim(),
         level: (params.level || '100 Level').trim(),
         whatsappNumber: formatted,
+        skills: cleanSkills,
+        skillIds: cleanSkillIds,
         campusJoined: true,
         updatedAt: serverTimestamp(),
       }, { merge: true });
@@ -293,7 +419,9 @@ export async function joinGrobaaxCampus(params: {
       console.warn('User profile sync notice for campus join:', userErr);
     }
 
-    // 3. Background server API sync (non-blocking)
+    clearCampusStudentsCache();
+
+    // 3. Sync with backend API (including relational student_skills table)
     safeFetchJson('/api/campus/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -370,27 +498,69 @@ export async function fetchCampusStudents(params: {
   institution: string;
   faculty?: string;
   department?: string;
+  skill?: string;
   search?: string;
   currentUserId?: string;
 }): Promise<CampusStudentCard[]> {
-  const { institution, faculty, department, search, currentUserId } = params;
+  const { institution, faculty, department, skill, search, currentUserId } = params;
   if (!institution) return [];
 
-  const cacheKey = `${institution.trim().toLowerCase()}_${faculty || ''}_${department || ''}_${search || ''}_${currentUserId || ''}`;
+  const cacheKey = `${institution.trim().toLowerCase()}_${faculty || ''}_${department || ''}_${skill || ''}_${search || ''}_${currentUserId || ''}`;
   const now = Date.now();
   const cached = _campusStudentsCache.get(cacheKey);
-  if (cached && now - cached.timestamp < 60000) {
+  if (cached && now - cached.timestamp < 30000) {
     return [...cached.data];
   }
 
+  // Try authoritative backend directory endpoint first (supports relational student_skills)
+  try {
+    const qs = new URLSearchParams({ institution });
+    if (faculty) qs.set('faculty', faculty);
+    if (department) qs.set('department', department);
+    if (skill) qs.set('skill', skill);
+    if (search) qs.set('search', search);
+    if (currentUserId) qs.set('requestingUserId', currentUserId);
+
+    const apiRes = await safeFetchJson<{ success: boolean; students?: CampusStudentCard[] }>(
+      `/api/campus/students?${qs.toString()}`
+    );
+    if (apiRes.ok && apiRes.data?.success && Array.isArray(apiRes.data.students)) {
+      _campusStudentsCache.set(cacheKey, { timestamp: now, data: apiRes.data.students });
+      return [...apiRes.data.students];
+    }
+  } catch {}
+
   const targetInst = institution.trim().toLowerCase();
+  const targetSkill = (skill || '').trim().toLowerCase();
   const studentsMap = new Map<string, CampusStudentCard>();
 
-  // 1. Direct Firestore fetch from users collection (Quota-optimized limit 50)
+  // Preload relational student_skills directly if backend API wasn't reachable
+  const userSkillsMap = new Map<string, { skills: string[]; skillIds: string[] }>();
+  try {
+    const { data: skillRows } = await supabase
+      .from('student_skills')
+      .select('user_id, skill_id, skill_name');
+    for (const row of skillRows || []) {
+      const entry = userSkillsMap.get(row.user_id) || { skills: [], skillIds: [] };
+      if (!entry.skills.includes(row.skill_name)) entry.skills.push(row.skill_name);
+      if (!entry.skillIds.includes(row.skill_id)) entry.skillIds.push(row.skill_id);
+      userSkillsMap.set(row.user_id, entry);
+    }
+  } catch {}
+
+  const matchesSkill = (skillsList: string[], skillIdsList: string[]) => {
+    if (!targetSkill) return true;
+    return (
+      skillsList.some((sk) => sk.toLowerCase().includes(targetSkill) || targetSkill.includes(sk.toLowerCase())) ||
+      skillIdsList.some((sid) => sid.toLowerCase() === targetSkill)
+    );
+  };
+
+  // 1. Direct Firestore fetch from users collection (Quota-optimized limit 80)
   const rawUsersMap = new Map<string, any>();
   try {
     const usersRef = collection(db, 'users');
-    const usersSnap = await getDocs(query(usersRef, limit(50)));
+    const usersSnap = await getDocs(query(usersRef, limit(80)));
 
     usersSnap.forEach((d) => {
       const data = d.data();
@@ -407,7 +577,14 @@ export async function fetchCampusStudents(params: {
         const uTier = resolveUserSubscriptionTier(data);
         const blueBadge = isUserBlueBadge(data);
 
-        // Faculty & department matching logic (prevents empty strings from matching all)
+        const rel = userSkillsMap.get(d.id);
+        const uSkills: string[] = rel?.skills?.length
+          ? rel.skills
+          : (Array.isArray(data.skills) ? data.skills : []);
+        const uSkillIds: string[] = rel?.skillIds?.length
+          ? rel.skillIds
+          : (Array.isArray(data.skillIds) ? data.skillIds : []);
+
         const matchesFaculty = !faculty || (
           uFaculty.length > 0 && (
             uFaculty.toLowerCase().includes(faculty.toLowerCase()) ||
@@ -420,6 +597,7 @@ export async function fetchCampusStudents(params: {
             department.toLowerCase().includes(uDept.toLowerCase())
           )
         );
+        const matchesSkillFilter = matchesSkill(uSkills, uSkillIds);
 
         let matchesSearch = true;
         if (search && search.trim()) {
@@ -428,19 +606,24 @@ export async function fetchCampusStudents(params: {
             Boolean(uName && String(uName).toLowerCase().includes(s)) ||
             Boolean(uUsername && String(uUsername).toLowerCase().includes(s)) ||
             Boolean(uDept && String(uDept).toLowerCase().includes(s)) ||
-            Boolean(uFaculty && String(uFaculty).toLowerCase().includes(s));
+            Boolean(uFaculty && String(uFaculty).toLowerCase().includes(s)) ||
+            uSkills.some((sk) => sk.toLowerCase().includes(s));
         }
 
-        if (matchesFaculty && matchesDepartment && matchesSearch) {
+        if (matchesFaculty && matchesDepartment && matchesSkillFilter && matchesSearch) {
           studentsMap.set(d.id, {
             id: d.id,
             name: uName,
             username: uUsername,
             avatar: uAvatar,
             institution: data.institution || data.institutionName || institution,
+            institutionId: data.institutionId || data.academicProfile?.institutionId,
             faculty: uFaculty,
             department: uDept,
             level: uLevel,
+            bio: data.bio || '',
+            skills: uSkills,
+            skillIds: uSkillIds,
             tier: uTier,
             hasBlueBadge: blueBadge,
             isVerified: blueBadge,
@@ -455,64 +638,85 @@ export async function fetchCampusStudents(params: {
     console.warn('Direct Firestore users read notice:', err);
   }
 
-  // 2. Also check campus_memberships collection to include members who joined (Quota-optimized limit 50)
+  // 2. Also check campus_memberships collection to include members who joined
   try {
     const memRef = collection(db, CAMPUS_MEMBERSHIPS_COLLECTION);
-    const memSnap = await getDocs(query(memRef, limit(50)));
+    const memSnap = await getDocs(query(memRef, limit(80)));
     memSnap.forEach((d) => {
       const data = d.data() as CampusMembership;
       const mInst = (data.institution || '').trim().toLowerCase();
       if (mInst && (mInst === targetInst || mInst.includes(targetInst) || targetInst.includes(mInst))) {
-        if (!studentsMap.has(data.userId)) {
-          const mFaculty = (data.faculty || '').trim();
-          const mDept = (data.department || '').trim();
+        const rel = userSkillsMap.get(data.userId);
+        const mSkills: string[] = rel?.skills?.length
+          ? rel.skills
+          : (Array.isArray(data.skills) ? data.skills : []);
+        const mSkillIds: string[] = rel?.skillIds?.length
+          ? rel.skillIds
+          : (Array.isArray(data.skillIds) ? data.skillIds : []);
 
-          const matchesFaculty = !faculty || (
-            mFaculty.length > 0 && (
-              mFaculty.toLowerCase().includes(faculty.toLowerCase()) ||
-              faculty.toLowerCase().includes(mFaculty.toLowerCase())
-            )
-          );
-          const matchesDepartment = !department || (
-            mDept.length > 0 && (
-              mDept.toLowerCase().includes(department.toLowerCase()) ||
-              department.toLowerCase().includes(mDept.toLowerCase())
-            )
-          );
-
-          let matchesSearch = true;
-          if (search && search.trim()) {
-            const s = search.trim().toLowerCase();
-            matchesSearch =
-              Boolean(mDept && String(mDept).toLowerCase().includes(s)) ||
-              Boolean(mFaculty && String(mFaculty).toLowerCase().includes(s));
+        if (studentsMap.has(data.userId)) {
+          const existing = studentsMap.get(data.userId)!;
+          if ((!existing.skills || existing.skills.length === 0) && mSkills.length > 0) {
+            existing.skills = mSkills;
+            existing.skillIds = mSkillIds;
           }
+          return;
+        }
 
-          if (matchesFaculty && matchesDepartment && matchesSearch) {
-            const rawUser = rawUsersMap.get(data.userId);
-            const uName = rawUser?.name || rawUser?.fullName || rawUser?.username || 'Scholar';
-            const uUsername = rawUser?.username ? (rawUser.username.startsWith('@') ? rawUser.username : `@${rawUser.username}`) : '@scholar';
-            const uAvatar = rawUser?.avatar || rawUser?.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${data.userId}`;
-            const uTier = rawUser ? resolveUserSubscriptionTier(rawUser) : 'free';
-            const blueBadge = rawUser ? isUserBlueBadge(rawUser) : false;
+        const mFaculty = (data.faculty || '').trim();
+        const mDept = (data.department || '').trim();
 
-            studentsMap.set(data.userId, {
-              id: data.userId,
-              name: uName,
-              username: uUsername,
-              avatar: uAvatar,
-              institution: data.institution,
-              faculty: mFaculty,
-              department: mDept,
-              level: data.level || rawUser?.level || '100 Level',
-              tier: uTier,
-              hasBlueBadge: blueBadge,
-              isVerified: blueBadge,
-              isOnline: true,
-              connectionStatus: data.userId === currentUserId ? 'self' : 'none',
-              joinedCampus: true,
-            });
-          }
+        const matchesFaculty = !faculty || (
+          mFaculty.length > 0 && (
+            mFaculty.toLowerCase().includes(faculty.toLowerCase()) ||
+            faculty.toLowerCase().includes(mFaculty.toLowerCase())
+          )
+        );
+        const matchesDepartment = !department || (
+          mDept.length > 0 && (
+            mDept.toLowerCase().includes(department.toLowerCase()) ||
+            department.toLowerCase().includes(mDept.toLowerCase())
+          )
+        );
+        const matchesSkillFilter = matchesSkill(mSkills, mSkillIds);
+
+        let matchesSearch = true;
+        if (search && search.trim()) {
+          const s = search.trim().toLowerCase();
+          matchesSearch =
+            Boolean(mDept && String(mDept).toLowerCase().includes(s)) ||
+            Boolean(mFaculty && String(mFaculty).toLowerCase().includes(s)) ||
+            mSkills.some((sk) => sk.toLowerCase().includes(s));
+        }
+
+        if (matchesFaculty && matchesDepartment && matchesSkillFilter && matchesSearch) {
+          const rawUser = rawUsersMap.get(data.userId);
+          const uName = rawUser?.name || rawUser?.fullName || rawUser?.username || 'Scholar';
+          const uUsername = rawUser?.username ? (rawUser.username.startsWith('@') ? rawUser.username : `@${rawUser.username}`) : '@scholar';
+          const uAvatar = rawUser?.avatar || rawUser?.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${data.userId}`;
+          const uTier = rawUser ? resolveUserSubscriptionTier(rawUser) : 'free';
+          const blueBadge = rawUser ? isUserBlueBadge(rawUser) : false;
+
+          studentsMap.set(data.userId, {
+            id: data.userId,
+            name: uName,
+            username: uUsername,
+            avatar: uAvatar,
+            institution: data.institution,
+            institutionId: data.institutionId,
+            faculty: mFaculty,
+            department: mDept,
+            level: data.level || rawUser?.level || '100 Level',
+            bio: rawUser?.bio || '',
+            skills: mSkills,
+            skillIds: mSkillIds,
+            tier: uTier,
+            hasBlueBadge: blueBadge,
+            isVerified: blueBadge,
+            isOnline: true,
+            connectionStatus: data.userId === currentUserId ? 'self' : 'none',
+            joinedCampus: true,
+          });
         }
       }
     });

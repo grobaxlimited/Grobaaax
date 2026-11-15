@@ -186,6 +186,7 @@ export type AdminTabType =
   | 'subscriptions'
   | 'library'
   | 'hints'
+  | 'school_blogs'
   | 'settings'
   | 'contact';
 
@@ -968,6 +969,8 @@ export interface UserProfile {
     color: string;
   }>;
   purchasedBadgeIds: string[];
+  skills?: string[];
+  skillIds?: string[];
   competitionHistory?: {
     gus: Array<{ seasonName: string; position: string; roundReached: number; date: string }>;
     dome: Array<{ sessionName: string; score: number; rank: number; date: string }>;
@@ -2931,12 +2934,15 @@ export interface CampusMembership {
   id: string;
   userId: string;
   institution: string;
+  institutionId?: string;
   institutionCategory?: InstitutionCategory;
   faculty: string;
   department: string;
   level: string;
   whatsappNumber: string;
   whatsappVerified: boolean;
+  skills?: string[];
+  skillIds?: string[];
   joinedAt: string;
   updatedAt: string;
   status: 'active' | 'suspended';
@@ -2978,9 +2984,13 @@ export interface CampusStudentCard {
   username: string;
   avatar: string;
   institution: string;
+  institutionId?: string;
   faculty: string;
   department: string;
   level: string;
+  bio?: string;
+  skills?: string[];
+  skillIds?: string[];
   tier: 'free' | 'premium' | 'vip';
   hasBlueBadge?: boolean;
   isVerified?: boolean;
@@ -3098,4 +3108,138 @@ export interface SchoolDomeMessage extends ChatroomLiveMessage {
 // GROBAAX POP QUIZ TYPES & SCHEMAS
 // ==========================================
 
+// ==========================================
+// CAMPUS SKILLS DIRECTORY & SCHOOL BLOG TYPES
+// ==========================================
 
+export interface CampusSkillCategory {
+  id: string;
+  slug: string;
+  name: string;
+  groupName: string;
+  icon: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export type SchoolBlogCategory = 'News' | 'Events' | 'Academics' | 'Campus Life';
+export type SchoolBlogArticleStatus = 'draft' | 'published' | 'unpublished' | 'removed';
+export type SchoolBlogReactionType = 'like' | 'helpful' | 'insightful' | 'celebrate';
+export type SchoolBloggerApplicationStatus = 'Pending' | 'Approved' | 'Rejected' | 'Withdrawn';
+
+export interface SchoolBlogContentBlock {
+  id: string;
+  type: 'heading' | 'paragraph' | 'image';
+  text?: string;
+  level?: 2 | 3;
+  imageUrl?: string;
+  caption?: string;
+}
+
+export interface SchoolBlogRecord {
+  institutionId: string;
+  institutionName: string;
+  shortName: string;
+  category: string;
+  state: string;
+  logo: string;
+  slug: string;
+  description: string;
+  status: 'active' | 'suspended';
+  publishedArticlesCount?: number;
+  latestPublishedAt?: string | null;
+  activeBlogger?: SchoolBloggerAssignment | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SchoolBloggerAssignment {
+  id: string;
+  institutionId: string;
+  institutionName: string;
+  userId: string;
+  userName: string;
+  department: string;
+  level: string;
+  status: 'active' | 'suspended' | 'removed' | 'replaced';
+  appointedBy: string;
+  appointedByName: string;
+  appointedAt: string;
+  endedBy?: string | null;
+  endedAt?: string | null;
+  endReason?: string | null;
+}
+
+export interface SchoolBloggerApplication {
+  id: string;
+  applicantUserId: string;
+  institutionId: string;
+  institutionName: string;
+  applicantName: string;
+  department: string;
+  level: string;
+  reason: string;
+  experience: string;
+  status: SchoolBloggerApplicationStatus;
+  reviewedBy?: string | null;
+  reviewerName?: string | null;
+  reviewNotes?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SchoolBlogArticle {
+  id: string;
+  blogInstitutionId: string;
+  institutionName: string;
+  authorUserId: string;
+  authorName: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  category: SchoolBlogCategory;
+  coverImageUrl: string;
+  contentBlocks: SchoolBlogContentBlock[];
+  contentText: string;
+  status: SchoolBlogArticleStatus;
+  viewsCount: number;
+  reactionsCount: number;
+  reactionBreakdown?: Record<SchoolBlogReactionType, number>;
+  userReaction?: SchoolBlogReactionType | null;
+  moderationReason?: string | null;
+  moderatedBy?: string | null;
+  moderatedAt?: string | null;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SchoolBlogReport {
+  id: string;
+  articleId: string;
+  articleTitle?: string;
+  blogInstitutionId: string;
+  institutionName?: string;
+  reporterUserId: string;
+  reporterName: string;
+  reason: string;
+  status: 'open' | 'resolved' | 'dismissed';
+  resolvedBy?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+}
+
+export interface SchoolBlogAuditLog {
+  id: string;
+  actorUserId: string;
+  actorName: string;
+  actorRole: string;
+  action: string;
+  institutionId?: string | null;
+  institutionName?: string | null;
+  targetType: string;
+  targetId: string;
+  details: Record<string, any>;
+  createdAt: string;
+}

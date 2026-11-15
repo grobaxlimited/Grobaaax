@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserProfile, InstitutionCategory } from '../../../types';
 import { joinGrobaaxCampus } from '../../../lib/campusService';
+import { CampusSkillsSelector } from './CampusSkillsSelector';
 import {
   GraduationCap,
   Phone,
@@ -15,7 +16,7 @@ import {
 
 interface CampusJoinScreenProps {
   currentUser: UserProfile;
-  onJoined: (whatsappNumber: string) => void;
+  onJoined: (whatsappNumber: string, skills?: string[], skillIds?: string[]) => void;
   onClose?: () => void;
 }
 
@@ -24,6 +25,9 @@ export const CampusJoinScreen: React.FC<CampusJoinScreenProps> = ({
   onJoined,
 }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>(currentUser.skillIds || []);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>(currentUser.skills || []);
+  const [skillsSkipped, setSkillsSkipped] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,14 +79,21 @@ export const CampusJoinScreen: React.FC<CampusJoinScreenProps> = ({
         userId: currentUser.id,
         whatsappNumber: cleaned,
         institution: institutionName,
+        institutionId: currentUser.institutionId || currentUser.academicProfile?.institutionId,
         institutionCategory: category,
         faculty: facultyName,
         department: departmentName,
         level: levelName,
+        skillIds: skillsSkipped ? [] : selectedSkillIds,
+        skills: skillsSkipped ? [] : selectedSkills,
       });
 
       if (res.success && res.membership) {
-        onJoined(res.membership.whatsappNumber);
+        onJoined(
+          res.membership.whatsappNumber,
+          skillsSkipped ? [] : selectedSkills,
+          skillsSkipped ? [] : selectedSkillIds
+        );
       } else {
         setError(res.error || 'Failed to join Campus. Please try again.');
       }
@@ -175,6 +186,40 @@ export const CampusJoinScreen: React.FC<CampusJoinScreenProps> = ({
               Your number is stored securely and only shared after you accept a chat request.
             </span>
           </p>
+        </div>
+
+        {/* Optional Campus Skills Selection */}
+        <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 space-y-2.5">
+          {skillsSkipped ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-slate-600 dark:text-slate-300 font-semibold">
+                Skills selection skipped — you can add skills anytime later from Campus settings.
+              </span>
+              <button
+                type="button"
+                onClick={() => setSkillsSkipped(false)}
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline shrink-0 cursor-pointer"
+              >
+                Add Skills
+              </button>
+            </div>
+          ) : (
+            <CampusSkillsSelector
+              selectedSkillNames={selectedSkills}
+              selectedSkillIds={selectedSkillIds}
+              compact
+              allowSkip
+              onSkip={() => {
+                setSelectedSkills([]);
+                setSelectedSkillIds([]);
+                setSkillsSkipped(true);
+              }}
+              onChange={(ids, names) => {
+                setSelectedSkillIds(ids);
+                setSelectedSkills(names);
+              }}
+            />
+          )}
         </div>
 
         <button

@@ -19,6 +19,7 @@ interface CampusStudentRowProps {
   onAcceptRequest: (requestId: string, student: CampusStudentCard) => Promise<void>;
   onRejectRequest: (requestId: string, student: CampusStudentCard) => Promise<void>;
   onOpenWhatsApp: (student: CampusStudentCard) => Promise<void>;
+  onViewProfile?: (student: CampusStudentCard) => void;
 }
 
 export const CampusStudentRow: React.FC<CampusStudentRowProps> = ({
@@ -27,6 +28,7 @@ export const CampusStudentRow: React.FC<CampusStudentRowProps> = ({
   onAcceptRequest,
   onRejectRequest,
   onOpenWhatsApp,
+  onViewProfile,
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
 
@@ -86,7 +88,13 @@ export const CampusStudentRow: React.FC<CampusStudentRowProps> = ({
       className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 hover:border-blue-500/30 dark:hover:border-blue-500/30 shadow-xs transition-all gap-2 sm:gap-4"
     >
       {/* LEFT BLOCK: EXACT ORDER [1. PROFILE PICTURE] [2. USER NAME + BLUE BADGE] [3. PRESENCE] [4. SUBSCRIPTION BADGE] */}
-      <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+      <div
+        className={`flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1 ${
+          onViewProfile ? 'cursor-pointer' : ''
+        }`}
+        onClick={() => onViewProfile && onViewProfile(student)}
+        title={onViewProfile ? 'View student profile & skills' : undefined}
+      >
         {/* 1. PROFILE PICTURE (MUST BE FIRST) */}
         <div className="relative shrink-0">
           <img
@@ -144,6 +152,16 @@ export const CampusStudentRow: React.FC<CampusStudentRowProps> = ({
               <span className="text-xs">{typeof (student as any).equippedBadge === 'string' ? (student as any).equippedBadge.split(' ')[0] : (((student as any).equippedBadge as any).icon || '⭐')}</span>
               <span className="max-w-[100px] truncate">{typeof (student as any).equippedBadge === 'string' ? (student as any).equippedBadge.replace(/^\S+\s*/, '') : (((student as any).equippedBadge as any).title || ((student as any).equippedBadge as any).name)}</span>
             </span>
+          )}
+
+          {/* Optional compact Skills indicator when student has skills */}
+          {Array.isArray(student.skills) && student.skills.length > 0 && (
+            <div className="w-full flex items-center gap-1.5 flex-wrap pt-1">
+              <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                Skills: {student.skills.slice(0, 3).join(' · ')}
+                {student.skills.length > 3 ? ` (+${student.skills.length - 3})` : ''}
+              </span>
+            </div>
           )}
         </div>
       </div>

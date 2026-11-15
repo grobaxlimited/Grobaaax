@@ -14,11 +14,13 @@ import {
   Crown,
   ChevronRight,
   MapPin,
+  Newspaper,
   X,
 } from 'lucide-react';
 
 interface ConnectOtherSchoolsViewProps {
   onSelectInstitution: (institution: StaticInstitution) => void;
+  onOpenSchoolBlog?: (institution: StaticInstitution) => void;
   onBackToHomeSchool: () => void;
   homeInstitutionName: string;
   currentViewingInstitutionName?: string;
@@ -26,6 +28,7 @@ interface ConnectOtherSchoolsViewProps {
 
 export const ConnectOtherSchoolsView: React.FC<ConnectOtherSchoolsViewProps> = ({
   onSelectInstitution,
+  onOpenSchoolBlog,
   onBackToHomeSchool,
   homeInstitutionName,
   currentViewingInstitutionName,
@@ -203,9 +206,24 @@ export const ConnectOtherSchoolsView: React.FC<ConnectOtherSchoolsViewProps> = (
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-all">
-                  <span>Explore Campus &amp; Faculties</span>
-                  <ChevronRight className="w-4 h-4" />
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 text-xs font-bold text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-all">
+                  <span className="flex items-center gap-1">
+                    <span>Explore Campus</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </span>
+                  {onOpenSchoolBlog && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenSchoolBlog(inst);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <Newspaper className="w-3 h-3" />
+                      <span>School Blog</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );

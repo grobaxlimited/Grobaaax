@@ -13,6 +13,10 @@ import {
   addDoc,
   serverTimestamp,
 } from '../src/lib/supabaseFirestoreAdapter';
+import { supabaseAdmin } from '../src/lib/supabase';
+import { DEFAULT_CAMPUS_SKILL_CATEGORIES } from '../src/data/campusSkillsData';
+import { requireAuth, requireAdmin } from './utils/authMiddleware';
+import { resolveCanonicalInstitution } from './utils/institutionResolver';
 
 export const campusRouter = Router();
 
@@ -131,10 +135,256 @@ function getUserTier(user: any): 'free' | 'premium' | 'vip' {
   return 'free';
 }
 
+// Helper: sync a user's selected skills cleanly into relational student_skills and JSON docs
+async function syncStudentSkills(params: {
+  userId: string;
+  skillIds?: string[];
+  skills?: string[];
+  institutionId?: string;
+  institutionName?: string;
+}): Promise<{ skillIds: string[]; skills: string[] }> {
+  const { data: catRows } = await supabaseAdmin
+    .from('campus_skill_categories')
+    .select('id, slug, name, is_active')
+    .eq('is_active', true);
+
+  const catalog = (catRows && catRows.length > 0)
+    ? catRows
+    : DEFAULT_CAMPUS_SKILL_CATEGORIES.map((s) => ({
+        id: s.id,
+        slug: s.slug,
+        name: s.name,
+        is_active: s.isActive,
+      }));
+
+  const requestedIds = Array.isArray(params.skillIds) ? params.skillIds : [];
+  const requestedNames = Array.isArray(params.skills) ? params.skills : [];
+
+  const matched = new Map<string, string>();
+  for (const rawId of requestedIds) {
+    const found = catalog.find(
+      (c: any) => c.id === rawId || c.slug === rawId || c.name.toLowerCase() === String(rawId).toLowerCase()
+    );
+    if (found) matched.set(found.id, found.name);
+  }
+  for (const rawName of requestedNames) {
+    const found = catalog.find(
+      (c: any) =>
+        c.name.toLowerCase() === String(rawName).trim().toLowerCase() ||
+        c.id === rawName ||
+        c.slug === rawName
+    );
+    if (found) matched.set(found.id, found.name);
+  }
+
+  const finalIds = Array.from(matched.keys());
+  const finalNames = Array.from(matched.values());
+
+  await supabaseAdmin.from('student_skills').delete().eq('user_id', params.userId);
+  if (finalIds.length > 0) {
+    const rows = finalIds.map((skillId) => ({
+      user_id: params.userId,
+      skill_id: skillId,
+      skill_name: matched.get(skillId) || skillId,
+      institution_id: params.institutionId || null,
+      institution_name: params.institutionName || null,
+    }));
+    await supabaseAdmin.from('student_skills').insert(rows);
+  }
+
+  // Sync onto campus_memberships & users JSON documents for unified reads
+  try {
+    const { data: memRow } = await supabaseAdmin
+      .from('campus_memberships')
+      .select('id, data')
+      .eq('id', params.userId)
+      .maybeSingle();
+    if (memRow?.data) {
+      await supabaseAdmin.from('campus_memberships').upsert(
+        {
+          id: params.userId,
+          data: {
+            ...memRow.data,
+            skills: finalNames,
+            skillIds: finalIds,
+            updatedAt: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+    }
+  } catch {}
+
+  try {
+    const { data: userRow } = await supabaseAdmin
+      .from('users')
+      .select('id, data')
+      .eq('id', params.userId)
+      .maybeSingle();
+    if (userRow?.data) {
+      await supabaseAdmin.from('users').upsert(
+        {
+          id: params.userId,
+          data: {
+            ...userRow.data,
+            skills: finalNames,
+            skillIds: finalIds,
+            updatedAt: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+    }
+  } catch {}
+
+  return { skillIds: finalIds, skills: finalNames };
+}
+
+// 0. GET EXTENSIBLE CAMPUS SKILL CATEGORIES
+campusRouter.get('/skills/categories', async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('campus_skill_categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error || !data || data.length === 0) {
+      return res.json({ success: true, categories: DEFAULT_CAMPUS_SKILL_CATEGORIES });
+    }
+
+    const categories = data.map((row: any) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      groupName: row.group_name || 'General Skills',
+      icon: row.icon || '✨',
+      isActive: Boolean(row.is_active),
+      sortOrder: Number(row.sort_order || 0),
+    }));
+
+    return res.json({ success: true, categories });
+  } catch (err: any) {
+    return res.json({ success: true, categories: DEFAULT_CAMPUS_SKILL_CATEGORIES });
+  }
+});
+
+// 0B. ADMIN: ADD / UPDATE EXTENSIBLE SKILL CATEGORY
+campusRouter.post('/skills/categories', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { name, groupName, icon, sortOrder } = req.body || {};
+    if (!name || String(name).trim().length < 2) {
+      return res.status(400).json({ success: false, error: 'Skill name is required.' });
+    }
+    const cleanName = String(name).trim();
+    const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const id = `skill_${slug.replace(/-/g, '_')}`;
+
+    const { data, error } = await supabaseAdmin
+      .from('campus_skill_categories')
+      .upsert(
+        {
+          id,
+          slug,
+          name: cleanName,
+          group_name: String(groupName || 'General Skills').trim(),
+          icon: String(icon || '✨').trim(),
+          is_active: true,
+          sort_order: Number(sortOrder) || 300,
+        },
+        { onConflict: 'slug' }
+      )
+      .select('*')
+      .single();
+
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    return res.json({
+      success: true,
+      category: {
+        id: data.id,
+        slug: data.slug,
+        name: data.name,
+        groupName: data.group_name,
+        icon: data.icon,
+        isActive: data.is_active,
+        sortOrder: data.sort_order,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 0C. GET USER SELECTED SKILLS
+campusRouter.get('/skills/:userId', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { data } = await supabaseAdmin
+      .from('student_skills')
+      .select('skill_id, skill_name')
+      .eq('user_id', userId);
+    const skillIds = (data || []).map((r: any) => r.skill_id);
+    const skills = (data || []).map((r: any) => r.skill_name);
+    return res.json({ success: true, skillIds, skills });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 0D. UPDATE AUTHENTICATED STUDENT'S OWN SKILLS
+campusRouter.put('/skills', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authUser = req.authUser!;
+    const { skillIds, skills } = req.body || {};
+
+    const synced = await syncStudentSkills({
+      userId: authUser.id,
+      skillIds: Array.isArray(skillIds) ? skillIds : [],
+      skills: Array.isArray(skills) ? skills : [],
+      institutionId: authUser.institutionId,
+      institutionName: authUser.institutionName,
+    });
+
+    const cachedMem = membershipsCache.get(authUser.id);
+    if (cachedMem) {
+      cachedMem.skills = synced.skills;
+      cachedMem.skillIds = synced.skillIds;
+      cachedMem.updatedAt = new Date().toISOString();
+      membershipsCache.set(authUser.id, cachedMem);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Your Campus skills have been updated.',
+      skills: synced.skills,
+      skillIds: synced.skillIds,
+    });
+  } catch (err: any) {
+    console.error('Error in PUT /api/campus/skills:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Failed to update skills.' });
+  }
+});
+
 // 1. JOIN CAMPUS
 campusRouter.post('/join', async (req: Request, res: Response) => {
   try {
-    const { userId, whatsappNumber, institution, faculty, department, level, institutionCategory } = req.body;
+    const {
+      userId,
+      whatsappNumber,
+      institution,
+      institutionId,
+      faculty,
+      department,
+      level,
+      institutionCategory,
+      skillIds,
+      skills,
+    } = req.body;
 
     if (!userId || !whatsappNumber || !institution) {
       return res.status(400).json({
@@ -153,16 +403,40 @@ campusRouter.post('/join', async (req: Request, res: Response) => {
       });
     }
 
+    const canonical = await resolveCanonicalInstitution({
+      institutionId,
+      institutionName: institution,
+      category: institutionCategory,
+    });
+
+    let syncedSkills = { skillIds: [] as string[], skills: [] as string[] };
+    if ((Array.isArray(skillIds) && skillIds.length > 0) || (Array.isArray(skills) && skills.length > 0)) {
+      try {
+        syncedSkills = await syncStudentSkills({
+          userId,
+          skillIds,
+          skills,
+          institutionId: canonical?.institutionId || institutionId,
+          institutionName: canonical?.institutionName || institution.trim(),
+        });
+      } catch (skErr) {
+        console.warn('Notice syncing initial join skills:', skErr);
+      }
+    }
+
     const membershipData: CampusMembership = {
       id: userId,
       userId,
-      institution: institution.trim(),
-      institutionCategory: institutionCategory || 'University',
+      institution: canonical?.institutionName || institution.trim(),
+      institutionId: canonical?.institutionId || institutionId || '',
+      institutionCategory: (canonical?.category || institutionCategory || 'University') as any,
       faculty: (faculty || '').trim(),
       department: (department || '').trim(),
       level: (level || '').trim(),
       whatsappNumber: formattedNumber,
       whatsappVerified: true,
+      skills: syncedSkills.skills,
+      skillIds: syncedSkills.skillIds,
       joinedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: 'active',
@@ -270,13 +544,14 @@ campusRouter.put('/whatsapp-number', async (req: Request, res: Response) => {
   }
 });
 
-// 4. GET STUDENTS DIRECTORY (STRICT INSTITUTION ENFORCEMENT)
+// 4. GET STUDENTS DIRECTORY (STRICT INSTITUTION ENFORCEMENT + SKILLS FILTERING)
 campusRouter.get('/students', async (req: Request, res: Response) => {
   try {
-    const { institution, faculty, department, search, requestingUserId } = req.query as {
+    const { institution, faculty, department, skill, search, requestingUserId } = req.query as {
       institution?: string;
       faculty?: string;
       department?: string;
+      skill?: string;
       search?: string;
       requestingUserId?: string;
     };
@@ -289,17 +564,39 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
     }
 
     const targetInstitution = institution.trim().toLowerCase();
+    const targetSkill = (skill || '').trim().toLowerCase();
     const studentsMap = new Map<string, CampusStudentCard>();
+
+    // Preload relational student_skills for fast lookup
+    const userSkillsMap = new Map<string, { skills: string[]; skillIds: string[] }>();
+    try {
+      const { data: skillRows } = await supabaseAdmin
+        .from('student_skills')
+        .select('user_id, skill_id, skill_name');
+      for (const row of skillRows || []) {
+        const entry = userSkillsMap.get(row.user_id) || { skills: [], skillIds: [] };
+        if (!entry.skills.includes(row.skill_name)) entry.skills.push(row.skill_name);
+        if (!entry.skillIds.includes(row.skill_id)) entry.skillIds.push(row.skill_id);
+        userSkillsMap.set(row.user_id, entry);
+      }
+    } catch {}
+
+    const matchesSkillFilter = (skillsList: string[], skillIdsList: string[]) => {
+      if (!targetSkill) return true;
+      return (
+        skillsList.some((sk) => sk.toLowerCase().includes(targetSkill) || targetSkill.includes(sk.toLowerCase())) ||
+        skillIdsList.some((sid) => sid.toLowerCase() === targetSkill)
+      );
+    };
 
     // 1. Query Firestore users collection for matching institution
     try {
       const usersRef = collection(db, 'users');
-      // Query users
       const usersSnap = await getDocs(usersRef);
       usersSnap.forEach((docSnap) => {
         const data = docSnap.data();
         const userInst = (data.institution || data.institutionName || data.academicProfile?.institutionName || '').trim().toLowerCase();
-        
+
         // Strict institution match check
         if (userInst && (userInst === targetInstitution || userInst.includes(targetInstitution) || targetInstitution.includes(userInst))) {
           const userFaculty = data.faculty || data.facultyName || data.academicProfile?.facultyName || data.academicProfile?.faculty || '';
@@ -310,10 +607,19 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
           const userAvatar = data.avatar || data.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userName)}`;
           const userTier = getUserTier(data);
 
-          // Check faculty and department filters if provided
+          const relSkills = userSkillsMap.get(docSnap.id);
+          const skillsList: string[] = relSkills?.skills?.length
+            ? relSkills.skills
+            : (Array.isArray(data.skills) ? data.skills : []);
+          const skillIdsList: string[] = relSkills?.skillIds?.length
+            ? relSkills.skillIds
+            : (Array.isArray(data.skillIds) ? data.skillIds : []);
+
+          // Check faculty, department, skill, and search filters
           const matchesFaculty = !faculty || userFaculty.toLowerCase().includes(faculty.toLowerCase()) || faculty.toLowerCase().includes(userFaculty.toLowerCase());
           const matchesDepartment = !department || userDept.toLowerCase().includes(department.toLowerCase()) || department.toLowerCase().includes(userDept.toLowerCase());
-          
+          const matchesSkill = matchesSkillFilter(skillsList, skillIdsList);
+
           let matchesSearch = true;
           if (search && search.trim()) {
             const s = search.trim().toLowerCase();
@@ -321,10 +627,11 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
               userName.toLowerCase().includes(s) ||
               userUsername.toLowerCase().includes(s) ||
               userDept.toLowerCase().includes(s) ||
-              userFaculty.toLowerCase().includes(s);
+              userFaculty.toLowerCase().includes(s) ||
+              skillsList.some((sk) => sk.toLowerCase().includes(s));
           }
 
-          if (matchesFaculty && matchesDepartment && matchesSearch) {
+          if (matchesFaculty && matchesDepartment && matchesSkill && matchesSearch) {
             const hasBlue = userTier === 'premium' || userTier === 'vip' || data.isVerified || data.hasBlueBadge || data.verifiedBadge;
             studentsMap.set(docSnap.id, {
               id: docSnap.id,
@@ -332,9 +639,13 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
               username: userUsername,
               avatar: userAvatar,
               institution: data.institution || data.institutionName || institution,
+              institutionId: data.institutionId || data.academicProfile?.institutionId,
               faculty: userFaculty,
               department: userDept,
               level: userLevel,
+              bio: data.bio || '',
+              skills: skillsList,
+              skillIds: skillIdsList,
               tier: userTier,
               hasBlueBadge: hasBlue,
               isVerified: hasBlue,
@@ -357,34 +668,54 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
         const data = docSnap.data() as CampusMembership;
         const memInst = (data.institution || '').trim().toLowerCase();
         if (memInst && (memInst === targetInstitution || memInst.includes(targetInstitution) || targetInstitution.includes(memInst))) {
-          if (!studentsMap.has(data.userId)) {
-            const matchesFaculty = !faculty || data.faculty.toLowerCase().includes(faculty.toLowerCase()) || faculty.toLowerCase().includes(data.faculty.toLowerCase());
-            const matchesDepartment = !department || data.department.toLowerCase().includes(department.toLowerCase()) || department.toLowerCase().includes(data.department.toLowerCase());
-            
-            let matchesSearch = true;
-            if (search && search.trim()) {
-              const s = search.trim().toLowerCase();
-              matchesSearch =
-                data.department.toLowerCase().includes(s) ||
-                data.faculty.toLowerCase().includes(s);
-            }
+          const relSkills = userSkillsMap.get(data.userId);
+          const mSkills: string[] = relSkills?.skills?.length
+            ? relSkills.skills
+            : (Array.isArray(data.skills) ? data.skills : []);
+          const mSkillIds: string[] = relSkills?.skillIds?.length
+            ? relSkills.skillIds
+            : (Array.isArray(data.skillIds) ? data.skillIds : []);
 
-            if (matchesFaculty && matchesDepartment && matchesSearch) {
-              studentsMap.set(data.userId, {
-                id: data.userId,
-                name: 'Grobaax Scholar',
-                username: `@scholar_${data.userId.substring(0, 5)}`,
-                avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(data.userId)}`,
-                institution: data.institution,
-                faculty: data.faculty,
-                department: data.department,
-                level: data.level || '100 Level',
-                tier: 'free',
-                isOnline: true,
-                connectionStatus: data.userId === requestingUserId ? 'self' : 'none',
-                joinedCampus: true,
-              });
+          if (studentsMap.has(data.userId)) {
+            const existing = studentsMap.get(data.userId)!;
+            if ((!existing.skills || existing.skills.length === 0) && mSkills.length > 0) {
+              existing.skills = mSkills;
+              existing.skillIds = mSkillIds;
             }
+            return;
+          }
+
+          const matchesFaculty = !faculty || data.faculty.toLowerCase().includes(faculty.toLowerCase()) || faculty.toLowerCase().includes(data.faculty.toLowerCase());
+          const matchesDepartment = !department || data.department.toLowerCase().includes(department.toLowerCase()) || department.toLowerCase().includes(data.department.toLowerCase());
+          const matchesSkill = matchesSkillFilter(mSkills, mSkillIds);
+
+          let matchesSearch = true;
+          if (search && search.trim()) {
+            const s = search.trim().toLowerCase();
+            matchesSearch =
+              data.department.toLowerCase().includes(s) ||
+              data.faculty.toLowerCase().includes(s) ||
+              mSkills.some((sk) => sk.toLowerCase().includes(s));
+          }
+
+          if (matchesFaculty && matchesDepartment && matchesSkill && matchesSearch) {
+            studentsMap.set(data.userId, {
+              id: data.userId,
+              name: 'Grobaax Scholar',
+              username: `@scholar_${data.userId.substring(0, 5)}`,
+              avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(data.userId)}`,
+              institution: data.institution,
+              institutionId: data.institutionId,
+              faculty: data.faculty,
+              department: data.department,
+              level: data.level || '100 Level',
+              skills: mSkills,
+              skillIds: mSkillIds,
+              tier: 'free',
+              isOnline: true,
+              connectionStatus: data.userId === requestingUserId ? 'self' : 'none',
+              joinedCampus: true,
+            });
           }
         }
       });
@@ -392,8 +723,8 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
       console.warn('Error reading campus memberships:', memErr);
     }
 
-    // 3. If department is selected and list has few students, seed realistic verified scholars for that department
-    if (department && studentsMap.size < 4) {
+    // 3. If department is selected without a skill filter and list has few students, seed realistic verified scholars for that department
+    if (department && !targetSkill && studentsMap.size < 4) {
       const sampleNames = [
         { name: 'John Abdul', tier: 'premium' as const, level: '300 Level', gender: 'male', phone: '+2348031234567' },
         { name: 'Sarah Ibrahim', tier: 'vip' as const, level: '400 Level', gender: 'female', phone: '+2348029876543' },
@@ -430,13 +761,14 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
               faculty: faculty || 'General Faculty',
               department,
               level: item.level,
+              skills: [],
+              skillIds: [],
               tier: item.tier,
               isOnline: true,
               connectionStatus: 'none',
               joinedCampus: true,
             });
 
-            // Also cache mock membership phone for secure WhatsApp testing
             if (!membershipsCache.has(id)) {
               membershipsCache.set(id, {
                 id,
@@ -490,8 +822,7 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
         console.warn('Error reading connection requests:', reqErr);
       }
 
-      // Also check memory cache for connection requests
-      connectionRequestsCache.forEach((reqData, reqId) => {
+      connectionRequestsCache.forEach((reqData) => {
         if (reqData.senderId === requestingUserId && studentsMap.has(reqData.recipientId)) {
           const student = studentsMap.get(reqData.recipientId)!;
           if (reqData.status === 'PENDING') {

@@ -23,6 +23,7 @@ import {
   RefreshCw,
   BookOpen,
   ChevronRight,
+  Newspaper,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -207,6 +208,7 @@ export function AdminDashboardView({ onNavigateTab }: AdminDashboardProps) {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           { [
             { label: 'User Accounts', tab: 'users', icon: Users, color: 'text-blue-500 bg-blue-500/10' },
+            { label: 'School Blogs', tab: 'school_blogs', icon: Newspaper, color: 'text-blue-600 bg-blue-500/10' },
             { label: 'Roles & RBAC', tab: 'managers', icon: ShieldCheck, color: 'text-indigo-500 bg-indigo-500/10' },
             { label: 'Events Catalog', tab: 'events', icon: Calendar, color: 'text-cyan-500 bg-cyan-500/10' },
             { label: 'Subscriptions (₦)', tab: 'subscriptions', icon: Zap, color: 'text-amber-500 bg-amber-500/10' },

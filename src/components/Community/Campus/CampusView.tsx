@@ -4,17 +4,20 @@ import {
   CampusMembership,
   CampusConnectionRequest,
   CampusStudentCard,
+  CampusSkillCategory,
   InstitutionCategory,
 } from '../../../types';
 import {
   getCampusMembership,
   fetchCampusStudents,
+  fetchCampusSkillCategories,
   subscribeCampusConnections,
   sendCampusChatRequest,
   respondCampusChatRequest,
   getSecureWhatsAppLink,
   resolveUserSubscriptionTier,
 } from '../../../lib/campusService';
+import { DEFAULT_CAMPUS_SKILL_CATEGORIES } from '../../../data/campusSkillsData';
 import { openExternalWhatsApp } from '../../../lib/whatsappUtils';
 import {
   getFacultiesByCategory,
@@ -25,8 +28,11 @@ import { CampusJoinScreen } from './CampusJoinScreen';
 import { CampusStudentRow } from './CampusStudentRow';
 import { CampusConnectionsView } from './CampusConnectionsView';
 import { CampusEditWhatsAppModal } from './CampusEditWhatsAppModal';
+import { CampusEditSkillsModal } from './CampusEditSkillsModal';
+import { CampusStudentProfileModal } from './CampusStudentProfileModal';
 import { ConnectOtherSchoolsView } from './ConnectOtherSchoolsView';
 import { CrossCampusUpgradeModal } from './CrossCampusUpgradeModal';
+import { SchoolBlogPortal } from './Blog/SchoolBlogPortal';
 import {
   GraduationCap,
   Building2,
@@ -45,6 +51,8 @@ import {
   Crown,
   Sparkles,
   MapPin,
+  Newspaper,
+  X,
 } from 'lucide-react';
 
 export const CampusView: React.FC = () => {
@@ -54,14 +62,18 @@ export const CampusView: React.FC = () => {
   const [membership, setMembership] = useState<CampusMembership | null>(null);
   const [isCheckingMembership, setIsCheckingMembership] = useState(true);
   const [isEditWhatsAppOpen, setIsEditWhatsAppOpen] = useState(false);
+  const [isEditSkillsOpen, setIsEditSkillsOpen] = useState(false);
 
   // 2. Navigation State within Campus
-  const [activeView, setActiveView] = useState<'directory' | 'connections' | 'other_schools'>('directory');
+  const [activeView, setActiveView] = useState<'directory' | 'connections' | 'other_schools' | 'school_blog'>('directory');
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
 
-  // 3. Search & Directory State
+  // 3. Search, Skills & Directory State
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSkillFilter, setSelectedSkillFilter] = useState<string>('');
+  const [skillCategories, setSkillCategories] = useState<CampusSkillCategory[]>(DEFAULT_CAMPUS_SKILL_CATEGORIES);
+  const [selectedProfileStudent, setSelectedProfileStudent] = useState<CampusStudentCard | null>(null);
   const [students, setStudents] = useState<CampusStudentCard[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [feedbackToast, setFeedbackToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -98,6 +110,8 @@ export const CampusView: React.FC = () => {
   // Active institution currently explored (defaults to home school; Premium/VIP can switch to any other Nigerian institution)
   const [activeInstitutionName, setActiveInstitutionName] = useState<string>(homeInstitutionName);
   const [activeInstitutionCategory, setActiveInstitutionCategory] = useState<InstitutionCategory>(homeInstitutionCategory);
+  const [blogInstitutionName, setBlogInstitutionName] = useState<string>(homeInstitutionName);
+  const [blogInstitutionCategory, setBlogInstitutionCategory] = useState<string>(homeInstitutionCategory);
   const [isCrossCampusUpgradeModalOpen, setIsCrossCampusUpgradeModalOpen] = useState(false);
 
   // Sync if home school loads from Firestore
@@ -105,6 +119,8 @@ export const CampusView: React.FC = () => {
     if (activeInstitutionName === 'Ekiti State University, Ado-Ekiti' && homeInstitutionName) {
       setActiveInstitutionName(homeInstitutionName);
       setActiveInstitutionCategory(homeInstitutionCategory);
+      setBlogInstitutionName(homeInstitutionName);
+      setBlogInstitutionCategory(homeInstitutionCategory);
     }
   }, [homeInstitutionName, homeInstitutionCategory]);
 
@@ -177,7 +193,18 @@ export const CampusView: React.FC = () => {
     return () => unsubscribe();
   }, [currentUser?.id]);
 
-  // 3. Load Students for selected department or search
+  // 2b. Load extensible Campus Skill Categories
+  useEffect(() => {
+    fetchCampusSkillCategories()
+      .then((cats) => {
+        if (Array.isArray(cats) && cats.length > 0) {
+          setSkillCategories(cats.filter((c) => c.isActive !== false));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // 3. Load Students for selected department, skill filter, or search
   const loadStudents = async () => {
     if (!activeInstitutionName) return;
     setIsLoadingStudents(true);
@@ -186,6 +213,7 @@ export const CampusView: React.FC = () => {
         institution: activeInstitutionName,
         faculty: selectedFaculty || undefined,
         department: selectedDepartment || undefined,
+        skill: selectedSkillFilter || undefined,
         search: searchQuery.trim() || undefined,
         currentUserId: currentUser.id,
       });
@@ -201,7 +229,7 @@ export const CampusView: React.FC = () => {
     if (membership) {
       loadStudents();
     }
-  }, [activeInstitutionName, selectedFaculty, selectedDepartment, searchQuery, membership]);
+  }, [activeInstitutionName, selectedFaculty, selectedDepartment, selectedSkillFilter, searchQuery, membership]);
 
   // Cross-Campus Navigation Handlers
   const handleConnectWithOtherSchoolsClick = () => {
@@ -218,6 +246,7 @@ export const CampusView: React.FC = () => {
     setSelectedFaculty(null);
     setSelectedDepartment(null);
     setSearchQuery('');
+    setSelectedSkillFilter('');
     setActiveView('directory');
     showToast(`Switched campus to ${inst.name}. Select a faculty to explore.`);
   };
@@ -228,12 +257,19 @@ export const CampusView: React.FC = () => {
     setSelectedFaculty(null);
     setSelectedDepartment(null);
     setSearchQuery('');
+    setSelectedSkillFilter('');
     setActiveView('directory');
     showToast(`Returned to your home campus: ${homeInstitutionName}`);
   };
 
+  const handleOpenSchoolBlogTab = (instName?: string, instCategory?: string) => {
+    setBlogInstitutionName(instName || activeInstitutionName || homeInstitutionName);
+    setBlogInstitutionCategory(instCategory || activeInstitutionCategory || homeInstitutionCategory);
+    setActiveView('school_blog');
+  };
+
   // Handle Joining Campus
-  const handleJoinedCampus = (whatsappNumber: string) => {
+  const handleJoinedCampus = (whatsappNumber: string, skills?: string[], skillIds?: string[]) => {
     setMembership({
       id: currentUser.id,
       userId: currentUser.id,
@@ -244,6 +280,8 @@ export const CampusView: React.FC = () => {
       level: currentUser.level || currentUser.academicProfile?.level || '100 Level',
       whatsappNumber,
       whatsappVerified: true,
+      skills: skills || [],
+      skillIds: skillIds || [],
       joinedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: 'active',
@@ -260,6 +298,9 @@ export const CampusView: React.FC = () => {
       setStudents((prev) =>
         prev.map((s) => (s.id === student.id ? { ...s, connectionStatus: 'pending_sent' } : s))
       );
+      setSelectedProfileStudent((prev) =>
+        prev && prev.id === student.id ? { ...prev, connectionStatus: 'pending_sent' } : prev
+      );
     } else {
       showToast(res.error || 'Failed to send request.', 'error');
     }
@@ -273,6 +314,9 @@ export const CampusView: React.FC = () => {
       setStudents((prev) =>
         prev.map((s) => (s.id === student.id ? { ...s, connectionStatus: 'accepted' } : s))
       );
+      setSelectedProfileStudent((prev) =>
+        prev && prev.id === student.id ? { ...prev, connectionStatus: 'accepted' } : prev
+      );
     } else {
       showToast(res.error || 'Failed to accept connection.', 'error');
     }
@@ -285,6 +329,9 @@ export const CampusView: React.FC = () => {
       showToast(res.message || 'Connection request declined.');
       setStudents((prev) =>
         prev.map((s) => (s.id === student.id ? { ...s, connectionStatus: 'none' } : s))
+      );
+      setSelectedProfileStudent((prev) =>
+        prev && prev.id === student.id ? { ...prev, connectionStatus: 'none' } : prev
       );
     } else {
       showToast(res.error || 'Failed to decline request.', 'error');
@@ -384,6 +431,18 @@ export const CampusView: React.FC = () => {
           {/* User Quick Actions */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
+              id="campus-edit-skills-btn"
+              type="button"
+              onClick={() => setIsEditSkillsOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/70 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>
+                My Skills{membership.skills?.length ? ` (${membership.skills.length})` : ''}
+              </span>
+            </button>
+
+            <button
               id="campus-edit-whatsapp-btn"
               type="button"
               onClick={() => setIsEditWhatsAppOpen(true)}
@@ -470,6 +529,20 @@ export const CampusView: React.FC = () => {
           </button>
 
           <button
+            id="campus-tab-school-blog"
+            type="button"
+            onClick={() => handleOpenSchoolBlogTab(activeInstitutionName, activeInstitutionCategory)}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+              activeView === 'school_blog'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200/80 dark:border-blue-800/60'
+            }`}
+          >
+            <Newspaper className="w-4 h-4" />
+            <span>School Blog</span>
+          </button>
+
+          <button
             id="campus-tab-other-schools"
             type="button"
             onClick={handleConnectWithOtherSchoolsClick}
@@ -492,9 +565,22 @@ export const CampusView: React.FC = () => {
       </div>
 
       {/* 2. MAIN CONTENT AREA */}
-      {activeView === 'other_schools' ? (
+      {activeView === 'school_blog' ? (
+        <SchoolBlogPortal
+          institutionKey={blogInstitutionName || activeInstitutionName}
+          institutionName={blogInstitutionName || activeInstitutionName}
+          institutionCategory={blogInstitutionCategory || activeInstitutionCategory}
+          homeInstitutionName={homeInstitutionName}
+          onBackToCampus={() => setActiveView('directory')}
+          onSwitchBlogInstitution={(nextName, nextCat) => {
+            setBlogInstitutionName(nextName);
+            if (nextCat) setBlogInstitutionCategory(nextCat);
+          }}
+        />
+      ) : activeView === 'other_schools' ? (
         <ConnectOtherSchoolsView
           onSelectInstitution={handleSelectOtherInstitution}
+          onOpenSchoolBlog={(inst) => handleOpenSchoolBlogTab(inst.name, inst.category)}
           onBackToHomeSchool={handleBackToHomeSchool}
           homeInstitutionName={homeInstitutionName}
           currentViewingInstitutionName={activeInstitutionName}
@@ -599,21 +685,52 @@ export const CampusView: React.FC = () => {
               )}
             </div>
 
-            {/* Instant Search Bar */}
-            <div className="relative min-w-[200px] sm:w-64">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search scholars or dept..."
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-              />
+            {/* Instant Search & Skill Filter Controls */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <div className="relative min-w-[170px] sm:w-52">
+                <Sparkles className="w-3.5 h-3.5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <select
+                  id="campus-skill-filter-select"
+                  value={selectedSkillFilter}
+                  onChange={(e) => setSelectedSkillFilter(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value="">All Skills (Filter)</option>
+                  {skillCategories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative min-w-[190px] sm:w-56 flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search scholar, dept, skill..."
+                  className="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {selectedSkillFilter && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedSkillFilter('')}
+                  className="px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                  title="Clear skill filter"
+                >
+                  <span>{selectedSkillFilter}</span>
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* VIEW LEVEL 1: ALL FACULTIES (when no faculty or search query) */}
-          {!selectedFaculty && !searchQuery && (
+          {/* VIEW LEVEL 1: ALL FACULTIES (when no faculty, search query, or skill filter) */}
+          {!selectedFaculty && !searchQuery && !selectedSkillFilter && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -654,7 +771,7 @@ export const CampusView: React.FC = () => {
           )}
 
           {/* VIEW LEVEL 2: DEPARTMENTS IN SELECTED FACULTY */}
-          {selectedFaculty && !selectedDepartment && !searchQuery && (
+          {selectedFaculty && !selectedDepartment && !searchQuery && !selectedSkillFilter && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -703,8 +820,8 @@ export const CampusView: React.FC = () => {
             </div>
           )}
 
-          {/* VIEW LEVEL 3: STUDENT DIRECTORY (Department or Search Results) */}
-          {(selectedDepartment || searchQuery) && (
+          {/* VIEW LEVEL 3: STUDENT DIRECTORY (Department, Skill Filter, or Search Results) */}
+          {(selectedDepartment || searchQuery || selectedSkillFilter) && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
@@ -718,7 +835,13 @@ export const CampusView: React.FC = () => {
                     </button>
                   )}
                   <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 truncate">
-                    {searchQuery ? `Search Results for "${searchQuery}"` : selectedDepartment}
+                    {selectedSkillFilter && searchQuery
+                      ? `${selectedSkillFilter} · "${searchQuery}"`
+                      : selectedSkillFilter
+                      ? `Scholars with Skill: ${selectedSkillFilter}`
+                      : searchQuery
+                      ? `Search Results for "${searchQuery}"`
+                      : selectedDepartment}
                   </h3>
                 </div>
                 <span className="text-xs font-bold text-slate-500 shrink-0">
@@ -743,8 +866,10 @@ export const CampusView: React.FC = () => {
                       No Registered Scholars Found
                     </h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                      {searchQuery
-                        ? 'Try searching with a different name, faculty, or department keyword.'
+                      {selectedSkillFilter
+                        ? `No scholars in ${activeInstitutionName} have listed "${selectedSkillFilter}" yet.`
+                        : searchQuery
+                        ? 'Try searching with a different name, skill, faculty, or department keyword.'
                         : `Be the first scholar in ${selectedDepartment || 'this department'} to connect on GROBAAX Campus!`}
                     </p>
                   </div>
@@ -759,6 +884,7 @@ export const CampusView: React.FC = () => {
                       onAcceptRequest={handleAcceptRequest}
                       onRejectRequest={handleRejectRequest}
                       onOpenWhatsApp={handleOpenWhatsAppByStudent}
+                      onViewProfile={(st) => setSelectedProfileStudent(st)}
                     />
                   ))}
                 </div>
@@ -777,6 +903,35 @@ export const CampusView: React.FC = () => {
         onUpdated={(newNumber) => {
           setMembership((prev) => (prev ? { ...prev, whatsappNumber: newNumber } : null));
           showToast('WhatsApp number updated successfully!');
+        }}
+      />
+
+      {/* 3B. EDIT CAMPUS SKILLS MODAL */}
+      <CampusEditSkillsModal
+        userId={currentUser.id}
+        currentSkills={membership.skills || []}
+        currentSkillIds={membership.skillIds || []}
+        isOpen={isEditSkillsOpen}
+        onClose={() => setIsEditSkillsOpen(false)}
+        onUpdated={(skills, skillIds) => {
+          setMembership((prev) => (prev ? { ...prev, skills, skillIds } : null));
+          showToast('Campus skills updated successfully!');
+          loadStudents();
+        }}
+      />
+
+      {/* 3C. STUDENT PROFILE & SKILLS MODAL */}
+      <CampusStudentProfileModal
+        student={selectedProfileStudent}
+        isOpen={Boolean(selectedProfileStudent)}
+        onClose={() => setSelectedProfileStudent(null)}
+        onSendRequest={handleSendRequest}
+        onAcceptRequest={handleAcceptRequest}
+        onRejectRequest={handleRejectRequest}
+        onOpenWhatsApp={handleOpenWhatsAppByStudent}
+        onFilterBySkill={(sk) => {
+          setSelectedSkillFilter(sk);
+          setActiveView('directory');
         }}
       />
 

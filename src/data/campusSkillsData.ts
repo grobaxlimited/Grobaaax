@@ -1,0 +1,28 @@
+import { CampusSkillCategory } from '../types';
+
+export const DEFAULT_CAMPUS_SKILL_CATEGORIES: CampusSkillCategory[] = [
+  { id: 'skill_graphic_design', slug: 'graphic-design', name: 'Graphic Design', groupName: 'Creative & Design', icon: '🎨', isActive: true, sortOrder: 10 },
+  { id: 'skill_ui_ux_design', slug: 'ui-ux-design', name: 'UI/UX Design', groupName: 'Creative & Design', icon: '📐', isActive: true, sortOrder: 20 },
+  { id: 'skill_video_editing', slug: 'video-editing', name: 'Video Editing', groupName: 'Creative & Design', icon: '🎬', isActive: true, sortOrder: 30 },
+  { id: 'skill_photography', slug: 'photography', name: 'Photography', groupName: 'Creative & Design', icon: '📷', isActive: true, sortOrder: 40 },
+  { id: 'skill_web_development', slug: 'web-development', name: 'Web Development', groupName: 'Tech & Digital', icon: '💻', isActive: true, sortOrder: 50 },
+  { id: 'skill_mobile_app_development', slug: 'mobile-app-development', name: 'Mobile App Development', groupName: 'Tech & Digital', icon: '📱', isActive: true, sortOrder: 60 },
+  { id: 'skill_data_analysis', slug: 'data-analysis', name: 'Data Analysis', groupName: 'Tech & Digital', icon: '📊', isActive: true, sortOrder: 70 },
+  { id: 'skill_software_testing', slug: 'software-qa', name: 'Software QA & Testing', groupName: 'Tech & Digital', icon: '🧪', isActive: true, sortOrder: 220 },
+  { id: 'skill_digital_marketing', slug: 'digital-marketing', name: 'Digital Marketing', groupName: 'Media & Writing', icon: '📣', isActive: true, sortOrder: 80 },
+  { id: 'skill_content_creation', slug: 'content-creation', name: 'Content Creation', groupName: 'Media & Writing', icon: '🎙️', isActive: true, sortOrder: 90 },
+  { id: 'skill_copywriting', slug: 'copywriting', name: 'Copywriting', groupName: 'Media & Writing', icon: '✍️', isActive: true, sortOrder: 100 },
+  { id: 'skill_public_speaking', slug: 'public-speaking', name: 'Public Speaking & MC', groupName: 'Media & Writing', icon: '🎤', isActive: true, sortOrder: 230 },
+  { id: 'skill_fashion_design', slug: 'fashion-design', name: 'Fashion Design', groupName: 'Fashion & Beauty', icon: '👗', isActive: true, sortOrder: 110 },
+  { id: 'skill_tailoring', slug: 'tailoring', name: 'Tailoring', groupName: 'Fashion & Beauty', icon: '🧵', isActive: true, sortOrder: 120 },
+  { id: 'skill_hairdressing', slug: 'hairdressing', name: 'Hairdressing', groupName: 'Fashion & Beauty', icon: '💇‍♀️', isActive: true, sortOrder: 130 },
+  { id: 'skill_barbing', slug: 'barbing', name: 'Barbing', groupName: 'Fashion & Beauty', icon: '💈', isActive: true, sortOrder: 140 },
+  { id: 'skill_makeup_artistry', slug: 'makeup-artistry', name: 'Makeup Artistry', groupName: 'Fashion & Beauty', icon: '💄', isActive: true, sortOrder: 150 },
+  { id: 'skill_catering', slug: 'catering', name: 'Catering', groupName: 'Hospitality & Services', icon: '🍲', isActive: true, sortOrder: 160 },
+  { id: 'skill_event_planning', slug: 'event-planning', name: 'Event Planning', groupName: 'Hospitality & Services', icon: '🎪', isActive: true, sortOrder: 240 },
+  { id: 'skill_electrical_repairs', slug: 'electrical-repairs', name: 'Electrical Repairs', groupName: 'Technical & Vocational', icon: '⚡', isActive: true, sortOrder: 170 },
+  { id: 'skill_plumbing', slug: 'plumbing', name: 'Plumbing', groupName: 'Technical & Vocational', icon: '🔧', isActive: true, sortOrder: 180 },
+  { id: 'skill_carpentry', slug: 'carpentry', name: 'Carpentry', groupName: 'Technical & Vocational', icon: '🪚', isActive: true, sortOrder: 190 },
+  { id: 'skill_phone_repairs', slug: 'phone-repairs', name: 'Phone Repairs', groupName: 'Technical & Vocational', icon: '🛠️', isActive: true, sortOrder: 200 },
+  { id: 'skill_tutoring', slug: 'academic-tutoring', name: 'Academic Tutoring', groupName: 'Academic & Tutoring', icon: '📚', isActive: true, sortOrder: 210 },
+];
