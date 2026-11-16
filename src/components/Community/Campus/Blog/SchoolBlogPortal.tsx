@@ -25,7 +25,6 @@ import {
   Newspaper,
   PenTool,
   Search,
-  UserCheck,
   X,
 } from 'lucide-react';
 
@@ -220,62 +219,6 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
           )}
         </div>
       </div>
-
-      {/* SECTION A: School Identity Header (Grobaax Blue & White Identity) */}
-      <section className="rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white p-6 sm:p-8 shadow-lg relative overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/15 border border-white/25 backdrop-blur-xs flex items-center justify-center text-3xl shrink-0">
-              {blog?.logo || '🏛️'}
-            </div>
-            <div className="space-y-1.5">
-              <div className="text-[11px] font-black uppercase tracking-widest text-blue-100 flex items-center gap-2 flex-wrap">
-                <span>School Blog</span>
-                <span aria-hidden="true">·</span>
-                <span>{blog?.category || institutionCategory || 'University'}</span>
-                {blog?.state && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span>{blog.state} State</span>
-                  </>
-                )}
-              </div>
-              <h1 className="text-xl sm:text-3xl font-black tracking-tight text-white">
-                {displayInstitutionName} Blog
-              </h1>
-              <p className="text-xs sm:text-sm text-blue-100/90 max-w-2xl leading-relaxed">
-                {blog?.description ||
-                  `Official student-reported campus news, events, academics, and student life updates for ${displayInstitutionName}.`}
-              </p>
-            </div>
-          </div>
-
-          {/* Campus Blogger Status Box */}
-          <div className="p-3.5 rounded-2xl bg-white/12 border border-white/20 backdrop-blur-xs shrink-0 min-w-[220px] space-y-1">
-            <div className="text-[10px] font-black uppercase tracking-wider text-blue-100 flex items-center gap-1.5">
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Campus School Bloggers</span>
-            </div>
-            {blog?.activeBlogger ? (
-              <div>
-                <div className="text-sm font-black text-white">
-                  {blog.activeBlogger.userName}
-                  {Number((blog as any).activeBloggersCount || 0) > 1
-                    ? ` + ${Number((blog as any).activeBloggersCount) - 1} more`
-                    : ''}
-                </div>
-                <div className="text-[11px] text-blue-100/80">
-                  {blog.activeBlogger.department} · {blog.activeBlogger.level}
-                </div>
-              </div>
-            ) : (
-              <div className="text-xs text-blue-100/85">
-                Open for free applications by verified {displayInstitutionName} students.
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
 
       {isLoading ? (
         <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
