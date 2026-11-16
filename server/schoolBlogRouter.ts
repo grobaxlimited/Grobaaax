@@ -701,18 +701,12 @@ schoolBlogRouter.post('/applications', requireAuth, async (req: Request, res: Re
       });
     }
 
-    const cleanDepartment = String(department || user.department || '').trim();
-    const cleanLevel = String(level || user.level || '').trim();
+    const cleanDepartment = String(department || user.department || '').trim() || 'Campus Scholar';
+    const cleanLevel = String(level || user.level || '').trim() || 'Student';
     const cleanReason = String(reason || '').trim();
     const cleanExperience = String(experience || '').trim();
     const cleanAdditionalInfo = String(additionalInfo || '').trim();
 
-    if (!cleanDepartment) {
-      return res.status(400).json({ success: false, error: 'Department is required.' });
-    }
-    if (!cleanLevel) {
-      return res.status(400).json({ success: false, error: 'Academic level is required.' });
-    }
     if (cleanReason.length < 15) {
       return res.status(400).json({
         success: false,

@@ -7,14 +7,11 @@ import {
 import {
   AlertCircle,
   Ban,
-  BookOpen,
   Building2,
   CheckCircle2,
   Clock,
-  GraduationCap,
   Loader2,
   PenTool,
-  Sparkles,
   User,
   X,
 } from 'lucide-react';
@@ -29,21 +26,6 @@ interface BloggerApplicationModalProps {
   existingApplication?: SchoolBloggerApplication | null;
   onSubmitted: (application: SchoolBloggerApplication | null, message: string) => void;
 }
-
-const ACADEMIC_LEVELS = [
-  '100 Level',
-  '200 Level',
-  '300 Level',
-  '400 Level',
-  '500 Level',
-  '600 Level',
-  'ND 1',
-  'ND 2',
-  'HND 1',
-  'HND 2',
-  'NCE',
-  'Postgraduate',
-];
 
 export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = ({
   isOpen,
@@ -61,10 +43,8 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
     currentUser.academicProfile?.departmentName ||
     '';
   const defaultLevel =
-    currentUser.level || currentUser.academicProfile?.level || '100 Level';
+    currentUser.level || currentUser.academicProfile?.level || '';
 
-  const [department, setDepartment] = useState(defaultDepartment);
-  const [level, setLevel] = useState(defaultLevel);
   const [reason, setReason] = useState('');
   const [experience, setExperience] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
@@ -74,8 +54,6 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
 
   useEffect(() => {
     if (isOpen) {
-      setDepartment(defaultDepartment);
-      setLevel(defaultLevel);
       setError(null);
       if (!existingApplication || existingApplication.status !== 'Pending') {
         setReason('');
@@ -83,7 +61,7 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
         setAdditionalInfo('');
       }
     }
-  }, [isOpen, defaultDepartment, defaultLevel, existingApplication?.id, existingApplication?.status]);
+  }, [isOpen, existingApplication?.id, existingApplication?.status]);
 
   if (!isOpen) return null;
 
@@ -97,14 +75,6 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
     e.preventDefault();
     setError(null);
 
-    if (!department.trim()) {
-      setError('Please enter your academic department.');
-      return;
-    }
-    if (!level.trim()) {
-      setError('Please select or enter your academic level.');
-      return;
-    }
     if (reason.trim().length < 15) {
       setError('Please tell us why you want to become a School Blogger (at least 15 characters).');
       return;
@@ -115,8 +85,8 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
       const res = await submitBloggerApplication({
         targetInstitutionId: homeInstitutionId,
         targetInstitutionName: homeInstitutionName,
-        department: department.trim(),
-        level: level.trim(),
+        department: defaultDepartment.trim(),
+        level: defaultLevel.trim(),
         reason: reason.trim(),
         experience: experience.trim(),
         additionalInfo: additionalInfo.trim(),
@@ -274,19 +244,6 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Free Eligibility Banner */}
-            <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 space-y-1.5">
-              <div className="text-xs font-black text-blue-800 dark:text-blue-200 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>Free for All Verified Campus Students · No Subscription Required</span>
-              </div>
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Applying to become a School Blogger on Grobaax is completely free. Approved bloggers with{' '}
-                <strong>200+ genuine Campus followers</strong> earn{' '}
-                <strong>1,000 GP per 250 qualifying views</strong> (up to{' '}
-                <strong>8,000 GP per article</strong>).
-              </p>
-            </div>
 
             {isRejected && existingApplication?.reviewNotes && (
               <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-xs space-y-1">
@@ -316,54 +273,6 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
                     {homeInstitutionName}
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Department & Academic Level */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label
-                  htmlFor="blogger-app-department"
-                  className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300"
-                >
-                  <BookOpen className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Department *</span>
-                </label>
-                <input
-                  id="blogger-app-department"
-                  type="text"
-                  required
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  placeholder="e.g. Mass Communication"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label
-                  htmlFor="blogger-app-level"
-                  className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300"
-                >
-                  <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Academic Level *</span>
-                </label>
-                <select
-                  id="blogger-app-level"
-                  required
-                  value={level}
-                  onChange={(e) => setLevel(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                >
-                  {!ACADEMIC_LEVELS.includes(level) && level && (
-                    <option value={level}>{level}</option>
-                  )}
-                  {ACADEMIC_LEVELS.map((lvl) => (
-                    <option key={lvl} value={lvl}>
-                      {lvl}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 
