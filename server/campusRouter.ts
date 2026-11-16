@@ -15,10 +15,84 @@ import {
 } from '../src/lib/supabaseFirestoreAdapter';
 import { supabaseAdmin } from '../src/lib/supabase';
 import { DEFAULT_CAMPUS_SKILL_CATEGORIES } from '../src/data/campusSkillsData';
-import { requireAuth, requireAdmin } from './utils/authMiddleware';
+import { optionalAuth, requireAuth, requireAdmin } from './utils/authMiddleware';
 import { resolveCanonicalInstitution } from './utils/institutionResolver';
 
 export const campusRouter = Router();
+
+const SUSPENDED_STATUSES = new Set(['suspended', 'deleted', 'banned', 'disabled']);
+
+function isUserAccountActive(rawUser: any): boolean {
+  if (!rawUser || typeof rawUser !== 'object') return false;
+  if (rawUser.isDeleted === true) return false;
+  const st = String(rawUser.accountStatus || 'active').toLowerCase().trim();
+  return !SUSPENDED_STATUSES.has(st);
+}
+
+async function computeFollowCounts(targetUserId: string, viewerUserId?: string) {
+  const [{ data: followersRows }, { data: followingRows }, { data: myFollowRow }] = await Promise.all([
+    supabaseAdmin
+      .from('campus_follows')
+      .select('follower_user_id')
+      .eq('following_user_id', targetUserId)
+      .neq('follower_user_id', targetUserId),
+    supabaseAdmin
+      .from('campus_follows')
+      .select('following_user_id')
+      .eq('follower_user_id', targetUserId)
+      .neq('following_user_id', targetUserId),
+    viewerUserId && viewerUserId !== targetUserId
+      ? supabaseAdmin
+          .from('campus_follows')
+          .select('id')
+          .eq('follower_user_id', viewerUserId)
+          .eq('following_user_id', targetUserId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const candidateIds = Array.from(
+    new Set([
+      ...(followersRows || []).map((r: any) => r.follower_user_id),
+      ...(followingRows || []).map((r: any) => r.following_user_id),
+    ])
+  ).filter(Boolean);
+
+  const activeUserIds = new Set<string>();
+  if (candidateIds.length > 0) {
+    // Chunk in batches of 150 to safely stay within PostgREST IN limits
+    for (let i = 0; i < candidateIds.length; i += 150) {
+      const slice = candidateIds.slice(i, i + 150);
+      const { data: uRows } = await supabaseAdmin
+        .from('users')
+        .select('id, data')
+        .in('id', slice);
+      for (const u of uRows || []) {
+        if (isUserAccountActive(u.data)) {
+          activeUserIds.add(u.id);
+        }
+      }
+    }
+  }
+
+  const followersCount = new Set(
+    (followersRows || [])
+      .map((r: any) => r.follower_user_id)
+      .filter((id: string) => activeUserIds.has(id))
+  ).size;
+
+  const followingCount = new Set(
+    (followingRows || [])
+      .map((r: any) => r.following_user_id)
+      .filter((id: string) => activeUserIds.has(id))
+  ).size;
+
+  return {
+    followersCount,
+    followingCount,
+    isFollowing: Boolean(myFollowRow),
+  };
+}
 
 // In-memory fallback caches for speed and resilience
 const membershipsCache = new Map<string, CampusMembership>();
@@ -544,8 +618,8 @@ campusRouter.put('/whatsapp-number', async (req: Request, res: Response) => {
   }
 });
 
-// 4. GET STUDENTS DIRECTORY (STRICT INSTITUTION ENFORCEMENT + SKILLS FILTERING)
-campusRouter.get('/students', async (req: Request, res: Response) => {
+// 4. GET STUDENTS DIRECTORY (STRICT INSTITUTION ENFORCEMENT + SKILLS FILTERING + FOLLOW COUNTS)
+campusRouter.get('/students', optionalAuth, async (req: Request, res: Response) => {
   try {
     const { institution, faculty, department, skill, search, requestingUserId } = req.query as {
       institution?: string;
@@ -555,6 +629,7 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
       search?: string;
       requestingUserId?: string;
     };
+    const effectiveViewerId = req.authUser?.id || requestingUserId || '';
 
     if (!institution) {
       return res.status(400).json({
@@ -613,6 +688,9 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
         }
 
         const rawUser = rawUsersMap.get(memberId);
+        if (rawUser && !isUserAccountActive(rawUser)) {
+          return;
+        }
         const memInstRaw = (
           data.institution ||
           rawUser?.institution ||
@@ -720,8 +798,11 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
               hasBlueBadge: hasBlue,
               isVerified: hasBlue,
               isOnline: true,
-              connectionStatus: memberId === requestingUserId ? 'self' : 'none',
+              connectionStatus: memberId === effectiveViewerId ? 'self' : 'none',
               joinedCampus: true,
+              followersCount: 0,
+              followingCount: 0,
+              isFollowing: false,
             });
           }
         }
@@ -731,7 +812,7 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
     }
 
     // 4. Fetch connection requests for the requesting user to set connectionStatus
-    if (requestingUserId) {
+    if (effectiveViewerId) {
       try {
         const reqRef = collection(db, 'campus_connection_requests');
         const reqSnap = await getDocs(reqRef);
@@ -786,6 +867,59 @@ campusRouter.get('/students', async (req: Request, res: Response) => {
           student.requestId = reqData.id;
         }
       });
+    }
+
+    // Enrich follower/following counts & isFollowing cleanly from public.campus_follows
+    const studentIds = Array.from(studentsMap.keys());
+    if (studentIds.length > 0) {
+      try {
+        const [{ data: followerEdges }, { data: followingEdges }] = await Promise.all([
+          supabaseAdmin
+            .from('campus_follows')
+            .select('follower_user_id, following_user_id')
+            .in('following_user_id', studentIds),
+          supabaseAdmin
+            .from('campus_follows')
+            .select('follower_user_id, following_user_id')
+            .in('follower_user_id', studentIds),
+        ]);
+
+        const isActiveCounterpart = (uid: string) => {
+          const u = rawUsersMap.get(uid);
+          return !u || isUserAccountActive(u);
+        };
+
+        const followersSets = new Map<string, Set<string>>();
+        const followingSets = new Map<string, Set<string>>();
+        const followedByViewer = new Set<string>();
+
+        for (const edge of followerEdges || []) {
+          if (edge.follower_user_id === edge.following_user_id) continue;
+          if (!isActiveCounterpart(edge.follower_user_id)) continue;
+          const s = followersSets.get(edge.following_user_id) || new Set<string>();
+          s.add(edge.follower_user_id);
+          followersSets.set(edge.following_user_id, s);
+          if (effectiveViewerId && edge.follower_user_id === effectiveViewerId) {
+            followedByViewer.add(edge.following_user_id);
+          }
+        }
+
+        for (const edge of followingEdges || []) {
+          if (edge.follower_user_id === edge.following_user_id) continue;
+          if (!isActiveCounterpart(edge.following_user_id)) continue;
+          const s = followingSets.get(edge.follower_user_id) || new Set<string>();
+          s.add(edge.following_user_id);
+          followingSets.set(edge.follower_user_id, s);
+        }
+
+        for (const [sid, card] of studentsMap.entries()) {
+          card.followersCount = followersSets.get(sid)?.size || 0;
+          card.followingCount = followingSets.get(sid)?.size || 0;
+          card.isFollowing = sid !== effectiveViewerId && followedByViewer.has(sid);
+        }
+      } catch (followErr) {
+        console.warn('Error enriching student follow counts:', followErr);
+      }
     }
 
     const students = Array.from(studentsMap.values());
@@ -1217,5 +1351,285 @@ campusRouter.post('/whatsapp-link', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error in /api/campus/whatsapp-link:', err);
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================================
+// 9. CAMPUS FOLLOW SYSTEM (STRICTLY INDEPENDENT FROM WHATSAPP CHAT REQUESTS)
+// ============================================================================
+
+// Follow another student (no chat request created, no WhatsApp number exposed)
+campusRouter.post('/follow', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const viewer = req.authUser!;
+    if (SUSPENDED_STATUSES.has(viewer.accountStatus)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account is currently restricted from following students.',
+      });
+    }
+
+    const targetUserId = String(req.body?.targetUserId || '').trim();
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: 'Target student user ID is required.' });
+    }
+    if (targetUserId === viewer.id) {
+      return res.status(400).json({ success: false, error: 'You cannot follow yourself.' });
+    }
+
+    // Verify target exists and is active
+    const { data: targetUserRow } = await supabaseAdmin
+      .from('users')
+      .select('id, data')
+      .eq('id', targetUserId)
+      .maybeSingle();
+
+    if (!targetUserRow) {
+      return res.status(404).json({ success: false, error: 'Target student account was not found.' });
+    }
+    if (!isUserAccountActive(targetUserRow.data)) {
+      return res.status(403).json({
+        success: false,
+        error: 'This student account is suspended or unavailable.',
+      });
+    }
+
+    // Check duplicate before inserting
+    const { data: existingFollow } = await supabaseAdmin
+      .from('campus_follows')
+      .select('id')
+      .eq('follower_user_id', viewer.id)
+      .eq('following_user_id', targetUserId)
+      .maybeSingle();
+
+    if (existingFollow) {
+      const counts = await computeFollowCounts(targetUserId, viewer.id);
+      return res.status(409).json({
+        success: false,
+        alreadyFollowing: true,
+        error: 'You are already following this student.',
+        ...counts,
+      });
+    }
+
+    const { error: insertErr } = await supabaseAdmin.from('campus_follows').insert({
+      follower_user_id: viewer.id,
+      following_user_id: targetUserId,
+    });
+
+    if (insertErr) {
+      if (insertErr.code === '23505') {
+        const counts = await computeFollowCounts(targetUserId, viewer.id);
+        return res.status(409).json({
+          success: false,
+          alreadyFollowing: true,
+          error: 'You are already following this student.',
+          ...counts,
+        });
+      }
+      return res.status(500).json({ success: false, error: insertErr.message });
+    }
+
+    const counts = await computeFollowCounts(targetUserId, viewer.id);
+    return res.json({
+      success: true,
+      message: 'Following student.',
+      targetUserId,
+      ...counts,
+      isFollowing: true,
+    });
+  } catch (err: any) {
+    console.error('Error in POST /api/campus/follow:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Failed to follow student.' });
+  }
+});
+
+// Unfollow a student (DELETE + POST alias)
+async function handleUnfollow(req: Request, res: Response, targetUserIdRaw: string) {
+  try {
+    const viewer = req.authUser!;
+    const targetUserId = String(targetUserIdRaw || '').trim();
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: 'Target student user ID is required.' });
+    }
+    if (targetUserId === viewer.id) {
+      return res.status(400).json({ success: false, error: 'Cannot unfollow yourself.' });
+    }
+
+    const { error: delErr } = await supabaseAdmin
+      .from('campus_follows')
+      .delete()
+      .eq('follower_user_id', viewer.id)
+      .eq('following_user_id', targetUserId);
+
+    if (delErr) {
+      return res.status(500).json({ success: false, error: delErr.message });
+    }
+
+    const counts = await computeFollowCounts(targetUserId, viewer.id);
+    return res.json({
+      success: true,
+      message: 'Unfollowed student.',
+      targetUserId,
+      ...counts,
+      isFollowing: false,
+    });
+  } catch (err: any) {
+    console.error('Error unfollowing student:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Failed to unfollow student.' });
+  }
+}
+
+campusRouter.delete('/follow/:targetUserId', requireAuth, async (req: Request, res: Response) => {
+  return handleUnfollow(req, res, decodeURIComponent(req.params.targetUserId || ''));
+});
+
+campusRouter.post('/unfollow', requireAuth, async (req: Request, res: Response) => {
+  return handleUnfollow(req, res, String(req.body?.targetUserId || ''));
+});
+
+// Get follow status & counts for a student profile
+campusRouter.get('/follow/status/:targetUserId', optionalAuth, async (req: Request, res: Response) => {
+  try {
+    const targetUserId = decodeURIComponent(req.params.targetUserId || '').trim();
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: 'Target student user ID is required.' });
+    }
+    const counts = await computeFollowCounts(targetUserId, req.authUser?.id);
+    return res.json({
+      success: true,
+      targetUserId,
+      ...counts,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || 'Failed to check follow status.' });
+  }
+});
+
+// Get followers or following list for a student (strictly excludes suspended/deleted accounts and never exposes WhatsApp phone numbers)
+campusRouter.get('/follow/list/:targetUserId', optionalAuth, async (req: Request, res: Response) => {
+  try {
+    const targetUserId = decodeURIComponent(req.params.targetUserId || '').trim();
+    const listType = req.query.type === 'following' ? 'following' : 'followers';
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: 'Target user ID is required.' });
+    }
+
+    const viewerId = req.authUser?.id || '';
+
+    const { data: followEdges, error: edgesErr } =
+      listType === 'followers'
+        ? await supabaseAdmin
+            .from('campus_follows')
+            .select('follower_user_id, created_at')
+            .eq('following_user_id', targetUserId)
+            .neq('follower_user_id', targetUserId)
+            .order('created_at', { ascending: false })
+            .limit(500)
+        : await supabaseAdmin
+            .from('campus_follows')
+            .select('following_user_id, created_at')
+            .eq('follower_user_id', targetUserId)
+            .neq('following_user_id', targetUserId)
+            .order('created_at', { ascending: false })
+            .limit(500);
+
+    if (edgesErr) {
+      return res.status(500).json({ success: false, error: edgesErr.message });
+    }
+
+    const edgePairs = (followEdges || [])
+      .map((r: any) => ({
+        userId: listType === 'followers' ? r.follower_user_id : r.following_user_id,
+        followedAt: r.created_at,
+      }))
+      .filter((x) => Boolean(x.userId));
+
+    if (edgePairs.length === 0) {
+      return res.json({ success: true, type: listType, total: 0, users: [] });
+    }
+
+    const userIds = Array.from(new Set(edgePairs.map((p) => p.userId)));
+    const userMap = new Map<string, any>();
+    const membershipMap = new Map<string, any>();
+
+    for (let i = 0; i < userIds.length; i += 150) {
+      const slice = userIds.slice(i, i + 150);
+      const [{ data: uRows }, { data: mRows }] = await Promise.all([
+        supabaseAdmin.from('users').select('id, data').in('id', slice),
+        supabaseAdmin.from('campus_memberships').select('id, data').in('id', slice),
+      ]);
+      for (const u of uRows || []) userMap.set(u.id, u.data);
+      for (const m of mRows || []) membershipMap.set(m.id, m.data);
+    }
+
+    const viewerFollowingSet = new Set<string>();
+    if (viewerId) {
+      const { data: vEdges } = await supabaseAdmin
+        .from('campus_follows')
+        .select('following_user_id')
+        .eq('follower_user_id', viewerId)
+        .in('following_user_id', userIds);
+      for (const ve of vEdges || []) viewerFollowingSet.add(ve.following_user_id);
+    }
+
+    const users = edgePairs
+      .map(({ userId, followedAt }) => {
+        const rawUser = userMap.get(userId);
+        if (!rawUser || !isUserAccountActive(rawUser)) return null;
+        const mem = membershipMap.get(userId) || {};
+        const name = rawUser.name || rawUser.fullName || rawUser.username || 'Scholar';
+        const username = rawUser.username
+          ? rawUser.username.startsWith('@')
+            ? rawUser.username
+            : `@${rawUser.username}`
+          : `@scholar_${userId.substring(0, 5)}`;
+        const tier = getUserTier(rawUser);
+        const hasBlue = Boolean(
+          tier === 'premium' ||
+            tier === 'vip' ||
+            rawUser.isVerified ||
+            rawUser.hasBlueBadge ||
+            rawUser.verifiedBadge
+        );
+        return {
+          id: userId,
+          name,
+          username,
+          avatar:
+            rawUser.avatar ||
+            rawUser.profileImage ||
+            `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name || userId)}`,
+          institution:
+            mem.institution ||
+            rawUser.institution ||
+            rawUser.institutionName ||
+            rawUser.academicProfile?.institutionName ||
+            '',
+          department:
+            mem.department ||
+            rawUser.department ||
+            rawUser.departmentName ||
+            rawUser.academicProfile?.departmentName ||
+            'General Studies',
+          level: mem.level || rawUser.level || rawUser.academicProfile?.level || '100 Level',
+          tier,
+          hasBlueBadge: hasBlue,
+          isVerified: hasBlue,
+          isFollowing: viewerId ? viewerFollowingSet.has(userId) : false,
+          followedAt,
+        };
+      })
+      .filter(Boolean);
+
+    return res.json({
+      success: true,
+      type: listType,
+      total: users.length,
+      users,
+    });
+  } catch (err: any) {
+    console.error('Error in GET /api/campus/follow/list/:targetUserId:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Failed to load follow list.' });
   }
 });

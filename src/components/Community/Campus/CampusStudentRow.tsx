@@ -11,6 +11,8 @@ import {
   Loader2,
   User,
   BadgeCheck,
+  UserPlus,
+  UserCheck,
 } from 'lucide-react';
 
 interface CampusStudentRowProps {
@@ -19,6 +21,7 @@ interface CampusStudentRowProps {
   onAcceptRequest: (requestId: string, student: CampusStudentCard) => Promise<void>;
   onRejectRequest: (requestId: string, student: CampusStudentCard) => Promise<void>;
   onOpenWhatsApp: (student: CampusStudentCard) => Promise<void>;
+  onToggleFollow?: (student: CampusStudentCard) => Promise<void>;
   onViewProfile?: (student: CampusStudentCard) => void;
 }
 
@@ -28,9 +31,11 @@ export const CampusStudentRow: React.FC<CampusStudentRowProps> = ({
   onAcceptRequest,
   onRejectRequest,
   onOpenWhatsApp,
+  onToggleFollow,
   onViewProfile,
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
 
   // 1. Profile Picture helper
   const avatarUrl =
@@ -79,6 +84,16 @@ export const CampusStudentRow: React.FC<CampusStudentRowProps> = ({
       await onOpenWhatsApp(student);
     } finally {
       setIsActionLoading(false);
+    }
+  };
+
+  const handleFollowToggle = async () => {
+    if (!onToggleFollow || student.connectionStatus === 'self') return;
+    setIsFollowLoading(true);
+    try {
+      await onToggleFollow(student);
+    } finally {
+      setIsFollowLoading(false);
     }
   };
 
@@ -154,20 +169,47 @@ export const CampusStudentRow: React.FC<CampusStudentRowProps> = ({
             </span>
           )}
 
-          {/* Optional compact Skills indicator when student has skills */}
-          {Array.isArray(student.skills) && student.skills.length > 0 && (
-            <div className="w-full flex items-center gap-1.5 flex-wrap pt-1">
+          {/* Compact Follower Count & Skills indicator */}
+          <div className="w-full flex items-center gap-2.5 flex-wrap pt-1">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              {Number(student.followersCount || 0).toLocaleString()}{' '}
+              {Number(student.followersCount || 0) === 1 ? 'Follower' : 'Followers'}
+            </span>
+            {Array.isArray(student.skills) && student.skills.length > 0 && (
               <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
-                Skills: {student.skills.slice(0, 3).join(' · ')}
+                · Skills: {student.skills.slice(0, 3).join(' · ')}
                 {student.skills.length > 3 ? ` (+${student.skills.length - 3})` : ''}
               </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* RIGHT BLOCK: [5. ACTION BUTTON] */}
-      <div className="shrink-0 flex items-center gap-1.5">
+      {/* RIGHT BLOCK: [FOLLOW TOGGLE + CHAT ACTION BUTTON] */}
+      <div className="shrink-0 flex items-center gap-1.5 flex-wrap justify-end">
+        {student.connectionStatus !== 'self' && onToggleFollow && (
+          <button
+            id={`campus-follow-btn-${student.id}`}
+            type="button"
+            onClick={handleFollowToggle}
+            disabled={isFollowLoading}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-96 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+              student.isFollowing
+                ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-300'
+                : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 shadow-xs'
+            }`}
+          >
+            {isFollowLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : student.isFollowing ? (
+              <UserCheck className="w-3.5 h-3.5" />
+            ) : (
+              <UserPlus className="w-3.5 h-3.5" />
+            )}
+            <span>{student.isFollowing ? 'Following' : 'Follow'}</span>
+          </button>
+        )}
+
         {student.connectionStatus === 'self' && (
           <span className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-1">
             <User className="w-3.5 h-3.5" />

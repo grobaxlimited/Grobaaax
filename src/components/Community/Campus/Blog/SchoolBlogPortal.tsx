@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../../../context/AppContext';
 import {
   SchoolBlogArticle,
@@ -9,8 +9,6 @@ import {
   fetchSchoolBlogHomepage,
   SchoolBlogViewerStatus,
 } from '../../../../lib/schoolBlogService';
-import { resolveUserSubscriptionTier } from '../../../../lib/campusService';
-import { isSubscriptionExpired } from '../../../../lib/firebase';
 import { SchoolBlogArticleView } from './SchoolBlogArticleView';
 import { BloggerApplicationModal } from './BloggerApplicationModal';
 import { BloggerDashboardView } from './BloggerDashboardView';
@@ -20,6 +18,7 @@ import {
   ArrowRight,
   Ban,
   CheckCircle2,
+  Clock,
   Eye,
   Heart,
   Loader2,
@@ -55,7 +54,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   onBackToCampus,
   onSwitchBlogInstitution,
 }) => {
-  const { currentUser, isUserSubscribed } = useApp();
+  const { currentUser } = useApp();
 
   const [activeSubView, setActiveSubView] = useState<'feed' | 'article' | 'studio'>('feed');
   const [selectedCategory, setSelectedCategory] = useState<'All Posts' | SchoolBlogCategory>(
@@ -83,22 +82,6 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
 
   // Modals
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
-
-  const isClientSubExpired = useMemo(() => isSubscriptionExpired(currentUser), [currentUser]);
-
-  const hasActiveBloggerSubscription = useMemo(() => {
-    if (!currentUser) return false;
-    const isStaff =
-      currentUser.role === 'admin' ||
-      currentUser.role === 'super_admin' ||
-      Boolean(currentUser.isSuperAdmin) ||
-      Boolean((currentUser as any).isAdmin) ||
-      currentUser.role === 'community_manager';
-    if (isStaff || viewerStatus?.hasActiveSubscription) return true;
-    if (isClientSubExpired) return false;
-    const tier = resolveUserSubscriptionTier(currentUser);
-    return isUserSubscribed || tier === 'premium' || tier === 'vip';
-  }, [currentUser, isUserSubscribed, isClientSubExpired, viewerStatus?.hasActiveSubscription]);
 
   const loadHomepage = async () => {
     setIsLoading(true);
@@ -287,7 +270,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
               </div>
             ) : (
               <div className="text-xs text-blue-100/85">
-                Open to verified {displayInstitutionName} Premium &amp; VIP students.
+                Open for free applications by verified {displayInstitutionName} students.
               </div>
             )}
           </div>
@@ -500,6 +483,30 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
                 Contact Grobaax administrators if you believe your publishing privileges should be restored.
               </p>
             </div>
+          ) : viewerStatus.myApplication?.status === 'Pending' ? (
+            <>
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Application Pending Admin Review</span>
+                </div>
+                <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                  Your Blogger Application for {displayInstitutionName} is Under Review
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Grobaax Administrators will review your application shortly and send you a notification once a decision is made.
+                </p>
+              </div>
+              <button
+                id="school-blog-apply-btn"
+                type="button"
+                onClick={() => setIsApplyModalOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-500/30 text-xs font-bold shrink-0 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>View / Withdraw Application</span>
+              </button>
+            </>
           ) : (
             <>
               <div className="space-y-1">
@@ -507,7 +514,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
                   Become a School Blogger for {displayInstitutionName}
                 </h4>
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
-                  Are you a student of {displayInstitutionName} passionate about campus journalism, event coverage, and student updates? Subscribe to Premium or VIP to unlock instant Blogger Dashboard access and earn GP rewards.
+                  Are you a student of {displayInstitutionName} passionate about campus journalism, event coverage, and student updates? Apply for free (no subscription required). Approved bloggers with 200+ followers earn GP view rewards!
                 </p>
               </div>
               <button
@@ -517,7 +524,11 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
                 className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
               >
                 <PenTool className="w-3.5 h-3.5" />
-                <span>Apply to Become a Blogger</span>
+                <span>
+                  {viewerStatus.myApplication?.status === 'Rejected'
+                    ? 'Submit New Application'
+                    : 'Apply to Become a Blogger'}
+                </span>
               </button>
             </>
           )
@@ -535,7 +546,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         )}
       </section>
 
-      {/* Instant Blogger Activation Modal (displays Premium/VIP plans and activates immediately after payment verification) */}
+      {/* Free School Blogger Application Modal (Admin Approval Required) */}
       <BloggerApplicationModal
         isOpen={isApplyModalOpen}
         onClose={() => setIsApplyModalOpen(false)}
@@ -543,32 +554,17 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         homeInstitutionId={viewerStatus?.homeInstitutionId || ''}
         homeInstitutionName={viewerStatus?.homeInstitutionName || homeInstitutionName}
         isSuspendedOrRevoked={Boolean(viewerStatus?.isSuspendedBloggerForThisSchool)}
-        hasActiveSubscription={hasActiveBloggerSubscription}
-        isSubscriptionExpired={Boolean(viewerStatus?.subscriptionExpired || isClientSubExpired)}
-        onSubscriptionVerified={() => {
-          loadHomepage();
-        }}
-        onActivated={async (assignment, msg) => {
+        existingApplication={viewerStatus?.myApplication || null}
+        onSubmitted={async (application, msg) => {
           setIsApplyModalOpen(false);
           setViewerStatus((prev) =>
             prev
               ? {
                   ...prev,
-                  isActiveBloggerForThisSchool: true,
-                  isSuspendedBloggerForThisSchool: false,
-                  hasActiveSubscription: true,
+                  myApplication: application,
                 }
-              : {
-                  isHomeInstitution: true,
-                  isActiveBloggerForThisSchool: true,
-                  isSuspendedBloggerForThisSchool: false,
-                  myApplication: null,
-                  homeInstitutionId: assignment?.institutionId || '',
-                  homeInstitutionName: assignment?.institutionName || homeInstitutionName,
-                  hasActiveSubscription: true,
-                }
+              : null
           );
-          setActiveSubView('studio');
           showNotice(msg);
           await loadHomepage();
         }}

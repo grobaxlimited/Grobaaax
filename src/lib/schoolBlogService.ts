@@ -25,6 +25,9 @@ export interface SchoolBlogViewerStatus {
   myApplication: SchoolBloggerApplication | null;
   homeInstitutionId: string;
   homeInstitutionName: string;
+  followerCount?: number;
+  minFollowersRequired?: number;
+  isRewardEligible?: boolean;
   hasActiveSubscription?: boolean;
   subscriptionTier?: string;
   subscriptionExpired?: boolean;
@@ -170,6 +173,9 @@ export async function fetchMyBloggerStatus() {
     homeInstitutionName?: string;
     department?: string;
     level?: string;
+    followerCount?: number;
+    minFollowersRequired?: number;
+    isRewardEligible?: boolean;
     activeAssignment?: SchoolBloggerAssignment | null;
     applications?: SchoolBloggerApplication[];
     error?: string;
@@ -177,48 +183,22 @@ export async function fetchMyBloggerStatus() {
   return res.data;
 }
 
-export async function activateSchoolBlogger(params?: {
-  targetInstitutionId?: string;
-  targetInstitutionName?: string;
-}) {
-  const res = await apiJson<{
-    success: boolean;
-    activated?: boolean;
-    alreadyActive?: boolean;
-    revoked?: boolean;
-    code?: string;
-    requiresSubscription?: boolean;
-    subscriptionExpired?: boolean;
-    message?: string;
-    assignment?: SchoolBloggerAssignment;
-    error?: string;
-  }>(
-    '/api/school-blogs/activate-blogger',
-    {
-      method: 'POST',
-      body: JSON.stringify(params || {}),
-    },
-    true
-  );
-  return res.data;
-}
-
 export async function submitBloggerApplication(params: {
   targetInstitutionId?: string;
   targetInstitutionName?: string;
+  department?: string;
+  level?: string;
   reason: string;
-  experience: string;
+  experience?: string;
+  additionalInfo?: string;
 }) {
   const res = await apiJson<{
     success: boolean;
     activated?: boolean;
     revoked?: boolean;
     code?: string;
-    requiresSubscription?: boolean;
-    subscriptionExpired?: boolean;
     message?: string;
     application?: SchoolBloggerApplication;
-    assignment?: SchoolBloggerAssignment;
     error?: string;
   }>(
     '/api/school-blogs/applications',
@@ -351,8 +331,13 @@ export interface AdminSchoolBlogOverview {
   summary?: {
     totalInstitutionsWithBlogs: number;
     activeInstitutionsCount?: number;
+    totalApplicationsCount?: number;
     pendingApplicationsCount: number;
+    rejectedApplicationsCount?: number;
+    withdrawnApplicationsCount?: number;
     activeBloggersCount: number;
+    suspendedBloggersCount?: number;
+    removedBloggersCount?: number;
     publishedArticlesCount: number;
     totalArticlesCount: number;
     openReportsCount: number;

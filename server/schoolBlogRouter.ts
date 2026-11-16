@@ -25,6 +25,11 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VIEWS_PER_REWARD_MILESTONE = 250;
 const GP_PER_REWARD_MILESTONE = 1000;
+const MAX_MILESTONES_PER_ARTICLE = 8;
+const MAX_VIEWS_PER_ARTICLE = 2000;
+const MAX_GP_PER_ARTICLE = 8000;
+const MIN_FOLLOWERS_FOR_REWARDS = 200;
+const SUSPENDED_ACCOUNT_STATUSES = new Set(['suspended', 'deleted', 'banned', 'disabled', 'inactive']);
 
 // Map DB snake_case rows cleanly to frontend TypeScript interfaces
 function mapBlogRow(row: any) {
@@ -72,8 +77,9 @@ function mapApplicationRow(row: any) {
     applicantName: row.applicant_name,
     department: row.department || '',
     level: row.level || '',
-    reason: row.reason,
-    experience: row.experience,
+    reason: row.reason || '',
+    experience: row.experience || '',
+    additionalInfo: row.additional_info || '',
     status: row.status,
     reviewedBy: row.reviewed_by || null,
     reviewerName: row.reviewer_name || null,
@@ -100,6 +106,7 @@ function mapArticleRow(row: any) {
     contentText: row.content_text || '',
     status: row.status,
     viewsCount: Number(row.eligible_views_count ?? row.views_count ?? 0),
+    qualifyingViewsCount: Number(row.qualifying_views_count ?? 0),
     reactionsCount: Number(row.reactions_count || 0),
     moderationReason: row.moderation_reason || null,
     moderatedBy: row.moderated_by || null,
@@ -173,9 +180,30 @@ async function notifyUserOrAdmins(params: {
   }
 }
 
-function hasActiveBloggerSubscription(user: Request['authUser']): boolean {
+async function getGenuineFollowerCount(userId: string): Promise<number> {
+  if (!userId) return 0;
+  try {
+    const { data, error } = await supabaseAdmin.rpc('get_genuine_campus_follower_count', {
+      p_user_id: userId,
+    });
+    if (!error && typeof data === 'number') {
+      return Math.max(0, data);
+    }
+  } catch {}
+  try {
+    const { count } = await supabaseAdmin
+      .from('campus_follows')
+      .select('id', { count: 'exact', head: true })
+      .eq('following_user_id', userId);
+    return Number(count || 0);
+  } catch {
+    return 0;
+  }
+}
+
+function isAccountSuspended(user?: Request['authUser'] | null): boolean {
   if (!user) return false;
-  return Boolean(user.hasActiveSubscription || user.isAdmin);
+  return SUSPENDED_ACCOUNT_STATUSES.has(String(user.accountStatus || 'active').toLowerCase());
 }
 
 function normalizeArticleBlocks(
@@ -436,7 +464,7 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       );
     }
 
-    // Viewer permissions & blogger status (works for both free readers and subscribers)
+    // Viewer permissions & blogger status (Free for all verified students)
     const viewerStatus: {
       isHomeInstitution: boolean;
       isActiveBloggerForThisSchool: boolean;
@@ -445,6 +473,9 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       myApplication: any | null;
       homeInstitutionId: string;
       homeInstitutionName: string;
+      followerCount: number;
+      minFollowersRequired: number;
+      isRewardEligible: boolean;
       hasActiveSubscription: boolean;
       subscriptionTier: string;
       subscriptionExpired: boolean;
@@ -460,6 +491,9 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       myApplication: null,
       homeInstitutionId: req.authUser?.institutionId || '',
       homeInstitutionName: req.authUser?.institutionName || '',
+      followerCount: 0,
+      minFollowersRequired: MIN_FOLLOWERS_FOR_REWARDS,
+      isRewardEligible: false,
       hasActiveSubscription: Boolean(
         req.authUser && (req.authUser.hasActiveSubscription || req.authUser.isAdmin)
       ),
@@ -467,36 +501,42 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       subscriptionExpired: Boolean(req.authUser?.subscriptionExpired),
     };
 
-    if (req.authUser && viewerStatus.isHomeInstitution) {
-      const [{ data: myAssign }, { data: myApp }] = await Promise.all([
-        supabaseAdmin
-          .from('school_blogger_assignments')
-          .select('*')
-          .eq('institution_id', canonical.institutionId)
-          .eq('user_id', req.authUser.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabaseAdmin
-          .from('school_blogger_applications')
-          .select('*')
-          .eq('institution_id', canonical.institutionId)
-          .eq('applicant_user_id', req.authUser.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+    if (req.authUser) {
+      const followerCount = await getGenuineFollowerCount(req.authUser.id);
+      viewerStatus.followerCount = followerCount;
+      viewerStatus.isRewardEligible = Boolean(myActiveAssign) && followerCount >= MIN_FOLLOWERS_FOR_REWARDS;
 
-      viewerStatus.isSuspendedBloggerForThisSchool = Boolean(
-        !myActiveAssign &&
-          myAssign &&
-          (myAssign.status === 'suspended' || myAssign.status === 'removed')
-      );
-      viewerStatus.bloggerRevokedStatus =
-        !myActiveAssign && myAssign && (myAssign.status === 'suspended' || myAssign.status === 'removed')
-          ? myAssign.status
-          : null;
-      viewerStatus.myApplication = myApp ? mapApplicationRow(myApp) : null;
+      if (viewerStatus.isHomeInstitution) {
+        const [{ data: myAssign }, { data: myApp }] = await Promise.all([
+          supabaseAdmin
+            .from('school_blogger_assignments')
+            .select('*')
+            .eq('institution_id', canonical.institutionId)
+            .eq('user_id', req.authUser.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabaseAdmin
+            .from('school_blogger_applications')
+            .select('*')
+            .eq('institution_id', canonical.institutionId)
+            .eq('applicant_user_id', req.authUser.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+
+        viewerStatus.isSuspendedBloggerForThisSchool = Boolean(
+          !myActiveAssign &&
+            myAssign &&
+            (myAssign.status === 'suspended' || myAssign.status === 'removed')
+        );
+        viewerStatus.bloggerRevokedStatus =
+          !myActiveAssign && myAssign && (myAssign.status === 'suspended' || myAssign.status === 'removed')
+            ? myAssign.status
+            : null;
+        viewerStatus.myApplication = myApp ? mapApplicationRow(myApp) : null;
+      }
     }
 
     return res.json({
@@ -518,11 +558,11 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
   }
 });
 
-// Get caller's overall School Blogger status & applications
+// Get caller's overall School Blogger status, genuine follower count & applications
 schoolBlogRouter.get('/my-blogger-status', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
-    const [{ data: activeAssign }, { data: applications }] = await Promise.all([
+    const [{ data: activeAssign }, { data: applications }, followerCount] = await Promise.all([
       supabaseAdmin
         .from('school_blogger_assignments')
         .select('*')
@@ -537,6 +577,7 @@ schoolBlogRouter.get('/my-blogger-status', requireAuth, async (req: Request, res
         .eq('applicant_user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10),
+      getGenuineFollowerCount(user.id),
     ]);
 
     return res.json({
@@ -545,6 +586,9 @@ schoolBlogRouter.get('/my-blogger-status', requireAuth, async (req: Request, res
       homeInstitutionName: user.institutionName,
       department: user.department,
       level: user.level,
+      followerCount,
+      minFollowersRequired: MIN_FOLLOWERS_FOR_REWARDS,
+      isRewardEligible: Boolean(activeAssign?.status === 'active') && followerCount >= MIN_FOLLOWERS_FOR_REWARDS,
       activeAssignment: mapAssignmentRow(activeAssign),
       applications: (applications || []).map(mapApplicationRow),
     });
@@ -553,238 +597,189 @@ schoolBlogRouter.get('/my-blogger-status', requireAuth, async (req: Request, res
   }
 });
 
-// Shared helper: Immediately activate blogger access once Premium/VIP subscription is verified
-async function activateBloggerAccessForUser(params: {
-  user: NonNullable<Request['authUser']>;
-  targetInstitutionId?: string;
-  targetInstitutionName?: string;
-}) {
-  const { user, targetInstitutionId, targetInstitutionName } = params;
+// Direct activation is strictly disabled: Admin approval is mandatory and applications are free.
+schoolBlogRouter.post('/activate-blogger', requireAuth, async (_req: Request, res: Response) => {
+  return res.status(403).json({
+    success: false,
+    code: 'ADMIN_APPROVAL_REQUIRED',
+    error:
+      'Direct blogger activation is not permitted. Becoming a School Blogger is completely free — please submit an application for Admin review.',
+  });
+});
 
-  if (!hasActiveBloggerSubscription(user)) {
-    return {
-      statusCode: 403,
-      body: {
+// Submit a FREE School Blogger Application (Pending Admin Approval — zero subscription requirement)
+schoolBlogRouter.post('/applications', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = req.authUser!;
+
+    if (isAccountSuspended(user)) {
+      return res.status(403).json({
         success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        subscriptionTier: user.subscriptionTier,
-        subscriptionExpired: user.subscriptionExpired,
-        error: user.subscriptionExpired
-          ? 'Your subscription has expired. Subscribe to Premium or VIP to activate School Blogger access.'
-          : 'An active Premium or VIP subscription is required to activate School Blogger access.',
-      },
-    };
-  }
+        error: 'Your account is suspended and cannot apply to become a School Blogger.',
+      });
+    }
 
-  if (!user.canonicalInstitution || !user.institutionName) {
-    return {
-      statusCode: 400,
-      body: {
+    if (!user.canonicalInstitution || !user.institutionName) {
+      return res.status(400).json({
         success: false,
-        error: 'Please complete your Campus academic institution profile before activating blogger access.',
-      },
-    };
-  }
+        error: 'Please complete your Campus institution profile before applying to become a School Blogger.',
+      });
+    }
 
-  if (
-    (targetInstitutionId && targetInstitutionId !== user.institutionId) ||
-    (targetInstitutionName &&
-      targetInstitutionName.trim().toLowerCase() !== user.institutionName.toLowerCase())
-  ) {
-    return {
-      statusCode: 403,
-      body: {
+    const {
+      targetInstitutionId,
+      targetInstitutionName,
+      department,
+      level,
+      reason,
+      experience,
+      additionalInfo,
+    } = req.body || {};
+
+    if (
+      (targetInstitutionId && targetInstitutionId !== user.institutionId) ||
+      (targetInstitutionName &&
+        targetInstitutionName.trim().toLowerCase() !== user.institutionName.toLowerCase())
+    ) {
+      return res.status(403).json({
         success: false,
-        error: `You can only activate School Blogger access for your own registered institution (${user.institutionName}).`,
-      },
-    };
-  }
+        error: `You can only apply to become a School Blogger for your own verified institution (${user.institutionName}).`,
+      });
+    }
 
-  const blogRow = await ensureSchoolBlogRecord(user.canonicalInstitution);
-  if (blogRow?.status !== 'active') {
-    return {
-      statusCode: 403,
-      body: {
+    const blogRow = await ensureSchoolBlogRecord(user.canonicalInstitution);
+    if (blogRow?.status !== 'active') {
+      return res.status(403).json({
         success: false,
         code: 'BLOG_SUSPENDED',
         error: `${user.institutionName} School Blog is currently suspended.`,
-      },
-    };
-  }
+      });
+    }
 
-  // Respect Admin suspension/revocation controls
-  const { data: latestAssign } = await supabaseAdmin
-    .from('school_blogger_assignments')
-    .select('*')
-    .eq('institution_id', user.institutionId)
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    // Check existing assignment status at this institution
+    const { data: latestAssign } = await supabaseAdmin
+      .from('school_blogger_assignments')
+      .select('*')
+      .eq('institution_id', user.institutionId)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (latestAssign?.status === 'active') {
-    return {
-      statusCode: 200,
-      body: {
-        success: true,
-        activated: true,
-        alreadyActive: true,
-        message: `Your School Blogger access for ${user.institutionName} is active!`,
-        assignment: mapAssignmentRow(latestAssign),
-      },
-    };
-  }
+    if (latestAssign?.status === 'active') {
+      return res.status(400).json({
+        success: false,
+        error: `You are already the approved School Blogger for ${user.institutionName}.`,
+      });
+    }
 
-  if (latestAssign && (latestAssign.status === 'suspended' || latestAssign.status === 'removed')) {
-    return {
-      statusCode: 403,
-      body: {
+    if (latestAssign && (latestAssign.status === 'suspended' || latestAssign.status === 'removed')) {
+      return res.status(403).json({
         success: false,
         code: 'BLOGGER_ACCESS_REVOKED',
         revoked: true,
         error:
           latestAssign.end_reason ||
           `Your School Blogger access for ${user.institutionName} was ${latestAssign.status} by Grobaax Administrators.`,
-      },
-    };
-  }
-
-  const nowIso = new Date().toISOString();
-  const planLabel =
-    user.subscriptionTier === 'vip'
-      ? 'VIP Subscription Verification'
-      : 'Premium Subscription Verification';
-
-  const { data: assignment, error: assignErr } = await supabaseAdmin
-    .from('school_blogger_assignments')
-    .insert({
-      institution_id: user.institutionId,
-      institution_name: user.institutionName,
-      user_id: user.id,
-      user_name: user.name,
-      department: user.department || 'General Studies',
-      level: user.level || '100 Level',
-      status: 'active',
-      appointed_by: 'SYSTEM_SUBSCRIPTION',
-      appointed_by_name: planLabel,
-      appointed_at: nowIso,
-    })
-    .select('*')
-    .single();
-
-  if (assignErr) {
-    return {
-      statusCode: 500,
-      body: { success: false, error: assignErr.message },
-    };
-  }
-
-  await Promise.all([
-    notifyUserOrAdmins({
-      title: 'Campus Blogger Access Activated!',
-      message: `Your ${user.subscriptionTier.toUpperCase()} subscription is verified and your School Blogger Dashboard for ${user.institutionName} is now active. You can create and publish articles immediately!`,
-      targetUserId: user.id,
-      actionUrl: '/community?tab=campus',
-    }),
-    writeAuditLog({
-      actorUserId: user.id,
-      actorName: user.name,
-      actorRole: 'blogger',
-      action: 'BLOGGER_AUTO_ACTIVATED_VIA_SUBSCRIPTION',
-      institutionId: user.institutionId,
-      institutionName: user.institutionName,
-      targetType: 'blogger_assignment',
-      targetId: assignment.id,
-      details: {
-        subscriptionTier: user.subscriptionTier,
-        department: user.department,
-        level: user.level,
-      },
-    }),
-  ]);
-
-  return {
-    statusCode: 200,
-    body: {
-      success: true,
-      activated: true,
-      message: `School Blogger access activated for ${user.institutionName}! Opening your Blogger Dashboard.`,
-      assignment: mapAssignmentRow(assignment),
-    },
-  };
-}
-
-// Instant School Blogger activation after Paystack/Subscription verification (NO Admin review queue)
-schoolBlogRouter.post('/activate-blogger', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const user = req.authUser!;
-    const { targetInstitutionId, targetInstitutionName } = req.body || {};
-    const result = await activateBloggerAccessForUser({
-      user,
-      targetInstitutionId,
-      targetInstitutionName,
-    });
-    return res.status(result.statusCode).json(result.body);
-  } catch (err: any) {
-    console.error('Error in POST /api/school-blogs/activate-blogger:', err);
-    return res.status(500).json({ success: false, error: err.message || 'Failed to activate blogger access.' });
-  }
-});
-
-// Backward-compatible /applications endpoint: immediately auto-activates upon verified Premium/VIP subscription (no Pending review)
-schoolBlogRouter.post('/applications', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const user = req.authUser!;
-    const { targetInstitutionId, targetInstitutionName, reason, experience } = req.body || {};
-
-    const result = await activateBloggerAccessForUser({
-      user,
-      targetInstitutionId,
-      targetInstitutionName,
-    });
-
-    if (result.statusCode !== 200 || !(result.body as any).assignment) {
-      return res.status(result.statusCode).json(result.body);
+      });
     }
 
-    const assignment = (result.body as any).assignment;
-    // Optionally record an automatically Approved audit entry if an application text was provided
-    let recordedApp: any = null;
-    if (reason && String(reason).trim().length > 0) {
-      const nowIso = new Date().toISOString();
-      const { data: appCreated } = await supabaseAdmin
-        .from('school_blogger_applications')
-        .insert({
-          applicant_user_id: user.id,
-          institution_id: user.institutionId,
-          institution_name: user.institutionName,
-          applicant_name: user.name,
-          department: user.department || 'General Studies',
-          level: user.level || '100 Level',
-          reason: String(reason).trim(),
-          experience: String(experience || '').trim(),
-          status: 'Approved',
-          reviewed_by: 'SYSTEM_SUBSCRIPTION',
-          reviewer_name: 'Automatic Subscription Verification',
-          review_notes: 'Auto-activated upon Premium/VIP subscription verification.',
-          reviewed_at: nowIso,
-        })
-        .select('*')
-        .maybeSingle();
-      if (appCreated) recordedApp = mapApplicationRow(appCreated);
+    // Prevent duplicate Pending application
+    const { data: pendingApp } = await supabaseAdmin
+      .from('school_blogger_applications')
+      .select('id, status')
+      .eq('applicant_user_id', user.id)
+      .eq('institution_id', user.institutionId)
+      .eq('status', 'Pending')
+      .maybeSingle();
+
+    if (pendingApp) {
+      return res.status(400).json({
+        success: false,
+        code: 'DUPLICATE_PENDING_APPLICATION',
+        error: 'You already have a Pending School Blogger application under Admin review for this institution.',
+      });
     }
+
+    const cleanDepartment = String(department || user.department || '').trim();
+    const cleanLevel = String(level || user.level || '').trim();
+    const cleanReason = String(reason || '').trim();
+    const cleanExperience = String(experience || '').trim();
+    const cleanAdditionalInfo = String(additionalInfo || '').trim();
+
+    if (!cleanDepartment) {
+      return res.status(400).json({ success: false, error: 'Department is required.' });
+    }
+    if (!cleanLevel) {
+      return res.status(400).json({ success: false, error: 'Academic level is required.' });
+    }
+    if (cleanReason.length < 15) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please explain why you want to become a School Blogger (at least 15 characters).',
+      });
+    }
+
+    const { data: appCreated, error: insertErr } = await supabaseAdmin
+      .from('school_blogger_applications')
+      .insert({
+        applicant_user_id: user.id,
+        institution_id: user.institutionId,
+        institution_name: user.institutionName,
+        applicant_name: user.name,
+        department: cleanDepartment,
+        level: cleanLevel,
+        reason: cleanReason,
+        experience: cleanExperience,
+        additional_info: cleanAdditionalInfo,
+        status: 'Pending',
+      })
+      .select('*')
+      .single();
+
+    if (insertErr) {
+      return res.status(500).json({ success: false, error: insertErr.message });
+    }
+
+    await Promise.all([
+      notifyUserOrAdmins({
+        title: 'School Blogger Application Submitted',
+        message: `Your free School Blogger application for ${user.institutionName} has been received and is pending Admin review.`,
+        targetUserId: user.id,
+        actionUrl: '/community?tab=campus',
+      }),
+      notifyUserOrAdmins({
+        title: 'New School Blogger Application',
+        message: `${user.name} (${cleanDepartment}, ${cleanLevel}) applied to become the School Blogger for ${user.institutionName}.`,
+        targetRole: 'admin',
+        actionUrl: '/admin?tab=school_blogs',
+      }),
+      writeAuditLog({
+        actorUserId: user.id,
+        actorName: user.name,
+        actorRole: 'student',
+        action: 'BLOGGER_APPLICATION_SUBMITTED',
+        institutionId: user.institutionId,
+        institutionName: user.institutionName,
+        targetType: 'application',
+        targetId: appCreated.id,
+        details: {
+          department: cleanDepartment,
+          level: cleanLevel,
+          hasExperience: cleanExperience.length > 0,
+        },
+      }),
+    ]);
 
     return res.json({
       success: true,
-      activated: true,
-      message: (result.body as any).message,
-      assignment,
-      application: recordedApp,
+      activated: false,
+      message: `Application submitted for ${user.institutionName}! You will be notified once a Grobaax Admin reviews it.`,
+      application: mapApplicationRow(appCreated),
     });
   } catch (err: any) {
     console.error('Error in POST /api/school-blogs/applications:', err);
-    return res.status(500).json({ success: false, error: err.message || 'Failed to activate blogger access.' });
+    return res.status(500).json({ success: false, error: err.message || 'Failed to submit blogger application.' });
   }
 });
 
@@ -1012,6 +1007,11 @@ schoolBlogRouter.post('/articles/:articleId/view', requireAuth, async (req: Requ
       eligible: Boolean(rpcResult.eligible),
       reason: String(rpcResult.reason || ''),
       viewsCount: Number(rpcResult.viewsCount || 0),
+      qualifyingViewsCount: Number(rpcResult.qualifyingViewsCount || 0),
+      followerCount: Number(rpcResult.followerCount || 0),
+      isRewardEligible: Boolean(rpcResult.isRewardEligible),
+      maxCapReached: Boolean(rpcResult.maxCapReached),
+      articleGpEarned: Number(rpcResult.articleGpEarned || 0),
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
@@ -1170,11 +1170,14 @@ schoolBlogRouter.post('/articles/:articleId/report', requireAuth, async (req: Re
 // 2. APPROVED BLOGGER STUDIO ROUTES (STRICT ACTIVE BLOGGER ENFORCEMENT)
 // ----------------------------------------------------------------------------
 
-async function getVerifiedActiveBloggerAssignment(userId: string) {
+async function getVerifiedActiveBloggerAssignment(user: NonNullable<Request['authUser']>) {
+  if (isAccountSuspended(user)) {
+    return null;
+  }
   const { data } = await supabaseAdmin
     .from('school_blogger_assignments')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', user.id)
     .eq('status', 'active')
     .order('created_at', { ascending: false })
     .limit(1)
@@ -1186,7 +1189,7 @@ async function getVerifiedActiveBloggerAssignment(userId: string) {
 schoolBlogRouter.get('/studio/articles', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
-    const activeAssign = await getVerifiedActiveBloggerAssignment(user.id);
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user);
     if (!activeAssign) {
       return res.status(403).json({
         success: false,
@@ -1211,12 +1214,12 @@ schoolBlogRouter.get('/studio/articles', requireAuth, async (req: Request, res: 
   }
 });
 
-// Get blogger's private GP reward summary, per-article progress & milestone history
-// STRICTLY restricted to active approved bloggers only
+// Get blogger's private GP reward summary, 200-follower eligibility, per-article 8,000 GP cap progress & milestone history
+// STRICTLY restricted to active approved non-suspended bloggers only
 schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
-    const activeAssign = await getVerifiedActiveBloggerAssignment(user.id);
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user);
     if (!activeAssign) {
       return res.status(403).json({
         success: false,
@@ -1224,7 +1227,12 @@ schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: R
       });
     }
 
-    const [{ data: rawArticles }, { data: rawMilestones }, { data: userRow }] = await Promise.all([
+    const [
+      { data: rawArticles },
+      { data: rawMilestones },
+      { data: userRow },
+      followerCount,
+    ] = await Promise.all([
       supabaseAdmin
         .from('school_blog_articles')
         .select('*')
@@ -1238,8 +1246,10 @@ schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: R
         .eq('blogger_user_id', user.id)
         .order('created_at', { ascending: false }),
       supabaseAdmin.from('users').select('id, data').eq('id', user.id).maybeSingle(),
+      getGenuineFollowerCount(user.id),
     ]);
 
+    const isRewardEligible = followerCount >= MIN_FOLLOWERS_FOR_REWARDS;
     const articles = rawArticles || [];
     const milestonesByArticle = new Map<string, any[]>();
     for (const m of rawMilestones || []) {
@@ -1248,28 +1258,40 @@ schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: R
       milestonesByArticle.set(m.article_id, list);
     }
 
-    // Fetch authoritative exact count of eligible unique views for each article
-    const eligibleCountPairs = await Promise.all(
+    // Fetch authoritative total unique & qualifying unique view counts for each article
+    const viewCountPairs = await Promise.all(
       articles.map(async (art: any) => {
-        const { count } = await supabaseAdmin
-          .from('school_blog_eligible_article_views')
-          .select('id', { count: 'exact', head: true })
-          .eq('article_id', art.id);
-        const authoritativeCount = typeof count === 'number' ? count : Number(art.eligible_views_count || 0);
+        const [{ count: totalCount }, { count: qualCount }] = await Promise.all([
+          supabaseAdmin
+            .from('school_blog_eligible_article_views')
+            .select('id', { count: 'exact', head: true })
+            .eq('article_id', art.id),
+          supabaseAdmin
+            .from('school_blog_eligible_article_views')
+            .select('id', { count: 'exact', head: true })
+            .eq('article_id', art.id)
+            .eq('is_reward_qualifying', true),
+        ]);
 
-        // Idempotent self-healing check in case views reached a new 250-view milestone
-        const targetMilestones = Math.floor(authoritativeCount / VIEWS_PER_REWARD_MILESTONE);
+        const totalViews = typeof totalCount === 'number' ? totalCount : Number(art.eligible_views_count || 0);
+        const qualifyingViews = typeof qualCount === 'number' ? qualCount : Number(art.qualifying_views_count || 0);
+
+        // Idempotent self-healing check ONLY when blogger currently meets 200+ followers and has unpaid capped milestones
+        const targetMilestones = Math.min(
+          MAX_MILESTONES_PER_ARTICLE,
+          Math.floor(qualifyingViews / VIEWS_PER_REWARD_MILESTONE)
+        );
         const existingCount = (milestonesByArticle.get(art.id) || []).length;
-        if (art.status === 'published' && targetMilestones > existingCount) {
+        if (art.status === 'published' && isRewardEligible && targetMilestones > existingCount) {
           await supabaseAdmin.rpc('record_eligible_article_view_and_reward', {
             p_article_id: art.id,
             p_viewer_user_id: null,
           });
         }
-        return [art.id, authoritativeCount] as const;
+        return [art.id, { totalViews, qualifyingViews }] as const;
       })
     );
-    const eligibleCountMap = new Map<string, number>(eligibleCountPairs);
+    const countsMap = new Map<string, { totalViews: number; qualifyingViews: number }>(viewCountPairs);
 
     // Re-read milestones & user wallet after any self-healing payout
     const [{ data: finalMilestones }, { data: freshUserRow }] = await Promise.all([
@@ -1299,17 +1321,31 @@ schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: R
     );
 
     const articleProgress: ArticleRewardProgress[] = trackableArticles.map((art: any) => {
-      const eligibleViews = eligibleCountMap.get(art.id) ?? 0;
+      const counts = countsMap.get(art.id) || { totalViews: 0, qualifyingViews: 0 };
+      const eligibleViews = counts.totalViews;
+      const qualifyingViews = counts.qualifyingViews;
       const artMilestones = finalMilestonesByArticle.get(art.id) || [];
-      const gpEarned = artMilestones.reduce((sum: number, m: any) => sum + Number(m.gp_amount || 0), 0);
-      const achievedCount = artMilestones.length;
-      const cycleStart = Math.floor(eligibleViews / VIEWS_PER_REWARD_MILESTONE) * VIEWS_PER_REWARD_MILESTONE;
-      const nextMilestoneViews = cycleStart + VIEWS_PER_REWARD_MILESTONE;
-      const remainingViews = Math.max(0, nextMilestoneViews - eligibleViews);
-      const progressPercent = Math.min(
-        100,
-        Math.round(((eligibleViews - cycleStart) / VIEWS_PER_REWARD_MILESTONE) * 100)
+      const gpEarned = Math.min(
+        MAX_GP_PER_ARTICLE,
+        artMilestones.reduce((sum: number, m: any) => sum + Number(m.gp_amount || 0), 0)
       );
+      const achievedCount = artMilestones.length;
+      const maxCapReached =
+        qualifyingViews >= MAX_VIEWS_PER_ARTICLE ||
+        achievedCount >= MAX_MILESTONES_PER_ARTICLE ||
+        gpEarned >= MAX_GP_PER_ARTICLE;
+
+      const cappedQualifying = Math.min(qualifyingViews, MAX_VIEWS_PER_ARTICLE);
+      const cycleStart = maxCapReached
+        ? MAX_VIEWS_PER_ARTICLE
+        : Math.floor(cappedQualifying / VIEWS_PER_REWARD_MILESTONE) * VIEWS_PER_REWARD_MILESTONE;
+      const nextMilestoneViews = maxCapReached
+        ? MAX_VIEWS_PER_ARTICLE
+        : Math.min(MAX_VIEWS_PER_ARTICLE, cycleStart + VIEWS_PER_REWARD_MILESTONE);
+      const remainingViews = maxCapReached ? 0 : Math.max(0, nextMilestoneViews - cappedQualifying);
+      const progressPercent = maxCapReached
+        ? 100
+        : Math.min(100, Math.round(((cappedQualifying - cycleStart) / VIEWS_PER_REWARD_MILESTONE) * 100));
 
       return {
         articleId: art.id,
@@ -1318,19 +1354,26 @@ schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: R
         status: art.status,
         publishedAt: art.published_at || art.created_at || null,
         eligibleViews,
+        qualifyingViews,
         gpEarned,
+        maxGpPossible: MAX_GP_PER_ARTICLE,
+        maxCapReached,
         milestonesAchieved: achievedCount,
         nextMilestoneViews,
-        nextRewardGp: (Math.floor(eligibleViews / VIEWS_PER_REWARD_MILESTONE) + 1) * GP_PER_REWARD_MILESTONE,
+        nextRewardGp: maxCapReached ? 0 : (Math.floor(cappedQualifying / VIEWS_PER_REWARD_MILESTONE) + 1) * GP_PER_REWARD_MILESTONE,
         remainingViews,
-        progressCurrent: eligibleViews,
+        progressCurrent: cappedQualifying,
         progressTarget: nextMilestoneViews,
         progressPercent,
       };
     });
 
     const totalEligibleViews = publishedArticles.reduce(
-      (sum: number, art: any) => sum + (eligibleCountMap.get(art.id) ?? 0),
+      (sum: number, art: any) => sum + (countsMap.get(art.id)?.totalViews ?? 0),
+      0
+    );
+    const totalQualifyingViews = publishedArticles.reduce(
+      (sum: number, art: any) => sum + (countsMap.get(art.id)?.qualifyingViews ?? 0),
       0
     );
     const totalGpEarned = milestoneRows.reduce(
@@ -1338,9 +1381,11 @@ schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: R
       0
     );
 
-    const publishedProgress = articleProgress.filter((a) => a.status === 'published');
-    const closestArticle = publishedProgress.length > 0
-      ? [...publishedProgress].sort((a, b) => a.remainingViews - b.remainingViews)[0]
+    const uncappedPublishedProgress = articleProgress.filter(
+      (a) => a.status === 'published' && !a.maxCapReached
+    );
+    const closestArticle = uncappedPublishedProgress.length > 0
+      ? [...uncappedPublishedProgress].sort((a, b) => a.remainingViews - b.remainingViews)[0]
       : null;
 
     const walletGpBalance = Number(
@@ -1350,7 +1395,13 @@ schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: R
     const summary: BloggerRewardSummary = {
       viewsPerMilestone: VIEWS_PER_REWARD_MILESTONE,
       gpPerMilestone: GP_PER_REWARD_MILESTONE,
+      maxViewsPerArticle: MAX_VIEWS_PER_ARTICLE,
+      maxGpPerArticle: MAX_GP_PER_ARTICLE,
+      minFollowersRequired: MIN_FOLLOWERS_FOR_REWARDS,
+      followerCount,
+      isRewardEligible,
       totalEligibleViews,
+      totalQualifyingViews,
       totalGpEarned,
       publishedArticlesCount: publishedArticles.length,
       milestonesAchieved: milestoneRows.length,
@@ -1359,7 +1410,7 @@ schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: R
         ? {
             articleId: closestArticle.articleId,
             articleTitle: closestArticle.title,
-            currentViews: closestArticle.eligibleViews,
+            currentViews: closestArticle.qualifyingViews,
             targetViews: closestArticle.nextMilestoneViews,
             remainingViews: closestArticle.remainingViews,
             nextRewardGp: GP_PER_REWARD_MILESTONE,
@@ -1405,7 +1456,7 @@ schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: R
 schoolBlogRouter.post('/studio/upload-image', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
-    const activeAssign = await getVerifiedActiveBloggerAssignment(user.id);
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user);
     if (!activeAssign && !user.isAdmin) {
       return res.status(403).json({
         success: false,
@@ -1472,7 +1523,7 @@ schoolBlogRouter.post('/studio/upload-image', requireAuth, async (req: Request, 
 schoolBlogRouter.post('/studio/articles', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
-    const activeAssign = await getVerifiedActiveBloggerAssignment(user.id);
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user);
     if (!activeAssign) {
       return res.status(403).json({
         success: false,
@@ -1607,7 +1658,7 @@ schoolBlogRouter.put('/studio/articles/:articleId', requireAuth, async (req: Req
   try {
     const user = req.authUser!;
     const { articleId } = req.params;
-    const activeAssign = await getVerifiedActiveBloggerAssignment(user.id);
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user);
     if (!activeAssign) {
       return res.status(403).json({
         success: false,
@@ -1888,6 +1939,9 @@ schoolBlogRouter.get('/admin/overview', requireAdmin, async (_req: Request, res:
         status: string;
         publishedArticlesCount: number;
         eligibleViews: number;
+        qualifyingViews: number;
+        followerCount: number;
+        isRewardEligible: boolean;
         milestonesAchieved: number;
         totalGpEarned: number;
       }
@@ -1904,6 +1958,9 @@ schoolBlogRouter.get('/admin/overview', requireAdmin, async (_req: Request, res:
           status: as.status,
           publishedArticlesCount: existing?.publishedArticlesCount || 0,
           eligibleViews: existing?.eligibleViews || 0,
+          qualifyingViews: existing?.qualifyingViews || 0,
+          followerCount: existing?.followerCount || 0,
+          isRewardEligible: existing?.isRewardEligible || false,
           milestonesAchieved: existing?.milestonesAchieved || 0,
           totalGpEarned: existing?.totalGpEarned || 0,
         });
@@ -1919,11 +1976,15 @@ schoolBlogRouter.get('/admin/overview', requireAdmin, async (_req: Request, res:
         status: 'unknown',
         publishedArticlesCount: 0,
         eligibleViews: 0,
+        qualifyingViews: 0,
+        followerCount: 0,
+        isRewardEligible: false,
         milestonesAchieved: 0,
         totalGpEarned: 0,
       };
       if (art.status === 'published') entry.publishedArticlesCount += 1;
       entry.eligibleViews += Number(art.viewsCount || 0);
+      entry.qualifyingViews += Number(art.qualifyingViewsCount || 0);
       bloggerAggMap.set(art.authorUserId, entry);
     }
 
@@ -1935,7 +1996,17 @@ schoolBlogRouter.get('/admin/overview', requireAdmin, async (_req: Request, res:
       }
     }
 
-    const bloggerRewards = Array.from(bloggerAggMap.values()).sort(
+    // Enrich each blogger entry with live genuine follower count
+    const bloggerEntries = Array.from(bloggerAggMap.values());
+    await Promise.all(
+      bloggerEntries.map(async (entry) => {
+        const fc = await getGenuineFollowerCount(entry.userId);
+        entry.followerCount = fc;
+        entry.isRewardEligible = entry.status === 'active' && fc >= MIN_FOLLOWERS_FOR_REWARDS;
+      })
+    );
+
+    const bloggerRewards = bloggerEntries.sort(
       (a, b) => b.totalGpEarned - a.totalGpEarned || b.eligibleViews - a.eligibleViews
     );
 
@@ -2013,8 +2084,13 @@ schoolBlogRouter.get('/admin/overview', requireAdmin, async (_req: Request, res:
       summary: {
         totalInstitutionsWithBlogs: enrichedBlogs.length,
         activeInstitutionsCount: enrichedBlogs.filter((b) => b.status === 'active').length,
+        totalApplicationsCount: appRows.length,
         pendingApplicationsCount: appRows.filter((a) => a.status === 'Pending').length,
+        rejectedApplicationsCount: appRows.filter((a) => a.status === 'Rejected').length,
+        withdrawnApplicationsCount: appRows.filter((a) => a.status === 'Withdrawn').length,
         activeBloggersCount: assignRows.filter((a: any) => a.status === 'active').length,
+        suspendedBloggersCount: assignRows.filter((a: any) => a.status === 'suspended').length,
+        removedBloggersCount: assignRows.filter((a: any) => a.status === 'removed').length,
         publishedArticlesCount: articleRows.filter((a) => a.status === 'published').length,
         totalArticlesCount: articleRows.length,
         openReportsCount: reportRows.filter((r) => r.status === 'open').length,
@@ -2124,6 +2200,22 @@ schoolBlogRouter.post('/admin/applications/:applicationId/approve', requireAdmin
     }
     if (appRow.status !== 'Pending') {
       return res.status(400).json({ success: false, error: `Application is already ${appRow.status}.` });
+    }
+
+    // Verify applicant account is active and not suspended/deleted
+    const { data: applicantUser } = await supabaseAdmin
+      .from('users')
+      .select('data')
+      .eq('id', appRow.applicant_user_id)
+      .maybeSingle();
+    const applicantStatus = String(
+      applicantUser?.data?.accountStatus || applicantUser?.data?.status || 'active'
+    ).toLowerCase();
+    if (SUSPENDED_ACCOUNT_STATUSES.has(applicantStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot approve applicant because their account is currently ${applicantStatus}.`,
+      });
     }
 
     const nowIso = new Date().toISOString();

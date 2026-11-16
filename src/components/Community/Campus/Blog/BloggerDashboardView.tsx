@@ -42,6 +42,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  Users,
   Wallet,
 } from 'lucide-react';
 
@@ -354,9 +355,28 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
             {assignment?.institutionName || institutionName}
           </h2>
           {assignment && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Authorized Blogger: <strong className="text-slate-800 dark:text-slate-200">{assignment.userName}</strong> · {assignment.department} ({assignment.level})
-            </p>
+            <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500 dark:text-slate-400">
+              <span>
+                Approved Blogger:{' '}
+                <strong className="text-slate-800 dark:text-slate-200">{assignment.userName}</strong> ·{' '}
+                {assignment.department} ({assignment.level})
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-black uppercase">
+                {assignment.status}
+              </span>
+              {rewardSummary && (
+                <span
+                  className={`px-2 py-0.5 rounded-md border text-[10px] font-black uppercase ${
+                    rewardSummary.isRewardEligible
+                      ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                      : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                  }`}
+                >
+                  {(rewardSummary.followerCount ?? 0).toLocaleString()} /{' '}
+                  {rewardSummary.minFollowersRequired ?? 200} Followers
+                </span>
+              )}
+            </div>
           )}
         </div>
 
@@ -418,7 +438,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
             {error ||
-              'Subscribe to Premium or VIP and activate your School Blogger access to unlock Blogger Dashboard, article publishing, and GP reward tracking.'}
+              'Only Admin-approved active School Bloggers can access the Blogger Studio, publish articles, and track GP view rewards.'}
           </p>
         </div>
       ) : mode === 'list' ? (
@@ -484,6 +504,69 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
           {studioTab === 'rewards' ? (
             /* MY GP REWARDS SECTION */
             <div id="blogger-gp-rewards-section" className="space-y-5">
+              {/* 200-Follower Reward Eligibility Status Banner */}
+              {rewardSummary && (
+                <div
+                  id="blogger-follower-eligibility-banner"
+                  className={`p-4 sm:p-5 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    rewardSummary.isRewardEligible
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/70'
+                      : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/70'
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Users
+                        className={`w-4 h-4 shrink-0 ${
+                          rewardSummary.isRewardEligible
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-amber-600 dark:text-amber-400'
+                        }`}
+                      />
+                      <span
+                        className={`text-xs font-black uppercase tracking-wider ${
+                          rewardSummary.isRewardEligible
+                            ? 'text-emerald-800 dark:text-emerald-300'
+                            : 'text-amber-800 dark:text-amber-300'
+                        }`}
+                      >
+                        {rewardSummary.isRewardEligible
+                          ? 'Qualified for Blogging GP Rewards (200+ Followers)'
+                          : 'Not Yet Eligible for GP Rewards'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                      {rewardSummary.isRewardEligible ? (
+                        <>
+                          You currently have{' '}
+                          <strong>{(rewardSummary.followerCount ?? 0).toLocaleString()} genuine Campus followers</strong>.
+                          Every 250 qualifying unique views earns <strong>1,000 GP</strong>, up to{' '}
+                          <strong>8,000 GP (2,000 views) per article</strong>.
+                        </>
+                      ) : (
+                        <>
+                          You currently have{' '}
+                          <strong>
+                            {(rewardSummary.followerCount ?? 0).toLocaleString()} /{' '}
+                            {rewardSummary.minFollowersRequired ?? 200}
+                          </strong>{' '}
+                          genuine Campus followers ({Math.max(0, (rewardSummary.minFollowersRequired ?? 200) - (rewardSummary.followerCount ?? 0))} more needed).{' '}
+                          Note: Views recorded before reaching 200 genuine followers do not count retroactively.
+                        </>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 px-4 py-2.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-center min-w-[130px]">
+                    <div className="text-[10px] font-bold uppercase text-slate-500">Followers</div>
+                    <div className="text-lg font-black text-slate-900 dark:text-white tabular-nums">
+                      {(rewardSummary.followerCount ?? 0).toLocaleString()} /{' '}
+                      {rewardSummary.minFollowersRequired ?? 200}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Top Reward Overview Banner (Grobaax Blue & White Identity) */}
               <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white shadow-md space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -496,9 +579,8 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                       Campus Blogger View Earnings
                     </h3>
                     <p className="text-xs sm:text-sm text-blue-100 leading-relaxed">
-                      Earn 1,000 GP for every 250 genuine unique views on your published articles.
-                      Each reader counts only once per article. Your GP rewards are credited
-                      automatically to your Grobaax wallet.
+                      Earn 1,000 GP for every 250 qualifying unique views once you have 200+ genuine followers.
+                      Each article earns up to a maximum cap of 8,000 GP (2,000 qualifying views). Rewards credit automatically to your Grobaax wallet.
                     </p>
                   </div>
 
@@ -517,13 +599,13 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
                   <div className="p-3.5 rounded-2xl bg-white/12 border border-white/20 backdrop-blur-xs">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-blue-100">
-                      Eligible Unique Views
+                      Qualifying / Total Views
                     </div>
                     <div className="text-xl sm:text-2xl font-black text-white tabular-nums mt-1">
-                      {(rewardSummary?.totalEligibleViews ?? 0).toLocaleString()}
+                      {(rewardSummary?.totalQualifyingViews ?? rewardSummary?.totalEligibleViews ?? 0).toLocaleString()}
                     </div>
                     <div className="text-[11px] text-blue-100/80 mt-0.5">
-                      Across published articles
+                      {(rewardSummary?.totalEligibleViews ?? 0).toLocaleString()} total unique views
                     </div>
                   </div>
 
@@ -535,7 +617,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                       {(rewardSummary?.totalGpEarned ?? 0).toLocaleString()} GP
                     </div>
                     <div className="text-[11px] text-blue-100/80 mt-0.5">
-                      Auto-credited to wallet
+                      Max 8,000 GP / article
                     </div>
                   </div>
 
@@ -559,7 +641,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                       {rewardSummary?.milestonesAchieved ?? 0}
                     </div>
                     <div className="text-[11px] text-blue-100/80 mt-0.5">
-                      250 views = 1,000 GP
+                      {(rewardSummary?.followerCount ?? 0).toLocaleString()} / 200 followers
                     </div>
                   </div>
                 </div>
@@ -579,7 +661,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                       </span>
                       <span className="font-black text-white tabular-nums">
                         {rewardSummary.nextMilestoneProgress.currentViews.toLocaleString()} /{' '}
-                        {rewardSummary.nextMilestoneProgress.targetViews.toLocaleString()} views (
+                        {rewardSummary.nextMilestoneProgress.targetViews.toLocaleString()} qualifying views (
                         {rewardSummary.nextMilestoneProgress.remainingViews.toLocaleString()} left for +1,000 GP)
                       </span>
                     </div>
@@ -597,12 +679,12 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
 
               {/* Per-Article Reward Progress Cards */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2 px-1">
+                <div className="flex items-center justify-between gap-2 px-1 flex-wrap">
                   <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
                     Per-Article Reward Progress
                   </h4>
                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    Minimum payout: 250 eligible views / article
+                    250 qualifying views = 1,000 GP · Cap: 2,000 views (8,000 GP) / article
                   </span>
                 </div>
 
@@ -613,8 +695,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                       No Published Articles Tracked Yet
                     </h5>
                     <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                      Publish your first article to start earning 1,000 GP automatically for every
-                      250 eligible unique student views.
+                      Publish your first article to track reader views and earn up to 8,000 GP per article once you reach 200 genuine followers.
                     </p>
                   </div>
                 ) : (
@@ -627,6 +708,9 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                             year: 'numeric',
                           })
                         : 'Draft';
+                      const qualifying = item.qualifyingViews ?? item.eligibleViews;
+                      const maxCapGp = item.maxGpPossible ?? 8000;
+                      const isCapped = Boolean(item.maxCapReached);
                       return (
                         <div
                           key={item.articleId}
@@ -649,51 +733,59 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                           <div className="grid grid-cols-2 gap-2.5 text-xs">
                             <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/70">
                               <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
-                                Eligible Unique Views
+                                Qualifying / Total Views
                               </div>
                               <div className="font-black text-sm text-slate-900 dark:text-white tabular-nums mt-0.5">
-                                {item.eligibleViews.toLocaleString()}
+                                {qualifying.toLocaleString()} / {item.eligibleViews.toLocaleString()}
                               </div>
                             </div>
                             <div className="p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/50">
                               <div className="text-[11px] text-blue-700 dark:text-blue-300 font-semibold">
-                                GP Earned
+                                GP Earned / Cap
                               </div>
                               <div className="font-black text-sm text-blue-700 dark:text-blue-300 tabular-nums mt-0.5">
-                                {item.gpEarned.toLocaleString()} GP
+                                {item.gpEarned.toLocaleString()} / {maxCapGp.toLocaleString()} GP
                               </div>
                             </div>
                           </div>
 
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between gap-2 text-xs font-bold">
-                              <span className="text-slate-700 dark:text-slate-300">
-                                Next milestone ({item.nextRewardGp.toLocaleString()} GP total)
-                              </span>
-                              <span className="text-blue-600 dark:text-blue-400 tabular-nums">
-                                {item.progressCurrent.toLocaleString()} /{' '}
-                                {item.progressTarget.toLocaleString()} views
-                              </span>
-                            </div>
-
-                            <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-blue-600 transition-all duration-300"
-                                style={{ width: `${item.progressPercent}%` }}
-                              />
-                            </div>
-
-                            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-semibold tabular-nums">
+                          {isCapped ? (
+                            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-start gap-2">
+                              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                               <span>
-                                {item.milestonesAchieved} milestone
-                                {item.milestonesAchieved === 1 ? '' : 's'} credited
-                              </span>
-                              <span>
-                                {item.remainingViews.toLocaleString()} view
-                                {item.remainingViews === 1 ? '' : 's'} remaining for +1,000 GP
+                                Maximum article reward reached. This article will no longer generate additional GP.
                               </span>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between gap-2 text-xs font-bold">
+                                <span className="text-slate-700 dark:text-slate-300">
+                                  Next milestone ({item.nextRewardGp.toLocaleString()} GP)
+                                </span>
+                                <span className="text-blue-600 dark:text-blue-400 tabular-nums">
+                                  {item.progressCurrent.toLocaleString()} /{' '}
+                                  {item.progressTarget.toLocaleString()} views
+                                </span>
+                              </div>
+
+                              <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                                  style={{ width: `${item.progressPercent}%` }}
+                                />
+                              </div>
+
+                              <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-semibold tabular-nums">
+                                <span>
+                                  {item.milestonesAchieved} / 8 milestones credited
+                                </span>
+                                <span>
+                                  {item.remainingViews.toLocaleString()} qualifying view
+                                  {item.remainingViews === 1 ? '' : 's'} left for +1,000 GP
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

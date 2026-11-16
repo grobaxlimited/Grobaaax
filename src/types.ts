@@ -2998,6 +2998,24 @@ export interface CampusStudentCard {
   connectionStatus: 'none' | 'pending_sent' | 'pending_received' | 'accepted' | 'rejected' | 'self';
   requestId?: string;
   joinedCampus?: boolean;
+  followersCount?: number;
+  followingCount?: number;
+  isFollowing?: boolean;
+}
+
+export interface CampusFollowUser {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string;
+  institution: string;
+  department: string;
+  level: string;
+  tier: 'free' | 'premium' | 'vip';
+  hasBlueBadge?: boolean;
+  isVerified?: boolean;
+  isFollowing: boolean;
+  followedAt?: string;
 }
 
 // ==========================================
@@ -3180,6 +3198,7 @@ export interface SchoolBloggerApplication {
   level: string;
   reason: string;
   experience: string;
+  additionalInfo?: string;
   status: SchoolBloggerApplicationStatus;
   reviewedBy?: string | null;
   reviewerName?: string | null;
@@ -3264,7 +3283,10 @@ export interface ArticleRewardProgress {
   status: SchoolBlogArticleStatus;
   publishedAt: string | null;
   eligibleViews: number;
+  qualifyingViews: number;
   gpEarned: number;
+  maxGpPossible: number;
+  maxCapReached: boolean;
   milestonesAchieved: number;
   nextMilestoneViews: number;
   nextRewardGp: number;
@@ -3277,7 +3299,13 @@ export interface ArticleRewardProgress {
 export interface BloggerRewardSummary {
   viewsPerMilestone: number;
   gpPerMilestone: number;
+  maxViewsPerArticle: number;
+  maxGpPerArticle: number;
+  minFollowersRequired: number;
+  followerCount: number;
+  isRewardEligible: boolean;
   totalEligibleViews: number;
+  totalQualifyingViews: number;
   totalGpEarned: number;
   publishedArticlesCount: number;
   milestonesAchieved: number;
@@ -3299,8 +3327,11 @@ export interface AdminBloggerRewardEntry {
   institutionId: string;
   institutionName: string;
   status: string;
+  followerCount?: number;
+  isRewardEligible?: boolean;
   publishedArticlesCount: number;
   eligibleViews: number;
+  qualifyingViews?: number;
   milestonesAchieved: number;
   totalGpEarned: number;
 }

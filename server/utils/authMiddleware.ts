@@ -13,6 +13,7 @@ export interface VerifiedRequestUser {
   department: string;
   level: string;
   role: string;
+  accountStatus: string;
   managerRole?: string | null;
   isAdmin: boolean;
   isSuperAdmin: boolean;
@@ -350,6 +351,10 @@ async function resolveUserContextFromToken(token: string): Promise<VerifiedReque
     userData.academicProfile?.level ||
     '100 Level';
 
+  const accountStatus = userData.isDeleted
+    ? 'deleted'
+    : String(userData.accountStatus || 'active').toLowerCase().trim() || 'active';
+
   return {
     id: uid,
     email,
@@ -357,6 +362,7 @@ async function resolveUserContextFromToken(token: string): Promise<VerifiedReque
     department,
     level,
     role: userData.role || 'student',
+    accountStatus,
     managerRole,
     isAdmin,
     isSuperAdmin: isSuper,

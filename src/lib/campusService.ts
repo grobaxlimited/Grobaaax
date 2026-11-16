@@ -2,6 +2,7 @@ import {
   CampusMembership,
   CampusConnectionRequest,
   CampusStudentCard,
+  CampusFollowUser,
   CampusSkillCategory,
   UserProfile,
   InstitutionCategory,
@@ -521,8 +522,10 @@ export async function fetchCampusStudents(params: {
     if (search) qs.set('search', search);
     if (currentUserId) qs.set('requestingUserId', currentUserId);
 
+    const headers = await getAuthBearerHeaders();
     const apiRes = await safeFetchJson<{ success: boolean; students?: CampusStudentCard[] }>(
-      `/api/campus/students?${qs.toString()}`
+      `/api/campus/students?${qs.toString()}`,
+      { headers }
     );
     if (apiRes.ok && apiRes.data?.success && Array.isArray(apiRes.data.students)) {
       _campusStudentsCache.set(cacheKey, { timestamp: now, data: apiRes.data.students });
@@ -580,6 +583,10 @@ export async function fetchCampusStudents(params: {
       }
 
       const rawUser = rawUsersMap.get(memberId);
+      const acctStatus = String(rawUser?.accountStatus || rawUser?.status || 'active').toLowerCase();
+      if (['suspended', 'deleted', 'banned', 'disabled'].includes(acctStatus)) {
+        return;
+      }
       const mInstRaw = (
         data.institution ||
         rawUser?.institution ||
@@ -1159,5 +1166,151 @@ export async function getSecureWhatsAppLink(
   } catch (err: any) {
     console.error('Error retrieving WhatsApp connection link:', err);
     return { success: false, error: err?.message || 'Failed to open WhatsApp.' };
+  }
+}
+
+/**
+ * 9. Campus Follow System (completely independent of WhatsApp Chat Requests)
+ */
+export async function followCampusStudent(targetUserId: string): Promise<{
+  success: boolean;
+  followersCount?: number;
+  followingCount?: number;
+  isFollowing?: boolean;
+  error?: string;
+}> {
+  try {
+    const headers = await getAuthBearerHeaders();
+    const res = await safeFetchJson<{
+      success: boolean;
+      followersCount?: number;
+      followingCount?: number;
+      isFollowing?: boolean;
+      error?: string;
+    }>('/api/campus/follow', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ targetUserId }),
+    });
+    if (res.ok && res.data?.success) {
+      clearCampusStudentsCache();
+      return res.data;
+    }
+    return {
+      success: false,
+      error: res.data?.error || 'Unable to follow student right now.',
+    };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Unable to follow student.' };
+  }
+}
+
+export async function unfollowCampusStudent(targetUserId: string): Promise<{
+  success: boolean;
+  followersCount?: number;
+  followingCount?: number;
+  isFollowing?: boolean;
+  error?: string;
+}> {
+  try {
+    const headers = await getAuthBearerHeaders();
+    const res = await safeFetchJson<{
+      success: boolean;
+      followersCount?: number;
+      followingCount?: number;
+      isFollowing?: boolean;
+      error?: string;
+    }>(`/api/campus/follow/${encodeURIComponent(targetUserId)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    if (res.ok && res.data?.success) {
+      clearCampusStudentsCache();
+      return res.data;
+    }
+    return {
+      success: false,
+      error: res.data?.error || 'Unable to unfollow student right now.',
+    };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Unable to unfollow student.' };
+  }
+}
+
+export async function fetchCampusFollowStatus(targetUserId: string): Promise<{
+  success: boolean;
+  followersCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  error?: string;
+}> {
+  try {
+    const headers = await getAuthBearerHeaders();
+    const res = await safeFetchJson<{
+      success: boolean;
+      followersCount?: number;
+      followingCount?: number;
+      isFollowing?: boolean;
+      error?: string;
+    }>(`/api/campus/follow/status/${encodeURIComponent(targetUserId)}`, {
+      method: 'GET',
+      headers,
+    });
+    if (res.ok && res.data?.success) {
+      return {
+        success: true,
+        followersCount: Number(res.data.followersCount || 0),
+        followingCount: Number(res.data.followingCount || 0),
+        isFollowing: Boolean(res.data.isFollowing),
+      };
+    }
+    return {
+      success: false,
+      followersCount: 0,
+      followingCount: 0,
+      isFollowing: false,
+      error: res.data?.error,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      followersCount: 0,
+      followingCount: 0,
+      isFollowing: false,
+      error: err?.message,
+    };
+  }
+}
+
+export async function fetchCampusFollowList(
+  targetUserId: string,
+  type: 'followers' | 'following'
+): Promise<{
+  success: boolean;
+  users: CampusFollowUser[];
+  total: number;
+  error?: string;
+}> {
+  try {
+    const headers = await getAuthBearerHeaders();
+    const res = await safeFetchJson<{
+      success: boolean;
+      users?: CampusFollowUser[];
+      total?: number;
+      error?: string;
+    }>(`/api/campus/follow/list/${encodeURIComponent(targetUserId)}?type=${type}`, {
+      method: 'GET',
+      headers,
+    });
+    if (res.ok && res.data?.success) {
+      return {
+        success: true,
+        users: Array.isArray(res.data.users) ? res.data.users : [],
+        total: Number(res.data.total || 0),
+      };
+    }
+    return { success: false, users: [], total: 0, error: res.data?.error };
+  } catch (err: any) {
+    return { success: false, users: [], total: 0, error: err?.message };
   }
 }

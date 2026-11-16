@@ -151,7 +151,7 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
     {
       title: 'COMMUNITY & MARKETING',
       items: [
-        { id: 'school_blogs' as AdminTabType, label: 'School Blogs & Bloggers', icon: Newspaper, badge: 'Campus' },
+        { id: 'school_blogs' as AdminTabType, label: 'School Blogger Management', icon: Newspaper, badge: 'Campus' },
         { id: 'announcements' as AdminTabType, label: 'Admin Announcements', icon: MessageSquare },
         { id: 'sponsorship' as AdminTabType, label: 'Sponsorship & Ticker', icon: Tag },
       ],

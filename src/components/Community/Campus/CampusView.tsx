@@ -16,6 +16,9 @@ import {
   respondCampusChatRequest,
   getSecureWhatsAppLink,
   resolveUserSubscriptionTier,
+  followCampusStudent,
+  unfollowCampusStudent,
+  fetchCampusFollowStatus,
 } from '../../../lib/campusService';
 import { DEFAULT_CAMPUS_SKILL_CATEGORIES } from '../../../data/campusSkillsData';
 import { openExternalWhatsApp } from '../../../lib/whatsappUtils';
@@ -96,6 +99,11 @@ export const CampusView: React.FC = () => {
   const [selectedSkillFilter, setSelectedSkillFilter] = useState<string>('');
   const [skillCategories, setSkillCategories] = useState<CampusSkillCategory[]>(DEFAULT_CAMPUS_SKILL_CATEGORIES);
   const [selectedProfileStudent, setSelectedProfileStudent] = useState<CampusStudentCard | null>(null);
+  const [profileModalInitialView, setProfileModalInitialView] = useState<'profile' | 'followers' | 'following'>('profile');
+  const [myFollowStats, setMyFollowStats] = useState<{ followersCount: number; followingCount: number }>({
+    followersCount: 0,
+    followingCount: 0,
+  });
   const [students, setStudents] = useState<CampusStudentCard[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [feedbackToast, setFeedbackToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -215,7 +223,7 @@ export const CampusView: React.FC = () => {
     return () => unsubscribe();
   }, [currentUser?.id]);
 
-  // 2b. Load extensible Campus Skill Categories
+  // 2b. Load extensible Campus Skill Categories & caller's own follow counts
   useEffect(() => {
     fetchCampusSkillCategories()
       .then((cats) => {
@@ -225,6 +233,22 @@ export const CampusView: React.FC = () => {
       })
       .catch(() => {});
   }, []);
+
+  const refreshMyFollowStats = useCallback(() => {
+    if (!currentUser?.id) return;
+    fetchCampusFollowStatus(currentUser.id).then((res) => {
+      if (res.success) {
+        setMyFollowStats({
+          followersCount: res.followersCount,
+          followingCount: res.followingCount,
+        });
+      }
+    });
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    refreshMyFollowStats();
+  }, [refreshMyFollowStats]);
 
   // 2c. Track horizontal overflow on Campus navigation tabs so mobile users know to scroll
   useEffect(() => {
@@ -396,6 +420,89 @@ export const CampusView: React.FC = () => {
     }
   };
 
+  // Handle Follow / Unfollow Toggle (independent of WhatsApp Chat Requests)
+  const handleFollowChanged = (
+    targetUserId: string,
+    stats: { followersCount: number; followingCount: number; isFollowing: boolean }
+  ) => {
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id === targetUserId
+          ? {
+              ...s,
+              followersCount: stats.followersCount,
+              followingCount: stats.followingCount,
+              isFollowing: stats.isFollowing,
+            }
+          : s
+      )
+    );
+    setSelectedProfileStudent((prev) =>
+      prev && prev.id === targetUserId
+        ? {
+            ...prev,
+            followersCount: stats.followersCount,
+            followingCount: stats.followingCount,
+            isFollowing: stats.isFollowing,
+          }
+        : prev
+    );
+    refreshMyFollowStats();
+  };
+
+  const handleToggleFollow = async (student: CampusStudentCard) => {
+    if (!currentUser?.id || student.id === currentUser.id) return;
+    const res = student.isFollowing
+      ? await unfollowCampusStudent(student.id)
+      : await followCampusStudent(student.id);
+    if (res.success) {
+      const nextIsFollowing = Boolean(res.isFollowing ?? !student.isFollowing);
+      const nextFollowers = Number(
+        res.followersCount ??
+          (student.isFollowing
+            ? Math.max(0, Number(student.followersCount || 0) - 1)
+            : Number(student.followersCount || 0) + 1)
+      );
+      const nextFollowing = Number(res.followingCount ?? student.followingCount ?? 0);
+      handleFollowChanged(student.id, {
+        followersCount: nextFollowers,
+        followingCount: nextFollowing,
+        isFollowing: nextIsFollowing,
+      });
+      showToast(
+        nextIsFollowing ? `You are now following ${student.name}.` : `You unfollowed ${student.name}.`
+      );
+    } else {
+      showToast(res.error || 'Failed to update follow status.', 'error');
+    }
+  };
+
+  const openOwnFollowModal = (mode: 'followers' | 'following') => {
+    if (!currentUser?.id) return;
+    setProfileModalInitialView(mode);
+    setSelectedProfileStudent({
+      id: currentUser.id,
+      name: currentUser.name || currentUser.fullName || 'Scholar',
+      username: currentUser.username || '@scholar',
+      avatar: currentUser.avatar || currentUser.profileImage || '',
+      institution: homeInstitutionName,
+      faculty: membership?.faculty || currentUser.faculty || '',
+      department: membership?.department || currentUser.department || '',
+      level: membership?.level || currentUser.level || '100 Level',
+      bio: currentUser.bio || '',
+      skills: membership?.skills || [],
+      tier: userTier,
+      hasBlueBadge: Boolean(currentUser.isVerified),
+      isVerified: Boolean(currentUser.isVerified),
+      isOnline: true,
+      connectionStatus: 'self',
+      joinedCampus: true,
+      followersCount: myFollowStats.followersCount,
+      followingCount: myFollowStats.followingCount,
+      isFollowing: false,
+    });
+  };
+
   // Loading State
   if (isCheckingMembership) {
     return (
@@ -469,6 +576,19 @@ export const CampusView: React.FC = () => {
 
           {/* User Quick Actions */}
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              id="campus-my-followers-btn"
+              type="button"
+              onClick={() => openOwnFollowModal('followers')}
+              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              title="View your Campus Followers & Following"
+            >
+              <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>
+                {myFollowStats.followersCount} Followers · {myFollowStats.followingCount} Following
+              </span>
+            </button>
+
             <button
               id="campus-edit-skills-btn"
               type="button"
@@ -988,7 +1108,11 @@ export const CampusView: React.FC = () => {
                       onAcceptRequest={handleAcceptRequest}
                       onRejectRequest={handleRejectRequest}
                       onOpenWhatsApp={handleOpenWhatsAppByStudent}
-                      onViewProfile={(st) => setSelectedProfileStudent(st)}
+                      onToggleFollow={handleToggleFollow}
+                      onViewProfile={(st) => {
+                        setProfileModalInitialView('profile');
+                        setSelectedProfileStudent(st);
+                      }}
                     />
                   ))}
                 </div>
@@ -1024,15 +1148,19 @@ export const CampusView: React.FC = () => {
         }}
       />
 
-      {/* 3C. STUDENT PROFILE & SKILLS MODAL */}
+      {/* 3C. STUDENT PROFILE, FOLLOWERS & SKILLS MODAL */}
       <CampusStudentProfileModal
         student={selectedProfileStudent}
+        currentUserId={currentUser.id}
+        initialViewMode={profileModalInitialView}
         isOpen={Boolean(selectedProfileStudent)}
         onClose={() => setSelectedProfileStudent(null)}
         onSendRequest={handleSendRequest}
         onAcceptRequest={handleAcceptRequest}
         onRejectRequest={handleRejectRequest}
         onOpenWhatsApp={handleOpenWhatsAppByStudent}
+        onFollowChanged={handleFollowChanged}
+        onNotify={showToast}
         onFilterBySkill={(sk) => {
           setSelectedSkillFilter(sk);
           setActiveView('directory');
