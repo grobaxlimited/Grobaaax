@@ -173,7 +173,16 @@ async function notifyUserOrAdmins(params: {
   }
 }
 
-function normalizeArticleBlocks(blocks: any[], fallbackText?: string): {
+function hasSchoolBlogReadAccess(user: Request['authUser']): boolean {
+  if (!user) return false;
+  return Boolean(user.hasActiveSubscription || user.isAdmin);
+}
+
+function normalizeArticleBlocks(
+  blocks: any[],
+  fallbackText?: string,
+  customExcerpt?: string
+): {
   blocks: SchoolBlogContentBlock[];
   plainText: string;
   excerpt: string;
@@ -233,19 +242,37 @@ function normalizeArticleBlocks(blocks: any[], fallbackText?: string): {
   }
 
   const plainText = textParts.join('\n\n').trim();
-  const excerptSource = cleanBlocks.find((b) => b.type === 'paragraph')?.text || plainText;
-  const excerpt = excerptSource.length > 180 ? excerptSource.slice(0, 177).trim() + '...' : excerptSource;
+  const explicitSummary = String(customExcerpt || '').trim();
+  const autoSource = (cleanBlocks.find((b) => b.type === 'paragraph')?.text || plainText)
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1');
+  const excerpt = explicitSummary
+    ? explicitSummary.slice(0, 300)
+    : autoSource.length > 180
+    ? autoSource.slice(0, 177).trim() + '...'
+    : autoSource;
 
   return { blocks: cleanBlocks, plainText, excerpt, inlineImages };
 }
 
 // ----------------------------------------------------------------------------
-// 1. PUBLIC / AUTHENTICATED READ ROUTES
+// 1. PREMIUM / VIP AUTHENTICATED READ ROUTES
 // ----------------------------------------------------------------------------
 
-// List institutions with School Blogs + aggregate counts (supports search & category)
-schoolBlogRouter.get('/', optionalAuth, async (req: Request, res: Response) => {
+// List institutions with School Blogs + aggregate counts (Premium/VIP subscribers only)
+schoolBlogRouter.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!hasSchoolBlogReadAccess(req.authUser)) {
+      return res.status(403).json({
+        success: false,
+        code: 'SUBSCRIPTION_REQUIRED',
+        requiresSubscription: true,
+        subscriptionTier: req.authUser?.subscriptionTier || 'free',
+        subscriptionExpired: Boolean(req.authUser?.subscriptionExpired),
+        error: 'Active Premium or VIP subscription is required to browse School Blogs.',
+      });
+    }
+
     const q = String(req.query.search || '').trim().toLowerCase();
     const category = String(req.query.category || 'All').trim();
 
@@ -340,7 +367,7 @@ schoolBlogRouter.get('/', optionalAuth, async (req: Request, res: Response) => {
   }
 });
 
-// Get/Auto-provision independent School Blog homepage for a specific institution
+// Get/Auto-provision independent School Blog homepage for a specific institution (Premium/VIP gated)
 schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: Request, res: Response) => {
   try {
     const rawKey = decodeURIComponent(req.params.institutionKey || '').trim();
@@ -360,6 +387,55 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
 
     const blogRow = await ensureSchoolBlogRecord(canonical);
     const blog = mapBlogRow(blogRow);
+
+    if (!req.authUser) {
+      return res.status(401).json({
+        success: false,
+        code: 'AUTH_REQUIRED',
+        requiresSubscription: true,
+        subscriptionTier: 'free',
+        subscriptionExpired: false,
+        blog,
+        error: 'Please sign in with an active Premium or VIP subscription to access School Blogs.',
+      });
+    }
+
+    if (!hasSchoolBlogReadAccess(req.authUser)) {
+      return res.status(403).json({
+        success: false,
+        code: 'SUBSCRIPTION_REQUIRED',
+        requiresSubscription: true,
+        subscriptionTier: req.authUser.subscriptionTier,
+        subscriptionExpired: req.authUser.subscriptionExpired,
+        blog,
+        viewerStatus: {
+          isHomeInstitution:
+            req.authUser.institutionId === canonical.institutionId ||
+            req.authUser.institutionName.toLowerCase() === canonical.institutionName.toLowerCase(),
+          isActiveBloggerForThisSchool: false,
+          isSuspendedBloggerForThisSchool: false,
+          myApplication: null,
+          homeInstitutionId: req.authUser.institutionId || '',
+          homeInstitutionName: req.authUser.institutionName || '',
+          hasActiveSubscription: false,
+          subscriptionTier: req.authUser.subscriptionTier,
+          subscriptionExpired: req.authUser.subscriptionExpired,
+        },
+        error: req.authUser.subscriptionExpired
+          ? 'Your subscription has expired. Renew Premium or VIP to restore School Blog access.'
+          : 'An active Premium or VIP subscription is required to read School Blogs.',
+      });
+    }
+
+    if (blog.status !== 'active' && !req.authUser.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        code: 'BLOG_SUSPENDED',
+        blogSuspended: true,
+        blog,
+        error: `The ${canonical.institutionName} School Blog is currently suspended by Grobaax Administrators.`,
+      });
+    }
 
     const [{ data: activeAssign }, { data: allArticles }] = await Promise.all([
       supabaseAdmin
@@ -404,58 +480,59 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
     }
 
     // Viewer permissions & application status
-    let viewerStatus: {
+    const viewerStatus: {
       isHomeInstitution: boolean;
       isActiveBloggerForThisSchool: boolean;
       isSuspendedBloggerForThisSchool: boolean;
       myApplication: any | null;
       homeInstitutionId: string;
       homeInstitutionName: string;
+      hasActiveSubscription: boolean;
+      subscriptionTier: string;
+      subscriptionExpired: boolean;
     } = {
-      isHomeInstitution: false,
-      isActiveBloggerForThisSchool: false,
+      isHomeInstitution:
+        req.authUser.institutionId === canonical.institutionId ||
+        req.authUser.institutionName.toLowerCase() === canonical.institutionName.toLowerCase(),
+      isActiveBloggerForThisSchool: Boolean(
+        activeAssign && activeAssign.user_id === req.authUser.id && activeAssign.status === 'active'
+      ),
       isSuspendedBloggerForThisSchool: false,
       myApplication: null,
-      homeInstitutionId: req.authUser?.institutionId || '',
-      homeInstitutionName: req.authUser?.institutionName || '',
+      homeInstitutionId: req.authUser.institutionId || '',
+      homeInstitutionName: req.authUser.institutionName || '',
+      hasActiveSubscription: req.authUser.hasActiveSubscription || req.authUser.isAdmin,
+      subscriptionTier: req.authUser.subscriptionTier,
+      subscriptionExpired: req.authUser.subscriptionExpired,
     };
 
-    if (req.authUser) {
-      viewerStatus.isHomeInstitution =
-        req.authUser.institutionId === canonical.institutionId ||
-        req.authUser.institutionName.toLowerCase() === canonical.institutionName.toLowerCase();
+    if (viewerStatus.isHomeInstitution) {
+      const [{ data: myAssign }, { data: myApp }] = await Promise.all([
+        supabaseAdmin
+          .from('school_blogger_assignments')
+          .select('*')
+          .eq('institution_id', canonical.institutionId)
+          .eq('user_id', req.authUser.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabaseAdmin
+          .from('school_blogger_applications')
+          .select('*')
+          .eq('institution_id', canonical.institutionId)
+          .eq('applicant_user_id', req.authUser.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      viewerStatus.isActiveBloggerForThisSchool = Boolean(
-        activeAssign && activeAssign.user_id === req.authUser.id && activeAssign.status === 'active'
-      );
-
-      if (viewerStatus.isHomeInstitution) {
-        const [{ data: myAssign }, { data: myApp }] = await Promise.all([
-          supabaseAdmin
-            .from('school_blogger_assignments')
-            .select('*')
-            .eq('institution_id', canonical.institutionId)
-            .eq('user_id', req.authUser.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabaseAdmin
-            .from('school_blogger_applications')
-            .select('*')
-            .eq('institution_id', canonical.institutionId)
-            .eq('applicant_user_id', req.authUser.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ]);
-
-        viewerStatus.isSuspendedBloggerForThisSchool = myAssign?.status === 'suspended';
-        viewerStatus.myApplication = myApp ? mapApplicationRow(myApp) : null;
-      }
+      viewerStatus.isSuspendedBloggerForThisSchool = myAssign?.status === 'suspended';
+      viewerStatus.myApplication = myApp ? mapApplicationRow(myApp) : null;
     }
 
     return res.json({
       success: true,
+      requiresSubscription: false,
       blog: {
         ...blog,
         publishedArticlesCount: publishedRows.length,
@@ -506,10 +583,20 @@ schoolBlogRouter.get('/my-blogger-status', requireAuth, async (req: Request, res
   }
 });
 
-// Submit School Blogger Application (strict backend verification: ONLY own verified institution)
+// Submit School Blogger Application (strict backend verification: Premium/VIP + ONLY own verified institution)
 schoolBlogRouter.post('/applications', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
+
+    if (!hasSchoolBlogReadAccess(user)) {
+      return res.status(403).json({
+        success: false,
+        code: 'SUBSCRIPTION_REQUIRED',
+        requiresSubscription: true,
+        error: 'An active Premium or VIP subscription is required to apply as a Campus Blogger.',
+      });
+    }
+
     const { targetInstitutionId, targetInstitutionName, reason, experience } = req.body || {};
 
     if (!user.canonicalInstitution || !user.institutionName) {
@@ -540,7 +627,14 @@ schoolBlogRouter.post('/applications', requireAuth, async (req: Request, res: Re
       });
     }
 
-    await ensureSchoolBlogRecord(user.canonicalInstitution);
+    const blogRow = await ensureSchoolBlogRecord(user.canonicalInstitution);
+    if (blogRow?.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        code: 'BLOG_SUSPENDED',
+        error: `${user.institutionName} School Blog is currently suspended.`,
+      });
+    }
 
     // Check if user is already an active blogger
     const { data: existingAssign } = await supabaseAdmin
@@ -669,9 +763,20 @@ schoolBlogRouter.post('/applications/:applicationId/withdraw', requireAuth, asyn
   }
 });
 
-// Get Full Single Article + reaction breakdown
-schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, res: Response) => {
+// Get Full Single Article + reaction breakdown (Premium/VIP gated)
+schoolBlogRouter.get('/articles/:articleId', requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!hasSchoolBlogReadAccess(req.authUser)) {
+      return res.status(403).json({
+        success: false,
+        code: 'SUBSCRIPTION_REQUIRED',
+        requiresSubscription: true,
+        subscriptionTier: req.authUser?.subscriptionTier || 'free',
+        subscriptionExpired: Boolean(req.authUser?.subscriptionExpired),
+        error: 'An active Premium or VIP subscription is required to read School Blog articles.',
+      });
+    }
+
     const { articleId } = req.params;
     if (!UUID_RE.test(articleId)) {
       return res.status(404).json({ success: false, error: 'Article not found.' });
@@ -708,6 +813,15 @@ schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, 
         .maybeSingle(),
     ]);
 
+    if (blogRow && blogRow.status !== 'active' && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        code: 'BLOG_SUSPENDED',
+        blogSuspended: true,
+        error: 'This School Blog is currently suspended.',
+      });
+    }
+
     const breakdown: Record<SchoolBlogReactionType, number> = {
       like: 0,
       helpful: 0,
@@ -739,14 +853,47 @@ schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, 
 });
 
 // Server-side eligible unique article view tracking + automatic 250-view / 1,000 GP rewards
-schoolBlogRouter.post('/articles/:articleId/view', optionalAuth, async (req: Request, res: Response) => {
+schoolBlogRouter.post('/articles/:articleId/view', requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!hasSchoolBlogReadAccess(req.authUser)) {
+      return res.status(403).json({
+        success: false,
+        code: 'SUBSCRIPTION_REQUIRED',
+        requiresSubscription: true,
+        error: 'An active Premium or VIP subscription is required to view School Blog articles.',
+      });
+    }
+
     const { articleId } = req.params;
     if (!UUID_RE.test(articleId)) {
       return res.status(404).json({ success: false, error: 'Published article not found.' });
     }
 
-    const viewerUserId = req.authUser?.id || null;
+    const { data: artCheck } = await supabaseAdmin
+      .from('school_blog_articles')
+      .select('id, blog_institution_id, status')
+      .eq('id', articleId)
+      .maybeSingle();
+
+    if (!artCheck || artCheck.status !== 'published') {
+      return res.status(404).json({ success: false, error: 'Published article not found.' });
+    }
+
+    const { data: blogCheck } = await supabaseAdmin
+      .from('school_blogs')
+      .select('status')
+      .eq('institution_id', artCheck.blog_institution_id)
+      .maybeSingle();
+
+    if (blogCheck && blogCheck.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        code: 'BLOG_SUSPENDED',
+        error: 'This School Blog is currently suspended.',
+      });
+    }
+
+    const viewerUserId = req.authUser!.id;
 
     const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
       'record_eligible_article_view_and_reward',
@@ -818,10 +965,19 @@ schoolBlogRouter.post('/articles/:articleId/view', optionalAuth, async (req: Req
   }
 });
 
-// React to published article (add, change, or remove reaction; no duplicate reactions)
+// React to published article (add, change, or remove reaction; Premium/VIP gated, no duplicate reactions)
 schoolBlogRouter.post('/articles/:articleId/react', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
+    if (!hasSchoolBlogReadAccess(user)) {
+      return res.status(403).json({
+        success: false,
+        code: 'SUBSCRIPTION_REQUIRED',
+        requiresSubscription: true,
+        error: 'An active Premium or VIP subscription is required to react to School Blog articles.',
+      });
+    }
+
     const { articleId } = req.params;
     const reactionType = String(req.body?.reactionType || 'like') as SchoolBlogReactionType;
 
@@ -831,12 +987,26 @@ schoolBlogRouter.post('/articles/:articleId/react', requireAuth, async (req: Req
 
     const { data: articleRow } = await supabaseAdmin
       .from('school_blog_articles')
-      .select('id, status')
+      .select('id, status, blog_institution_id')
       .eq('id', articleId)
       .maybeSingle();
 
     if (!articleRow || articleRow.status !== 'published') {
       return res.status(404).json({ success: false, error: 'Published article not found.' });
+    }
+
+    const { data: blogCheck } = await supabaseAdmin
+      .from('school_blogs')
+      .select('status')
+      .eq('institution_id', articleRow.blog_institution_id)
+      .maybeSingle();
+
+    if (blogCheck && blogCheck.status !== 'active' && !user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        code: 'BLOG_SUSPENDED',
+        error: 'This School Blog is currently suspended.',
+      });
     }
 
     const { data: existing } = await supabaseAdmin
@@ -907,6 +1077,14 @@ schoolBlogRouter.post('/articles/:articleId/react', requireAuth, async (req: Req
 schoolBlogRouter.post('/articles/:articleId/report', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
+    if (!hasSchoolBlogReadAccess(user)) {
+      return res.status(403).json({
+        success: false,
+        code: 'SUBSCRIPTION_REQUIRED',
+        requiresSubscription: true,
+        error: 'An active Premium or VIP subscription is required.',
+      });
+    }
     const { articleId } = req.params;
     const reason = String(req.body?.reason || '').trim();
     if (reason.length < 5) {
@@ -1266,6 +1444,7 @@ schoolBlogRouter.post('/studio/articles', requireAuth, async (req: Request, res:
     const {
       targetInstitutionId,
       title,
+      excerpt,
       category,
       coverImageUrl,
       contentBlocks,
@@ -1277,6 +1456,20 @@ schoolBlogRouter.post('/studio/articles', requireAuth, async (req: Request, res:
       return res.status(403).json({
         success: false,
         error: `You are only authorized to publish articles for ${activeAssign.institution_name}.`,
+      });
+    }
+
+    const { data: blogCheck } = await supabaseAdmin
+      .from('school_blogs')
+      .select('status')
+      .eq('institution_id', activeAssign.institution_id)
+      .maybeSingle();
+
+    if (blogCheck && blogCheck.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        code: 'BLOG_SUSPENDED',
+        error: `The ${activeAssign.institution_name} School Blog is currently suspended.`,
       });
     }
 
@@ -1292,7 +1485,7 @@ schoolBlogRouter.post('/studio/articles', requireAuth, async (req: Request, res:
       return res.status(400).json({ success: false, error: 'A cover image is required before publishing.' });
     }
 
-    const normalized = normalizeArticleBlocks(contentBlocks, contentText);
+    const normalized = normalizeArticleBlocks(contentBlocks, contentText, excerpt);
     if (nextStatus === 'published' && normalized.plainText.length < 30) {
       return res.status(400).json({
         success: false,
@@ -1352,6 +1545,14 @@ schoolBlogRouter.post('/studio/articles', requireAuth, async (req: Request, res:
       details: { title: cleanTitle, category: articleCategory },
     });
 
+    if (nextStatus === 'published') {
+      await notifyUserOrAdmins({
+        title: 'School Blog Article Published',
+        message: `Your article "${cleanTitle}" is now live on ${activeAssign.institution_name} Blog! Earn 1,000 GP for every 250 eligible unique reader views.`,
+        targetUserId: user.id,
+      });
+    }
+
     return res.json({
       success: true,
       message: nextStatus === 'published' ? 'Article published to School Blog!' : 'Article saved as draft.',
@@ -1400,7 +1601,7 @@ schoolBlogRouter.put('/studio/articles/:articleId', requireAuth, async (req: Req
       });
     }
 
-    const { title, category, coverImageUrl, contentBlocks, contentText, status } = req.body || {};
+    const { title, excerpt, category, coverImageUrl, contentBlocks, contentText, status } = req.body || {};
     const nextTitle = title !== undefined ? String(title).trim() : existing.title;
     const nextCategory =
       category && VALID_CATEGORIES.includes(category) ? category : existing.category;
@@ -1408,8 +1609,12 @@ schoolBlogRouter.put('/studio/articles/:articleId', requireAuth, async (req: Req
       coverImageUrl !== undefined ? String(coverImageUrl).trim() : existing.cover_image_url;
 
     const normalized =
-      contentBlocks !== undefined || contentText !== undefined
-        ? normalizeArticleBlocks(contentBlocks, contentText)
+      contentBlocks !== undefined || contentText !== undefined || excerpt !== undefined
+        ? normalizeArticleBlocks(
+            contentBlocks !== undefined ? contentBlocks : existing.content_blocks,
+            contentText !== undefined ? contentText : existing.content_text,
+            excerpt !== undefined ? excerpt : undefined
+          )
         : {
             blocks: existing.content_blocks,
             plainText: existing.content_text,
@@ -1422,11 +1627,27 @@ schoolBlogRouter.put('/studio/articles/:articleId', requireAuth, async (req: Req
       nextStatus = status;
     }
 
-    if (nextStatus === 'published' && (!nextCover || (normalized.plainText || '').length < 30)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Published articles require a cover image and at least 30 characters of content.',
-      });
+    if (nextStatus === 'published') {
+      const { data: blogCheck } = await supabaseAdmin
+        .from('school_blogs')
+        .select('status')
+        .eq('institution_id', activeAssign.institution_id)
+        .maybeSingle();
+
+      if (blogCheck && blogCheck.status !== 'active') {
+        return res.status(403).json({
+          success: false,
+          code: 'BLOG_SUSPENDED',
+          error: `The ${activeAssign.institution_name} School Blog is currently suspended.`,
+        });
+      }
+
+      if (!nextCover || (normalized.plainText || '').length < 30) {
+        return res.status(400).json({
+          success: false,
+          error: 'Published articles require a cover image and at least 30 characters of content.',
+        });
+      }
     }
 
     const nowIso = new Date().toISOString();
@@ -1483,6 +1704,14 @@ schoolBlogRouter.put('/studio/articles/:articleId', requireAuth, async (req: Req
       details: { title: nextTitle, previousStatus: existing.status, nextStatus },
     });
 
+    if (nextStatus === 'published' && existing.status !== 'published') {
+      await notifyUserOrAdmins({
+        title: 'School Blog Article Published',
+        message: `Your article "${nextTitle}" is now live on ${activeAssign.institution_name} Blog!`,
+        targetUserId: user.id,
+      });
+    }
+
     return res.json({
       success: true,
       message: 'Article updated successfully.',
@@ -1497,7 +1726,7 @@ schoolBlogRouter.put('/studio/articles/:articleId', requireAuth, async (req: Req
 // 3. GROBAAX ADMIN SCHOOL BLOG GOVERNANCE ROUTES
 // ----------------------------------------------------------------------------
 
-// Admin Overview & Institution Blog Metrics
+// Admin Overview & Institution Blog Metrics + GP Reward Monitoring
 schoolBlogRouter.get('/admin/overview', requireAdmin, async (_req: Request, res: Response) => {
   try {
     const [
@@ -1507,18 +1736,33 @@ schoolBlogRouter.get('/admin/overview', requireAdmin, async (_req: Request, res:
       { data: articles },
       { data: reports },
       { data: logs },
+      { data: milestones },
+      { data: rewardTxRows },
+      { data: recentViews },
     ] = await Promise.all([
       supabaseAdmin.from('school_blogs').select('*').order('institution_name', { ascending: true }),
       supabaseAdmin.from('school_blogger_applications').select('*').order('created_at', { ascending: false }).limit(200),
       supabaseAdmin.from('school_blogger_assignments').select('*').order('created_at', { ascending: false }).limit(200),
       supabaseAdmin.from('school_blog_articles').select('*').order('created_at', { ascending: false }).limit(300),
       supabaseAdmin.from('school_blog_reports').select('*').order('created_at', { ascending: false }).limit(100),
-      supabaseAdmin.from('school_blog_audit_logs').select('*').order('created_at', { ascending: false }).limit(150),
+      supabaseAdmin.from('school_blog_audit_logs').select('*').order('created_at', { ascending: false }).limit(200),
+      supabaseAdmin.from('school_blog_reward_milestones').select('*').order('created_at', { ascending: false }).limit(200),
+      supabaseAdmin
+        .from('walletTransactions')
+        .select('id, data, created_at')
+        .eq('data->>type', 'blogger_reward')
+        .order('created_at', { ascending: false })
+        .limit(150),
+      supabaseAdmin
+        .from('school_blog_eligible_article_views')
+        .select('article_id, user_id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500),
     ]);
 
     const blogRows = (blogs || []).map(mapBlogRow);
     const appRows = (apps || []).map(mapApplicationRow);
-    const assignRows = (assignments || []).map(mapAssignmentRow).filter(Boolean);
+    const assignRows = (assignments || []).map(mapAssignmentRow).filter(Boolean) as any[];
     const articleRows = (articles || []).map(mapArticleRow);
 
     const articleTitleMap = new Map(articleRows.map((a) => [a.id, a]));
@@ -1551,6 +1795,163 @@ schoolBlogRouter.get('/admin/overview', requireAdmin, async (_req: Request, res:
       createdAt: l.created_at,
     }));
 
+    // Reward Milestones & Transactions
+    const bloggerNameById = new Map<string, { name: string; institutionName: string }>();
+    for (const as of assignRows) {
+      if (!bloggerNameById.has(as.userId)) {
+        bloggerNameById.set(as.userId, { name: as.userName, institutionName: as.institutionName });
+      }
+    }
+
+    const rewardMilestoneRows = (milestones || []).map((m: any) => {
+      const art = articleTitleMap.get(m.article_id);
+      const bloggerMeta = bloggerNameById.get(m.blogger_user_id);
+      return {
+        id: m.id,
+        articleId: m.article_id,
+        articleTitle: art?.title || 'School Blog Article',
+        bloggerUserId: m.blogger_user_id,
+        bloggerName: art?.authorName || bloggerMeta?.name || 'Approved Blogger',
+        institutionId: m.institution_id,
+        institutionName: art?.institutionName || bloggerMeta?.institutionName || m.institution_id,
+        milestoneNumber: Number(m.milestone_number || 1),
+        eligibleViewThreshold: Number(m.eligible_view_threshold || 250),
+        gpAmount: Number(m.gp_amount || 1000),
+        transactionReference: m.transaction_reference,
+        createdAt: m.created_at,
+      };
+    });
+
+    const rewardTransactionRows = (rewardTxRows || []).map((row: any) => {
+      const d = row.data || {};
+      return {
+        id: row.id,
+        userId: d.userId || '',
+        userName: d.userName || 'Approved Blogger',
+        institutionName: d.institutionName || '',
+        amount: Number(d.amount || 0),
+        articleId: d.articleId || '',
+        articleTitle: d.articleTitle || '',
+        eligibleViewThreshold: Number(d.eligibleViewThreshold || 0),
+        description: d.description || d.title || 'Campus Blogger View Reward',
+        createdAt: d.createdAt || row.created_at,
+      };
+    });
+
+    // Aggregate per-blogger rewards summary
+    const bloggerAggMap = new Map<
+      string,
+      {
+        userId: string;
+        userName: string;
+        institutionId: string;
+        institutionName: string;
+        status: string;
+        publishedArticlesCount: number;
+        eligibleViews: number;
+        milestonesAchieved: number;
+        totalGpEarned: number;
+      }
+    >();
+
+    for (const as of assignRows) {
+      const existing = bloggerAggMap.get(as.userId);
+      if (!existing || as.status === 'active') {
+        bloggerAggMap.set(as.userId, {
+          userId: as.userId,
+          userName: as.userName,
+          institutionId: as.institutionId,
+          institutionName: as.institutionName,
+          status: as.status,
+          publishedArticlesCount: existing?.publishedArticlesCount || 0,
+          eligibleViews: existing?.eligibleViews || 0,
+          milestonesAchieved: existing?.milestonesAchieved || 0,
+          totalGpEarned: existing?.totalGpEarned || 0,
+        });
+      }
+    }
+
+    for (const art of articleRows) {
+      const entry = bloggerAggMap.get(art.authorUserId) || {
+        userId: art.authorUserId,
+        userName: art.authorName,
+        institutionId: art.blogInstitutionId,
+        institutionName: art.institutionName,
+        status: 'unknown',
+        publishedArticlesCount: 0,
+        eligibleViews: 0,
+        milestonesAchieved: 0,
+        totalGpEarned: 0,
+      };
+      if (art.status === 'published') entry.publishedArticlesCount += 1;
+      entry.eligibleViews += Number(art.viewsCount || 0);
+      bloggerAggMap.set(art.authorUserId, entry);
+    }
+
+    for (const m of rewardMilestoneRows) {
+      const entry = bloggerAggMap.get(m.bloggerUserId);
+      if (entry) {
+        entry.milestonesAchieved += 1;
+        entry.totalGpEarned += Number(m.gpAmount || 0);
+      }
+    }
+
+    const bloggerRewards = Array.from(bloggerAggMap.values()).sort(
+      (a, b) => b.totalGpEarned - a.totalGpEarned || b.eligibleViews - a.eligibleViews
+    );
+
+    // Automated View Integrity / Suspicious Activity Diagnostics
+    const viewsByArticleTenMin = new Map<string, number>();
+    const tenMinCutoff = Date.now() - 10 * 60 * 1000;
+    for (const v of recentViews || []) {
+      const ts = new Date(v.created_at).getTime();
+      if (ts >= tenMinCutoff) {
+        viewsByArticleTenMin.set(v.article_id, (viewsByArticleTenMin.get(v.article_id) || 0) + 1);
+      }
+    }
+
+    const suspiciousActivity: Array<{
+      id: string;
+      severity: 'info' | 'warning';
+      type: string;
+      title: string;
+      details: string;
+      timestamp: string;
+    }> = [];
+
+    for (const [artId, count] of viewsByArticleTenMin.entries()) {
+      if (count >= 40) {
+        const art = articleTitleMap.get(artId);
+        suspiciousActivity.push({
+          id: `spike_${artId}`,
+          severity: 'warning',
+          type: 'HIGH_VIEW_VELOCITY',
+          title: `High view spike detected on "${art?.title || artId}"`,
+          details: `${count} unique eligible reader views recorded within 10 minutes (${art?.institutionName || ''}).`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    for (const as of assignRows) {
+      if (as.status === 'suspended' || as.status === 'removed') {
+        const entry = bloggerAggMap.get(as.userId);
+        if (entry && entry.totalGpEarned > 0) {
+          suspiciousActivity.push({
+            id: `revoked_payout_${as.id}`,
+            severity: 'info',
+            type: 'REVOKED_BLOGGER_HISTORY',
+            title: `${as.userName} (${as.status}) holds prior reward payouts`,
+            details: `${entry.totalGpEarned.toLocaleString()} GP earned before privileges became ${as.status}. New milestone payouts remain paused while ${as.status}.`,
+            timestamp: as.endedAt || as.appointedAt,
+          });
+        }
+      }
+    }
+
+    const totalEligibleViews = articleRows.reduce((s, a) => s + Number(a.viewsCount || 0), 0);
+    const totalGpCredited = rewardMilestoneRows.reduce((s, m) => s + Number(m.gpAmount || 0), 0);
+
     // Enrich institution blogs with counts + active blogger
     const enrichedBlogs = blogRows.map((b) => {
       const bArticles = articleRows.filter((a) => a.blogInstitutionId === b.institutionId);
@@ -1572,11 +1973,19 @@ schoolBlogRouter.get('/admin/overview', requireAdmin, async (_req: Request, res:
       success: true,
       summary: {
         totalInstitutionsWithBlogs: enrichedBlogs.length,
+        activeInstitutionsCount: enrichedBlogs.filter((b) => b.status === 'active').length,
         pendingApplicationsCount: appRows.filter((a) => a.status === 'Pending').length,
         activeBloggersCount: assignRows.filter((a: any) => a.status === 'active').length,
         publishedArticlesCount: articleRows.filter((a) => a.status === 'published').length,
         totalArticlesCount: articleRows.length,
         openReportsCount: reportRows.filter((r) => r.status === 'open').length,
+      },
+      rewardSummary: {
+        totalGpCredited,
+        totalMilestonesPaid: rewardMilestoneRows.length,
+        totalEligibleViews,
+        rewardedBloggersCount: bloggerRewards.filter((b) => b.totalGpEarned > 0).length,
+        flaggedAnomaliesCount: suspiciousActivity.filter((s) => s.severity === 'warning').length,
       },
       blogs: enrichedBlogs,
       applications: appRows,
@@ -1584,9 +1993,76 @@ schoolBlogRouter.get('/admin/overview', requireAdmin, async (_req: Request, res:
       articles: articleRows,
       reports: reportRows,
       auditLogs: auditRows,
+      bloggerRewards,
+      rewardMilestones: rewardMilestoneRows,
+      rewardTransactions: rewardTransactionRows,
+      suspiciousActivity,
     });
   } catch (err: any) {
     console.error('Error in GET /api/school-blogs/admin/overview:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Admin: Activate or Suspend Institution School Blog (+ optional description update)
+schoolBlogRouter.post('/admin/blogs/:institutionId/status', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const admin = req.authUser!;
+    const institutionId = decodeURIComponent(req.params.institutionId || '').trim();
+    const { status, description, reason } = req.body || {};
+
+    if (!['active', 'suspended'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'Blog status must be active or suspended.' });
+    }
+
+    const { data: blogRow } = await supabaseAdmin
+      .from('school_blogs')
+      .select('*')
+      .eq('institution_id', institutionId)
+      .maybeSingle();
+
+    if (!blogRow) {
+      return res.status(404).json({ success: false, error: 'Institution School Blog record not found.' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const updates: Record<string, any> = {
+      status,
+      updated_at: nowIso,
+    };
+    if (typeof description === 'string' && description.trim().length >= 10) {
+      updates.description = description.trim();
+    }
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('school_blogs')
+      .update(updates)
+      .eq('institution_id', institutionId)
+      .select('*')
+      .single();
+
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    await writeAuditLog({
+      actorUserId: admin.id,
+      actorName: admin.name,
+      actorRole: admin.managerRole || 'ADMIN',
+      action: `SCHOOL_BLOG_${String(status).toUpperCase()}`,
+      institutionId: blogRow.institution_id,
+      institutionName: blogRow.institution_name,
+      targetType: 'school_blog',
+      targetId: blogRow.institution_id,
+      details: { previousStatus: blogRow.status, nextStatus: status, reason: reason || '' },
+    });
+
+    return res.json({
+      success: true,
+      message: `${blogRow.institution_name} School Blog is now ${status}.`,
+      blog: mapBlogRow(updated),
+    });
+  } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }
 });

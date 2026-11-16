@@ -17,12 +17,14 @@ import {
   uploadSchoolBlogImage,
 } from '../../../../lib/schoolBlogService';
 import { compressProductImage } from '../../../../utils/imageCompressor';
+import { renderFormattedBlogText } from './blogTextFormatter';
 import {
   AlertCircle,
   ArrowDown,
   ArrowLeft,
   ArrowUp,
   Award,
+  Bold,
   CheckCircle2,
   Coins,
   Edit3,
@@ -31,6 +33,7 @@ import {
   FileText,
   Heading2,
   Image as ImageIcon,
+  Italic,
   Loader2,
   PenTool,
   Plus,
@@ -73,6 +76,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
   const [mode, setMode] = useState<'list' | 'editor'>('list');
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
+  const [excerpt, setExcerpt] = useState('');
   const [category, setCategory] = useState<SchoolBlogCategory>('News');
   const [coverImageUrl, setCoverImageUrl] = useState('');
   const [blocks, setBlocks] = useState<SchoolBlogContentBlock[]>([
@@ -129,6 +133,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
   const resetEditor = () => {
     setEditingArticleId(null);
     setTitle('');
+    setExcerpt('');
     setCategory('News');
     setCoverImageUrl('');
     setBlocks([{ id: `block-${Date.now()}`, type: 'paragraph', text: '' }]);
@@ -144,6 +149,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
   const openEditEditor = (art: SchoolBlogArticle) => {
     setEditingArticleId(art.id);
     setTitle(art.title);
+    setExcerpt(art.excerpt || '');
     setCategory(art.category);
     setCoverImageUrl(art.coverImageUrl || '');
     setBlocks(
@@ -221,6 +227,36 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
     setBlocks((prev) => (prev.length > 1 ? prev.filter((b) => b.id !== blockId) : prev));
   };
 
+  const applyInlineFormatting = (blockId: string, marker: '**' | '*') => {
+    const el = document.getElementById(`blog-block-input-${blockId}`) as
+      | HTMLTextAreaElement
+      | HTMLInputElement
+      | null;
+    setBlocks((prev) =>
+      prev.map((b) => {
+        if (b.id !== blockId) return b;
+        const current = b.text || '';
+        if (el && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number') {
+          const start = el.selectionStart;
+          const end = el.selectionEnd;
+          const selected = current.slice(start, end);
+          const wrapped =
+            selected.length > 0
+              ? `${marker}${selected}${marker}`
+              : `${marker}${marker === '**' ? 'bold text' : 'italic text'}${marker}`;
+          return {
+            ...b,
+            text: current.slice(0, start) + wrapped + current.slice(end),
+          };
+        }
+        return {
+          ...b,
+          text: current + (current ? ' ' : '') + `${marker}${marker === '**' ? 'bold text' : 'italic text'}${marker}`,
+        };
+      })
+    );
+  };
+
   const handleSaveArticle = async (targetStatus: 'draft' | 'published') => {
     setError(null);
     setNotice(null);
@@ -244,6 +280,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
       if (editingArticleId) {
         const res = await updateSchoolBlogArticle(editingArticleId, {
           title: title.trim(),
+          excerpt: excerpt.trim(),
           category,
           coverImageUrl,
           contentBlocks: cleanedBlocks,
@@ -265,6 +302,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
         const res = await createSchoolBlogArticle({
           targetInstitutionId: targetInstId,
           title: title.trim(),
+          excerpt: excerpt.trim(),
           category,
           coverImageUrl,
           contentBlocks: cleanedBlocks,
@@ -861,7 +899,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                   if (b.type === 'heading') {
                     return (
                       <h2 key={b.id} className="text-xl font-black text-slate-900 dark:text-white pt-2">
-                        {b.text}
+                        {renderFormattedBlogText(b.text || '')}
                       </h2>
                     );
                   }
@@ -887,7 +925,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                       key={b.id}
                       className="text-base leading-relaxed text-slate-800 dark:text-slate-200 whitespace-pre-line"
                     >
-                      {b.text}
+                      {renderFormattedBlogText(b.text || '')}
                     </p>
                   );
                 })}
@@ -926,6 +964,26 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Article Summary / Excerpt */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Article Summary (Optional)
+                  </label>
+                  <span className="text-[11px] text-slate-400">
+                    {excerpt.length}/260 · Auto-generated if left blank
+                  </span>
+                </div>
+                <textarea
+                  rows={2}
+                  maxLength={260}
+                  value={excerpt}
+                  onChange={(e) => setExcerpt(e.target.value)}
+                  placeholder="Write a brief 1–2 sentence summary displayed on feed cards..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                />
               </div>
 
               {/* Cover Image Upload */}
@@ -1021,6 +1079,26 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                             : 'Paragraph'}
                         </span>
                         <div className="flex items-center gap-1">
+                          {(block.type === 'paragraph' || block.type === 'heading') && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => applyInlineFormatting(block.id, '**')}
+                                className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
+                                title="Bold (**text**)"
+                              >
+                                <Bold className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => applyInlineFormatting(block.id, '*')}
+                                className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
+                                title="Italic (*text*)"
+                              >
+                                <Italic className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                           <button
                             type="button"
                             onClick={() => moveBlock(idx, -1)}
@@ -1054,6 +1132,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
 
                       {block.type === 'heading' && (
                         <input
+                          id={`blog-block-input-${block.id}`}
                           type="text"
                           value={block.text || ''}
                           onChange={(e) =>
@@ -1069,19 +1148,22 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                       )}
 
                       {block.type === 'paragraph' && (
-                        <textarea
-                          rows={4}
-                          value={block.text || ''}
-                          onChange={(e) =>
-                            setBlocks((prev) =>
-                              prev.map((b) =>
-                                b.id === block.id ? { ...b, text: e.target.value } : b
+                        <div className="space-y-1">
+                          <textarea
+                            id={`blog-block-input-${block.id}`}
+                            rows={4}
+                            value={block.text || ''}
+                            onChange={(e) =>
+                              setBlocks((prev) =>
+                                prev.map((b) =>
+                                  b.id === block.id ? { ...b, text: e.target.value } : b
+                                )
                               )
-                            )
-                          }
-                          placeholder="Write your paragraph here..."
-                          className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-slate-100 leading-relaxed focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                        />
+                            }
+                            placeholder="Write your paragraph here... Use **bold** or *italic* for emphasis."
+                            className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-slate-100 leading-relaxed focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
                       )}
 
                       {block.type === 'image' && (

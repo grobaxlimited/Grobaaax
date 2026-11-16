@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useApp } from '../../../../context/AppContext';
 import {
   SchoolBlogArticle,
   SchoolBlogReactionType,
@@ -10,15 +11,18 @@ import {
   reportSchoolBlogArticle,
   trackSchoolBlogArticleView,
 } from '../../../../lib/schoolBlogService';
+import { renderFormattedBlogText } from './blogTextFormatter';
 import {
   ArrowLeft,
   Award,
   CheckCircle2,
+  Crown,
   Eye,
   Flag,
   Heart,
   Lightbulb,
   Loader2,
+  Lock,
   Newspaper,
   Sparkles,
   ThumbsUp,
@@ -49,8 +53,10 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
   onBack,
   onArticleUpdated,
 }) => {
+  const { setIsWalletModalOpen, setWalletModalTab } = useApp();
   const [article, setArticle] = useState<SchoolBlogArticle>(initialArticle);
   const [isLoadingFull, setIsLoadingFull] = useState(false);
+  const [subscriptionLocked, setSubscriptionLocked] = useState(false);
   const [isReacting, setIsReacting] = useState(false);
 
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -61,13 +67,22 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
   useEffect(() => {
     let mounted = true;
     setArticle(initialArticle);
+    setSubscriptionLocked(false);
 
     async function hydrateAndTrackView() {
       setIsLoadingFull(true);
+      let latestArticle = initialArticle;
       try {
         const res = await fetchSchoolBlogArticle(initialArticle.id);
-        if (mounted && res.success && res.article) {
-          setArticle(res.article);
+        if (mounted) {
+          if (res.requiresSubscription || res.code === 'SUBSCRIPTION_REQUIRED' || res.code === 'AUTH_REQUIRED') {
+            setSubscriptionLocked(true);
+            return;
+          }
+          if (res.success && res.article) {
+            latestArticle = res.article;
+            setArticle(res.article);
+          }
         }
       } catch {}
       finally {
@@ -77,11 +92,9 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
       try {
         const viewRes = await trackSchoolBlogArticleView(initialArticle.id);
         if (mounted && viewRes.success && typeof viewRes.viewsCount === 'number') {
-          setArticle((prev) => {
-            const next = { ...prev, viewsCount: viewRes.viewsCount! };
-            if (onArticleUpdated) onArticleUpdated(next);
-            return next;
-          });
+          const next: SchoolBlogArticle = { ...latestArticle, viewsCount: viewRes.viewsCount };
+          setArticle(next);
+          if (onArticleUpdated) onArticleUpdated(next);
         }
       } catch {}
     }
@@ -98,17 +111,15 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
     try {
       const res = await reactToSchoolBlogArticle(article.id, reactionType);
       if (res.success) {
-        setArticle((prev) => {
-          const next: SchoolBlogArticle = {
-            ...prev,
-            userReaction: res.userReaction ?? null,
-            reactionsCount:
-              typeof res.reactionsCount === 'number' ? res.reactionsCount : prev.reactionsCount,
-            reactionBreakdown: res.reactionBreakdown || prev.reactionBreakdown,
-          };
-          if (onArticleUpdated) onArticleUpdated(next);
-          return next;
-        });
+        const next: SchoolBlogArticle = {
+          ...article,
+          userReaction: res.userReaction ?? null,
+          reactionsCount:
+            typeof res.reactionsCount === 'number' ? res.reactionsCount : article.reactionsCount,
+          reactionBreakdown: res.reactionBreakdown || article.reactionBreakdown,
+        };
+        setArticle(next);
+        if (onArticleUpdated) onArticleUpdated(next);
       }
     } finally {
       setIsReacting(false);
@@ -151,6 +162,44 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
             type: 'paragraph' as const,
             text: p,
           }));
+
+  if (subscriptionLocked) {
+    return (
+      <div className="space-y-5 animate-in fade-in duration-200">
+        <button
+          type="button"
+          onClick={onBack}
+          className="px-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to {article.institutionName} Blog</span>
+        </button>
+
+        <div className="rounded-3xl bg-white dark:bg-slate-900 border-2 border-blue-200 dark:border-blue-800 p-6 sm:p-8 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-blue-600 text-white flex items-center justify-center">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white">
+            SCHOOL BLOG ACCESS REQUIRED
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto">
+            An active Premium or VIP subscription is required to read full articles across Grobaax Campus.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setWalletModalTab('upgrade');
+              setIsWalletModalOpen(true);
+            }}
+            className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-black inline-flex items-center gap-2 cursor-pointer"
+          >
+            <Crown className="w-4 h-4" />
+            <span>Upgrade to Premium / VIP</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -264,7 +313,7 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
                       block.level === 3 ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'
                     }`}
                   >
-                    {block.text}
+                    {renderFormattedBlogText(block.text || '')}
                   </HeadingTag>
                 );
               }
@@ -294,7 +343,7 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
                   key={block.id || index}
                   className="text-base sm:text-[17px] leading-relaxed text-slate-800 dark:text-slate-200 whitespace-pre-line"
                 >
-                  {block.text}
+                  {renderFormattedBlogText(block.text || '')}
                 </p>
               );
             })

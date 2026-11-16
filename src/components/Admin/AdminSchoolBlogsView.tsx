@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  AdminBloggerRewardEntry,
+  AdminRewardTransactionEntry,
+  AdminSuspiciousViewSignal,
   SchoolBlogArticle,
   SchoolBlogAuditLog,
   SchoolBlogRecord,
   SchoolBlogReport,
+  SchoolBlogRewardMilestone,
   SchoolBloggerApplication,
   SchoolBloggerAssignment,
 } from '../../types';
@@ -13,6 +17,7 @@ import {
   adminModerateSchoolBlogArticle,
   adminRejectBloggerApplication,
   adminUpdateBloggerStatus,
+  adminUpdateSchoolBlogStatus,
   fetchAdminSchoolBlogOverview,
 } from '../../lib/schoolBlogService';
 import {
@@ -21,6 +26,7 @@ import {
   Building2,
   CheckCircle2,
   ClipboardList,
+  Coins,
   Eye,
   FileText,
   Flag,
@@ -30,14 +36,20 @@ import {
   RotateCcw,
   Search,
   ShieldAlert,
+  ShieldCheck,
   Trash2,
   UserCheck,
-  Users,
   X,
   XCircle,
 } from 'lucide-react';
 
-type AdminBlogSubTab = 'blogs' | 'applications' | 'bloggers' | 'moderation' | 'audit';
+type AdminBlogSubTab =
+  | 'blogs'
+  | 'applications'
+  | 'bloggers'
+  | 'moderation'
+  | 'rewards'
+  | 'audit';
 
 interface ActionModalState {
   title: string;
@@ -59,11 +71,19 @@ export const AdminSchoolBlogsView: React.FC = () => {
 
   const [summary, setSummary] = useState({
     totalInstitutionsWithBlogs: 0,
+    activeInstitutionsCount: 0,
     pendingApplicationsCount: 0,
     activeBloggersCount: 0,
     publishedArticlesCount: 0,
     totalArticlesCount: 0,
     openReportsCount: 0,
+  });
+  const [rewardSummary, setRewardSummary] = useState({
+    totalGpCredited: 0,
+    totalMilestonesPaid: 0,
+    totalEligibleViews: 0,
+    rewardedBloggersCount: 0,
+    flaggedAnomaliesCount: 0,
   });
   const [blogs, setBlogs] = useState<Array<SchoolBlogRecord & { totalArticlesCount?: number }>>([]);
   const [applications, setApplications] = useState<SchoolBloggerApplication[]>([]);
@@ -71,6 +91,12 @@ export const AdminSchoolBlogsView: React.FC = () => {
   const [articles, setArticles] = useState<SchoolBlogArticle[]>([]);
   const [reports, setReports] = useState<SchoolBlogReport[]>([]);
   const [auditLogs, setAuditLogs] = useState<SchoolBlogAuditLog[]>([]);
+  const [bloggerRewards, setBloggerRewards] = useState<AdminBloggerRewardEntry[]>([]);
+  const [rewardMilestones, setRewardMilestones] = useState<
+    Array<SchoolBlogRewardMilestone & { bloggerName?: string; institutionName?: string }>
+  >([]);
+  const [rewardTransactions, setRewardTransactions] = useState<AdminRewardTransactionEntry[]>([]);
+  const [suspiciousActivity, setSuspiciousActivity] = useState<AdminSuspiciousViewSignal[]>([]);
 
   const [actionModal, setActionModal] = useState<ActionModalState | null>(null);
   const [actionNote, setActionNote] = useState('');
@@ -82,13 +108,23 @@ export const AdminSchoolBlogsView: React.FC = () => {
     try {
       const res = await fetchAdminSchoolBlogOverview();
       if (res.success) {
-        if (res.summary) setSummary(res.summary);
+        if (res.summary) {
+          setSummary({
+            activeInstitutionsCount: res.summary.totalInstitutionsWithBlogs,
+            ...res.summary,
+          });
+        }
+        if (res.rewardSummary) setRewardSummary(res.rewardSummary);
         setBlogs(res.blogs || []);
         setApplications(res.applications || []);
         setBloggers(res.bloggers || []);
         setArticles(res.articles || []);
         setReports(res.reports || []);
         setAuditLogs(res.auditLogs || []);
+        setBloggerRewards(res.bloggerRewards || []);
+        setRewardMilestones(res.rewardMilestones || []);
+        setRewardTransactions(res.rewardTransactions || []);
+        setSuspiciousActivity(res.suspiciousActivity || []);
       } else {
         setError(res.error || 'Failed to load School Blogs governance data.');
       }
@@ -216,12 +252,17 @@ export const AdminSchoolBlogsView: React.FC = () => {
       </div>
 
       {/* Metrics Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         {[
-          { label: 'Active School Blogs', value: summary.totalInstitutionsWithBlogs, icon: Building2 },
-          { label: 'Pending Applications', value: summary.pendingApplicationsCount, icon: ClipboardList },
+          { label: 'School Blogs', value: summary.totalInstitutionsWithBlogs, icon: Building2 },
+          { label: 'Pending Apps', value: summary.pendingApplicationsCount, icon: ClipboardList },
           { label: 'Active Bloggers', value: summary.activeBloggersCount, icon: UserCheck },
-          { label: 'Published Articles', value: summary.publishedArticlesCount, icon: FileText },
+          { label: 'Published Posts', value: summary.publishedArticlesCount, icon: FileText },
+          {
+            label: 'GP Credited',
+            value: `${rewardSummary.totalGpCredited.toLocaleString()}`,
+            icon: Coins,
+          },
           { label: 'Open Reports', value: summary.openReportsCount, icon: Flag },
         ].map((stat) => {
           const Icon = stat.icon;
@@ -270,6 +311,10 @@ export const AdminSchoolBlogsView: React.FC = () => {
               label: `Articles & Reports (${openReports.length})`,
             },
             { id: 'blogs' as AdminBlogSubTab, label: `Institution Blogs (${blogs.length})` },
+            {
+              id: 'rewards' as AdminBlogSubTab,
+              label: `GP Rewards & Monitoring`,
+            },
             { id: 'audit' as AdminBlogSubTab, label: 'Audit Logs' },
           ].map((tab) => (
             <button
@@ -764,15 +809,26 @@ export const AdminSchoolBlogsView: React.FC = () => {
           {filteredBlogs.map((b) => (
             <div
               key={b.institutionId}
-              className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2"
+              className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-2xl shrink-0">{b.logo || '🏛️'}</span>
                   <div className="min-w-0">
-                    <h4 className="font-black text-sm text-slate-900 dark:text-white truncate">
-                      {b.institutionName}
-                    </h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-black text-sm text-slate-900 dark:text-white truncate">
+                        {b.institutionName}
+                      </h4>
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                          b.status === 'active'
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                            : 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
+                        }`}
+                      >
+                        {b.status}
+                      </span>
+                    </div>
                     <div className="text-xs text-slate-500">
                       {b.shortName} · {b.category} · {b.state}
                     </div>
@@ -783,17 +839,262 @@ export const AdminSchoolBlogsView: React.FC = () => {
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between gap-2">
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between gap-2 flex-wrap">
                 <span>
                   Blogger:{' '}
                   <strong>{b.activeBlogger ? b.activeBlogger.userName : 'Unassigned'}</strong>
                 </span>
-                <span className="text-slate-400 tabular-nums">
-                  Total posts: {b.totalArticlesCount || 0}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 tabular-nums">
+                    Total posts: {b.totalArticlesCount || 0}
+                  </span>
+                  {b.status === 'active' ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openModal({
+                          title: `Suspend ${b.institutionName} Blog`,
+                          description:
+                            'Deactivating this School Blog hides articles and pauses publishing until reactivated.',
+                          confirmLabel: 'Suspend Blog',
+                          confirmTone: 'rose',
+                          requireReason: true,
+                          onConfirm: async (note) => {
+                            const res = await adminUpdateSchoolBlogStatus(
+                              b.institutionId,
+                              'suspended',
+                              note
+                            );
+                            if (!res.success) throw new Error(res.error || 'Suspend failed.');
+                            showNotice(`${b.institutionName} School Blog suspended.`);
+                          },
+                        })
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-[11px] font-bold cursor-pointer"
+                    >
+                      Deactivate
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openModal({
+                          title: `Reactivate ${b.institutionName} Blog`,
+                          description: 'Restore public subscriber access and blogger publishing.',
+                          confirmLabel: 'Activate Blog',
+                          confirmTone: 'emerald',
+                          onConfirm: async (note) => {
+                            const res = await adminUpdateSchoolBlogStatus(
+                              b.institutionId,
+                              'active',
+                              note
+                            );
+                            if (!res.success) throw new Error(res.error || 'Activate failed.');
+                            showNotice(`${b.institutionName} School Blog activated.`);
+                          },
+                        })
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold cursor-pointer"
+                    >
+                      Activate
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
+        </div>
+      ) : subTab === 'rewards' ? (
+        /* GP Rewards & View Integrity Monitoring */
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              {
+                label: 'Total GP Credited',
+                value: `${rewardSummary.totalGpCredited.toLocaleString()} GP`,
+              },
+              {
+                label: 'Milestones Paid',
+                value: rewardSummary.totalMilestonesPaid.toLocaleString(),
+              },
+              {
+                label: 'Total Eligible Views',
+                value: rewardSummary.totalEligibleViews.toLocaleString(),
+              },
+              {
+                label: 'Suspicious Signals',
+                value: rewardSummary.flaggedAnomaliesCount.toLocaleString(),
+              },
+            ].map((card) => (
+              <div
+                key={card.label}
+                className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1"
+              >
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  {card.label}
+                </div>
+                <div className="text-xl font-black text-blue-600 dark:text-blue-400 tabular-nums">
+                  {card.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Per-Blogger GP Totals */}
+          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+            <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+              <Coins className="w-4 h-4 text-blue-600" />
+              <span>Blogger Reward Totals ({bloggerRewards.length})</span>
+            </h3>
+            {bloggerRewards.length === 0 ? (
+              <p className="text-xs text-slate-500">No blogger reward records yet.</p>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {bloggerRewards
+                  .filter(
+                    (br) =>
+                      !q ||
+                      br.userName.toLowerCase().includes(q) ||
+                      br.institutionName.toLowerCase().includes(q)
+                  )
+                  .map((br) => (
+                    <div
+                      key={`${br.userId}_${br.institutionId}`}
+                      className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="space-y-0.5">
+                        <div className="font-black text-slate-900 dark:text-white flex items-center gap-2">
+                          <span>{br.userName}</span>
+                          <span
+                            className={`text-[10px] uppercase font-black ${
+                              br.status === 'active'
+                                ? 'text-emerald-600'
+                                : br.status === 'suspended'
+                                ? 'text-amber-600'
+                                : 'text-slate-500'
+                            }`}
+                          >
+                            {br.status}
+                          </span>
+                        </div>
+                        <div className="text-slate-500 dark:text-slate-400">
+                          {br.institutionName} · {br.publishedArticlesCount} published posts
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 tabular-nums">
+                        <div className="text-right">
+                          <div className="text-[10px] text-slate-400 uppercase font-bold">
+                            Eligible Views
+                          </div>
+                          <div className="font-bold text-slate-700 dark:text-slate-200">
+                            {br.eligibleViews.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] text-slate-400 uppercase font-bold">
+                            Milestones
+                          </div>
+                          <div className="font-bold text-slate-700 dark:text-slate-200">
+                            {br.milestonesAchieved}
+                          </div>
+                        </div>
+                        <div className="text-right min-w-[84px]">
+                          <div className="text-[10px] text-slate-400 uppercase font-bold">
+                            Total GP
+                          </div>
+                          <div className="font-black text-blue-600 dark:text-blue-400">
+                            {br.totalGpEarned.toLocaleString()} GP
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Automatic Milestone Credit & Wallet Ledger */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                Reward Milestone Records ({rewardMilestones.length})
+              </h3>
+              {rewardMilestones.length === 0 ? (
+                <p className="text-xs text-slate-500">No 250-view milestones credited yet.</p>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-96 overflow-y-auto">
+                  {rewardMilestones.map((m) => (
+                    <div key={m.id} className="py-2.5 flex items-center justify-between gap-2 text-xs">
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 dark:text-white truncate">
+                          {m.articleTitle || m.articleId}
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate">
+                          {m.bloggerName} · {m.institutionName} · #{m.milestoneNumber} (
+                          {m.eligibleViewThreshold} views)
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 tabular-nums">
+                        <div className="font-black text-blue-600 dark:text-blue-400">
+                          +{m.gpAmount.toLocaleString()} GP
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          {new Date(m.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-blue-600" />
+                <span>View Integrity &amp; Wallet Payouts ({rewardTransactions.length})</span>
+              </h3>
+              {suspiciousActivity.length === 0 ? (
+                <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  No abnormal view velocity spikes or duplicate traffic anomalies detected.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {suspiciousActivity.map((sig) => (
+                    <div
+                      key={sig.id}
+                      className={`p-3 rounded-2xl border text-xs space-y-0.5 ${
+                        sig.severity === 'warning'
+                          ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      <div className="font-black">{sig.title}</div>
+                      <div className="text-[11px] opacity-90">{sig.details}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {rewardTransactions.length > 0 && (
+                <div className="pt-2 divide-y divide-slate-100 dark:divide-slate-800 max-h-72 overflow-y-auto">
+                  {rewardTransactions.map((tx) => (
+                    <div key={tx.id} className="py-2 flex items-center justify-between gap-2 text-xs">
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {tx.userName} · {tx.articleTitle || tx.institutionName}
+                        </div>
+                        <div className="text-[11px] text-slate-400 truncate">{tx.id}</div>
+                      </div>
+                      <div className="font-black text-emerald-600 tabular-nums shrink-0">
+                        +{tx.amount.toLocaleString()} GP
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       ) : (
         /* Audit Logs */

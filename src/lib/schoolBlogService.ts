@@ -1,4 +1,7 @@
 import {
+  AdminBloggerRewardEntry,
+  AdminRewardTransactionEntry,
+  AdminSuspiciousViewSignal,
   ArticleRewardProgress,
   BloggerRewardSummary,
   SchoolBlogRecord,
@@ -21,10 +24,18 @@ export interface SchoolBlogViewerStatus {
   myApplication: SchoolBloggerApplication | null;
   homeInstitutionId: string;
   homeInstitutionName: string;
+  hasActiveSubscription?: boolean;
+  subscriptionTier?: string;
+  subscriptionExpired?: boolean;
 }
 
 export interface SchoolBlogHomepageResponse {
   success: boolean;
+  code?: string;
+  requiresSubscription?: boolean;
+  blogSuspended?: boolean;
+  subscriptionTier?: string;
+  subscriptionExpired?: boolean;
   blog?: SchoolBlogRecord;
   categoryCounts?: Record<string, number>;
   articles?: SchoolBlogArticle[];
@@ -93,6 +104,9 @@ export async function fetchSchoolBlogHomepage(params: {
 export async function fetchSchoolBlogArticle(articleId: string) {
   const res = await apiJson<{
     success: boolean;
+    code?: string;
+    requiresSubscription?: boolean;
+    blogSuspended?: boolean;
     article?: SchoolBlogArticle;
     blog?: SchoolBlogRecord | null;
     error?: string;
@@ -246,6 +260,7 @@ export async function uploadSchoolBlogImage(dataUrl: string, fileName: string) {
 export async function createSchoolBlogArticle(params: {
   targetInstitutionId: string;
   title: string;
+  excerpt?: string;
   category: SchoolBlogCategory;
   coverImageUrl: string;
   contentBlocks: SchoolBlogContentBlock[];
@@ -272,6 +287,7 @@ export async function updateSchoolBlogArticle(
   articleId: string,
   params: {
     title?: string;
+    excerpt?: string;
     category?: SchoolBlogCategory;
     coverImageUrl?: string;
     contentBlocks?: SchoolBlogContentBlock[];
@@ -301,11 +317,19 @@ export interface AdminSchoolBlogOverview {
   success: boolean;
   summary?: {
     totalInstitutionsWithBlogs: number;
+    activeInstitutionsCount?: number;
     pendingApplicationsCount: number;
     activeBloggersCount: number;
     publishedArticlesCount: number;
     totalArticlesCount: number;
     openReportsCount: number;
+  };
+  rewardSummary?: {
+    totalGpCredited: number;
+    totalMilestonesPaid: number;
+    totalEligibleViews: number;
+    rewardedBloggersCount: number;
+    flaggedAnomaliesCount: number;
   };
   blogs?: Array<SchoolBlogRecord & { totalArticlesCount?: number }>;
   applications?: SchoolBloggerApplication[];
@@ -313,6 +337,12 @@ export interface AdminSchoolBlogOverview {
   articles?: SchoolBlogArticle[];
   reports?: SchoolBlogReport[];
   auditLogs?: SchoolBlogAuditLog[];
+  bloggerRewards?: AdminBloggerRewardEntry[];
+  rewardMilestones?: Array<
+    SchoolBlogRewardMilestone & { bloggerName?: string; institutionName?: string }
+  >;
+  rewardTransactions?: AdminRewardTransactionEntry[];
+  suspiciousActivity?: AdminSuspiciousViewSignal[];
   error?: string;
 }
 
@@ -320,6 +350,25 @@ export async function fetchAdminSchoolBlogOverview(): Promise<AdminSchoolBlogOve
   const res = await apiJson<AdminSchoolBlogOverview>(
     '/api/school-blogs/admin/overview',
     { method: 'GET' },
+    true
+  );
+  return res.data;
+}
+
+export async function adminUpdateSchoolBlogStatus(
+  institutionId: string,
+  status: 'active' | 'suspended',
+  reason?: string,
+  description?: string
+) {
+  const res = await apiJson<{
+    success: boolean;
+    message?: string;
+    blog?: SchoolBlogRecord;
+    error?: string;
+  }>(
+    `/api/school-blogs/admin/blogs/${encodeURIComponent(institutionId)}/status`,
+    { method: 'POST', body: JSON.stringify({ status, reason, description }) },
     true
   );
   return res.data;

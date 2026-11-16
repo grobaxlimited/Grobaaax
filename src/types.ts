@@ -3293,3 +3293,37 @@ export interface BloggerRewardSummary {
   };
 }
 
+export interface AdminBloggerRewardEntry {
+  userId: string;
+  userName: string;
+  institutionId: string;
+  institutionName: string;
+  status: string;
+  publishedArticlesCount: number;
+  eligibleViews: number;
+  milestonesAchieved: number;
+  totalGpEarned: number;
+}
+
+export interface AdminRewardTransactionEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  institutionName: string;
+  amount: number;
+  articleId: string;
+  articleTitle: string;
+  eligibleViewThreshold: number;
+  description: string;
+  createdAt: string;
+}
+
+export interface AdminSuspiciousViewSignal {
+  id: string;
+  severity: 'info' | 'warning';
+  type: string;
+  title: string;
+  details: string;
+  timestamp: string;
+}
+
