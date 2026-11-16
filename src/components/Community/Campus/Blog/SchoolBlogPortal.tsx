@@ -20,12 +20,9 @@ import {
   ArrowRight,
   Ban,
   CheckCircle2,
-  Coins,
-  Crown,
   Eye,
   Heart,
   Loader2,
-  Lock,
   Newspaper,
   PenTool,
   Search,
@@ -58,7 +55,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   onBackToCampus,
   onSwitchBlogInstitution,
 }) => {
-  const { currentUser, isUserSubscribed, setIsWalletModalOpen, setWalletModalTab } = useApp();
+  const { currentUser, isUserSubscribed } = useApp();
 
   const [activeSubView, setActiveSubView] = useState<'feed' | 'article' | 'studio'>('feed');
   const [selectedCategory, setSelectedCategory] = useState<'All Posts' | SchoolBlogCategory>(
@@ -78,8 +75,6 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   const [viewerStatus, setViewerStatus] = useState<SchoolBlogViewerStatus | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<SchoolBlogArticle | null>(null);
 
-  const [requiresSubscriptionGate, setRequiresSubscriptionGate] = useState(false);
-  const [isSubscriptionExpiredGate, setIsSubscriptionExpiredGate] = useState(false);
   const [isBlogSuspendedGate, setIsBlogSuspendedGate] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -89,7 +84,9 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   // Modals
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
 
-  const hasClientSubscriptionAccess = useMemo(() => {
+  const isClientSubExpired = useMemo(() => isSubscriptionExpired(currentUser), [currentUser]);
+
+  const hasActiveBloggerSubscription = useMemo(() => {
     if (!currentUser) return false;
     const isStaff =
       currentUser.role === 'admin' ||
@@ -97,15 +94,11 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
       Boolean(currentUser.isSuperAdmin) ||
       Boolean((currentUser as any).isAdmin) ||
       currentUser.role === 'community_manager';
-    if (isStaff) return true;
+    if (isStaff || viewerStatus?.hasActiveSubscription) return true;
+    if (isClientSubExpired) return false;
     const tier = resolveUserSubscriptionTier(currentUser);
     return isUserSubscribed || tier === 'premium' || tier === 'vip';
-  }, [currentUser, isUserSubscribed]);
-
-  const handleOpenUpgradeModal = () => {
-    setWalletModalTab('upgrade');
-    setIsWalletModalOpen(true);
-  };
+  }, [currentUser, isUserSubscribed, isClientSubExpired, viewerStatus?.hasActiveSubscription]);
 
   const loadHomepage = async () => {
     setIsLoading(true);
@@ -126,25 +119,13 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         setViewerStatus(res.viewerStatus);
       }
 
-      if (res.requiresSubscription || res.code === 'SUBSCRIPTION_REQUIRED' || res.code === 'AUTH_REQUIRED') {
-        setRequiresSubscriptionGate(true);
-        setIsSubscriptionExpiredGate(
-          Boolean(res.subscriptionExpired || res.viewerStatus?.subscriptionExpired || isSubscriptionExpired(currentUser))
-        );
-        setArticles([]);
-        return;
-      }
-
       if (res.blogSuspended || res.code === 'BLOG_SUSPENDED') {
-        setRequiresSubscriptionGate(false);
         setIsBlogSuspendedGate(true);
         setArticles([]);
         return;
       }
 
       if (res.success && res.blog) {
-        setRequiresSubscriptionGate(false);
-        setIsSubscriptionExpiredGate(false);
         setCategoryCounts(
           res.categoryCounts || {
             'All Posts': res.articles?.length || 0,
@@ -169,10 +150,10 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
     setActiveSubView('feed');
     setSelectedArticle(null);
     loadHomepage();
-  }, [institutionKey, institutionName, hasClientSubscriptionAccess]);
+  }, [institutionKey, institutionName]);
 
   useEffect(() => {
-    if (activeSubView === 'feed' && hasClientSubscriptionAccess) {
+    if (activeSubView === 'feed') {
       loadHomepage();
     }
   }, [selectedCategory, searchQuery]);
@@ -221,8 +202,6 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
     );
   }
 
-  const showUpgradeGate = !isLoading && (!hasClientSubscriptionAccess || requiresSubscriptionGate);
-
   return (
     <div className="space-y-5 animate-in fade-in duration-200">
       {toastMsg && (
@@ -245,7 +224,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Publishing control strictly visible ONLY to authorized active blogger of this institution */}
-          {!showUpgradeGate && !isBlogSuspendedGate && viewerStatus?.isActiveBloggerForThisSchool && (
+          {!isBlogSuspendedGate && viewerStatus?.isActiveBloggerForThisSchool && (
             <button
               id="school-blog-open-studio-btn"
               type="button"
@@ -317,108 +296,6 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
             Loading {displayInstitutionName} Blog...
           </p>
         </div>
-      ) : showUpgradeGate ? (
-        /* SCHOOL BLOG ACCESS UPGRADE CARD (Free & Expired Users Only — Grobaax Blue & White) */
-        <section
-          id="school-blog-access-upgrade-card"
-          className="rounded-3xl bg-white dark:bg-slate-900 border-2 border-blue-200 dark:border-blue-800/70 shadow-lg overflow-hidden"
-        >
-          <div className="bg-blue-600 px-6 sm:px-8 py-5 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center shrink-0">
-                <Lock className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <div className="text-[11px] font-black uppercase tracking-widest text-blue-100 flex items-center gap-1.5">
-                  <Crown className="w-3.5 h-3.5" />
-                  <span>Premium &amp; VIP Member Privilege</span>
-                </div>
-                <h2 className="text-lg sm:text-xl font-black tracking-tight text-white">
-                  SCHOOL BLOG ACCESS
-                </h2>
-              </div>
-            </div>
-
-            <span className="px-3 py-1 rounded-xl bg-white/15 border border-white/25 text-[11px] font-black uppercase tracking-wider text-white self-start sm:self-auto">
-              {isSubscriptionExpiredGate || isSubscriptionExpired(currentUser)
-                ? 'Subscription Expired'
-                : 'Free Account'}
-            </span>
-          </div>
-
-          <div className="p-6 sm:p-8 space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                {isSubscriptionExpiredGate || isSubscriptionExpired(currentUser)
-                  ? `Renew your Premium or VIP subscription to restore ${displayInstitutionName} Blog access`
-                  : `Upgrade to Premium or VIP to unlock two major opportunities across Grobaax Campus`}
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl">
-                Every registered institution on Grobaax publishes campus news, events, and academic
-                dispatches written by verified student journalists.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center">
-                  <Newspaper className="w-4 h-4" />
-                </div>
-                <h4 className="text-sm font-black text-slate-900 dark:text-white">
-                  1. Read Verified Campus Blogs Nationwide
-                </h4>
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  Read verified news, academic updates, events, and campus stories across registered
-                  universities, polytechnics, and colleges on Grobaax.
-                </p>
-              </div>
-
-              <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center">
-                  <Coins className="w-4 h-4" />
-                </div>
-                <h4 className="text-sm font-black text-slate-900 dark:text-white">
-                  2. Apply as Campus Blogger &amp; Earn GP Rewards
-                </h4>
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  Apply to become the approved campus blogger for your institution and earn 1,000 GP
-                  for every 250 eligible unique reader views on your published articles.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              <strong className="text-slate-800 dark:text-slate-100">Disclosure:</strong>{' '}
-              Blogging opportunities require approval. Only approved and active bloggers qualify for
-              GP rewards. Rewards depend on eligible unique article views and Grobaax&apos;s blogger
-              reward rules.
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-              <button
-                id="school-blog-upgrade-cta-btn"
-                type="button"
-                onClick={handleOpenUpgradeModal}
-                className="px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-black shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.99]"
-              >
-                <Crown className="w-4 h-4" />
-                <span>
-                  {isSubscriptionExpiredGate || isSubscriptionExpired(currentUser)
-                    ? 'Renew Premium / VIP Subscription'
-                    : 'Upgrade to Premium or VIP'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onBackToCampus}
-                className="px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
-              >
-                Return to Campus Directory
-              </button>
-            </div>
-          </div>
-        </section>
       ) : isBlogSuspendedGate ? (
         <section className="p-10 text-center rounded-3xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/50 space-y-3">
           <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 flex items-center justify-center">
@@ -657,7 +534,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         )}
       </section>
 
-      {/* Blogger Application Modal (locked strictly to home institution) */}
+      {/* Blogger Application Modal (checks subscription ONLY when clicked to apply) */}
       <BloggerApplicationModal
         isOpen={isApplyModalOpen}
         onClose={() => setIsApplyModalOpen(false)}
@@ -665,6 +542,11 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         homeInstitutionId={viewerStatus?.homeInstitutionId || ''}
         homeInstitutionName={viewerStatus?.homeInstitutionName || homeInstitutionName}
         existingApplication={viewerStatus?.myApplication || null}
+        hasActiveSubscription={hasActiveBloggerSubscription}
+        isSubscriptionExpired={Boolean(viewerStatus?.subscriptionExpired || isClientSubExpired)}
+        onSubscriptionVerified={() => {
+          loadHomepage();
+        }}
         onSuccess={(msg) => {
           showNotice(msg);
           loadHomepage();

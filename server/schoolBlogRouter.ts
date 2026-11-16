@@ -173,7 +173,7 @@ async function notifyUserOrAdmins(params: {
   }
 }
 
-function hasSchoolBlogReadAccess(user: Request['authUser']): boolean {
+function hasActiveBloggerSubscription(user: Request['authUser']): boolean {
   if (!user) return false;
   return Boolean(user.hasActiveSubscription || user.isAdmin);
 }
@@ -259,19 +259,9 @@ function normalizeArticleBlocks(
 // 1. PREMIUM / VIP AUTHENTICATED READ ROUTES
 // ----------------------------------------------------------------------------
 
-// List institutions with School Blogs + aggregate counts (Premium/VIP subscribers only)
-schoolBlogRouter.get('/', requireAuth, async (req: Request, res: Response) => {
+// List institutions with School Blogs + aggregate counts (Free for all students)
+schoolBlogRouter.get('/', optionalAuth, async (req: Request, res: Response) => {
   try {
-    if (!hasSchoolBlogReadAccess(req.authUser)) {
-      return res.status(403).json({
-        success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        subscriptionTier: req.authUser?.subscriptionTier || 'free',
-        subscriptionExpired: Boolean(req.authUser?.subscriptionExpired),
-        error: 'Active Premium or VIP subscription is required to browse School Blogs.',
-      });
-    }
 
     const q = String(req.query.search || '').trim().toLowerCase();
     const category = String(req.query.category || 'All').trim();
@@ -367,7 +357,7 @@ schoolBlogRouter.get('/', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// Get/Auto-provision independent School Blog homepage for a specific institution (Premium/VIP gated)
+// Get/Auto-provision independent School Blog homepage for a specific institution (Free for all students to browse & read)
 schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: Request, res: Response) => {
   try {
     const rawKey = decodeURIComponent(req.params.institutionKey || '').trim();
@@ -388,46 +378,7 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
     const blogRow = await ensureSchoolBlogRecord(canonical);
     const blog = mapBlogRow(blogRow);
 
-    if (!req.authUser) {
-      return res.status(401).json({
-        success: false,
-        code: 'AUTH_REQUIRED',
-        requiresSubscription: true,
-        subscriptionTier: 'free',
-        subscriptionExpired: false,
-        blog,
-        error: 'Please sign in with an active Premium or VIP subscription to access School Blogs.',
-      });
-    }
-
-    if (!hasSchoolBlogReadAccess(req.authUser)) {
-      return res.status(403).json({
-        success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        subscriptionTier: req.authUser.subscriptionTier,
-        subscriptionExpired: req.authUser.subscriptionExpired,
-        blog,
-        viewerStatus: {
-          isHomeInstitution:
-            req.authUser.institutionId === canonical.institutionId ||
-            req.authUser.institutionName.toLowerCase() === canonical.institutionName.toLowerCase(),
-          isActiveBloggerForThisSchool: false,
-          isSuspendedBloggerForThisSchool: false,
-          myApplication: null,
-          homeInstitutionId: req.authUser.institutionId || '',
-          homeInstitutionName: req.authUser.institutionName || '',
-          hasActiveSubscription: false,
-          subscriptionTier: req.authUser.subscriptionTier,
-          subscriptionExpired: req.authUser.subscriptionExpired,
-        },
-        error: req.authUser.subscriptionExpired
-          ? 'Your subscription has expired. Renew Premium or VIP to restore School Blog access.'
-          : 'An active Premium or VIP subscription is required to read School Blogs.',
-      });
-    }
-
-    if (blog.status !== 'active' && !req.authUser.isAdmin) {
+    if (blog.status !== 'active' && !req.authUser?.isAdmin) {
       return res.status(403).json({
         success: false,
         code: 'BLOG_SUSPENDED',
@@ -479,7 +430,7 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       );
     }
 
-    // Viewer permissions & application status
+    // Viewer permissions & application status (works for both free readers and subscribers)
     const viewerStatus: {
       isHomeInstitution: boolean;
       isActiveBloggerForThisSchool: boolean;
@@ -491,22 +442,29 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       subscriptionTier: string;
       subscriptionExpired: boolean;
     } = {
-      isHomeInstitution:
-        req.authUser.institutionId === canonical.institutionId ||
-        req.authUser.institutionName.toLowerCase() === canonical.institutionName.toLowerCase(),
+      isHomeInstitution: Boolean(
+        req.authUser &&
+          (req.authUser.institutionId === canonical.institutionId ||
+            req.authUser.institutionName.toLowerCase() === canonical.institutionName.toLowerCase())
+      ),
       isActiveBloggerForThisSchool: Boolean(
-        activeAssign && activeAssign.user_id === req.authUser.id && activeAssign.status === 'active'
+        req.authUser &&
+          activeAssign &&
+          activeAssign.user_id === req.authUser.id &&
+          activeAssign.status === 'active'
       ),
       isSuspendedBloggerForThisSchool: false,
       myApplication: null,
-      homeInstitutionId: req.authUser.institutionId || '',
-      homeInstitutionName: req.authUser.institutionName || '',
-      hasActiveSubscription: req.authUser.hasActiveSubscription || req.authUser.isAdmin,
-      subscriptionTier: req.authUser.subscriptionTier,
-      subscriptionExpired: req.authUser.subscriptionExpired,
+      homeInstitutionId: req.authUser?.institutionId || '',
+      homeInstitutionName: req.authUser?.institutionName || '',
+      hasActiveSubscription: Boolean(
+        req.authUser && (req.authUser.hasActiveSubscription || req.authUser.isAdmin)
+      ),
+      subscriptionTier: req.authUser?.subscriptionTier || 'free',
+      subscriptionExpired: Boolean(req.authUser?.subscriptionExpired),
     };
 
-    if (viewerStatus.isHomeInstitution) {
+    if (req.authUser && viewerStatus.isHomeInstitution) {
       const [{ data: myAssign }, { data: myApp }] = await Promise.all([
         supabaseAdmin
           .from('school_blogger_assignments')
@@ -588,12 +546,16 @@ schoolBlogRouter.post('/applications', requireAuth, async (req: Request, res: Re
   try {
     const user = req.authUser!;
 
-    if (!hasSchoolBlogReadAccess(user)) {
+    if (!hasActiveBloggerSubscription(user)) {
       return res.status(403).json({
         success: false,
         code: 'SUBSCRIPTION_REQUIRED',
         requiresSubscription: true,
-        error: 'An active Premium or VIP subscription is required to apply as a Campus Blogger.',
+        subscriptionTier: user.subscriptionTier,
+        subscriptionExpired: user.subscriptionExpired,
+        error: user.subscriptionExpired
+          ? 'Your subscription has expired. Subscribe to Premium or VIP to apply as a Campus Blogger.'
+          : 'An active Premium or VIP subscription is required before applying as a Campus Blogger.',
       });
     }
 
@@ -763,19 +725,9 @@ schoolBlogRouter.post('/applications/:applicationId/withdraw', requireAuth, asyn
   }
 });
 
-// Get Full Single Article + reaction breakdown (Premium/VIP gated)
-schoolBlogRouter.get('/articles/:articleId', requireAuth, async (req: Request, res: Response) => {
+// Get Full Single Article + reaction breakdown (Free for all students)
+schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, res: Response) => {
   try {
-    if (!hasSchoolBlogReadAccess(req.authUser)) {
-      return res.status(403).json({
-        success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        subscriptionTier: req.authUser?.subscriptionTier || 'free',
-        subscriptionExpired: Boolean(req.authUser?.subscriptionExpired),
-        error: 'An active Premium or VIP subscription is required to read School Blog articles.',
-      });
-    }
 
     const { articleId } = req.params;
     if (!UUID_RE.test(articleId)) {
@@ -855,14 +807,6 @@ schoolBlogRouter.get('/articles/:articleId', requireAuth, async (req: Request, r
 // Server-side eligible unique article view tracking + automatic 250-view / 1,000 GP rewards
 schoolBlogRouter.post('/articles/:articleId/view', requireAuth, async (req: Request, res: Response) => {
   try {
-    if (!hasSchoolBlogReadAccess(req.authUser)) {
-      return res.status(403).json({
-        success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        error: 'An active Premium or VIP subscription is required to view School Blog articles.',
-      });
-    }
 
     const { articleId } = req.params;
     if (!UUID_RE.test(articleId)) {
@@ -965,18 +909,10 @@ schoolBlogRouter.post('/articles/:articleId/view', requireAuth, async (req: Requ
   }
 });
 
-// React to published article (add, change, or remove reaction; Premium/VIP gated, no duplicate reactions)
+// React to published article (add, change, or remove reaction; authenticated users, no duplicate reactions)
 schoolBlogRouter.post('/articles/:articleId/react', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
-    if (!hasSchoolBlogReadAccess(user)) {
-      return res.status(403).json({
-        success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        error: 'An active Premium or VIP subscription is required to react to School Blog articles.',
-      });
-    }
 
     const { articleId } = req.params;
     const reactionType = String(req.body?.reactionType || 'like') as SchoolBlogReactionType;
@@ -1077,14 +1013,6 @@ schoolBlogRouter.post('/articles/:articleId/react', requireAuth, async (req: Req
 schoolBlogRouter.post('/articles/:articleId/report', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
-    if (!hasSchoolBlogReadAccess(user)) {
-      return res.status(403).json({
-        success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        error: 'An active Premium or VIP subscription is required.',
-      });
-    }
     const { articleId } = req.params;
     const reason = String(req.body?.reason || '').trim();
     if (reason.length < 5) {

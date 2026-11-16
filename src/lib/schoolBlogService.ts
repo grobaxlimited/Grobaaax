@@ -184,6 +184,9 @@ export async function submitBloggerApplication(params: {
 }) {
   const res = await apiJson<{
     success: boolean;
+    code?: string;
+    requiresSubscription?: boolean;
+    subscriptionExpired?: boolean;
     message?: string;
     application?: SchoolBloggerApplication;
     error?: string;
