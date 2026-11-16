@@ -414,11 +414,11 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
         <div className="p-10 text-center rounded-3xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/40 space-y-3">
           <ShieldAlert className="w-10 h-10 text-rose-500 mx-auto" />
           <h3 className="text-base font-black text-slate-900 dark:text-white">
-            Approved School Blogger Access Required
+            Active School Blogger Access Required
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
             {error ||
-              'Only active approved School Bloggers can access Blogger Studio, article publishing, and GP reward tracking.'}
+              'Subscribe to Premium or VIP and activate your School Blogger access to unlock Blogger Dashboard, article publishing, and GP reward tracking.'}
           </p>
         </div>
       ) : mode === 'list' ? (

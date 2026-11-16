@@ -267,22 +267,27 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
             </div>
           </div>
 
-          {/* Approved Blogger Info */}
+          {/* Campus Blogger Status Box */}
           <div className="p-3.5 rounded-2xl bg-white/12 border border-white/20 backdrop-blur-xs shrink-0 min-w-[220px] space-y-1">
             <div className="text-[10px] font-black uppercase tracking-wider text-blue-100 flex items-center gap-1.5">
               <UserCheck className="w-3.5 h-3.5" />
-              <span>Approved School Blogger</span>
+              <span>Campus School Bloggers</span>
             </div>
             {blog?.activeBlogger ? (
               <div>
-                <div className="text-sm font-black text-white">{blog.activeBlogger.userName}</div>
+                <div className="text-sm font-black text-white">
+                  {blog.activeBlogger.userName}
+                  {Number((blog as any).activeBloggersCount || 0) > 1
+                    ? ` + ${Number((blog as any).activeBloggersCount) - 1} more`
+                    : ''}
+                </div>
                 <div className="text-[11px] text-blue-100/80">
                   {blog.activeBlogger.department} · {blog.activeBlogger.level}
                 </div>
               </div>
             ) : (
               <div className="text-xs text-blue-100/85">
-                Position currently open for {displayInstitutionName} students.
+                Open to verified {displayInstitutionName} Premium &amp; VIP students.
               </div>
             )}
           </div>
@@ -465,17 +470,17 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         </div>
       )}
 
-      {/* SECTION D: Blogger Recruitment Section */}
+      {/* SECTION D: Blogger Access Section */}
       <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {viewerStatus?.isHomeInstitution ? (
           viewerStatus.isActiveBloggerForThisSchool ? (
             <>
               <div className="space-y-1">
                 <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
-                  You are the Appointed School Blogger for {displayInstitutionName}
+                  You are an Active School Blogger for {displayInstitutionName}
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Use your Blogger Studio to publish campus news, events, and student stories.
+                  Use your Blogger Dashboard to create drafts, publish campus news, and track GP view rewards.
                 </p>
               </div>
               <button
@@ -483,26 +488,26 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
                 onClick={() => setActiveSubView('studio')}
                 className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shrink-0 cursor-pointer"
               >
-                Open Blogger Studio
+                Open Blogger Dashboard
               </button>
             </>
           ) : viewerStatus.isSuspendedBloggerForThisSchool ? (
             <div className="space-y-1">
               <h4 className="text-sm font-black text-rose-600 dark:text-rose-400">
-                Your School Blogger Publishing Access is Suspended
+                Your School Blogger Access is Suspended or Revoked
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Contact Grobaax administrators if you believe your editorial privileges should be restored.
+                Contact Grobaax administrators if you believe your publishing privileges should be restored.
               </p>
             </div>
           ) : (
             <>
               <div className="space-y-1">
                 <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
-                  Become the Official School Blogger for {displayInstitutionName}
+                  Become a School Blogger for {displayInstitutionName}
                 </h4>
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
-                  Are you a student of {displayInstitutionName} passionate about campus journalism, event coverage, and student updates? Apply to manage this institution&apos;s blog.
+                  Are you a student of {displayInstitutionName} passionate about campus journalism, event coverage, and student updates? Subscribe to Premium or VIP to unlock instant Blogger Dashboard access and earn GP rewards.
                 </p>
               </div>
               <button
@@ -512,11 +517,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
                 className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
               >
                 <PenTool className="w-3.5 h-3.5" />
-                <span>
-                  {viewerStatus.myApplication?.status === 'Pending'
-                    ? 'Application Pending'
-                    : 'Apply as School Blogger'}
-                </span>
+                <span>Apply to Become a Blogger</span>
               </button>
             </>
           )
@@ -527,29 +528,49 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               You can read articles from any registered school on Grobaax. Only verified students of{' '}
-              <strong>{displayInstitutionName}</strong> can apply to become its School Blogger (your home school is{' '}
+              <strong>{displayInstitutionName}</strong> can become School Bloggers for this blog (your home school is{' '}
               <strong>{homeInstitutionName}</strong>).
             </p>
           </div>
         )}
       </section>
 
-      {/* Blogger Application Modal (checks subscription ONLY when clicked to apply) */}
+      {/* Instant Blogger Activation Modal (displays Premium/VIP plans and activates immediately after payment verification) */}
       <BloggerApplicationModal
         isOpen={isApplyModalOpen}
         onClose={() => setIsApplyModalOpen(false)}
         currentUser={currentUser}
         homeInstitutionId={viewerStatus?.homeInstitutionId || ''}
         homeInstitutionName={viewerStatus?.homeInstitutionName || homeInstitutionName}
-        existingApplication={viewerStatus?.myApplication || null}
+        isSuspendedOrRevoked={Boolean(viewerStatus?.isSuspendedBloggerForThisSchool)}
         hasActiveSubscription={hasActiveBloggerSubscription}
         isSubscriptionExpired={Boolean(viewerStatus?.subscriptionExpired || isClientSubExpired)}
         onSubscriptionVerified={() => {
           loadHomepage();
         }}
-        onSuccess={(msg) => {
+        onActivated={async (assignment, msg) => {
+          setIsApplyModalOpen(false);
+          setViewerStatus((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  isActiveBloggerForThisSchool: true,
+                  isSuspendedBloggerForThisSchool: false,
+                  hasActiveSubscription: true,
+                }
+              : {
+                  isHomeInstitution: true,
+                  isActiveBloggerForThisSchool: true,
+                  isSuspendedBloggerForThisSchool: false,
+                  myApplication: null,
+                  homeInstitutionId: assignment?.institutionId || '',
+                  homeInstitutionName: assignment?.institutionName || homeInstitutionName,
+                  hasActiveSubscription: true,
+                }
+          );
+          setActiveSubView('studio');
           showNotice(msg);
-          loadHomepage();
+          await loadHomepage();
         }}
       />
         </>

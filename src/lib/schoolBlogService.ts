@@ -21,6 +21,7 @@ export interface SchoolBlogViewerStatus {
   isHomeInstitution: boolean;
   isActiveBloggerForThisSchool: boolean;
   isSuspendedBloggerForThisSchool: boolean;
+  bloggerRevokedStatus?: 'suspended' | 'removed' | null;
   myApplication: SchoolBloggerApplication | null;
   homeInstitutionId: string;
   homeInstitutionName: string;
@@ -176,6 +177,32 @@ export async function fetchMyBloggerStatus() {
   return res.data;
 }
 
+export async function activateSchoolBlogger(params?: {
+  targetInstitutionId?: string;
+  targetInstitutionName?: string;
+}) {
+  const res = await apiJson<{
+    success: boolean;
+    activated?: boolean;
+    alreadyActive?: boolean;
+    revoked?: boolean;
+    code?: string;
+    requiresSubscription?: boolean;
+    subscriptionExpired?: boolean;
+    message?: string;
+    assignment?: SchoolBloggerAssignment;
+    error?: string;
+  }>(
+    '/api/school-blogs/activate-blogger',
+    {
+      method: 'POST',
+      body: JSON.stringify(params || {}),
+    },
+    true
+  );
+  return res.data;
+}
+
 export async function submitBloggerApplication(params: {
   targetInstitutionId?: string;
   targetInstitutionName?: string;
@@ -184,11 +211,14 @@ export async function submitBloggerApplication(params: {
 }) {
   const res = await apiJson<{
     success: boolean;
+    activated?: boolean;
+    revoked?: boolean;
     code?: string;
     requiresSubscription?: boolean;
     subscriptionExpired?: boolean;
     message?: string;
     application?: SchoolBloggerApplication;
+    assignment?: SchoolBloggerAssignment;
     error?: string;
   }>(
     '/api/school-blogs/applications',

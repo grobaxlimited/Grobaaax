@@ -62,7 +62,7 @@ interface ActionModalState {
 }
 
 export const AdminSchoolBlogsView: React.FC = () => {
-  const [subTab, setSubTab] = useState<AdminBlogSubTab>('applications');
+  const [subTab, setSubTab] = useState<AdminBlogSubTab>('bloggers');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -236,7 +236,7 @@ export const AdminSchoolBlogsView: React.FC = () => {
             Independent School Blogs &amp; Bloggers
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Review institutional blogger applications, appoint one active primary blogger per school, moderate articles, and review reports.
+            Manage subscription-activated Campus Bloggers, suspend or revoke publishing access when necessary, moderate articles, review reports, and monitor GP rewards.
           </p>
         </div>
 
@@ -458,9 +458,9 @@ export const AdminSchoolBlogsView: React.FC = () => {
                         type="button"
                         onClick={() =>
                           openModal({
-                            title: `Appoint Official Blogger for ${app.institutionName}`,
-                            description: `Approving ${app.applicantName} grants School Blogger publishing access for ${app.institutionName}. Any previously active blogger for this school will automatically be replaced while keeping all published articles intact.`,
-                            confirmLabel: 'Approve & Appoint',
+                            title: `Activate School Blogger for ${app.institutionName}`,
+                            description: `Activating ${app.applicantName} grants School Blogger publishing access for ${app.institutionName} while keeping all published articles intact.`,
+                            confirmLabel: 'Approve & Activate',
                             confirmTone: 'emerald',
                             defaultNote: 'Approved to manage official institutional blog.',
                             onConfirm: async (note) => {
@@ -551,9 +551,9 @@ export const AdminSchoolBlogsView: React.FC = () => {
                         type="button"
                         onClick={() =>
                           openModal({
-                            title: 'Remove School Blogger Assignment',
-                            description: `Permanently remove ${b.userName} as active School Blogger for ${b.institutionName}. The blogger slot becomes open for new applications.`,
-                            confirmLabel: 'Remove Blogger',
+                            title: 'Revoke School Blogger Access',
+                            description: `Revoke ${b.userName}'s School Blogger publishing access for ${b.institutionName}. Published articles remain visible unless moderated separately.`,
+                            confirmLabel: 'Revoke Blogger',
                             confirmTone: 'rose',
                             requireReason: true,
                             onConfirm: async (note) => {
