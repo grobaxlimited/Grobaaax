@@ -641,6 +641,7 @@ corporateAdsRouter.post(
 
 corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) => {
   let createdAuthUserId: string | null = null;
+  let wasNewlyCreatedAuthUser = false;
   try {
     const {
       companyName,
@@ -665,7 +666,7 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
       ['Industry / category', industry],
       ['Company description', description],
       ["Contact person's name", contactName],
-      ['Official business email', officialEmail],
+      ['Email address', officialEmail],
       ['Business phone number', phone],
       ['Business address', address],
       ['Country', country],
@@ -684,7 +685,7 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       return res.status(400).json({
         success: false,
-        error: 'Please enter a valid official business email address.',
+        error: 'Please enter a valid email address (personal or business email).',
       });
     }
 
@@ -707,7 +708,7 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
       normalizedWebsite = checked;
     }
 
-    // Prevent mixing student accounts with corporate advertiser accounts
+    // Check if email already has a Corporate Advertiser account
     const { data: existingCorp } = await supabaseAdmin
       .from('corporate_accounts')
       .select('id')
@@ -717,11 +718,12 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
     if (existingCorp) {
       return res.status(409).json({
         success: false,
-        error: 'A Corporate Advertising account already exists for this official email.',
+        error:
+          'A Corporate Advertising account already exists for this email address. Please sign in at Company Login.',
       });
     }
 
-    // Create dedicated corporate identity in Supabase Auth (hashed password handled by GoTrue)
+    // Create dedicated corporate identity in Supabase Auth (personal or business email accepted)
     const { data: createdAuth, error: createAuthErr } =
       await supabaseAdmin.auth.admin.createUser({
         email: cleanEmail,
@@ -736,17 +738,51 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
       });
 
     if (createAuthErr || !createdAuth?.user) {
-      const msg = createAuthErr?.message || 'Unable to register corporate email.';
-      const isExists = msg.toLowerCase().includes('already') || msg.toLowerCase().includes('registered');
-      return res.status(isExists ? 409 : 400).json({
-        success: false,
-        error: isExists
-          ? 'This email address is already registered in Grobaax. Please use a dedicated corporate email address or log in if this is your corporate account.'
-          : msg,
-      });
-    }
+      const msg = createAuthErr?.message || 'Unable to register email address.';
+      const isExists =
+        msg.toLowerCase().includes('already') || msg.toLowerCase().includes('registered');
 
-    createdAuthUserId = createdAuth.user.id;
+      if (!isExists) {
+        return res.status(400).json({ success: false, error: msg });
+      }
+
+      // If this normal email already exists in Supabase Auth (e.g., an existing Grobaax user
+      // who wants to use their normal Gmail to run a corporate advertiser account), allow them
+      // to link a corporate profile securely when their existing password matches.
+      const anonCheckClient = createStatelessSupabaseClient();
+      const { data: existingSignIn } = await anonCheckClient.auth.signInWithPassword({
+        email: cleanEmail,
+        password: String(password),
+      });
+
+      if (!existingSignIn?.user) {
+        return res.status(409).json({
+          success: false,
+          error:
+            'This email address is already registered on Grobaax. Enter that account’s current password to apply with this email, or use a different email address.',
+        });
+      }
+
+      const { data: linkedCorp } = await supabaseAdmin
+        .from('corporate_accounts')
+        .select('id')
+        .eq('auth_user_id', existingSignIn.user.id)
+        .maybeSingle();
+
+      if (linkedCorp) {
+        return res.status(409).json({
+          success: false,
+          error:
+            'A Corporate Advertising account is already linked to this email. Please sign in at Company Login.',
+        });
+      }
+
+      createdAuthUserId = existingSignIn.user.id;
+      wasNewlyCreatedAuthUser = false;
+    } else {
+      createdAuthUserId = createdAuth.user.id;
+      wasNewlyCreatedAuthUser = true;
+    }
 
     let supportingDocPath = '';
     let supportingDocName = '';
@@ -787,8 +823,9 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
       .single();
 
     if (insertErr || !insertedCompany) {
-      // Roll back auth user on failure
-      await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId).catch(() => {});
+      if (wasNewlyCreatedAuthUser && createdAuthUserId) {
+        await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId).catch(() => {});
+      }
       return res.status(500).json({
         success: false,
         error: insertErr?.message || 'Failed to save corporate application.',
@@ -823,7 +860,7 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
       company: mapCompanyRow(insertedCompany),
     });
   } catch (err: any) {
-    if (createdAuthUserId) {
+    if (wasNewlyCreatedAuthUser && createdAuthUserId) {
       await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId).catch(() => {});
     }
     return res.status(500).json({
@@ -840,7 +877,7 @@ corporateAdsRouter.post('/auth/login', async (req: Request, res: Response) => {
     if (!cleanEmail || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Official business email and password are required.',
+        error: 'Email address and password are required.',
       });
     }
 
@@ -853,7 +890,8 @@ corporateAdsRouter.post('/auth/login', async (req: Request, res: Response) => {
     if (authErr || !authData?.user || !authData?.session) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid corporate email or password.',
+        error:
+          'Invalid email address or password. Check your spelling or use Forgot Password to reset it.',
       });
     }
 
@@ -868,7 +906,7 @@ corporateAdsRouter.post('/auth/login', async (req: Request, res: Response) => {
         success: false,
         code: 'NOT_CORPORATE_ACCOUNT',
         error:
-          'This email belongs to a student account, not a Corporate Advertiser account. Please register a corporate application at /apply.',
+          'This email belongs to a student account and does not have a Corporate Advertiser profile yet. Please complete an application at Apply to Advertise.',
       });
     }
 
@@ -881,7 +919,129 @@ corporateAdsRouter.post('/auth/login', async (req: Request, res: Response) => {
   } catch (err: any) {
     return res.status(500).json({
       success: false,
-      error: err?.message || 'Corporate login failed.',
+      error: err?.message || 'Company login failed.',
+    });
+  }
+});
+
+corporateAdsRouter.post('/auth/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body || {};
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter a valid email address.',
+      });
+    }
+
+    const { data: company } = await supabaseAdmin
+      .from('corporate_accounts')
+      .select('id, official_email')
+      .ilike('official_email', cleanEmail)
+      .maybeSingle();
+
+    if (company) {
+      const reqHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').toLowerCase();
+      const proto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim() || 'https';
+      const redirectTo = reqHost.includes('advertise.grobaax.com')
+        ? `${proto}://${reqHost}/login?reset=1`
+        : 'https://advertise.grobaax.com/login?reset=1';
+
+      const anonClient = createStatelessSupabaseClient();
+      const { error: resetErr } = await anonClient.auth.resetPasswordForEmail(
+        company.official_email || cleanEmail,
+        { redirectTo }
+      );
+      if (resetErr) {
+        return res.status(400).json({
+          success: false,
+          error:
+            resetErr.message ||
+            'Unable to send password reset email right now. Please try again in a moment.',
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message:
+        'If an advertiser account is registered with that email address, password reset instructions have been sent to your inbox.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Unable to process password reset request.',
+    });
+  }
+});
+
+corporateAdsRouter.post('/auth/reset-password', async (req: Request, res: Response) => {
+  try {
+    const token = extractBearerToken(req);
+    const { newPassword } = req.body || {};
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Password reset link is missing or expired. Please request a new reset email.',
+      });
+    }
+    if (!newPassword || String(newPassword).length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: 'New password must be at least 8 characters long.',
+      });
+    }
+
+    const { data: authData, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !authData?.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Reset session has expired. Please request a fresh password reset email.',
+      });
+    }
+
+    const { data: company } = await supabaseAdmin
+      .from('corporate_accounts')
+      .select('*')
+      .eq('auth_user_id', authData.user.id)
+      .maybeSingle();
+
+    if (!company) {
+      return res.status(403).json({
+        success: false,
+        error: 'No Corporate Advertiser account found for this reset link.',
+      });
+    }
+
+    const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(authData.user.id, {
+      password: String(newPassword),
+    });
+
+    if (updateErr) {
+      return res.status(400).json({
+        success: false,
+        error: updateErr.message || 'Could not update password.',
+      });
+    }
+
+    const anonClient = createStatelessSupabaseClient();
+    const { data: signInData } = await anonClient.auth.signInWithPassword({
+      email: company.official_email,
+      password: String(newPassword),
+    });
+
+    return res.json({
+      success: true,
+      accessToken: signInData?.session?.access_token || '',
+      refreshToken: signInData?.session?.refresh_token || '',
+      company: mapCompanyRow(company),
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Password reset failed.',
     });
   }
 });

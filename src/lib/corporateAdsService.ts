@@ -449,6 +449,46 @@ export function logoutCorporateAccount() {
   clearCorporateSession();
 }
 
+export async function requestCorporatePasswordReset(email: string) {
+  return corporateFetch<{ message?: string }>(
+    '/auth/forgot-password',
+    {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    },
+    'none'
+  );
+}
+
+export async function completeCorporatePasswordReset(
+  recoveryToken: string,
+  newPassword: string
+) {
+  const data = await corporateFetch<{
+    accessToken?: string;
+    refreshToken?: string;
+    company?: CorporateAccount;
+  }>(
+    '/auth/reset-password',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${recoveryToken}`,
+      },
+      body: JSON.stringify({ newPassword }),
+    },
+    'none'
+  );
+  if (data.success && data.accessToken && data.company) {
+    setCorporateSession({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      company: data.company,
+    });
+  }
+  return data;
+}
+
 export async function fetchCorporateMe() {
   const data = await corporateFetch<{
     company?: CorporateAccount;

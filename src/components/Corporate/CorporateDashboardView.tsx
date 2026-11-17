@@ -462,9 +462,16 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
             <a
               href={`${CORPORATE_PORTAL_ORIGIN}/`}
               onClick={(e) => onNavigate(e, 'landing', '/')}
-              className="text-sm sm:text-base font-bold tracking-tight text-slate-900 whitespace-nowrap"
+              className="inline-flex items-center gap-2.5 text-sm sm:text-base font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
             >
-              Grobaax Corporate Advertising
+              <img
+                src="/assets/aistudio/img_1_1794948944738_4ef63eec.jpg"
+                alt="Grobaax Logo"
+                referrerPolicy="no-referrer"
+                className="w-8 h-8 rounded-xl object-cover shrink-0 shadow-xs"
+              />
+              <span className="sm:hidden">Grobaax Ads</span>
+              <span className="hidden sm:inline">Grobaax Corporate Advertising</span>
             </a>
             <span className="hidden md:inline text-slate-300">/</span>
             <span className="hidden md:inline text-xs font-semibold text-slate-600 truncate max-w-[200px]">
@@ -1291,7 +1298,7 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                   </h1>
                   <p className="text-xs sm:text-sm text-slate-500">
                     Registered Company: <strong>{company.companyName}</strong> &middot;{' '}
-                    Official Email: <strong>{company.officialEmail}</strong>
+                    Account Email: <strong>{company.officialEmail}</strong>
                   </p>
                 </div>
 
@@ -1656,8 +1663,13 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-lg rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
             <div className="px-6 py-4 bg-gradient-to-r from-[#1d4ed8] to-[#4f46e5] text-white flex items-center justify-between">
-              <div className="flex items-center gap-2 font-bold text-sm">
-                <Receipt className="w-4 h-4" />
+              <div className="flex items-center gap-2.5 font-bold text-sm">
+                <img
+                  src="/assets/aistudio/img_1_1794948944738_4ef63eec.jpg"
+                  alt="Grobaax Logo"
+                  referrerPolicy="no-referrer"
+                  className="w-6 h-6 rounded-lg object-cover border border-white/25 shrink-0"
+                />
                 <span>Corporate Advertising Receipt</span>
               </div>
               <button

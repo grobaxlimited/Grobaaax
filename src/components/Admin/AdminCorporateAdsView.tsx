@@ -562,7 +562,7 @@ export const AdminCorporateAdsView: React.FC = () => {
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-slate-500">
                       <th className="p-3.5 font-bold">Company / Brand</th>
                       <th className="p-3.5 font-bold">Industry</th>
-                      <th className="p-3.5 font-bold">Official Email</th>
+                      <th className="p-3.5 font-bold">Account Email</th>
                       <th className="p-3.5 font-bold">Location</th>
                       <th className="p-3.5 font-bold">Status</th>
                       <th className="p-3.5 font-bold text-right">Action</th>
@@ -987,7 +987,7 @@ export const AdminCorporateAdsView: React.FC = () => {
                   <strong>{selectedCompany.contactName}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Official Email / Phone</span>
+                  <span className="text-slate-400 block">Account Email / Phone</span>
                   <strong>
                     {selectedCompany.officialEmail} &middot; {selectedCompany.phone}
                   </strong>

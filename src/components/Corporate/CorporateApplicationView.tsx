@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  Building2,
   CheckCircle2,
+  Eye,
+  EyeOff,
   FileUp,
   Loader2,
   Lock,
@@ -62,6 +63,7 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [supportingDoc, setSupportingDoc] = useState<{
     dataUrl: string;
@@ -136,27 +138,34 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
   return (
     <div className="min-h-screen bg-[#f4f7fe] text-slate-900 antialiased flex flex-col">
       <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <a
             href={`${CORPORATE_PORTAL_ORIGIN}/`}
             onClick={(e) => onNavigate(e, 'landing', '/')}
-            className="text-sm sm:text-base font-bold tracking-tight text-slate-900 whitespace-nowrap"
+            className="inline-flex items-center gap-2.5 text-sm sm:text-base font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
           >
-            Grobaax Corporate Advertising
+            <img
+              src="/assets/aistudio/img_1_1794948944738_4ef63eec.jpg"
+              alt="Grobaax Logo"
+              referrerPolicy="no-referrer"
+              className="w-8 h-8 rounded-xl object-cover shrink-0 shadow-xs"
+            />
+            <span className="sm:hidden">Grobaax Ads</span>
+            <span className="hidden sm:inline">Grobaax Corporate Advertising</span>
           </a>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <a
               href={`${CORPORATE_PORTAL_ORIGIN}/`}
               onClick={(e) => onNavigate(e, 'landing', '/')}
-              className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"
+              className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 whitespace-nowrap shrink-0"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Portal Home</span>
+              <span>Home</span>
             </a>
             <a
               href={CORPORATE_LOGIN_URL}
               onClick={(e) => onNavigate(e, 'login', '/login')}
-              className="px-4 py-2 rounded-full border border-blue-200 bg-white hover:bg-blue-50 text-blue-700 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap"
+              className="px-3.5 sm:px-4 py-2 rounded-full border border-blue-200 bg-white hover:bg-blue-50 text-blue-700 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap shrink-0"
             >
               Company Login
             </a>
@@ -166,10 +175,17 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="rounded-3xl bg-white border border-slate-200/80 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-r from-[#1d4ed8] via-[#2563eb] to-[#4f46e5] text-white p-6 sm:p-8 space-y-2">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold text-blue-100">
-              <Building2 className="w-4 h-4" />
-              <span>Corporate Advertiser Application</span>
+          <div className="bg-gradient-to-r from-[#1d4ed8] via-[#2563eb] to-[#4f46e5] text-white p-6 sm:p-8 space-y-3">
+            <div className="flex items-center gap-3">
+              <img
+                src="/assets/aistudio/img_1_1794948944738_4ef63eec.jpg"
+                alt="Grobaax Logo"
+                referrerPolicy="no-referrer"
+                className="w-10 h-10 rounded-xl object-cover border border-white/25 shadow-sm shrink-0"
+              />
+              <span className="text-xs font-semibold text-blue-100">
+                Corporate Advertiser Application
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Apply to Advertise on Grobaax
@@ -289,7 +305,7 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
             {/* Section 2: Primary Contact & Location */}
             <div className="space-y-4">
               <h2 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">
-                2. Official Contact &amp; Address
+                2. Contact &amp; Address Details
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -309,16 +325,23 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Official Business Email *
+                    Email Address (Business or Personal) *
                   </label>
                   <input
                     type="email"
                     required
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={officialEmail}
                     onChange={(e) => setOfficialEmail(e.target.value)}
-                    placeholder="marketing@company.com"
+                    placeholder="you@gmail.com or marketing@company.com"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Normal personal emails (e.g. Gmail, Yahoo) and business emails are both supported for login.
+                  </p>
                 </div>
 
                 <div>
@@ -419,22 +442,32 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Portal Password *
                   </label>
-                  <input
-                    type="password"
-                    required
-                    minLength={8}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Minimum 8 characters"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={8}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Minimum 8 characters"
+                      className="w-full pl-3.5 pr-11 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-700 cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Confirm Password *
                   </label>
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     minLength={8}
                     value={confirmPassword}

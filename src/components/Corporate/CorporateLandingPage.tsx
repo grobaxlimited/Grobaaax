@@ -180,15 +180,21 @@ export const CorporateLandingPage: React.FC<CorporateLandingPageProps> = ({
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f4f7fe] text-[#0f172a] antialiased selection:bg-blue-700 selection:text-white">
-      {/* Compact SaaS Top Navbar — Text-only Branding (No Logo) */}
+      {/* Compact SaaS Top Navbar */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/70">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-6">
           <a
             href={`${CORPORATE_PORTAL_ORIGIN}/`}
             onClick={(e) => onNavigate(e, 'landing', '/')}
-            className="text-sm sm:text-base font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded"
+            className="inline-flex items-center gap-2.5 text-sm sm:text-base font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded"
           >
-            Grobaax Corporate Advertising
+            <img
+              src="/assets/aistudio/img_1_1794948944738_4ef63eec.jpg"
+              alt="Grobaax Logo"
+              referrerPolicy="no-referrer"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-cover shrink-0 shadow-xs"
+            />
+            <span>Grobaax Corporate Advertising</span>
           </a>
 
           <nav
@@ -958,7 +964,15 @@ export const CorporateLandingPage: React.FC<CorporateLandingPageProps> = ({
       {/* Clean Footer */}
       <footer className="bg-white border-t border-slate-200/80 mt-6">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-slate-500">
-          <p>&copy; 2026 Grobaax. All rights reserved.</p>
+          <div className="inline-flex items-center gap-2.5">
+            <img
+              src="/assets/aistudio/img_1_1794948944738_4ef63eec.jpg"
+              alt="Grobaax Logo"
+              referrerPolicy="no-referrer"
+              className="w-6 h-6 rounded-lg object-cover shrink-0"
+            />
+            <p>&copy; 2026 Grobaax. All rights reserved.</p>
+          </div>
           <div className="flex flex-wrap items-center gap-5">
             <button
               type="button"
