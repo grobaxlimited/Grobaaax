@@ -3,9 +3,10 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { registerSW } from 'virtual:pwa-register';
+import { isCorporateAdvertisingDomain } from './utils/domainPortal';
 
-// Register PWA service worker with automatic cache updates
-if (typeof window !== 'undefined') {
+// Register PWA service worker with automatic cache updates (student domains only)
+if (typeof window !== 'undefined' && !isCorporateAdvertisingDomain()) {
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {

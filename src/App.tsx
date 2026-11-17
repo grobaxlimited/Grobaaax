@@ -19,7 +19,9 @@ import { PWAInstallBanner } from './components/PWA/PWAInstallBanner';
 import { OfflineIndicator } from './components/PWA/OfflineIndicator';
 import { MobilePackagingModal } from './components/PWA/MobilePackagingModal';
 import { AuthCallbackReturn } from './components/Auth/AuthCallbackReturn';
+import { CorporateAdvertisingPortal } from './components/Corporate/CorporateAdvertisingPortal';
 import { useDevicePlatform } from './hooks/useDevicePlatform';
+import { isCorporateAdvertisingDomain } from './utils/domainPortal';
 
 function MainLayout() {
   const {
@@ -154,7 +156,7 @@ function MainLayout() {
   );
 }
 
-export default function App() {
+function StudentAppRoot() {
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
 
   React.useEffect(() => {
@@ -175,4 +177,12 @@ export default function App() {
       />
     </AppProvider>
   );
+}
+
+export default function App() {
+  if (typeof window !== 'undefined' && isCorporateAdvertisingDomain()) {
+    return <CorporateAdvertisingPortal />;
+  }
+
+  return <StudentAppRoot />;
 }
