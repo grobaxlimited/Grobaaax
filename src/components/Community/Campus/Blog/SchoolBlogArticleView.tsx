@@ -11,6 +11,7 @@ import {
   trackSchoolBlogArticleView,
 } from '../../../../lib/schoolBlogService';
 import { renderFormattedBlogText } from './blogTextFormatter';
+import { SponsoredBlogAdCard } from './SponsoredBlogAdCard';
 import {
   ArrowLeft,
   Award,
@@ -347,6 +348,12 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
           </div>
         </footer>
       </article>
+
+      {/* Sponsored Corporate Placement — Strictly After Full Article Content */}
+      <SponsoredBlogAdCard
+        articleId={article.id}
+        institutionId={article.blogInstitutionId}
+      />
 
       {/* Report Modal */}
       {isReportOpen && (

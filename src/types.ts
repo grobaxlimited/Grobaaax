@@ -187,6 +187,7 @@ export type AdminTabType =
   | 'library'
   | 'hints'
   | 'school_blogs'
+  | 'corporate_ads'
   | 'settings'
   | 'contact';
 

@@ -27,6 +27,7 @@ import { AdminSchoolDomeView } from './AdminSchoolDomeView';
 import { AdminContactSupportView } from './AdminContactSupportView';
 import { AdminHintsView } from './AdminHintsView';
 import { AdminSchoolBlogsView } from './AdminSchoolBlogsView';
+import { AdminCorporateAdsView } from './AdminCorporateAdsView';
 
 import {
   LayoutDashboard,
@@ -58,6 +59,7 @@ import {
   Headphones,
   Lightbulb,
   Newspaper,
+  Megaphone,
 } from 'lucide-react';
 
 interface AdminPanelLayoutProps {
@@ -152,6 +154,7 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
       title: 'COMMUNITY & MARKETING',
       items: [
         { id: 'school_blogs' as AdminTabType, label: 'School Blogger Management', icon: Newspaper, badge: 'Campus' },
+        { id: 'corporate_ads' as AdminTabType, label: 'Corporate Advertising Portal', icon: Megaphone, badge: 'Ads' },
         { id: 'announcements' as AdminTabType, label: 'Admin Announcements', icon: MessageSquare },
         { id: 'sponsorship' as AdminTabType, label: 'Sponsorship & Ticker', icon: Tag },
       ],
@@ -207,6 +210,8 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
         return <AdminCommunityView />;
       case 'school_blogs':
         return <AdminSchoolBlogsView />;
+      case 'corporate_ads':
+        return <AdminCorporateAdsView />;
       case 'announcements':
         return <AdminAnnouncementsView />;
       case 'sponsorship':

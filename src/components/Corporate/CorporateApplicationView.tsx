@@ -1,0 +1,486 @@
+import React, { useState } from 'react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  CheckCircle2,
+  FileUp,
+  Loader2,
+  Lock,
+  ShieldCheck,
+} from 'lucide-react';
+import {
+  CORPORATE_LOGIN_URL,
+  CORPORATE_PORTAL_ORIGIN,
+  CorporatePortalRoute,
+} from '../../utils/domainPortal';
+import {
+  CorporateAccount,
+  registerCorporateAccount,
+} from '../../lib/corporateAdsService';
+
+interface CorporateApplicationViewProps {
+  onNavigate: (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    targetRoute: CorporatePortalRoute,
+    targetPath: '/' | '/apply' | '/login' | '/dashboard'
+  ) => void;
+  onSuccess: (company: CorporateAccount) => void;
+}
+
+const INDUSTRIES = [
+  'Banking & Financial Services',
+  'Fintech & Payments',
+  'Telecommunications & ISP',
+  'EdTech & Online Learning',
+  'Consumer Goods & FMCG',
+  'E-Commerce & Retail',
+  'Technology & Software',
+  'Healthcare & Wellness',
+  'Media & Entertainment',
+  'Logistics & Mobility',
+  'Other Corporate Sector',
+];
+
+export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> = ({
+  onNavigate,
+  onSuccess,
+}) => {
+  const [companyName, setCompanyName] = useState('');
+  const [brandName, setBrandName] = useState('');
+  const [industry, setIndustry] = useState(INDUSTRIES[0]);
+  const [registrationNumber, setRegistrationNumber] = useState('');
+  const [website, setWebsite] = useState('');
+  const [description, setDescription] = useState('');
+
+  const [contactName, setContactName] = useState('');
+  const [officialEmail, setOfficialEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [country, setCountry] = useState('Nigeria');
+  const [state, setState] = useState('');
+
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [supportingDoc, setSupportingDoc] = useState<{
+    dataUrl: string;
+    fileName: string;
+  } | null>(null);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4.5 * 1024 * 1024) {
+      setError('Verification document must be smaller than 4.5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setSupportingDoc({ dataUrl: reader.result, fileName: file.name });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await registerCorporateAccount({
+        companyName: companyName.trim(),
+        brandName: brandName.trim(),
+        industry: industry.trim(),
+        registrationNumber: registrationNumber.trim(),
+        website: website.trim(),
+        description: description.trim(),
+        contactName: contactName.trim(),
+        officialEmail: officialEmail.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        country: country.trim(),
+        state: state.trim(),
+        password,
+        supportingDocument: supportingDoc,
+      });
+
+      if (!res.success || !res.company) {
+        setError(res.error || 'Could not submit application. Please review your details.');
+        return;
+      }
+
+      onSuccess(res.company);
+    } catch (err: any) {
+      setError(err?.message || 'Network error while submitting application.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f4f7fe] text-slate-900 antialiased flex flex-col">
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <a
+            href={`${CORPORATE_PORTAL_ORIGIN}/`}
+            onClick={(e) => onNavigate(e, 'landing', '/')}
+            className="text-sm sm:text-base font-bold tracking-tight text-slate-900 whitespace-nowrap"
+          >
+            Grobaax Corporate Advertising
+          </a>
+          <div className="flex items-center gap-3">
+            <a
+              href={`${CORPORATE_PORTAL_ORIGIN}/`}
+              onClick={(e) => onNavigate(e, 'landing', '/')}
+              className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Portal Home</span>
+            </a>
+            <a
+              href={CORPORATE_LOGIN_URL}
+              onClick={(e) => onNavigate(e, 'login', '/login')}
+              className="px-4 py-2 rounded-full border border-blue-200 bg-white hover:bg-blue-50 text-blue-700 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap"
+            >
+              Company Login
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <div className="rounded-3xl bg-white border border-slate-200/80 shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-[#1d4ed8] via-[#2563eb] to-[#4f46e5] text-white p-6 sm:p-8 space-y-2">
+            <div className="inline-flex items-center gap-2 text-xs font-semibold text-blue-100">
+              <Building2 className="w-4 h-4" />
+              <span>Corporate Advertiser Application</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              Apply to Advertise on Grobaax
+            </h1>
+            <p className="text-xs sm:text-sm text-blue-100/95 max-w-2xl leading-relaxed">
+              Complete your company profile below. Applications start in{' '}
+              <strong>Pending</strong> status for review by Grobaax Administrators. Once
+              approved, your organization can subscribe to an advertising plan and submit
+              campaigns.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-8">
+            {error && (
+              <div
+                role="alert"
+                className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold"
+              >
+                {error}
+              </div>
+            )}
+
+            {/* Section 1: Company Profile */}
+            <div className="space-y-4">
+              <h2 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">
+                1. Organization &amp; Brand Details
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Registered Company Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="e.g. Zenith Digital Holdings Ltd"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Brand / Business Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={brandName}
+                    onChange={(e) => setBrandName(e.target.value)}
+                    placeholder="Public brand name shown in ads"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Industry / Category *
+                  </label>
+                  <select
+                    value={industry}
+                    onChange={(e) => setIndustry(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {INDUSTRIES.map((ind) => (
+                      <option key={ind} value={ind}>
+                        {ind}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Company Registration Number (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={registrationNumber}
+                    onChange={(e) => setRegistrationNumber(e.target.value)}
+                    placeholder="CAC / RC Number"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Company Website (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://yourcompany.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Short Description of Company / Brand *
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe your company's products or services and what you intend to advertise to campus readers..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Primary Contact & Location */}
+            <div className="space-y-4">
+              <h2 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">
+                2. Official Contact &amp; Address
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Contact Person&apos;s Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Full name of authorized representative"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Official Business Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={officialEmail}
+                    onChange={(e) => setOfficialEmail(e.target.value)}
+                    placeholder="marketing@company.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Business Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+234 800 000 0000"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Country *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    placeholder="Nigeria"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    State / Region *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    placeholder="e.g. Lagos"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Business Address *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Street office address"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Verification Document & Account Credentials */}
+            <div className="space-y-4">
+              <h2 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">
+                3. Verification Document &amp; Portal Account Password
+              </h2>
+
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-[#f8faff] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <FileUp className="w-4 h-4 text-blue-600" />
+                    <span>Supporting Verification Document (Optional)</span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    CAC certificate, business license, or official letterhead (PDF, JPG, PNG,
+                    WEBP up to 4.5 MB). Stored privately for Admin review only.
+                  </p>
+                  {supportingDoc && (
+                    <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1 pt-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Attached: {supportingDoc.fileName}</span>
+                    </p>
+                  )}
+                </div>
+
+                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 bg-white hover:bg-blue-50 text-blue-700 text-xs font-bold cursor-pointer shrink-0">
+                  <span>{supportingDoc ? 'Replace File' : 'Upload Document'}</span>
+                  <input
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Portal Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Minimum 8 characters"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Confirm Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-blue-50/70 border border-blue-100 p-4 text-xs text-slate-600 flex items-start gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <span>
+                This application creates a dedicated Corporate Advertiser account completely
+                separate from student scholar accounts. All company details are verified by
+                Grobaax Administrators before advertising plans or placements are unlocked.
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100">
+              <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span>Encrypted authentication via Supabase Auth</span>
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-600/20 disabled:opacity-60 cursor-pointer transition-colors"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Submitting Application...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Submit Corporate Application</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+  );
+};

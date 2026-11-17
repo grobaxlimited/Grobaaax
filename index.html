@@ -33,6 +33,59 @@
         };
       })();
     </script>
+    <script>
+      (function () {
+        var host = (window.location.hostname || '')
+          .trim()
+          .toLowerCase()
+          .replace(/:\d+$/, '')
+          .replace(/\.$/, '');
+        if (host === 'advertise.grobaax.com') {
+          document.title = 'Grobaax Corporate Advertising';
+          document.addEventListener('DOMContentLoaded', function () {
+            document
+              .querySelectorAll('link[rel="manifest"], link[rel="canonical"]')
+              .forEach(function (el) {
+                if (el.parentNode) el.parentNode.removeChild(el);
+              });
+          });
+          if ('serviceWorker' in navigator) {
+            var hadController = Boolean(navigator.serviceWorker.controller);
+            navigator.serviceWorker
+              .getRegistrations()
+              .then(function (regs) {
+                if (!regs || regs.length === 0) return;
+                return Promise.all(
+                  regs.map(function (r) {
+                    return r.unregister();
+                  })
+                ).then(function () {
+                  var clearCaches =
+                    'caches' in window
+                      ? caches.keys().then(function (keys) {
+                          return Promise.all(
+                            keys.map(function (k) {
+                              return caches.delete(k);
+                            })
+                          );
+                        })
+                      : Promise.resolve();
+                  return clearCaches.finally(function () {
+                    if (
+                      hadController &&
+                      !sessionStorage.getItem('grobaax_corp_sw_reset')
+                    ) {
+                      sessionStorage.setItem('grobaax_corp_sw_reset', '1');
+                      window.location.reload();
+                    }
+                  });
+                });
+              })
+              .catch(function () {});
+          }
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta http-equiv="Permissions-Policy" content="identity-credentials-get=(self)" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover" />

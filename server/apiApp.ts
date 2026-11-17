@@ -12,6 +12,7 @@ import { supabaseRouter } from './supabaseRouter';
 import { spinRouter } from './spinRouter';
 import { systemSettingsRouter } from './systemSettingsRouter';
 import { mobileDownloadRouter } from './mobileDownloadRouter';
+import { corporateAdsRouter } from './corporateAdsRouter';
 import {
   enrichHandoutWithFullChaptersAndImages,
   getAcademicPhotoForChapter,
@@ -850,6 +851,10 @@ apiApp.use('/system-settings', systemSettingsRouter);
 apiApp.use('/api/download', mobileDownloadRouter);
 apiApp.use('/download', mobileDownloadRouter);
 apiApp.use('/downloads', mobileDownloadRouter);
+
+// Corporate Advertising Portal & School Blog Sponsored Ad Engine
+apiApp.use('/api/corporate', corporateAdsRouter);
+apiApp.use('/corporate', corporateAdsRouter);
 
 // AI Academic Library Handout Generation Route
 const libraryGenerateHandler = async (req: Request, res: Response) => {

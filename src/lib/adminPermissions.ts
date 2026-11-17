@@ -88,6 +88,7 @@ export function getTabsForRole(role?: ManagerRole | null, uid?: string | null): 
       'school_dome',
       'community',
       'school_blogs',
+      'corporate_ads',
       'chatroom_live',
       'announcements',
       'sponsorship',
@@ -119,6 +120,7 @@ export function getTabsForRole(role?: ManagerRole | null, uid?: string | null): 
       'school_dome',
       'community',
       'school_blogs',
+      'corporate_ads',
       'chatroom_live',
       'announcements',
       'sponsorship',
@@ -179,6 +181,7 @@ export function getTabsForRole(role?: ManagerRole | null, uid?: string | null): 
       break;
     case 'SPONSORSHIP_AD_MANAGER':
       tabs.add('sponsorship');
+      tabs.add('corporate_ads');
       break;
     case 'LIVE_COMPETITION_MANAGER':
       tabs.add('live_management');
