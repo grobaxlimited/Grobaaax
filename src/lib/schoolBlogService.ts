@@ -176,6 +176,10 @@ export async function fetchMyBloggerStatus() {
     followerCount?: number;
     minFollowersRequired?: number;
     isRewardEligible?: boolean;
+    hasActiveSubscription?: boolean;
+    subscriptionTier?: string;
+    subscriptionExpired?: boolean;
+    requiresSubscription?: boolean;
     activeAssignment?: SchoolBloggerAssignment | null;
     applications?: SchoolBloggerApplication[];
     error?: string;
@@ -196,6 +200,7 @@ export async function submitBloggerApplication(params: {
     success: boolean;
     activated?: boolean;
     revoked?: boolean;
+    requiresSubscription?: boolean;
     code?: string;
     message?: string;
     application?: SchoolBloggerApplication;
@@ -228,6 +233,10 @@ export async function withdrawBloggerApplication(applicationId: string) {
 export async function fetchBloggerStudioArticles() {
   const res = await apiJson<{
     success: boolean;
+    hasActiveSubscription?: boolean;
+    subscriptionTier?: string;
+    subscriptionExpired?: boolean;
+    requiresSubscription?: boolean;
     assignment?: SchoolBloggerAssignment;
     articles?: SchoolBlogArticle[];
     error?: string;
@@ -256,6 +265,8 @@ export async function fetchBloggerRewards(): Promise<BloggerRewardsResponse> {
 export async function uploadSchoolBlogImage(dataUrl: string, fileName: string) {
   const res = await apiJson<{
     success: boolean;
+    code?: string;
+    requiresSubscription?: boolean;
     imageUrl?: string;
     storagePath?: string;
     error?: string;
@@ -282,6 +293,8 @@ export async function createSchoolBlogArticle(params: {
 }) {
   const res = await apiJson<{
     success: boolean;
+    code?: string;
+    requiresSubscription?: boolean;
     message?: string;
     article?: SchoolBlogArticle;
     error?: string;
@@ -310,6 +323,8 @@ export async function updateSchoolBlogArticle(
 ) {
   const res = await apiJson<{
     success: boolean;
+    code?: string;
+    requiresSubscription?: boolean;
     message?: string;
     article?: SchoolBlogArticle;
     error?: string;

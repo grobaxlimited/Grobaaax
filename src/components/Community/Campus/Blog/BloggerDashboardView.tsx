@@ -18,6 +18,8 @@ import {
 } from '../../../../lib/schoolBlogService';
 import { compressProductImage } from '../../../../utils/imageCompressor';
 import { renderFormattedBlogText } from './blogTextFormatter';
+import { BloggerSubscriptionGateModal } from './BloggerSubscriptionGateModal';
+import { isSubscriptionExpired } from '../../../../lib/firebase';
 import {
   AlertCircle,
   ArrowDown,
@@ -35,6 +37,7 @@ import {
   Image as ImageIcon,
   Italic,
   Loader2,
+  Lock,
   PenTool,
   Plus,
   Send,
@@ -61,10 +64,12 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
   onBackToBlog,
   onArticlesChanged,
 }) => {
-  const { setIsWalletModalOpen, setWalletModalTab } = useApp();
+  const { currentUser, setIsWalletModalOpen, setWalletModalTab } = useApp();
 
   const [assignment, setAssignment] = useState<SchoolBloggerAssignment | null>(null);
   const [articles, setArticles] = useState<SchoolBlogArticle[]>([]);
+  const [serverHasSubscription, setServerHasSubscription] = useState<boolean | null>(null);
+  const [isSubGateOpen, setIsSubGateOpen] = useState(false);
   const [rewardSummary, setRewardSummary] = useState<BloggerRewardSummary | null>(null);
   const [articleProgress, setArticleProgress] = useState<ArticleRewardProgress[]>([]);
   const [rewardMilestones, setRewardMilestones] = useState<SchoolBlogRewardMilestone[]>([]);
@@ -88,6 +93,25 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const clientTierStr = String(
+    currentUser.membershipTier || currentUser.subscriptionTier || ''
+  ).toLowerCase();
+  const isExplicitFreeClient =
+    clientTierStr === 'free' ||
+    clientTierStr === 'free scholar' ||
+    clientTierStr.includes('starter');
+  const clientSubActive = Boolean(
+    currentUser.role === 'admin' ||
+      currentUser.role === 'super_admin' ||
+      (!isSubscriptionExpired(currentUser) &&
+        (currentUser.isPremium ||
+          currentUser.isVip ||
+          (currentUser.isSubscribed && !isExplicitFreeClient)))
+  );
+  const hasActiveSubscription = Boolean(
+    serverHasSubscription !== null ? (serverHasSubscription || clientSubActive) : clientSubActive
+  );
+
   const loadStudio = async () => {
     setIsLoading(true);
     setError(null);
@@ -100,6 +124,9 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
       if (articlesRes.success) {
         setAssignment(articlesRes.assignment || null);
         setArticles(articlesRes.articles || []);
+        if (typeof articlesRes.hasActiveSubscription === 'boolean') {
+          setServerHasSubscription(articlesRes.hasActiveSubscription);
+        }
       } else {
         setAssignment(null);
         setArticles([]);
@@ -143,11 +170,19 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
   };
 
   const openCreateEditor = () => {
+    if (!hasActiveSubscription) {
+      setIsSubGateOpen(true);
+      return;
+    }
     resetEditor();
     setMode('editor');
   };
 
   const openEditEditor = (art: SchoolBlogArticle) => {
+    if (!hasActiveSubscription) {
+      setIsSubGateOpen(true);
+      return;
+    }
     setEditingArticleId(art.id);
     setTitle(art.title);
     setExcerpt(art.excerpt || '');
@@ -262,6 +297,11 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
     setError(null);
     setNotice(null);
 
+    if (!hasActiveSubscription) {
+      setIsSubGateOpen(true);
+      return;
+    }
+
     if (title.trim().length < 5) {
       setError('Please enter a descriptive headline (at least 5 characters).');
       return;
@@ -297,6 +337,9 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
           await loadStudio();
           onArticlesChanged();
         } else {
+          if (res.requiresSubscription || res.code === 'SUBSCRIPTION_REQUIRED') {
+            setIsSubGateOpen(true);
+          }
           setError(res.error || 'Failed to update article.');
         }
       } else {
@@ -319,6 +362,9 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
           await loadStudio();
           onArticlesChanged();
         } else {
+          if (res.requiresSubscription || res.code === 'SUBSCRIPTION_REQUIRED') {
+            setIsSubGateOpen(true);
+          }
           setError(res.error || 'Failed to save article.');
         }
       }
@@ -332,12 +378,19 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
   const handleTogglePublish = async (art: SchoolBlogArticle, nextStatus: 'published' | 'unpublished') => {
     setError(null);
     setNotice(null);
+    if (!hasActiveSubscription) {
+      setIsSubGateOpen(true);
+      return;
+    }
     const res = await updateSchoolBlogArticle(art.id, { status: nextStatus });
     if (res.success) {
       setNotice(nextStatus === 'published' ? 'Article published.' : 'Article unpublished.');
       await loadStudio();
       onArticlesChanged();
     } else {
+      if (res.requiresSubscription || res.code === 'SUBSCRIPTION_REQUIRED') {
+        setIsSubGateOpen(true);
+      }
       setError(res.error || 'Failed to update article status.');
     }
   };
@@ -373,7 +426,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                   }`}
                 >
                   {(rewardSummary.followerCount ?? 0).toLocaleString()} /{' '}
-                  {rewardSummary.minFollowersRequired ?? 200} Followers
+                  {rewardSummary.minFollowersRequired ?? 500} Followers
                 </span>
               )}
             </div>
@@ -443,6 +496,26 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
         </div>
       ) : mode === 'list' ? (
         <div className="space-y-4">
+          {!hasActiveSubscription && (
+            <div className="p-4 sm:p-5 rounded-3xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                  <Lock className="w-4 h-4 shrink-0" />
+                  <span>Subscription Required to Post Articles</span>
+                </div>
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                  Your account is currently on the Free tier or expired. Subscribe to Premium or VIP to write, edit, or publish School Blog articles. Reading articles remains visible and free for everyone.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSubGateOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shrink-0 cursor-pointer"
+              >
+                Subscribe Now
+              </button>
+            </div>
+          )}
           {/* Studio Section Tabs + Quick GP Reward Summary Strip */}
           <div className="p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
@@ -501,10 +574,34 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
             )}
           </div>
 
+          {rewardSummary && !rewardSummary.isRewardEligible && studioTab === 'articles' && (
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    GP Reward Eligibility: {(rewardSummary.followerCount ?? 0).toLocaleString()} /{' '}
+                    {rewardSummary.minFollowersRequired ?? 500} Followers
+                  </span>
+                </div>
+                <p className="text-xs text-slate-700 dark:text-slate-300">
+                  Reach {rewardSummary.minFollowersRequired ?? 500} genuine Campus followers to qualify for article-view GP rewards (1,000 GP per 250 qualifying views, up to 8,000 GP per article).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStudioTab('rewards')}
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 text-xs font-bold text-amber-800 dark:text-amber-200 shrink-0 cursor-pointer"
+              >
+                View GP Rewards
+              </button>
+            </div>
+          )}
+
           {studioTab === 'rewards' ? (
             /* MY GP REWARDS SECTION */
             <div id="blogger-gp-rewards-section" className="space-y-5">
-              {/* 200-Follower Reward Eligibility Status Banner */}
+              {/* 500-Follower Reward Eligibility Status Banner */}
               {rewardSummary && (
                 <div
                   id="blogger-follower-eligibility-banner"
@@ -531,7 +628,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                         }`}
                       >
                         {rewardSummary.isRewardEligible
-                          ? 'Qualified for Blogging GP Rewards (200+ Followers)'
+                          ? 'Qualified for Blogging GP Rewards (500+ Followers)'
                           : 'Not Yet Eligible for GP Rewards'}
                       </span>
                     </div>
@@ -548,10 +645,10 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                           You currently have{' '}
                           <strong>
                             {(rewardSummary.followerCount ?? 0).toLocaleString()} /{' '}
-                            {rewardSummary.minFollowersRequired ?? 200}
+                            {rewardSummary.minFollowersRequired ?? 500}
                           </strong>{' '}
-                          genuine Campus followers ({Math.max(0, (rewardSummary.minFollowersRequired ?? 200) - (rewardSummary.followerCount ?? 0))} more needed).{' '}
-                          Note: Views recorded before reaching 200 genuine followers do not count retroactively.
+                          genuine Campus followers ({Math.max(0, (rewardSummary.minFollowersRequired ?? 500) - (rewardSummary.followerCount ?? 0))} more needed to qualify).{' '}
+                          Articles cannot earn GP rewards until you reach {rewardSummary.minFollowersRequired ?? 500} genuine followers, and views recorded before reaching 500 do not count retroactively.
                         </>
                       )}
                     </p>
@@ -561,7 +658,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                     <div className="text-[10px] font-bold uppercase text-slate-500">Followers</div>
                     <div className="text-lg font-black text-slate-900 dark:text-white tabular-nums">
                       {(rewardSummary.followerCount ?? 0).toLocaleString()} /{' '}
-                      {rewardSummary.minFollowersRequired ?? 200}
+                      {rewardSummary.minFollowersRequired ?? 500}
                     </div>
                   </div>
                 </div>
@@ -579,7 +676,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                       Campus Blogger View Earnings
                     </h3>
                     <p className="text-xs sm:text-sm text-blue-100 leading-relaxed">
-                      Earn 1,000 GP for every 250 qualifying unique views once you have 200+ genuine followers.
+                      Earn 1,000 GP for every 250 qualifying unique views once you have 500+ genuine followers.
                       Each article earns up to a maximum cap of 8,000 GP (2,000 qualifying views). Rewards credit automatically to your Grobaax wallet.
                     </p>
                   </div>
@@ -641,7 +738,8 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                       {rewardSummary?.milestonesAchieved ?? 0}
                     </div>
                     <div className="text-[11px] text-blue-100/80 mt-0.5">
-                      {(rewardSummary?.followerCount ?? 0).toLocaleString()} / 200 followers
+                      {(rewardSummary?.followerCount ?? 0).toLocaleString()} /{' '}
+                      {rewardSummary?.minFollowersRequired ?? 500} followers
                     </div>
                   </div>
                 </div>
@@ -695,7 +793,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                       No Published Articles Tracked Yet
                     </h5>
                     <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                      Publish your first article to track reader views and earn up to 8,000 GP per article once you reach 200 genuine followers.
+                      Publish your first article to track reader views and earn up to 8,000 GP per article once you reach 500 genuine followers.
                     </p>
                   </div>
                 ) : (
@@ -753,7 +851,7 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
                             <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-start gap-2">
                               <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                               <span>
-                                Maximum article reward reached. This article will no longer generate additional GP.
+                                Maximum article reward reached (8,000 GP cap). This article will no longer generate additional GP, while genuine reader views keep counting.
                               </span>
                             </div>
                           ) : (
@@ -1338,6 +1436,19 @@ export const BloggerDashboardView: React.FC<BloggerDashboardViewProps> = ({
           )}
         </div>
       )}
+
+      <BloggerSubscriptionGateModal
+        isOpen={isSubGateOpen}
+        onClose={() => setIsSubGateOpen(false)}
+        contextMode="post"
+        institutionName={assignment?.institutionName || institutionName}
+        onSubscribed={async () => {
+          setIsSubGateOpen(false);
+          setServerHasSubscription(true);
+          setNotice('Subscription activated! You can now write and publish School Blog articles.');
+          await loadStudio();
+        }}
+      />
     </div>
   );
 };

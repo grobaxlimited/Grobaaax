@@ -20,11 +20,25 @@ import { resolveCanonicalInstitution } from './utils/institutionResolver';
 
 export const campusRouter = Router();
 
-const SUSPENDED_STATUSES = new Set(['suspended', 'deleted', 'banned', 'disabled']);
+const SUSPENDED_STATUSES = new Set([
+  'suspended',
+  'deleted',
+  'banned',
+  'disabled',
+  'inactive',
+  'flagged',
+  'restricted',
+  'bot',
+]);
 
 function isUserAccountActive(rawUser: any): boolean {
   if (!rawUser || typeof rawUser !== 'object') return false;
   if (rawUser.isDeleted === true) return false;
+  if (rawUser.isSuspicious === true) return false;
+  if (rawUser.isDuplicateAccount === true) return false;
+  if (rawUser.isBot === true) return false;
+  if (rawUser.isArtificial === true) return false;
+  if (rawUser.isFlagged === true) return false;
   const st = String(rawUser.accountStatus || 'active').toLowerCase().trim();
   return !SUSPENDED_STATUSES.has(st);
 }
@@ -58,7 +72,7 @@ async function computeFollowCounts(targetUserId: string, viewerUserId?: string) 
     ])
   ).filter(Boolean);
 
-  const activeUserIds = new Set<string>();
+  const activeUsersById = new Map<string, any>();
   if (candidateIds.length > 0) {
     // Chunk in batches of 150 to safely stay within PostgREST IN limits
     for (let i = 0; i < candidateIds.length; i += 150) {
@@ -69,22 +83,26 @@ async function computeFollowCounts(targetUserId: string, viewerUserId?: string) 
         .in('id', slice);
       for (const u of uRows || []) {
         if (isUserAccountActive(u.data)) {
-          activeUserIds.add(u.id);
+          activeUsersById.set(u.id, u.data);
         }
       }
     }
   }
 
-  const followersCount = new Set(
-    (followersRows || [])
-      .map((r: any) => r.follower_user_id)
-      .filter((id: string) => activeUserIds.has(id))
-  ).size;
+  const uniqueGenuineFollowerKeys = new Set<string>();
+  for (const r of followersRows || []) {
+    const fid = r.follower_user_id;
+    const uData = activeUsersById.get(fid);
+    if (!uData) continue;
+    const normEmail = String(uData.email || '').trim().toLowerCase();
+    uniqueGenuineFollowerKeys.add(normEmail || fid);
+  }
+  const followersCount = uniqueGenuineFollowerKeys.size;
 
   const followingCount = new Set(
     (followingRows || [])
       .map((r: any) => r.following_user_id)
-      .filter((id: string) => activeUserIds.has(id))
+      .filter((id: string) => activeUsersById.has(id))
   ).size;
 
   return {
@@ -1377,13 +1395,18 @@ campusRouter.post('/follow', requireAuth, async (req: Request, res: Response) =>
       return res.status(400).json({ success: false, error: 'You cannot follow yourself.' });
     }
 
-    // Verify target exists and is active
-    const { data: targetUserRow } = await supabaseAdmin
-      .from('users')
-      .select('id, data')
-      .eq('id', targetUserId)
-      .maybeSingle();
+    // Verify actor & target exist and are genuine active accounts
+    const [{ data: actorUserRow }, { data: targetUserRow }] = await Promise.all([
+      supabaseAdmin.from('users').select('id, data').eq('id', viewer.id).maybeSingle(),
+      supabaseAdmin.from('users').select('id, data').eq('id', targetUserId).maybeSingle(),
+    ]);
 
+    if (!actorUserRow || !isUserAccountActive(actorUserRow.data)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account is restricted or ineligible to follow students.',
+      });
+    }
     if (!targetUserRow) {
       return res.status(404).json({ success: false, error: 'Target student account was not found.' });
     }
@@ -1392,6 +1415,37 @@ campusRouter.post('/follow', requireAuth, async (req: Request, res: Response) =>
         success: false,
         error: 'This student account is suspended or unavailable.',
       });
+    }
+
+    // Prevent duplicate-email account inflation against the same target
+    const actorEmail = String(actorUserRow.data?.email || viewer.email || '').trim().toLowerCase();
+    if (actorEmail) {
+      const { data: sameEmailUsers } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .ilike('data->>email', actorEmail)
+        .limit(25);
+      const siblingIds = (sameEmailUsers || [])
+        .map((r: any) => r.id)
+        .filter((id: string) => id && id !== viewer.id);
+      if (siblingIds.length > 0) {
+        const { data: siblingFollow } = await supabaseAdmin
+          .from('campus_follows')
+          .select('id')
+          .in('follower_user_id', siblingIds)
+          .eq('following_user_id', targetUserId)
+          .limit(1)
+          .maybeSingle();
+        if (siblingFollow) {
+          const counts = await computeFollowCounts(targetUserId, viewer.id);
+          return res.status(409).json({
+            success: false,
+            alreadyFollowing: true,
+            error: 'Duplicate account follow detected and blocked.',
+            ...counts,
+          });
+        }
+      }
     }
 
     // Check duplicate before inserting

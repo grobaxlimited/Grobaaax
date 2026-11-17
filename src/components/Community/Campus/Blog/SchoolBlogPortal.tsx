@@ -12,6 +12,8 @@ import {
 import { SchoolBlogArticleView } from './SchoolBlogArticleView';
 import { BloggerApplicationModal } from './BloggerApplicationModal';
 import { BloggerDashboardView } from './BloggerDashboardView';
+import { BloggerSubscriptionGateModal } from './BloggerSubscriptionGateModal';
+import { isSubscriptionExpired } from '../../../../lib/firebase';
 import {
   AlertCircle,
   ArrowLeft,
@@ -81,6 +83,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
 
   // Modals
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [isSubGateOpen, setIsSubGateOpen] = useState(false);
 
   const loadHomepage = async () => {
     setIsLoading(true);
@@ -151,6 +154,37 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   };
 
   const displayInstitutionName = blog?.institutionName || institutionName;
+
+  const clientTierStr = String(
+    currentUser.membershipTier || currentUser.subscriptionTier || ''
+  ).toLowerCase();
+  const isExplicitFreeClient =
+    clientTierStr === 'free' ||
+    clientTierStr === 'free scholar' ||
+    clientTierStr.includes('starter');
+  const clientSubActive = Boolean(
+    currentUser.role === 'admin' ||
+      currentUser.role === 'super_admin' ||
+      (!isSubscriptionExpired(currentUser) &&
+        (currentUser.isPremium ||
+          currentUser.isVip ||
+          (currentUser.isSubscribed && !isExplicitFreeClient)))
+  );
+  const hasActiveBloggerSubscription = Boolean(
+    viewerStatus?.hasActiveSubscription || clientSubActive
+  );
+
+  const handleApplyButtonClick = () => {
+    if (viewerStatus?.myApplication?.status === 'Pending') {
+      setIsApplyModalOpen(true);
+      return;
+    }
+    if (!hasActiveBloggerSubscription) {
+      setIsSubGateOpen(true);
+      return;
+    }
+    setIsApplyModalOpen(true);
+  };
 
   if (activeSubView === 'article' && selectedArticle) {
     return (
@@ -457,20 +491,22 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
                   Become a School Blogger for {displayInstitutionName}
                 </h4>
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
-                  Are you a student of {displayInstitutionName} passionate about campus journalism, event coverage, and student updates? Apply for free (no subscription required). Approved bloggers with 200+ followers earn GP view rewards!
+                  Are you a student of {displayInstitutionName} passionate about campus journalism, event coverage, and student updates? Subscribe to Premium or VIP to apply &amp; post articles (reading articles is free for everyone). Approved bloggers with 500+ followers earn GP view rewards!
                 </p>
               </div>
               <button
                 id="school-blog-apply-btn"
                 type="button"
-                onClick={() => setIsApplyModalOpen(true)}
+                onClick={handleApplyButtonClick}
                 className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
               >
                 <PenTool className="w-3.5 h-3.5" />
                 <span>
                   {viewerStatus.myApplication?.status === 'Rejected'
                     ? 'Submit New Application'
-                    : 'Apply to Become a Blogger'}
+                    : hasActiveBloggerSubscription
+                    ? 'Apply to Become a Blogger'
+                    : 'Subscribe & Apply to Blog'}
                 </span>
               </button>
             </>
@@ -489,7 +525,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         )}
       </section>
 
-      {/* Free School Blogger Application Modal (Admin Approval Required) */}
+      {/* School Blogger Application Modal (Subscription + Admin Approval Required) */}
       <BloggerApplicationModal
         isOpen={isApplyModalOpen}
         onClose={() => setIsApplyModalOpen(false)}
@@ -498,6 +534,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         homeInstitutionName={viewerStatus?.homeInstitutionName || homeInstitutionName}
         isSuspendedOrRevoked={Boolean(viewerStatus?.isSuspendedBloggerForThisSchool)}
         existingApplication={viewerStatus?.myApplication || null}
+        onRequireSubscription={() => setIsSubGateOpen(true)}
         onSubmitted={async (application, msg) => {
           setIsApplyModalOpen(false);
           setViewerStatus((prev) =>
@@ -510,6 +547,19 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
           );
           showNotice(msg);
           await loadHomepage();
+        }}
+      />
+
+      {/* Subscription Gate for Free Users Clicking Apply to Become a Blogger */}
+      <BloggerSubscriptionGateModal
+        isOpen={isSubGateOpen}
+        onClose={() => setIsSubGateOpen(false)}
+        contextMode="apply"
+        institutionName={displayInstitutionName}
+        onSubscribed={async () => {
+          setIsSubGateOpen(false);
+          await loadHomepage();
+          setIsApplyModalOpen(true);
         }}
       />
         </>

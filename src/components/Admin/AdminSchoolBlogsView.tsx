@@ -243,7 +243,7 @@ export const AdminSchoolBlogsView: React.FC = () => {
             School Blogger Management
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Review free School Blogger applications, approve or reject applicants, manage institutional blogger access, moderate articles, and monitor 200-follower GP rewards.
+            Review School Blogger applications, approve or reject applicants, manage institutional blogger access, moderate articles, and monitor 500-follower GP rewards.
           </p>
         </div>
 
@@ -1010,7 +1010,7 @@ export const AdminSchoolBlogsView: React.FC = () => {
                                 : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
                             }`}
                           >
-                            {Number(br.followerCount || 0).toLocaleString()} / 200 Followers
+                            {Number(br.followerCount || 0).toLocaleString()} / 500 Followers
                           </span>
                         </div>
                         <div className="text-slate-500 dark:text-slate-400">
