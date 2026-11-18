@@ -6,9 +6,13 @@ import {
 } from '../../utils/domainPortal';
 import {
   CorporateAccount,
+  StudentCompletionPrefill,
+  clearCorporateSession,
   fetchCorporateMe,
+  getStoredCompletionPrefill,
   getStoredCorporateCompany,
   getStoredCorporateToken,
+  setStoredCompletionPrefill,
 } from '../../lib/corporateAdsService';
 import { CorporateLandingPage } from './CorporateLandingPage';
 import { CorporateApplicationView } from './CorporateApplicationView';
@@ -22,6 +26,8 @@ export const CorporateAdvertisingPortal: React.FC = () => {
   const [company, setCompany] = useState<CorporateAccount | null>(() =>
     getStoredCorporateCompany()
   );
+  const [completionPrefill, setCompletionPrefill] =
+    useState<StudentCompletionPrefill | null>(() => getStoredCompletionPrefill());
 
   useEffect(() => {
     const syncRoute = () => setRoute(getCorporatePortalRoute());
@@ -29,16 +35,21 @@ export const CorporateAdvertisingPortal: React.FC = () => {
     return () => window.removeEventListener('popstate', syncRoute);
   }, []);
 
-  // Rehydrate corporate session cleanly if corporate token exists
+  // Rehydrate corporate session cleanly if corporate token exists (skip when user is in completion mode)
   useEffect(() => {
     const token = getStoredCorporateToken();
-    if (!token) return;
+    const pendingPrefill = getStoredCompletionPrefill();
+    const cachedCompany = getStoredCorporateCompany();
+    if (!token || (pendingPrefill && !cachedCompany)) return;
+
     let mounted = true;
     fetchCorporateMe().then((res) => {
       if (!mounted) return;
       if (res.success && res.company) {
         setCompany(res.company);
-      } else if (!res.success) {
+        setCompletionPrefill(null);
+        setStoredCompletionPrefill(null);
+      } else if (!res.success && !getStoredCompletionPrefill()) {
         setCompany(null);
       }
     });
@@ -89,6 +100,15 @@ export const CorporateAdvertisingPortal: React.FC = () => {
     [navigateTo]
   );
 
+  const handleRequiresCompletion = useCallback(
+    (prefill: StudentCompletionPrefill) => {
+      setCompletionPrefill(prefill);
+      setStoredCompletionPrefill(prefill);
+      navigateTo('apply', '/apply');
+    },
+    [navigateTo]
+  );
+
   // If user visits /dashboard directly without session, show Corporate Login cleanly
   if (route === 'dashboard') {
     if (company) {
@@ -99,6 +119,7 @@ export const CorporateAdvertisingPortal: React.FC = () => {
           onCompanyUpdated={setCompany}
           onSignedOut={() => {
             setCompany(null);
+            setCompletionPrefill(null);
             navigateTo('login', '/login');
           }}
         />
@@ -107,7 +128,10 @@ export const CorporateAdvertisingPortal: React.FC = () => {
     return (
       <CorporateLoginView
         onNavigate={handlePortalLinkClick}
+        onRequiresCompletion={handleRequiresCompletion}
         onSuccess={(loggedCompany) => {
+          setCompletionPrefill(null);
+          setStoredCompletionPrefill(null);
           setCompany(loggedCompany);
           navigateTo('dashboard', '/dashboard');
         }}
@@ -119,7 +143,15 @@ export const CorporateAdvertisingPortal: React.FC = () => {
     return (
       <CorporateApplicationView
         onNavigate={handlePortalLinkClick}
+        completionPrefill={completionPrefill}
+        onCancelCompletion={() => {
+          clearCorporateSession();
+          setCompletionPrefill(null);
+          navigateTo('login', '/login');
+        }}
         onSuccess={(createdCompany) => {
+          setCompletionPrefill(null);
+          setStoredCompletionPrefill(null);
           setCompany(createdCompany);
           navigateTo('dashboard', '/dashboard');
         }}
@@ -131,7 +163,10 @@ export const CorporateAdvertisingPortal: React.FC = () => {
     return (
       <CorporateLoginView
         onNavigate={handlePortalLinkClick}
+        onRequiresCompletion={handleRequiresCompletion}
         onSuccess={(loggedCompany) => {
+          setCompletionPrefill(null);
+          setStoredCompletionPrefill(null);
           setCompany(loggedCompany);
           navigateTo('dashboard', '/dashboard');
         }}

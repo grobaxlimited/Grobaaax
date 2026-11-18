@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -17,6 +17,8 @@ import {
 } from '../../utils/domainPortal';
 import {
   CorporateAccount,
+  StudentCompletionPrefill,
+  completeCorporateApplication,
   registerCorporateAccount,
 } from '../../lib/corporateAdsService';
 
@@ -27,6 +29,8 @@ interface CorporateApplicationViewProps {
     targetPath: '/' | '/apply' | '/login' | '/dashboard'
   ) => void;
   onSuccess: (company: CorporateAccount) => void;
+  completionPrefill?: StudentCompletionPrefill | null;
+  onCancelCompletion?: () => void;
 }
 
 const INDUSTRIES = [
@@ -46,7 +50,11 @@ const INDUSTRIES = [
 export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> = ({
   onNavigate,
   onSuccess,
+  completionPrefill,
+  onCancelCompletion,
 }) => {
+  const isCompletionMode = Boolean(completionPrefill?.officialEmail);
+
   const [companyName, setCompanyName] = useState('');
   const [brandName, setBrandName] = useState('');
   const [industry, setIndustry] = useState(INDUSTRIES[0]);
@@ -54,9 +62,9 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
   const [website, setWebsite] = useState('');
   const [description, setDescription] = useState('');
 
-  const [contactName, setContactName] = useState('');
-  const [officialEmail, setOfficialEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [contactName, setContactName] = useState(completionPrefill?.contactName || '');
+  const [officialEmail, setOfficialEmail] = useState(completionPrefill?.officialEmail || '');
+  const [phone, setPhone] = useState(completionPrefill?.phone || '');
   const [address, setAddress] = useState('');
   const [country, setCountry] = useState('Nigeria');
   const [state, setState] = useState('');
@@ -72,6 +80,18 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (completionPrefill?.officialEmail) {
+      setOfficialEmail(completionPrefill.officialEmail);
+      if (completionPrefill.contactName && !contactName) {
+        setContactName(completionPrefill.contactName);
+      }
+      if (completionPrefill.phone && !phone) {
+        setPhone(completionPrefill.phone);
+      }
+    }
+  }, [completionPrefill, contactName, phone]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -94,18 +114,20 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
     e.preventDefault();
     setError(null);
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
+    if (!isCompletionMode) {
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
-      const res = await registerCorporateAccount({
+      const basePayload = {
         companyName: companyName.trim(),
         brandName: brandName.trim(),
         industry: industry.trim(),
@@ -118,9 +140,12 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
         address: address.trim(),
         country: country.trim(),
         state: state.trim(),
-        password,
         supportingDocument: supportingDoc,
-      });
+      };
+
+      const res = isCompletionMode
+        ? await completeCorporateApplication(basePayload)
+        : await registerCorporateAccount({ ...basePayload, password });
 
       if (!res.success || !res.company) {
         setError(res.error || 'Could not submit application. Please review your details.');
@@ -188,17 +213,40 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Apply to Advertise on Grobaax
+              {isCompletionMode
+                ? 'Complete Your Corporate Application'
+                : 'Apply to Advertise on Grobaax'}
             </h1>
             <p className="text-xs sm:text-sm text-blue-100/95 max-w-2xl leading-relaxed">
-              Complete your company profile below. Applications start in{' '}
-              <strong>Pending</strong> status for review by Grobaax Administrators. Once
-              approved, your organization can subscribe to an advertising plan and submit
-              campaigns.
+              {isCompletionMode
+                ? 'Your Grobaax account credentials are verified. Simply complete your organization details below to enter the Corporate Advertising Portal for review.'
+                : 'Complete your company profile below. Applications start in Pending status for review by Grobaax Administrators. Once approved, your organization can subscribe to an advertising plan and submit campaigns.'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-8">
+            {isCompletionMode && (
+              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <span>
+                    Signed in as <strong>{officialEmail}</strong> &mdash; complete only the
+                    remaining organization details below to submit your Corporate Advertising
+                    application.
+                  </span>
+                </div>
+                {onCancelCompletion && (
+                  <button
+                    type="button"
+                    onClick={onCancelCompletion}
+                    className="text-xs font-bold text-blue-700 hover:underline cursor-pointer shrink-0"
+                  >
+                    Use a different account
+                  </button>
+                )}
+              </div>
+            )}
+
             {error && (
               <div
                 role="alert"
@@ -330,17 +378,26 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
                   <input
                     type="email"
                     required
+                    readOnly={isCompletionMode}
                     autoComplete="email"
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
                     value={officialEmail}
-                    onChange={(e) => setOfficialEmail(e.target.value)}
+                    onChange={(e) => {
+                      if (!isCompletionMode) setOfficialEmail(e.target.value);
+                    }}
                     placeholder="you@gmail.com or marketing@company.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isCompletionMode
+                        ? 'bg-slate-100 text-slate-600 cursor-not-allowed'
+                        : 'bg-white'
+                    }`}
                   />
                   <p className="mt-1 text-[11px] text-slate-500">
-                    Normal personal emails (e.g. Gmail, Yahoo) and business emails are both supported for login.
+                    {isCompletionMode
+                      ? 'Linked automatically to your signed-in Grobaax account.'
+                      : 'Normal personal emails (e.g. Gmail, Yahoo) and business emails are both supported for login.'}
                   </p>
                 </div>
 
@@ -405,7 +462,9 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
             {/* Section 3: Verification Document & Account Credentials */}
             <div className="space-y-4">
               <h2 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">
-                3. Verification Document &amp; Portal Account Password
+                {isCompletionMode
+                  ? '3. Supporting Verification Document'
+                  : '3. Verification Document & Portal Account Password'}
               </h2>
 
               <div className="rounded-2xl border border-dashed border-slate-300 bg-[#f8faff] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -437,46 +496,48 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Portal Password *
-                  </label>
-                  <div className="relative">
+              {!isCompletionMode && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Portal Password *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        minLength={8}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Minimum 8 characters"
+                        className="w-full pl-3.5 pr-11 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Confirm Password *
+                    </label>
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
                       minLength={8}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Minimum 8 characters"
-                      className="w-full pl-3.5 pr-11 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-700 cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Confirm Password *
-                  </label>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    minLength={8}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter password"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="rounded-2xl bg-blue-50/70 border border-blue-100 p-4 text-xs text-slate-600 flex items-start gap-2.5">

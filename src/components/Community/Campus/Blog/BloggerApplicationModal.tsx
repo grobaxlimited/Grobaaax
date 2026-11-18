@@ -25,7 +25,6 @@ interface BloggerApplicationModalProps {
   isSuspendedOrRevoked?: boolean;
   existingApplication?: SchoolBloggerApplication | null;
   onSubmitted: (application: SchoolBloggerApplication | null, message: string) => void;
-  onRequireSubscription?: () => void;
 }
 
 export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = ({
@@ -37,7 +36,6 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
   isSuspendedOrRevoked = false,
   existingApplication = null,
   onSubmitted,
-  onRequireSubscription,
 }) => {
   const defaultDepartment =
     currentUser.department ||
@@ -53,12 +51,10 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [requiresUpgrade, setRequiresUpgrade] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setError(null);
-      setRequiresUpgrade(false);
       if (!existingApplication || existingApplication.status !== 'Pending') {
         setReason('');
         setExperience('');
@@ -103,9 +99,6 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
             `Application submitted for ${homeInstitutionName}! You will be notified after Admin review.`
         );
       } else {
-        if (res.requiresSubscription || res.code === 'SUBSCRIPTION_REQUIRED') {
-          setRequiresUpgrade(true);
-        }
         setError(res.error || 'Could not submit application. Please try again.');
       }
     } catch (err: any) {
@@ -339,23 +332,11 @@ export const BloggerApplicationModal: React.FC<BloggerApplicationModalProps> = (
             </div>
 
             {error && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold space-y-2">
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
                 </div>
-                {requiresUpgrade && onRequireSubscription && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onRequireSubscription();
-                    }}
-                    className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-black cursor-pointer"
-                  >
-                    Subscribe to Premium or VIP
-                  </button>
-                )}
               </div>
             )}
 

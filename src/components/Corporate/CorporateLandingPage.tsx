@@ -111,7 +111,7 @@ const FAQ_ITEMS = [
   {
     question: 'Where do Corporate Advertisements appear for students?',
     answer:
-      'Approved and Active campaigns appear exclusively in clearly labeled "Sponsored" placement cards directly beneath published School Blog articles across participating institutions, without interrupting article reading.',
+      'Approved and Active campaigns appear in clearly labeled "Sponsored" placement cards beneath published School Blog articles and (on Sponsor Ticker-enabled plans) in the scrolling Sponsor Ticker bar across student views.',
   },
   {
     question: 'How are advertising subscriptions billed and verified?',
@@ -709,6 +709,23 @@ export const CorporateLandingPage: React.FC<CorporateLandingPageProps> = ({
                               days per campaign
                             </span>
                           </div>
+                          {plan.sponsorTickerMode && plan.sponsorTickerMode !== 'none' && (
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                              <span>
+                                Sponsor Ticker:{' '}
+                                <strong>
+                                  {plan.sponsorTickerMode === 'optional_upgrade'
+                                    ? `Optional Add-on (+₦${Number(
+                                        plan.tickerUpgradePriceNaira || 0
+                                      ).toLocaleString()})`
+                                    : `${plan.maxTickerCampaigns || 1} active ticker ad${
+                                        (plan.maxTickerCampaigns || 1) > 1 ? 's' : ''
+                                      }`}
+                                </strong>
+                              </span>
+                            </div>
+                          )}
                           {plan.features.map((feat, idx) => (
                             <div key={idx} className="flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />

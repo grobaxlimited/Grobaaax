@@ -25,9 +25,9 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VIEWS_PER_REWARD_MILESTONE = 250;
 const GP_PER_REWARD_MILESTONE = 1000;
-const MAX_MILESTONES_PER_ARTICLE = 8;
-const MAX_VIEWS_PER_ARTICLE = 2000;
-const MAX_GP_PER_ARTICLE = 8000;
+const MAX_MILESTONES_PER_ARTICLE = 1;
+const MAX_VIEWS_PER_ARTICLE = 250;
+const MAX_GP_PER_ARTICLE = 1000;
 const MIN_FOLLOWERS_FOR_REWARDS = 500;
 const SUSPENDED_ACCOUNT_STATUSES = new Set([
   'suspended',
@@ -213,15 +213,6 @@ async function getGenuineFollowerCount(userId: string): Promise<number> {
 function isAccountSuspended(user?: Request['authUser'] | null): boolean {
   if (!user) return false;
   return SUSPENDED_ACCOUNT_STATUSES.has(String(user.accountStatus || 'active').toLowerCase());
-}
-
-function hasActiveBloggerSubscription(user?: Request['authUser'] | null): boolean {
-  if (!user) return false;
-  if (user.isAdmin) return true;
-  return Boolean(
-    user.hasActiveSubscription &&
-      (user.subscriptionTier === 'premium' || user.subscriptionTier === 'vip')
-  );
 }
 
 function normalizeArticleBlocks(
@@ -512,9 +503,7 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       followerCount: 0,
       minFollowersRequired: MIN_FOLLOWERS_FOR_REWARDS,
       isRewardEligible: false,
-      hasActiveSubscription: Boolean(
-        req.authUser && hasActiveBloggerSubscription(req.authUser)
-      ),
+      hasActiveSubscription: true,
       subscriptionTier: req.authUser?.subscriptionTier || 'free',
       subscriptionExpired: Boolean(req.authUser?.subscriptionExpired),
     };
@@ -607,10 +596,10 @@ schoolBlogRouter.get('/my-blogger-status', requireAuth, async (req: Request, res
       followerCount,
       minFollowersRequired: MIN_FOLLOWERS_FOR_REWARDS,
       isRewardEligible: Boolean(activeAssign?.status === 'active') && followerCount >= MIN_FOLLOWERS_FOR_REWARDS,
-      hasActiveSubscription: hasActiveBloggerSubscription(user),
+      hasActiveSubscription: true,
       subscriptionTier: user.subscriptionTier,
       subscriptionExpired: user.subscriptionExpired,
-      requiresSubscription: !hasActiveBloggerSubscription(user),
+      requiresSubscription: false,
       activeAssignment: mapAssignmentRow(activeAssign),
       applications: (applications || []).map(mapApplicationRow),
     });
@@ -619,17 +608,17 @@ schoolBlogRouter.get('/my-blogger-status', requireAuth, async (req: Request, res
   }
 });
 
-// Direct activation is strictly disabled: Admin approval + active subscription are required.
+// Direct activation is strictly disabled: Admin approval is required.
 schoolBlogRouter.post('/activate-blogger', requireAuth, async (_req: Request, res: Response) => {
   return res.status(403).json({
     success: false,
     code: 'ADMIN_APPROVAL_REQUIRED',
     error:
-      'Direct blogger activation is not permitted. Subscribe to Premium or VIP and submit an application for Admin review.',
+      'Direct blogger activation is not permitted. Please submit a School Blogger application for Admin review.',
   });
 });
 
-// Submit a School Blogger Application (Requires active Premium/VIP subscription + Pending Admin Approval)
+// Submit a School Blogger Application (Free for all verified students; Admin Approval Required)
 schoolBlogRouter.post('/applications', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
@@ -638,16 +627,6 @@ schoolBlogRouter.post('/applications', requireAuth, async (req: Request, res: Re
       return res.status(403).json({
         success: false,
         error: 'Your account is suspended and cannot apply to become a School Blogger.',
-      });
-    }
-
-    if (!hasActiveBloggerSubscription(user)) {
-      return res.status(403).json({
-        success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        error:
-          'An active Premium or VIP subscription is required to apply as a School Blogger and post articles. Reading articles remains free for everyone.',
       });
     }
 
@@ -1232,10 +1211,10 @@ schoolBlogRouter.get('/studio/articles', requireAuth, async (req: Request, res: 
 
     return res.json({
       success: true,
-      hasActiveSubscription: hasActiveBloggerSubscription(user),
+      hasActiveSubscription: true,
       subscriptionTier: user.subscriptionTier,
       subscriptionExpired: user.subscriptionExpired,
-      requiresSubscription: !hasActiveBloggerSubscription(user),
+      requiresSubscription: false,
       assignment: mapAssignmentRow(activeAssign),
       articles: (articles || []).map(mapArticleRow),
     });
@@ -1244,7 +1223,7 @@ schoolBlogRouter.get('/studio/articles', requireAuth, async (req: Request, res: 
   }
 });
 
-// Get blogger's private GP reward summary, 500-follower eligibility, per-article 8,000 GP cap progress & milestone history
+// Get blogger's private GP reward summary, 500-follower eligibility, per-article 1,000 GP cap progress & milestone history
 // STRICTLY restricted to active approved non-suspended bloggers only
 schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: Response) => {
   try {
@@ -1486,14 +1465,6 @@ schoolBlogRouter.get('/studio/rewards', requireAuth, async (req: Request, res: R
 schoolBlogRouter.post('/studio/upload-image', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
-    if (!hasActiveBloggerSubscription(user)) {
-      return res.status(403).json({
-        success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        error: 'An active Premium or VIP subscription is required to upload blog images and post articles.',
-      });
-    }
     const activeAssign = await getVerifiedActiveBloggerAssignment(user);
     if (!activeAssign && !user.isAdmin) {
       return res.status(403).json({
@@ -1561,14 +1532,6 @@ schoolBlogRouter.post('/studio/upload-image', requireAuth, async (req: Request, 
 schoolBlogRouter.post('/studio/articles', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.authUser!;
-    if (!hasActiveBloggerSubscription(user)) {
-      return res.status(403).json({
-        success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        error: 'An active Premium or VIP subscription is required to create or post School Blog articles.',
-      });
-    }
     const activeAssign = await getVerifiedActiveBloggerAssignment(user);
     if (!activeAssign) {
       return res.status(403).json({
@@ -1684,7 +1647,7 @@ schoolBlogRouter.post('/studio/articles', requireAuth, async (req: Request, res:
     if (nextStatus === 'published') {
       await notifyUserOrAdmins({
         title: 'School Blog Article Published',
-        message: `Your article "${cleanTitle}" is now live on ${activeAssign.institution_name} Blog! Earn 1,000 GP for every 250 eligible unique reader views.`,
+        message: `Your article "${cleanTitle}" is now live on ${activeAssign.institution_name} Blog! Earn 1,000 GP once your article reaches 250 eligible unique reader views (paid once per article).`,
         targetUserId: user.id,
       });
     }
@@ -1704,14 +1667,6 @@ schoolBlogRouter.put('/studio/articles/:articleId', requireAuth, async (req: Req
   try {
     const user = req.authUser!;
     const { articleId } = req.params;
-    if (!hasActiveBloggerSubscription(user)) {
-      return res.status(403).json({
-        success: false,
-        code: 'SUBSCRIPTION_REQUIRED',
-        requiresSubscription: true,
-        error: 'An active Premium or VIP subscription is required to edit or publish School Blog articles.',
-      });
-    }
     const activeAssign = await getVerifiedActiveBloggerAssignment(user);
     if (!activeAssign) {
       return res.status(403).json({

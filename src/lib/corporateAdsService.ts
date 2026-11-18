@@ -11,10 +11,13 @@ export type CorporateCampaignStatus =
   | 'Expired'
   | 'Suspended';
 
+export type SponsorTickerMode = 'none' | 'included' | 'required' | 'optional_upgrade';
+
 export interface CorporateAccount {
   id: string;
   authUserId: string;
   accountType: 'corporate_advertiser';
+  accountSource?: 'external_signup' | 'grobaax_user';
   companyName: string;
   brandName: string;
   industry: string;
@@ -48,6 +51,10 @@ export interface CorporatePlan {
   maxActiveCampaigns: number;
   campaignDurationDays: number;
   placementEligibility: string[];
+  sponsorTickerMode?: SponsorTickerMode;
+  maxTickerCampaigns?: number;
+  tickerCampaignDurationDays?: number;
+  tickerUpgradePriceNaira?: number;
   features: string[];
   isActive: boolean;
   sortOrder: number;
@@ -67,6 +74,12 @@ export interface CorporateSubscription {
   maxActiveCampaignsSnapshot: number;
   campaignDurationDaysSnapshot: number;
   placementEligibilitySnapshot: string[];
+  sponsorTickerModeSnapshot?: SponsorTickerMode;
+  maxTickerCampaignsSnapshot?: number;
+  tickerCampaignDurationDaysSnapshot?: number;
+  tickerUpgradePriceSnapshot?: number;
+  tickerUpgradeActive?: boolean;
+  tickerUpgradePaymentId?: string | null;
   status: 'active' | 'expired' | 'superseded' | string;
   startDate: string;
   expiryDate: string;
@@ -83,6 +96,7 @@ export interface CorporatePayment {
   subscriptionId?: string | null;
   planId: string;
   planNameSnapshot: string;
+  purchaseType?: 'plan_subscription' | 'ticker_upgrade' | string;
   reference: string;
   receiptNumber?: string | null;
   amountNaira: number;
@@ -150,6 +164,60 @@ export interface CorporateAnalyticsSummary {
   ctr: number;
 }
 
+export interface CorporateTickerCampaign {
+  id: string;
+  companyId: string;
+  companyName?: string;
+  brandName?: string;
+  companyStatus?: CorporateAccountStatus | string;
+  subscriptionId?: string | null;
+  campaignName: string;
+  shortMessage: string;
+  headline: string;
+  fullDescription: string;
+  ctaLabel: string;
+  destinationUrl: string;
+  requestedDurationDays: number;
+  status: CorporateCampaignStatus;
+  adminFeedback: string;
+  rejectionReason: string;
+  reviewedBy?: string | null;
+  reviewerName?: string | null;
+  reviewedAt?: string | null;
+  startDate?: string | null;
+  expiryDate?: string | null;
+  barImpressionsCount: number;
+  barClicksCount: number;
+  detailViewsCount: number;
+  websiteClicksCount: number;
+  websiteCtr: number;
+  lastServedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicSponsorTickerItem {
+  tickerId: string;
+  companyId: string;
+  brandName: string;
+  companyName: string;
+  shortMessage: string;
+  headline: string;
+  fullDescription: string;
+  ctaLabel: string;
+  destinationUrl: string;
+}
+
+export interface CorporateTickerStats {
+  totalTickerCampaigns: number;
+  activeTickerCampaigns: number;
+  pendingTickerCampaigns: number;
+  totalBarImpressions: number;
+  totalBarClicks: number;
+  totalDetailViews: number;
+  totalWebsiteClicks: number;
+}
+
 export interface CorporateAdminOverview {
   totalRevenueNaira: number;
   successfulPaymentsCount: number;
@@ -161,12 +229,18 @@ export interface CorporateAdminOverview {
   expiredSubscriptionsCount: number;
   activeCampaignsCount: number;
   pendingCampaignsCount: number;
+  totalCompaniesCount?: number;
   pendingCompaniesCount: number;
   approvedCompaniesCount: number;
+  rejectedCompaniesCount?: number;
+  suspendedCompaniesCount?: number;
   activePlansCount: number;
   totalImpressions: number;
   totalClicks: number;
   ctr: number;
+  activeTickerCampaignsCount?: number;
+  pendingTickerCampaignsCount?: number;
+  tickerStats?: CorporateTickerStats;
   revenueByPlan: Array<{
     planId: string;
     planName: string;
@@ -190,6 +264,34 @@ export interface CorporateAuditLog {
 const CORP_ACCESS_TOKEN_KEY = 'grobaax_corp_access_token';
 const CORP_REFRESH_TOKEN_KEY = 'grobaax_corp_refresh_token';
 const CORP_COMPANY_CACHE_KEY = 'grobaax_corp_company';
+const CORP_PREFILL_STORAGE_KEY = 'grobaax_corp_completion_prefill';
+
+export interface StudentCompletionPrefill {
+  officialEmail: string;
+  contactName?: string;
+  phone?: string;
+}
+
+export function getStoredCompletionPrefill(): StudentCompletionPrefill | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(CORP_PREFILL_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as StudentCompletionPrefill) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredCompletionPrefill(prefill: StudentCompletionPrefill | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (prefill) {
+      window.sessionStorage.setItem(CORP_PREFILL_STORAGE_KEY, JSON.stringify(prefill));
+    } else {
+      window.sessionStorage.removeItem(CORP_PREFILL_STORAGE_KEY);
+    }
+  } catch {}
+}
 
 export function getStoredCorporateToken(): string {
   if (typeof window === 'undefined') return '';
@@ -235,6 +337,7 @@ export function clearCorporateSession() {
     window.localStorage.removeItem(CORP_ACCESS_TOKEN_KEY);
     window.localStorage.removeItem(CORP_REFRESH_TOKEN_KEY);
     window.localStorage.removeItem(CORP_COMPANY_CACHE_KEY);
+    window.sessionStorage.removeItem(CORP_PREFILL_STORAGE_KEY);
   } catch {}
 }
 
@@ -375,6 +478,47 @@ export async function recordCorporateAdClick(params: {
   }
 }
 
+export async function fetchActiveSponsorTickerAds(): Promise<{
+  success: boolean;
+  items: PublicSponsorTickerItem[];
+}> {
+  try {
+    const res = await fetch('/api/corporate/ticker/active', { method: 'GET' });
+    const data = await parseJsonSafe<{ success?: boolean; items?: PublicSponsorTickerItem[] }>(res);
+    return {
+      success: Boolean(data.success),
+      items: Array.isArray(data.items) ? data.items : [],
+    };
+  } catch {
+    return { success: false, items: [] };
+  }
+}
+
+export async function recordSponsorTickerEvents(params: {
+  eventType: 'bar_impression' | 'bar_click' | 'detail_view' | 'website_click';
+  tickerId?: string;
+  tickerIds?: string[];
+}) {
+  try {
+    const headers = await getAuthBearerHeaders().catch(() => ({
+      'Content-Type': 'application/json',
+    }));
+    const res = await fetch('/api/corporate/ticker/events', {
+      method: 'POST',
+      headers,
+      keepalive: params.eventType === 'website_click',
+      body: JSON.stringify(params),
+    });
+    return await parseJsonSafe<{
+      success?: boolean;
+      recordedCount?: number;
+      destinationUrl?: string;
+    }>(res);
+  } catch {
+    return { success: false };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Corporate Account Auth & Workspace
 // ---------------------------------------------------------------------------
@@ -413,6 +557,7 @@ export async function registerCorporateAccount(payload: CorporateRegistrationPay
     'none'
   );
   if (data.success && data.accessToken && data.company) {
+    setStoredCompletionPrefill(null);
     setCorporateSession({
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
@@ -427,6 +572,8 @@ export async function loginCorporateAccount(email: string, password: string) {
     accessToken?: string;
     refreshToken?: string;
     company?: CorporateAccount;
+    requiresApplicationCompletion?: boolean;
+    prefill?: StudentCompletionPrefill;
   }>(
     '/auth/login',
     {
@@ -436,9 +583,42 @@ export async function loginCorporateAccount(email: string, password: string) {
     'none'
   );
   if (data.success && data.accessToken && data.company) {
+    setStoredCompletionPrefill(null);
     setCorporateSession({
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
+      company: data.company,
+    });
+  } else if (data.success && data.accessToken && data.requiresApplicationCompletion) {
+    setCorporateSession({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    });
+    if (data.prefill) {
+      setStoredCompletionPrefill(data.prefill);
+    }
+  }
+  return data;
+}
+
+export async function completeCorporateApplication(
+  payload: Omit<CorporateRegistrationPayload, 'password'>
+) {
+  const data = await corporateFetch<{
+    accessToken?: string;
+    company?: CorporateAccount;
+  }>(
+    '/auth/complete-application',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    'corporate'
+  );
+  if (data.success && data.company) {
+    setStoredCompletionPrefill(null);
+    setCorporateSession({
+      accessToken: data.accessToken || getStoredCorporateToken(),
       company: data.company,
     });
   }
@@ -552,7 +732,11 @@ export async function uploadCorporateMedia(params: {
 // Billing & Paystack Payments
 // ---------------------------------------------------------------------------
 
-export async function initializeCorporatePayment(planId: string, callbackUrl?: string) {
+export async function initializeCorporatePayment(
+  planId: string,
+  callbackUrl?: string,
+  purchaseType: 'plan_subscription' | 'ticker_upgrade' = 'plan_subscription'
+) {
   return corporateFetch<{
     reference?: string;
     authorizationUrl?: string;
@@ -564,7 +748,7 @@ export async function initializeCorporatePayment(planId: string, callbackUrl?: s
     '/payments/initialize',
     {
       method: 'POST',
-      body: JSON.stringify({ planId, callbackUrl }),
+      body: JSON.stringify({ planId, callbackUrl, purchaseType }),
     },
     'corporate'
   );
@@ -659,6 +843,67 @@ export async function deleteCorporateCampaign(id: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Corporate Sponsor Ticker Campaigns (Text-only, Isolated from Blog Campaigns)
+// ---------------------------------------------------------------------------
+
+export async function fetchCorporateTickerCampaigns() {
+  return corporateFetch<{ tickerCampaigns?: CorporateTickerCampaign[] }>(
+    '/ticker-campaigns',
+    { method: 'GET' },
+    'corporate'
+  );
+}
+
+export async function createCorporateTickerCampaign(payload: {
+  campaignName: string;
+  shortMessage: string;
+  headline: string;
+  fullDescription: string;
+  destinationUrl: string;
+  ctaLabel?: string;
+  requestedDurationDays?: number;
+  submitForReview?: boolean;
+}) {
+  return corporateFetch<{ tickerCampaign?: CorporateTickerCampaign }>(
+    '/ticker-campaigns',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    'corporate'
+  );
+}
+
+export async function updateCorporateTickerCampaign(
+  id: string,
+  payload:
+    | { action: 'pause' | 'resume' }
+    | {
+        campaignName?: string;
+        shortMessage?: string;
+        headline?: string;
+        fullDescription?: string;
+        destinationUrl?: string;
+        ctaLabel?: string;
+        requestedDurationDays?: number;
+        submitForReview?: boolean;
+      }
+) {
+  return corporateFetch<{ tickerCampaign?: CorporateTickerCampaign }>(
+    `/ticker-campaigns/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+    'corporate'
+  );
+}
+
+export async function deleteCorporateTickerCampaign(id: string) {
+  return corporateFetch(`/ticker-campaigns/${encodeURIComponent(id)}`, { method: 'DELETE' }, 'corporate');
+}
+
+// ---------------------------------------------------------------------------
 // Main Admin Dashboard Endpoints (uses Student Admin JWT cleanly)
 // ---------------------------------------------------------------------------
 
@@ -719,6 +964,10 @@ export async function adminCreateCorporatePlan(payload: {
   maxActiveCampaigns: number;
   campaignDurationDays: number;
   placementEligibility: string[];
+  sponsorTickerMode?: SponsorTickerMode;
+  maxTickerCampaigns?: number;
+  tickerCampaignDurationDays?: number;
+  tickerUpgradePriceNaira?: number;
   features: string[];
   isActive: boolean;
   sortOrder: number;
@@ -743,6 +992,10 @@ export async function adminUpdateCorporatePlan(
     maxActiveCampaigns: number;
     campaignDurationDays: number;
     placementEligibility: string[];
+    sponsorTickerMode: SponsorTickerMode;
+    maxTickerCampaigns: number;
+    tickerCampaignDurationDays: number;
+    tickerUpgradePriceNaira: number;
     features: string[];
     isActive: boolean;
     sortOrder: number;
@@ -809,6 +1062,43 @@ export async function adminFetchCorporateAuditLogs() {
   return corporateFetch<{ logs?: CorporateAuditLog[] }>(
     '/admin/audit-logs',
     { method: 'GET' },
+    'admin'
+  );
+}
+
+export async function adminFetchCorporateTickerCampaigns(status?: string, search?: string) {
+  const qs = new URLSearchParams();
+  if (status && status !== 'All') qs.set('status', status);
+  if (search) qs.set('search', search);
+  return corporateFetch<{ tickerCampaigns?: CorporateTickerCampaign[] }>(
+    `/admin/ticker-campaigns${qs.toString() ? `?${qs.toString()}` : ''}`,
+    { method: 'GET' },
+    'admin'
+  );
+}
+
+export async function adminReviewCorporateTickerCampaign(
+  tickerId: string,
+  payload: {
+    action: 'approve' | 'reject' | 'pause' | 'suspend';
+    rejectionReason?: string;
+    adminFeedback?: string;
+  }
+) {
+  return corporateFetch<{ tickerCampaign?: CorporateTickerCampaign }>(
+    `/admin/ticker-campaigns/${encodeURIComponent(tickerId)}/review`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+    'admin'
+  );
+}
+
+export async function adminDeleteCorporateTickerCampaign(tickerId: string) {
+  return corporateFetch(
+    `/admin/ticker-campaigns/${encodeURIComponent(tickerId)}`,
+    { method: 'DELETE' },
     'admin'
   );
 }

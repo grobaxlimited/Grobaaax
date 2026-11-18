@@ -37,6 +37,8 @@ const CAMPAIGN_STATUSES = new Set([
   'Expired',
   'Suspended',
 ]);
+const SPONSOR_TICKER_MODES = new Set(['none', 'included', 'required', 'optional_upgrade']);
+const TICKER_EVENT_TYPES = new Set(['bar_impression', 'bar_click', 'detail_view', 'website_click']);
 
 declare global {
   namespace Express {
@@ -79,12 +81,13 @@ function sanitizeHttpUrl(rawUrl: string): string | null {
   }
 }
 
-function mapCompanyRow(row: any) {
+function mapCompanyRow(row: any, extra?: { accountSource?: 'external_signup' | 'grobaax_user' }) {
   if (!row) return null;
   return {
     id: row.id,
     authUserId: row.auth_user_id,
     accountType: row.account_type,
+    accountSource: extra?.accountSource || 'external_signup',
     companyName: row.company_name,
     brandName: row.brand_name,
     industry: row.industry,
@@ -111,6 +114,9 @@ function mapCompanyRow(row: any) {
 
 function mapPlanRow(row: any) {
   if (!row) return null;
+  const tickerMode = SPONSOR_TICKER_MODES.has(row.sponsor_ticker_mode)
+    ? row.sponsor_ticker_mode
+    : 'none';
   return {
     id: row.id,
     name: row.name,
@@ -123,6 +129,10 @@ function mapPlanRow(row: any) {
     placementEligibility: Array.isArray(row.placement_eligibility)
       ? row.placement_eligibility
       : ['school_blog_article_footer'],
+    sponsorTickerMode: tickerMode,
+    maxTickerCampaigns: Number(row.max_ticker_campaigns || 0),
+    tickerCampaignDurationDays: Number(row.ticker_campaign_duration_days || 30),
+    tickerUpgradePriceNaira: Number(row.ticker_upgrade_price_naira || 0),
     features: Array.isArray(row.features) ? row.features : [],
     isActive: Boolean(row.is_active),
     sortOrder: Number(row.sort_order || 1),
@@ -133,6 +143,9 @@ function mapPlanRow(row: any) {
 
 function mapSubscriptionRow(row: any) {
   if (!row) return null;
+  const tickerMode = SPONSOR_TICKER_MODES.has(row.sponsor_ticker_mode_snapshot)
+    ? row.sponsor_ticker_mode_snapshot
+    : 'none';
   return {
     id: row.id,
     companyId: row.company_id,
@@ -147,6 +160,12 @@ function mapSubscriptionRow(row: any) {
     placementEligibilitySnapshot: Array.isArray(row.placement_eligibility_snapshot)
       ? row.placement_eligibility_snapshot
       : ['school_blog_article_footer'],
+    sponsorTickerModeSnapshot: tickerMode,
+    maxTickerCampaignsSnapshot: Number(row.max_ticker_campaigns_snapshot || 0),
+    tickerCampaignDurationDaysSnapshot: Number(row.ticker_campaign_duration_days_snapshot || 30),
+    tickerUpgradePriceSnapshot: Number(row.ticker_upgrade_price_snapshot || 0),
+    tickerUpgradeActive: Boolean(row.ticker_upgrade_active),
+    tickerUpgradePaymentId: row.ticker_upgrade_payment_id || null,
     status: row.status,
     startDate: row.start_date,
     expiryDate: row.expiry_date,
@@ -163,6 +182,7 @@ function mapPaymentRow(row: any) {
     subscriptionId: row.subscription_id || null,
     planId: row.plan_id,
     planNameSnapshot: row.plan_name_snapshot || '',
+    purchaseType: row.purchase_type || 'plan_subscription',
     reference: row.reference,
     receiptNumber: row.receipt_number || null,
     amountNaira: Number(row.amount_naira || 0),
@@ -214,6 +234,58 @@ function mapCampaignRow(row: any, company?: any) {
   };
 }
 
+function mapTickerCampaignRow(row: any, company?: any) {
+  if (!row) return null;
+  const barImpressions = Number(row.impressions_count ?? row.bar_impressions_count ?? 0);
+  const barClicks = Number(row.bar_clicks_count || 0);
+  const detailViews = Number(row.detail_views_count || 0);
+  const websiteClicks = Number(row.website_clicks_count || 0);
+  const websiteCtr =
+    barImpressions > 0 ? Number(((websiteClicks / barImpressions) * 100).toFixed(2)) : 0;
+  return {
+    id: row.id,
+    companyId: row.company_id,
+    companyName: company?.company_name || row.corporate_accounts?.company_name || '',
+    brandName: company?.brand_name || row.corporate_accounts?.brand_name || '',
+    companyStatus: company?.status || row.corporate_accounts?.status || '',
+    subscriptionId: row.subscription_id || null,
+    campaignName: row.campaign_name,
+    shortMessage: row.ticker_message ?? row.short_message ?? '',
+    headline: row.headline,
+    fullDescription: row.full_description,
+    ctaLabel: row.cta_label || 'Learn More',
+    destinationUrl: row.destination_url,
+    requestedDurationDays: Number(row.requested_duration_days || 30),
+    status: row.status,
+    adminFeedback: row.admin_feedback || '',
+    rejectionReason: row.rejection_reason || '',
+    reviewedBy: row.reviewed_by || null,
+    reviewerName: row.reviewer_name || null,
+    reviewedAt: row.reviewed_at || null,
+    startDate: row.start_date || null,
+    expiryDate: row.expiry_date || null,
+    barImpressionsCount: barImpressions,
+    barClicksCount: barClicks,
+    detailViewsCount: detailViews,
+    websiteClicksCount: websiteClicks,
+    websiteCtr,
+    lastServedAt: row.last_served_at || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function isSubscriptionTickerEligible(sub: any): boolean {
+  if (!sub || sub.status !== 'active') return false;
+  if (sub.expiry_date && new Date(sub.expiry_date).getTime() <= Date.now()) return false;
+  const mode = sub.sponsor_ticker_mode_snapshot || 'none';
+  const maxTickers = Number(sub.max_ticker_campaigns_snapshot || 0);
+  if (maxTickers < 1) return false;
+  if (mode === 'included' || mode === 'required') return true;
+  if (mode === 'optional_upgrade' && Boolean(sub.ticker_upgrade_active)) return true;
+  return false;
+}
+
 async function expireOverdueRecords(companyId?: string) {
   const nowIso = new Date().toISOString();
   try {
@@ -233,6 +305,15 @@ async function expireOverdueRecords(companyId?: string) {
       .lte('expiry_date', nowIso);
     if (companyId) campQ = campQ.eq('company_id', companyId);
     await campQ;
+
+    let tickerQ = supabaseAdmin
+      .from('corporate_ticker_campaigns')
+      .update({ status: 'Expired', updated_at: nowIso })
+      .in('status', ['Active', 'Paused', 'Approved'])
+      .not('expiry_date', 'is', null)
+      .lte('expiry_date', nowIso);
+    if (companyId) tickerQ = tickerQ.eq('company_id', companyId);
+    await tickerQ;
   } catch (err) {
     console.warn('[CorporateAds] Expiry sweep notice:', err);
   }
@@ -635,6 +716,170 @@ corporateAdsRouter.post(
   }
 );
 
+// Public Sponsor Ticker Serving (Fair Multi-Company Rotation, Approved & Active Only)
+corporateAdsRouter.get('/ticker/active', async (_req: Request, res: Response) => {
+  try {
+    await expireOverdueRecords();
+    const nowIso = new Date().toISOString();
+
+    const { data: candidates, error } = await supabaseAdmin
+      .from('corporate_ticker_campaigns')
+      .select(
+        '*, corporate_accounts!inner(id, company_name, brand_name, status), corporate_subscriptions!inner(id, status, start_date, expiry_date, sponsor_ticker_mode_snapshot, max_ticker_campaigns_snapshot, ticker_upgrade_active)'
+      )
+      .eq('status', 'Active')
+      .eq('corporate_accounts.status', 'Approved')
+      .eq('corporate_subscriptions.status', 'active')
+      .gt('corporate_subscriptions.expiry_date', nowIso)
+      .lte('corporate_subscriptions.start_date', nowIso)
+      .order('last_served_at', { ascending: true, nullsFirst: true })
+      .order('created_at', { ascending: true })
+      .limit(60);
+
+    if (error) {
+      console.warn('[CorporateAds] ticker/active query notice:', error.message);
+      return res.json({ success: true, items: [] });
+    }
+
+    const nowMs = Date.now();
+    const eligible = (candidates || []).filter((c: any) => {
+      if (c.start_date && new Date(c.start_date).getTime() > nowMs) return false;
+      if (c.expiry_date && new Date(c.expiry_date).getTime() <= nowMs) return false;
+      return isSubscriptionTickerEligible(c.corporate_subscriptions);
+    });
+
+    // Fair round-robin interleaving across distinct companies so no single brand dominates
+    const byCompany = new Map<string, any[]>();
+    for (const row of eligible) {
+      const list = byCompany.get(row.company_id) || [];
+      list.push(row);
+      byCompany.set(row.company_id, list);
+    }
+
+    const interleaved: any[] = [];
+    const queues = Array.from(byCompany.values());
+    let added = true;
+    while (added && interleaved.length < 30) {
+      added = false;
+      for (const q of queues) {
+        if (q.length > 0 && interleaved.length < 30) {
+          interleaved.push(q.shift());
+          added = true;
+        }
+      }
+    }
+
+    // Return ONLY safe public advertising display fields (zero private corporate contact/billing data)
+    const items = interleaved.map((c: any) => ({
+      tickerId: c.id,
+      companyId: c.company_id,
+      brandName: c.corporate_accounts?.brand_name || c.corporate_accounts?.company_name || 'Partner',
+      companyName: c.corporate_accounts?.company_name || '',
+      shortMessage: c.ticker_message ?? c.short_message ?? '',
+      headline: c.headline,
+      fullDescription: c.full_description,
+      ctaLabel: c.cta_label || 'Learn More',
+      destinationUrl: c.destination_url,
+    }));
+
+    return res.json({ success: true, items });
+  } catch (err: any) {
+    console.warn('[CorporateAds] ticker/active error:', err);
+    return res.json({ success: true, items: [] });
+  }
+});
+
+// Public Deduplicated Sponsor Ticker Analytics (Isolated from Footer Ads)
+corporateAdsRouter.post(
+  '/ticker/events',
+  optionalAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { eventType, tickerId, tickerIds } = req.body || {};
+      if (!TICKER_EVENT_TYPES.has(String(eventType))) {
+        return res.status(400).json({ success: false, error: 'Unsupported ticker event type.' });
+      }
+
+      const rawIds: string[] = Array.isArray(tickerIds)
+        ? tickerIds.map((id) => String(id))
+        : tickerId
+        ? [String(tickerId)]
+        : [];
+      const uniqueIds = Array.from(new Set(rawIds.filter((id) => UUID_RE.test(id)))).slice(0, 30);
+
+      if (uniqueIds.length === 0) {
+        return res.json({ success: true, recordedCount: 0 });
+      }
+
+      const { data: activeRows } = await supabaseAdmin
+        .from('corporate_ticker_campaigns')
+        .select(
+          'id, company_id, status, expiry_date, destination_url, impressions_count, bar_clicks_count, detail_views_count, website_clicks_count'
+        )
+        .in('id', uniqueIds)
+        .eq('status', 'Active');
+
+      const viewerKey = buildViewerKey(req, req.authUser?.id);
+      const nowMs = Date.now();
+      const nowIso = new Date(nowMs).toISOString();
+
+      const bucketMap: Record<string, string> = {
+        bar_impression: `tbi30m_${Math.floor(nowMs / (30 * 60 * 1000))}`,
+        bar_click: `tbc1m_${Math.floor(nowMs / (60 * 1000))}`,
+        detail_view: `tdv5m_${Math.floor(nowMs / (5 * 60 * 1000))}`,
+        website_click: `twc5m_${Math.floor(nowMs / (5 * 60 * 1000))}`,
+      };
+      const eventBucket = bucketMap[String(eventType)];
+
+      let recordedCount = 0;
+      let destinationUrl = '';
+
+      for (const row of activeRows || []) {
+        if (row.expiry_date && new Date(row.expiry_date).getTime() <= nowMs) continue;
+        destinationUrl = row.destination_url || destinationUrl;
+
+        const { error: insertErr } = await supabaseAdmin
+          .from('corporate_ticker_events')
+          .insert({
+            campaign_id: row.id,
+            company_id: row.company_id,
+            event_type: String(eventType),
+            viewer_key: viewerKey,
+            event_bucket: eventBucket,
+          });
+
+        if (insertErr) continue;
+        recordedCount += 1;
+
+        const updates: Record<string, any> = {};
+        if (eventType === 'bar_impression') {
+          updates.impressions_count = Number(row.impressions_count || 0) + 1;
+          updates.last_served_at = nowIso;
+        } else if (eventType === 'bar_click') {
+          updates.bar_clicks_count = Number(row.bar_clicks_count || 0) + 1;
+        } else if (eventType === 'detail_view') {
+          updates.detail_views_count = Number(row.detail_views_count || 0) + 1;
+        } else if (eventType === 'website_click') {
+          updates.website_clicks_count = Number(row.website_clicks_count || 0) + 1;
+        }
+
+        await supabaseAdmin
+          .from('corporate_ticker_campaigns')
+          .update(updates)
+          .eq('id', row.id);
+      }
+
+      return res.json({
+        success: true,
+        recordedCount,
+        destinationUrl: eventType === 'website_click' ? destinationUrl : undefined,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+
 // ============================================================================
 // 2. CORPORATE AUTHENTICATION & APPLICATION REGISTRATION
 // ============================================================================
@@ -902,11 +1147,24 @@ corporateAdsRouter.post('/auth/login', async (req: Request, res: Response) => {
       .maybeSingle();
 
     if (!company) {
-      return res.status(403).json({
-        success: false,
-        code: 'NOT_CORPORATE_ACCOUNT',
-        error:
-          'This email belongs to a student account and does not have a Corporate Advertiser profile yet. Please complete an application at Apply to Advertise.',
+      // Valid existing Grobaax student/user login! Let them complete only the remaining company application fields.
+      const { data: userRow } = await supabaseAdmin
+        .from('users')
+        .select('id, data')
+        .eq('id', authData.user.id)
+        .maybeSingle();
+
+      const uData = userRow?.data || {};
+      return res.json({
+        success: true,
+        requiresApplicationCompletion: true,
+        accessToken: authData.session.access_token,
+        refreshToken: authData.session.refresh_token,
+        prefill: {
+          officialEmail: authData.user.email || cleanEmail,
+          contactName: uData.name || uData.fullName || authData.user.user_metadata?.full_name || '',
+          phone: uData.phone || uData.phoneNumber || '',
+        },
       });
     }
 
@@ -920,6 +1178,163 @@ corporateAdsRouter.post('/auth/login', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: err?.message || 'Company login failed.',
+    });
+  }
+});
+
+// Complete company application using an already-authenticated Grobaax student/user JWT (no new password needed)
+corporateAdsRouter.post('/auth/complete-application', async (req: Request, res: Response) => {
+  try {
+    const token = extractBearerToken(req);
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Please sign in first before completing your Corporate Advertising application.',
+      });
+    }
+
+    const { data: authData, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !authData?.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Your session expired. Please sign in again to complete your application.',
+      });
+    }
+
+    const authUid = authData.user.id;
+    const cleanEmail = String(authData.user.email || req.body?.officialEmail || '')
+      .trim()
+      .toLowerCase();
+
+    const { data: existingCorp } = await supabaseAdmin
+      .from('corporate_accounts')
+      .select('id')
+      .eq('auth_user_id', authUid)
+      .maybeSingle();
+
+    if (existingCorp) {
+      return res.status(409).json({
+        success: false,
+        error: 'A Corporate Advertising account is already linked to this login.',
+      });
+    }
+
+    const {
+      companyName,
+      brandName,
+      industry,
+      registrationNumber = '',
+      website = '',
+      description,
+      contactName,
+      phone,
+      address,
+      country,
+      state,
+      supportingDocument,
+    } = req.body || {};
+
+    const requiredFields: Array<[string, any]> = [
+      ['Registered company name', companyName],
+      ['Brand / business name', brandName],
+      ['Industry / category', industry],
+      ['Company description', description],
+      ["Contact person's name", contactName],
+      ['Business phone number', phone],
+      ['Business address', address],
+      ['Country', country],
+      ['State', state],
+    ];
+    for (const [label, val] of requiredFields) {
+      if (!val || String(val).trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          error: `${label} is required.`,
+        });
+      }
+    }
+
+    let normalizedWebsite = '';
+    if (website && String(website).trim()) {
+      const checked = sanitizeHttpUrl(website);
+      if (!checked) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please enter a valid company website URL (e.g., https://company.com).',
+        });
+      }
+      normalizedWebsite = checked;
+    }
+
+    let supportingDocPath = '';
+    let supportingDocName = '';
+    if (supportingDocument?.dataUrl) {
+      const uploaded = await uploadDataUrlToBucket({
+        bucket: 'corporate-verification-docs',
+        dataUrl: supportingDocument.dataUrl,
+        fileName: supportingDocument.fileName || 'verification_doc',
+        folder: authUid,
+        allowedMimes: ALLOWED_DOC_MIME,
+      });
+      supportingDocPath = uploaded.path;
+      supportingDocName = String(supportingDocument.fileName || 'Supporting Document').slice(0, 120);
+    }
+
+    const { data: insertedCompany, error: insertErr } = await supabaseAdmin
+      .from('corporate_accounts')
+      .insert({
+        auth_user_id: authUid,
+        account_type: 'corporate_advertiser',
+        company_name: String(companyName).trim(),
+        brand_name: String(brandName).trim(),
+        industry: String(industry).trim(),
+        registration_number: String(registrationNumber || '').trim(),
+        website: normalizedWebsite,
+        description: String(description).trim(),
+        contact_name: String(contactName).trim(),
+        official_email: cleanEmail,
+        phone: String(phone).trim(),
+        address: String(address).trim(),
+        country: String(country).trim(),
+        state: String(state).trim(),
+        supporting_document_url: supportingDocPath,
+        supporting_document_name: supportingDocName,
+        status: 'Pending',
+      })
+      .select()
+      .single();
+
+    if (insertErr || !insertedCompany) {
+      return res.status(500).json({
+        success: false,
+        error: insertErr?.message || 'Failed to complete corporate application.',
+      });
+    }
+
+    await logCorporateAudit({
+      actorUserId: insertedCompany.id,
+      actorName: insertedCompany.company_name,
+      actorRole: 'corporate_applicant',
+      action: 'COMPANY_APPLICATION_COMPLETED_FROM_STUDENT_LOGIN',
+      targetType: 'corporate_account',
+      targetId: insertedCompany.id,
+      details: {
+        companyName: insertedCompany.company_name,
+        brandName: insertedCompany.brand_name,
+        industry: insertedCompany.industry,
+        officialEmail: cleanEmail,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      accessToken: token,
+      company: mapCompanyRow(insertedCompany, { accountSource: 'grobaax_user' }),
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Failed to complete corporate application.',
     });
   }
 });
@@ -1301,6 +1716,50 @@ async function verifyAndActivateCorporatePayment(params: {
     };
   }
 
+  // Handle optional Sponsor Ticker Upgrade vs Plan Subscription cleanly
+  if (payment.purchase_type === 'ticker_upgrade') {
+    let targetSubId = payment.subscription_id || null;
+    if (!targetSubId) {
+      const { data: activeSub } = await supabaseAdmin
+        .from('corporate_subscriptions')
+        .select('id')
+        .eq('company_id', payment.company_id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      targetSubId = activeSub?.id || null;
+    }
+
+    let updatedSub: any = null;
+    if (targetSubId) {
+      const { data: subRow } = await supabaseAdmin
+        .from('corporate_subscriptions')
+        .update({
+          ticker_upgrade_active: true,
+          ticker_upgrade_payment_id: claimedPayment.id,
+          updated_at: nowIso,
+        })
+        .eq('id', targetSubId)
+        .select()
+        .maybeSingle();
+      updatedSub = subRow || null;
+
+      await supabaseAdmin
+        .from('corporate_payments')
+        .update({ subscription_id: targetSubId, updated_at: nowIso })
+        .eq('id', claimedPayment.id);
+      claimedPayment.subscription_id = targetSubId;
+    }
+
+    return {
+      verified: true,
+      idempotent: false,
+      payment: mapPaymentRow(claimedPayment),
+      subscription: mapSubscriptionRow(updatedSub),
+    };
+  }
+
   // Load authoritative plan configuration from DB
   const { data: plan } = await supabaseAdmin
     .from('corporate_subscription_plans')
@@ -1332,6 +1791,11 @@ async function verifyAndActivateCorporatePayment(params: {
       max_active_campaigns_snapshot: Number(plan?.max_active_campaigns || 1),
       campaign_duration_days_snapshot: Number(plan?.campaign_duration_days || durationDays),
       placement_eligibility_snapshot: plan?.placement_eligibility || ['school_blog_article_footer'],
+      sponsor_ticker_mode_snapshot: plan?.sponsor_ticker_mode || 'none',
+      max_ticker_campaigns_snapshot: Number(plan?.max_ticker_campaigns || 0),
+      ticker_campaign_duration_days_snapshot: Number(plan?.ticker_campaign_duration_days || durationDays),
+      ticker_upgrade_price_snapshot: Number(plan?.ticker_upgrade_price_naira || 0),
+      ticker_upgrade_active: false,
       status: 'active',
       start_date: startDate.toISOString(),
       expiry_date: expiryDate.toISOString(),
@@ -1373,19 +1837,50 @@ corporateAdsRouter.post(
         });
       }
 
-      const { planId, callbackUrl } = req.body || {};
-      if (!planId) {
+      const {
+        planId,
+        callbackUrl,
+        purchaseType = 'plan_subscription',
+      } = req.body || {};
+      const isTickerUpgrade = purchaseType === 'ticker_upgrade';
+
+      let targetPlanId = planId;
+      let activeSub: any = null;
+      if (isTickerUpgrade) {
+        activeSub = await getActiveSubscriptionForCompany(company.id);
+        if (!activeSub) {
+          return res.status(400).json({
+            success: false,
+            error:
+              'An active Corporate Advertising plan subscription is required before purchasing a Sponsor Ticker upgrade.',
+          });
+        }
+        if (activeSub.sponsor_ticker_mode_snapshot !== 'optional_upgrade') {
+          return res.status(400).json({
+            success: false,
+            error: 'Your active plan does not use an optional Sponsor Ticker upgrade.',
+          });
+        }
+        if (activeSub.ticker_upgrade_active) {
+          return res.status(400).json({
+            success: false,
+            error: 'Sponsor Ticker upgrade is already active on your current subscription.',
+          });
+        }
+        targetPlanId = activeSub.plan_id;
+      }
+
+      if (!targetPlanId) {
         return res.status(400).json({ success: false, error: 'Subscription plan ID is required.' });
       }
 
       const { data: plan } = await supabaseAdmin
         .from('corporate_subscription_plans')
         .select('*')
-        .eq('id', planId)
-        .eq('is_active', true)
+        .eq('id', targetPlanId)
         .maybeSingle();
 
-      if (!plan) {
+      if (!plan || (!isTickerUpgrade && !plan.is_active)) {
         return res.status(404).json({
           success: false,
           error: 'Selected corporate subscription plan is unavailable or inactive.',
@@ -1403,20 +1898,38 @@ corporateAdsRouter.post(
         });
       }
 
-      const amountNaira = Number(plan.monthly_price_naira);
+      const amountNaira = isTickerUpgrade
+        ? Number(activeSub?.ticker_upgrade_price_snapshot || plan.ticker_upgrade_price_naira || 0)
+        : Number(plan.monthly_price_naira);
+
+      if (Number.isNaN(amountNaira) || amountNaira <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: isTickerUpgrade
+            ? 'No Sponsor Ticker upgrade price has been configured for your plan.'
+            : 'Invalid plan price.',
+        });
+      }
+
       const amountKobo = Math.round(amountNaira * 100);
       const reference = `GRBX_CORP_${Date.now()}_${crypto
         .randomBytes(3)
         .toString('hex')
         .toUpperCase()}`;
 
+      const planLabel = isTickerUpgrade
+        ? `${activeSub?.plan_name_snapshot || plan.name} — Sponsor Ticker Upgrade`
+        : plan.name;
+
       // Record pending payment before calling gateway
       const { data: pendingPay, error: payInsertErr } = await supabaseAdmin
         .from('corporate_payments')
         .insert({
           company_id: company.id,
+          subscription_id: isTickerUpgrade ? activeSub.id : null,
           plan_id: plan.id,
-          plan_name_snapshot: plan.name,
+          plan_name_snapshot: planLabel,
+          purchase_type: isTickerUpgrade ? 'ticker_upgrade' : 'plan_subscription',
           reference,
           amount_naira: amountNaira,
           currency: plan.currency || 'NGN',
@@ -1459,10 +1972,11 @@ corporateAdsRouter.post(
             channels: ['card', 'bank', 'bank_transfer', 'ussd', 'qr'],
             metadata: {
               channel_type: 'corporate_advertising',
+              purchaseType: isTickerUpgrade ? 'ticker_upgrade' : 'plan_subscription',
               companyId: company.id,
               companyName: company.company_name,
               planId: plan.id,
-              planName: plan.name,
+              planName: planLabel,
               amountNaira,
             },
           }),
@@ -2035,6 +2549,401 @@ corporateAdsRouter.delete(
 );
 
 // ============================================================================
+// 5B. COMPANY SPONSOR TICKER CAMPAIGNS (STRICTLY TEXT-ONLY, SEPARATE FROM BLOG ADS)
+// ============================================================================
+
+corporateAdsRouter.get(
+  '/ticker-campaigns',
+  requireCorporateAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const company = req.corporateCompany;
+      await expireOverdueRecords(company.id);
+
+      const { data, error } = await supabaseAdmin
+        .from('corporate_ticker_campaigns')
+        .select('*')
+        .eq('company_id', company.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      return res.json({
+        success: true,
+        tickerCampaigns: (data || []).map((row) => mapTickerCampaignRow(row, company)),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+
+corporateAdsRouter.post(
+  '/ticker-campaigns',
+  requireCorporateAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const company = req.corporateCompany;
+      if (company.status !== 'Approved') {
+        return res.status(403).json({
+          success: false,
+          error: 'Only Approved companies can create Sponsor Ticker campaigns.',
+        });
+      }
+
+      const activeSub = await getActiveSubscriptionForCompany(company.id);
+      if (!activeSub) {
+        return res.status(403).json({
+          success: false,
+          error: 'An active Corporate Advertising subscription is required.',
+        });
+      }
+
+      if (!isSubscriptionTickerEligible(activeSub)) {
+        const mode = activeSub.sponsor_ticker_mode_snapshot || 'none';
+        return res.status(403).json({
+          success: false,
+          error:
+            mode === 'optional_upgrade' && !activeSub.ticker_upgrade_active
+              ? 'Please purchase the optional Sponsor Ticker add-on upgrade under Plans & Billing to unlock Sponsor Ticker campaigns.'
+              : 'Your current corporate subscription plan does not include Sponsor Ticker placements.',
+        });
+      }
+
+      const {
+        campaignName,
+        shortMessage,
+        headline,
+        fullDescription,
+        destinationUrl,
+        ctaLabel = 'Learn More',
+        requestedDurationDays,
+        submitForReview = true,
+      } = req.body || {};
+
+      if (!campaignName || String(campaignName).trim().length < 2) {
+        return res.status(400).json({ success: false, error: 'Ticker campaign name is required.' });
+      }
+      const cleanShort = String(shortMessage || '').trim();
+      if (cleanShort.length < 5 || cleanShort.length > 140) {
+        return res.status(400).json({
+          success: false,
+          error: 'Short ticker message must be between 5 and 140 characters.',
+        });
+      }
+      const cleanHeadline = String(headline || '').trim();
+      if (cleanHeadline.length < 4 || cleanHeadline.length > 100) {
+        return res.status(400).json({
+          success: false,
+          error: 'Promotional headline must be between 4 and 100 characters.',
+        });
+      }
+      const cleanDesc = String(fullDescription || '').trim();
+      if (cleanDesc.length < 10 || cleanDesc.length > 600) {
+        return res.status(400).json({
+          success: false,
+          error: 'Full promotional description must be between 10 and 600 characters.',
+        });
+      }
+
+      const cleanDestUrl = sanitizeHttpUrl(destinationUrl);
+      if (!cleanDestUrl) {
+        return res.status(400).json({
+          success: false,
+          error: 'A valid destination website URL (https://...) is required.',
+        });
+      }
+
+      const maxTickerQuota = Number(activeSub.max_ticker_campaigns_snapshot || 1);
+      if (submitForReview) {
+        const { count } = await supabaseAdmin
+          .from('corporate_ticker_campaigns')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', company.id)
+          .in('status', ['Pending Review', 'Approved', 'Active']);
+
+        if ((count || 0) >= maxTickerQuota) {
+          return res.status(403).json({
+            success: false,
+            error: `Your plan allows up to ${maxTickerQuota} active or pending Sponsor Ticker campaign(s). Pause an existing ticker campaign or upgrade your plan.`,
+          });
+        }
+      }
+
+      const maxDuration = Number(activeSub.ticker_campaign_duration_days_snapshot || 30);
+      const parsedDuration = Math.min(
+        Math.max(1, Number(requestedDurationDays) || maxDuration),
+        maxDuration
+      );
+
+      // Companies NEVER self-approve; always Draft or Pending Review
+      const initialStatus = submitForReview ? 'Pending Review' : 'Draft';
+
+      const { data: created, error } = await supabaseAdmin
+        .from('corporate_ticker_campaigns')
+        .insert({
+          company_id: company.id,
+          subscription_id: activeSub.id,
+          campaign_name: String(campaignName).trim(),
+          ticker_message: cleanShort,
+          headline: cleanHeadline,
+          full_description: cleanDesc,
+          cta_label: String(ctaLabel || 'Learn More').trim().slice(0, 40),
+          destination_url: cleanDestUrl,
+          requested_duration_days: parsedDuration,
+          status: initialStatus,
+        })
+        .select()
+        .single();
+
+      if (error || !created) {
+        return res.status(500).json({
+          success: false,
+          error: error?.message || 'Failed to save Sponsor Ticker campaign.',
+        });
+      }
+
+      return res.status(201).json({
+        success: true,
+        tickerCampaign: mapTickerCampaignRow(created, company),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+
+corporateAdsRouter.patch(
+  '/ticker-campaigns/:id',
+  requireCorporateAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const company = req.corporateCompany;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || '')) {
+        return res.status(400).json({ success: false, error: 'Invalid ticker campaign ID.' });
+      }
+
+      const { data: camp } = await supabaseAdmin
+        .from('corporate_ticker_campaigns')
+        .select('*')
+        .eq('id', id)
+        .eq('company_id', company.id)
+        .maybeSingle();
+
+      if (!camp) {
+        return res.status(404).json({ success: false, error: 'Ticker campaign not found.' });
+      }
+
+      const { action } = req.body || {};
+      const nowIso = new Date().toISOString();
+
+      if (action === 'pause') {
+        if (camp.status !== 'Active') {
+          return res.status(400).json({
+            success: false,
+            error: 'Only Active Sponsor Ticker campaigns can be paused.',
+          });
+        }
+        const { data: updated } = await supabaseAdmin
+          .from('corporate_ticker_campaigns')
+          .update({ status: 'Paused', updated_at: nowIso })
+          .eq('id', camp.id)
+          .select()
+          .single();
+        return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated, company) });
+      }
+
+      if (action === 'resume') {
+        if (camp.status !== 'Paused' || !camp.reviewed_at) {
+          return res.status(400).json({
+            success: false,
+            error: 'Only previously Admin-approved Paused ticker campaigns can be resumed.',
+          });
+        }
+        if (company.status !== 'Approved') {
+          return res.status(403).json({
+            success: false,
+            error: 'Company must be Approved to resume Sponsor Ticker campaigns.',
+          });
+        }
+        const activeSub = await getActiveSubscriptionForCompany(company.id);
+        if (!activeSub || !isSubscriptionTickerEligible(activeSub)) {
+          return res.status(403).json({
+            success: false,
+            error: 'Active plan with Sponsor Ticker eligibility is required to resume.',
+          });
+        }
+        if (camp.expiry_date && new Date(camp.expiry_date).getTime() <= Date.now()) {
+          return res.status(400).json({
+            success: false,
+            error: 'Ticker campaign duration has expired. Please create or renew a campaign.',
+          });
+        }
+        const { count } = await supabaseAdmin
+          .from('corporate_ticker_campaigns')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', company.id)
+          .eq('status', 'Active');
+        if ((count || 0) >= Number(activeSub.max_ticker_campaigns_snapshot || 1)) {
+          return res.status(403).json({
+            success: false,
+            error: `Active Sponsor Ticker quota (${activeSub.max_ticker_campaigns_snapshot}) reached.`,
+          });
+        }
+
+        const { data: updated } = await supabaseAdmin
+          .from('corporate_ticker_campaigns')
+          .update({
+            status: 'Active',
+            subscription_id: activeSub.id,
+            updated_at: nowIso,
+          })
+          .eq('id', camp.id)
+          .select()
+          .single();
+        return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated, company) });
+      }
+
+      if (!['Draft', 'Rejected', 'Paused', 'Pending Review'].includes(camp.status)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Pause the Sponsor Ticker campaign before editing.',
+        });
+      }
+
+      const {
+        campaignName,
+        shortMessage,
+        headline,
+        fullDescription,
+        destinationUrl,
+        ctaLabel,
+        requestedDurationDays,
+        submitForReview,
+      } = req.body || {};
+
+      let cleanDestUrl = camp.destination_url;
+      if (destinationUrl !== undefined) {
+        const checked = sanitizeHttpUrl(destinationUrl);
+        if (!checked) {
+          return res.status(400).json({ success: false, error: 'Invalid destination URL.' });
+        }
+        cleanDestUrl = checked;
+      }
+
+      const cleanShort =
+        shortMessage !== undefined ? String(shortMessage).trim() : (camp.ticker_message ?? camp.short_message ?? '');
+      if (cleanShort.length < 5 || cleanShort.length > 140) {
+        return res.status(400).json({
+          success: false,
+          error: 'Short ticker message must be between 5 and 140 characters.',
+        });
+      }
+
+      const activeSub = await getActiveSubscriptionForCompany(company.id);
+      if (submitForReview) {
+        if (company.status !== 'Approved' || !activeSub || !isSubscriptionTickerEligible(activeSub)) {
+          return res.status(403).json({
+            success: false,
+            error:
+              'Approved company and active Sponsor Ticker plan eligibility are required to submit for review.',
+          });
+        }
+        const { count } = await supabaseAdmin
+          .from('corporate_ticker_campaigns')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', company.id)
+          .neq('id', camp.id)
+          .in('status', ['Pending Review', 'Approved', 'Active']);
+        if ((count || 0) >= Number(activeSub.max_ticker_campaigns_snapshot || 1)) {
+          return res.status(403).json({
+            success: false,
+            error: `Plan limit of ${activeSub.max_ticker_campaigns_snapshot} active/pending ticker campaigns reached.`,
+          });
+        }
+      }
+
+      const maxDuration = Number(
+        activeSub?.ticker_campaign_duration_days_snapshot || camp.requested_duration_days || 30
+      );
+      const nextDuration =
+        requestedDurationDays !== undefined
+          ? Math.min(Math.max(1, Number(requestedDurationDays)), maxDuration)
+          : camp.requested_duration_days;
+
+      const nextStatus = submitForReview ? 'Pending Review' : 'Draft';
+
+      const { data: updated, error } = await supabaseAdmin
+        .from('corporate_ticker_campaigns')
+        .update({
+          campaign_name: campaignName ? String(campaignName).trim() : camp.campaign_name,
+          ticker_message: cleanShort,
+          headline: headline ? String(headline).trim() : camp.headline,
+          full_description: fullDescription
+            ? String(fullDescription).trim()
+            : camp.full_description,
+          destination_url: cleanDestUrl,
+          cta_label: ctaLabel ? String(ctaLabel).trim().slice(0, 40) : camp.cta_label,
+          requested_duration_days: nextDuration,
+          status: nextStatus,
+          subscription_id: activeSub?.id || camp.subscription_id,
+          rejection_reason: '',
+          updated_at: nowIso,
+        })
+        .eq('id', camp.id)
+        .select()
+        .single();
+
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated, company) });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+
+corporateAdsRouter.delete(
+  '/ticker-campaigns/:id',
+  requireCorporateAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const company = req.corporateCompany;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || '')) {
+        return res.status(400).json({ success: false, error: 'Invalid ticker campaign ID.' });
+      }
+      const { data: camp } = await supabaseAdmin
+        .from('corporate_ticker_campaigns')
+        .select('id, status')
+        .eq('id', id)
+        .eq('company_id', company.id)
+        .maybeSingle();
+
+      if (!camp) {
+        return res.status(404).json({ success: false, error: 'Ticker campaign not found.' });
+      }
+      if (!['Draft', 'Rejected'].includes(camp.status)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Only Draft or Rejected ticker campaigns can be deleted.',
+        });
+      }
+
+      await supabaseAdmin.from('corporate_ticker_campaigns').delete().eq('id', id);
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+
+// ============================================================================
 // 6. ADMIN CORPORATE ADVERTISING MANAGEMENT & FINANCIAL REPORTING
 // ============================================================================
 
@@ -2047,7 +2956,7 @@ corporateAdsRouter.get(
       const fromParam = String(req.query.from || '').trim();
       const toParam = String(req.query.to || '').trim();
 
-      const [companiesRes, plansRes, subsRes, paymentsRes, campaignsRes] = await Promise.all([
+      const [companiesRes, plansRes, subsRes, paymentsRes, campaignsRes, tickerRes] = await Promise.all([
         supabaseAdmin.from('corporate_accounts').select('id, status'),
         supabaseAdmin.from('corporate_subscription_plans').select('id, name, is_active'),
         supabaseAdmin.from('corporate_subscriptions').select('id, status, plan_id, plan_name_snapshot'),
@@ -2055,6 +2964,11 @@ corporateAdsRouter.get(
         supabaseAdmin
           .from('corporate_ad_campaigns')
           .select('id, status, impressions_count, clicks_count'),
+        supabaseAdmin
+          .from('corporate_ticker_campaigns')
+          .select(
+            'id, status, impressions_count, bar_clicks_count, detail_views_count, website_clicks_count'
+          ),
       ]);
 
       const allPayments = paymentsRes.data || [];
@@ -2106,6 +3020,7 @@ corporateAdsRouter.get(
       const companies = companiesRes.data || [];
       const subs = subsRes.data || [];
       const campaigns = campaignsRes.data || [];
+      const tickerRows = tickerRes.data || [];
 
       const totalImpressions = campaigns.reduce(
         (s: number, c: any) => s + Number(c.impressions_count || 0),
@@ -2113,6 +3028,23 @@ corporateAdsRouter.get(
       );
       const totalClicks = campaigns.reduce(
         (s: number, c: any) => s + Number(c.clicks_count || 0),
+        0
+      );
+
+      const tickerTotalBarImpressions = tickerRows.reduce(
+        (s: number, r: any) => s + Number(r.impressions_count ?? r.bar_impressions_count ?? 0),
+        0
+      );
+      const tickerTotalBarClicks = tickerRows.reduce(
+        (s: number, r: any) => s + Number(r.bar_clicks_count || 0),
+        0
+      );
+      const tickerTotalDetailViews = tickerRows.reduce(
+        (s: number, r: any) => s + Number(r.detail_views_count || 0),
+        0
+      );
+      const tickerTotalWebsiteClicks = tickerRows.reduce(
+        (s: number, r: any) => s + Number(r.website_clicks_count || 0),
         0
       );
 
@@ -2129,8 +3061,11 @@ corporateAdsRouter.get(
           expiredSubscriptionsCount: subs.filter((s: any) => s.status === 'expired').length,
           activeCampaignsCount: campaigns.filter((c: any) => c.status === 'Active').length,
           pendingCampaignsCount: campaigns.filter((c: any) => c.status === 'Pending Review').length,
+          totalCompaniesCount: companies.length,
           pendingCompaniesCount: companies.filter((c: any) => c.status === 'Pending').length,
           approvedCompaniesCount: companies.filter((c: any) => c.status === 'Approved').length,
+          rejectedCompaniesCount: companies.filter((c: any) => c.status === 'Rejected').length,
+          suspendedCompaniesCount: companies.filter((c: any) => c.status === 'Suspended').length,
           activePlansCount: (plansRes.data || []).filter((p: any) => p.is_active).length,
           totalImpressions,
           totalClicks,
@@ -2138,6 +3073,17 @@ corporateAdsRouter.get(
             totalImpressions > 0
               ? Number(((totalClicks / totalImpressions) * 100).toFixed(2))
               : 0,
+          activeTickerCampaignsCount: tickerRows.filter((r: any) => r.status === 'Active').length,
+          pendingTickerCampaignsCount: tickerRows.filter((r: any) => r.status === 'Pending Review').length,
+          tickerStats: {
+            totalTickerCampaigns: tickerRows.length,
+            activeTickerCampaigns: tickerRows.filter((r: any) => r.status === 'Active').length,
+            pendingTickerCampaigns: tickerRows.filter((r: any) => r.status === 'Pending Review').length,
+            totalBarImpressions: tickerTotalBarImpressions,
+            totalBarClicks: tickerTotalBarClicks,
+            totalDetailViews: tickerTotalDetailViews,
+            totalWebsiteClicks: tickerTotalWebsiteClicks,
+          },
           revenueByPlan: Array.from(revByPlanMap.values()),
         },
       });
@@ -2167,7 +3113,26 @@ corporateAdsRouter.get(
         return res.status(500).json({ success: false, error: error.message });
       }
 
-      let rows = (data || []).map(mapCompanyRow);
+      const rawCompanies = data || [];
+      const authIds = Array.from(
+        new Set(rawCompanies.map((c: any) => c.auth_user_id).filter(Boolean))
+      );
+      let grobaaxUserIds = new Set<string>();
+      if (authIds.length > 0) {
+        const { data: userMatches } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .in('id', authIds);
+        grobaaxUserIds = new Set((userMatches || []).map((u: any) => String(u.id)));
+      }
+
+      let rows = rawCompanies.map((c: any) =>
+        mapCompanyRow(c, {
+          accountSource: grobaaxUserIds.has(String(c.auth_user_id))
+            ? 'grobaax_user'
+            : 'external_signup',
+        })
+      );
       if (search) {
         rows = rows.filter(
           (c: any) =>
@@ -2266,17 +3231,28 @@ corporateAdsRouter.patch(
         return res.status(404).json({ success: false, error: error?.message || 'Company not found.' });
       }
 
-      // If rejected or suspended, suspend any active/approved campaigns immediately
+      // If rejected or suspended, suspend any active/approved School Blog AND Sponsor Ticker campaigns immediately
       if (status === 'Suspended' || status === 'Rejected') {
-        await supabaseAdmin
-          .from('corporate_ad_campaigns')
-          .update({
-            status: 'Suspended',
-            admin_feedback: `Paused due to company status change (${status}).`,
-            updated_at: nowIso,
-          })
-          .eq('company_id', id)
-          .in('status', ['Active', 'Approved', 'Pending Review']);
+        await Promise.all([
+          supabaseAdmin
+            .from('corporate_ad_campaigns')
+            .update({
+              status: 'Suspended',
+              admin_feedback: `Paused due to company status change (${status}).`,
+              updated_at: nowIso,
+            })
+            .eq('company_id', id)
+            .in('status', ['Active', 'Approved', 'Pending Review']),
+          supabaseAdmin
+            .from('corporate_ticker_campaigns')
+            .update({
+              status: 'Suspended',
+              admin_feedback: `Paused due to company status change (${status}).`,
+              updated_at: nowIso,
+            })
+            .eq('company_id', id)
+            .in('status', ['Active', 'Approved', 'Pending Review']),
+        ]);
       }
 
       await logCorporateAudit({
@@ -2334,6 +3310,10 @@ corporateAdsRouter.post(
         maxActiveCampaigns = 1,
         campaignDurationDays = 30,
         placementEligibility = ['school_blog_article_footer'],
+        sponsorTickerMode = 'none',
+        maxTickerCampaigns = 0,
+        tickerCampaignDurationDays = 30,
+        tickerUpgradePriceNaira = 0,
         features = [],
         isActive = true,
         sortOrder = 1,
@@ -2345,6 +3325,24 @@ corporateAdsRouter.post(
       const price = Number(monthlyPriceNaira);
       if (Number.isNaN(price) || price <= 0) {
         return res.status(400).json({ success: false, error: 'A valid positive price in Naira is required.' });
+      }
+
+      const cleanTickerMode = SPONSOR_TICKER_MODES.has(sponsorTickerMode)
+        ? sponsorTickerMode
+        : 'none';
+      const parsedMaxTickers =
+        cleanTickerMode === 'none' ? 0 : Math.max(1, Number(maxTickerCampaigns) || 1);
+      const parsedTickerDuration = Math.max(1, Number(tickerCampaignDurationDays) || 30);
+      const parsedUpgradePrice =
+        cleanTickerMode === 'optional_upgrade'
+          ? Math.max(0, Number(tickerUpgradePriceNaira) || 0)
+          : 0;
+
+      if (cleanTickerMode === 'optional_upgrade' && parsedUpgradePrice <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Optional Sponsor Ticker Upgrade requires a positive upgrade price in Naira.',
+        });
       }
 
       const planId = `corp_plan_${String(name)
@@ -2363,9 +3361,14 @@ corporateAdsRouter.post(
           duration_days: Math.max(1, Number(durationDays) || 30),
           max_active_campaigns: Math.max(1, Number(maxActiveCampaigns) || 1),
           campaign_duration_days: Math.max(1, Number(campaignDurationDays) || 30),
-          placement_eligibility: Array.isArray(placementEligibility) && placementEligibility.length > 0
-            ? placementEligibility
-            : ['school_blog_article_footer'],
+          placement_eligibility:
+            Array.isArray(placementEligibility) && placementEligibility.length > 0
+              ? placementEligibility
+              : ['school_blog_article_footer'],
+          sponsor_ticker_mode: cleanTickerMode,
+          max_ticker_campaigns: parsedMaxTickers,
+          ticker_campaign_duration_days: parsedTickerDuration,
+          ticker_upgrade_price_naira: parsedUpgradePrice,
           features: Array.isArray(features) ? features.filter(Boolean) : [],
           is_active: Boolean(isActive),
           sort_order: Number(sortOrder) || 1,
@@ -2386,7 +3389,11 @@ corporateAdsRouter.post(
         action: 'CORPORATE_PLAN_CREATED',
         targetType: 'corporate_subscription_plan',
         targetId: created.id,
-        details: { name: created.name, monthlyPriceNaira: price },
+        details: {
+          name: created.name,
+          monthlyPriceNaira: price,
+          sponsorTickerMode: cleanTickerMode,
+        },
       });
 
       return res.status(201).json({ success: true, plan: mapPlanRow(created) });
@@ -2422,6 +3429,34 @@ corporateAdsRouter.patch(
         return res.status(400).json({ success: false, error: 'Price must be positive.' });
       }
 
+      const nextTickerMode =
+        b.sponsorTickerMode !== undefined && SPONSOR_TICKER_MODES.has(b.sponsorTickerMode)
+          ? b.sponsorTickerMode
+          : existing.sponsor_ticker_mode || 'none';
+      const nextMaxTickers =
+        nextTickerMode === 'none'
+          ? 0
+          : b.maxTickerCampaigns !== undefined
+          ? Math.max(1, Number(b.maxTickerCampaigns) || 1)
+          : Math.max(1, Number(existing.max_ticker_campaigns) || 1);
+      const nextTickerDuration =
+        b.tickerCampaignDurationDays !== undefined
+          ? Math.max(1, Number(b.tickerCampaignDurationDays) || 30)
+          : Number(existing.ticker_campaign_duration_days || 30);
+      const nextUpgradePrice =
+        nextTickerMode === 'optional_upgrade'
+          ? b.tickerUpgradePriceNaira !== undefined
+            ? Math.max(0, Number(b.tickerUpgradePriceNaira) || 0)
+            : Number(existing.ticker_upgrade_price_naira || 0)
+          : 0;
+
+      if (nextTickerMode === 'optional_upgrade' && nextUpgradePrice <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Optional Sponsor Ticker Upgrade requires a positive upgrade price in Naira.',
+        });
+      }
+
       const { data: updated, error } = await supabaseAdmin
         .from('corporate_subscription_plans')
         .update({
@@ -2444,6 +3479,10 @@ corporateAdsRouter.patch(
           placement_eligibility: Array.isArray(b.placementEligibility)
             ? b.placementEligibility
             : existing.placement_eligibility,
+          sponsor_ticker_mode: nextTickerMode,
+          max_ticker_campaigns: nextMaxTickers,
+          ticker_campaign_duration_days: nextTickerDuration,
+          ticker_upgrade_price_naira: nextUpgradePrice,
           features: Array.isArray(b.features) ? b.features.filter(Boolean) : existing.features,
           is_active: b.isActive !== undefined ? Boolean(b.isActive) : existing.is_active,
           sort_order: b.sortOrder !== undefined ? Number(b.sortOrder) : existing.sort_order,
@@ -2465,7 +3504,12 @@ corporateAdsRouter.patch(
         action: 'CORPORATE_PLAN_UPDATED',
         targetType: 'corporate_subscription_plan',
         targetId: id,
-        details: { name: updated.name, monthlyPriceNaira: nextPrice, isActive: updated.is_active },
+        details: {
+          name: updated.name,
+          monthlyPriceNaira: nextPrice,
+          isActive: updated.is_active,
+          sponsorTickerMode: nextTickerMode,
+        },
       });
 
       return res.json({ success: true, plan: mapPlanRow(updated) });
@@ -2728,6 +3772,241 @@ corporateAdsRouter.get(
         return res.status(500).json({ success: false, error: error.message });
       }
       return res.json({ success: true, logs: data || [] });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+
+// ============================================================================
+// 7. ADMIN SPONSOR TICKER MODERATION & MANAGEMENT
+// ============================================================================
+
+corporateAdsRouter.get(
+  '/admin/ticker-campaigns',
+  requireCorporateAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      await expireOverdueRecords();
+      const status = String(req.query.status || '').trim();
+      const search = String(req.query.search || '').trim().toLowerCase();
+
+      let q = supabaseAdmin
+        .from('corporate_ticker_campaigns')
+        .select('*, corporate_accounts(company_name, brand_name, status)')
+        .order('created_at', { ascending: false });
+
+      if (status && CAMPAIGN_STATUSES.has(status)) {
+        q = q.eq('status', status);
+      }
+
+      const { data, error } = await q;
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      let rows = (data || []).map((row: any) => mapTickerCampaignRow(row));
+      if (search) {
+        rows = rows.filter(
+          (c: any) =>
+            c.campaignName.toLowerCase().includes(search) ||
+            c.shortMessage.toLowerCase().includes(search) ||
+            c.headline.toLowerCase().includes(search) ||
+            c.companyName.toLowerCase().includes(search) ||
+            c.brandName.toLowerCase().includes(search)
+        );
+      }
+
+      return res.json({ success: true, tickerCampaigns: rows });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+
+corporateAdsRouter.patch(
+  '/admin/ticker-campaigns/:id/review',
+  requireCorporateAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const admin = req.authUser!;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || '')) {
+        return res.status(400).json({ success: false, error: 'Invalid ticker campaign ID.' });
+      }
+
+      const { action, rejectionReason = '', adminFeedback = '' } = req.body || {};
+      const { data: camp } = await supabaseAdmin
+        .from('corporate_ticker_campaigns')
+        .select('*, corporate_accounts(*)')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!camp) {
+        return res.status(404).json({ success: false, error: 'Ticker campaign not found.' });
+      }
+
+      const now = new Date();
+      const nowIso = now.toISOString();
+      let updates: any = {
+        reviewed_by: admin.id,
+        reviewer_name: admin.name,
+        reviewed_at: nowIso,
+        updated_at: nowIso,
+      };
+
+      if (action === 'approve' || action === 'activate') {
+        if (camp.corporate_accounts?.status !== 'Approved') {
+          return res.status(400).json({
+            success: false,
+            error: 'Cannot activate ticker ad because the company is not Approved.',
+          });
+        }
+        const activeSub = await getActiveSubscriptionForCompany(camp.company_id);
+        if (!activeSub || !isSubscriptionTickerEligible(activeSub)) {
+          return res.status(400).json({
+            success: false,
+            error:
+              'Cannot activate Sponsor Ticker ad because the company has no active subscription with Sponsor Ticker eligibility.',
+          });
+        }
+
+        const { count } = await supabaseAdmin
+          .from('corporate_ticker_campaigns')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', camp.company_id)
+          .neq('id', camp.id)
+          .eq('status', 'Active');
+        if ((count || 0) >= Number(activeSub.max_ticker_campaigns_snapshot || 1)) {
+          return res.status(400).json({
+            success: false,
+            error: `Company already has ${activeSub.max_ticker_campaigns_snapshot} active Sponsor Ticker campaign(s) on their current plan.`,
+          });
+        }
+
+        const durationDays = Math.min(
+          Number(camp.requested_duration_days || 30),
+          Number(activeSub.ticker_campaign_duration_days_snapshot || 30)
+        );
+        const rawEnd = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+        const subEnd = new Date(activeSub.expiry_date);
+        const finalExpiry = rawEnd.getTime() > subEnd.getTime() ? subEnd : rawEnd;
+
+        updates = {
+          ...updates,
+          subscription_id: activeSub.id,
+          status: 'Active',
+          start_date: camp.start_date || nowIso,
+          expiry_date:
+            camp.expiry_date && new Date(camp.expiry_date) > now
+              ? camp.expiry_date
+              : finalExpiry.toISOString(),
+          rejection_reason: '',
+          admin_feedback: String(
+            adminFeedback || 'Approved for Grobaax Student Sponsor Ticker.'
+          ).trim(),
+        };
+      } else if (action === 'reject') {
+        if (String(rejectionReason).trim().length < 3) {
+          return res.status(400).json({
+            success: false,
+            error: 'A rejection reason is required when rejecting a Sponsor Ticker ad.',
+          });
+        }
+        updates = {
+          ...updates,
+          status: 'Rejected',
+          rejection_reason: String(rejectionReason).trim(),
+          admin_feedback: String(rejectionReason).trim(),
+        };
+      } else if (action === 'pause') {
+        updates = {
+          ...updates,
+          status: 'Paused',
+          admin_feedback: String(adminFeedback || 'Paused by administrator.').trim(),
+        };
+      } else if (action === 'suspend' || action === 'remove') {
+        updates = {
+          ...updates,
+          status: 'Suspended',
+          rejection_reason: String(
+            rejectionReason || adminFeedback || 'Removed by administrator.'
+          ).trim(),
+          admin_feedback: String(
+            adminFeedback || rejectionReason || 'Suspended by administrator.'
+          ).trim(),
+        };
+      } else {
+        return res.status(400).json({ success: false, error: 'Unsupported review action.' });
+      }
+
+      const { data: updated, error } = await supabaseAdmin
+        .from('corporate_ticker_campaigns')
+        .update(updates)
+        .eq('id', id)
+        .select('*, corporate_accounts(company_name, brand_name, status)')
+        .single();
+
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      await logCorporateAudit({
+        actorUserId: admin.id,
+        actorName: admin.name,
+        actorRole: admin.managerRole || admin.role,
+        action: `TICKER_CAMPAIGN_${String(action).toUpperCase()}`,
+        targetType: 'corporate_ticker_campaign',
+        targetId: id,
+        details: {
+          campaignName: updated.campaign_name,
+          companyName: updated.corporate_accounts?.company_name,
+          status: updated.status,
+          rejectionReason: updated.rejection_reason,
+        },
+      });
+
+      return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated) });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+
+corporateAdsRouter.delete(
+  '/admin/ticker-campaigns/:id',
+  requireCorporateAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const admin = req.authUser!;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || '')) {
+        return res.status(400).json({ success: false, error: 'Invalid ticker campaign ID.' });
+      }
+
+      const { data: existing } = await supabaseAdmin
+        .from('corporate_ticker_campaigns')
+        .select('id, campaign_name')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Ticker campaign not found.' });
+      }
+
+      await supabaseAdmin.from('corporate_ticker_campaigns').delete().eq('id', id);
+
+      await logCorporateAudit({
+        actorUserId: admin.id,
+        actorName: admin.name,
+        actorRole: admin.managerRole || admin.role,
+        action: 'TICKER_CAMPAIGN_DELETED',
+        targetType: 'corporate_ticker_campaign',
+        targetId: id,
+        details: { campaignName: existing.campaign_name },
+      });
+
+      return res.json({ success: true });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
     }

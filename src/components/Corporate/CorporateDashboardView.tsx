@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowUpRight,
   BarChart3,
   Building2,
   CheckCircle2,
@@ -21,10 +22,12 @@ import {
   Play,
   Plus,
   Printer,
+  Radio,
   Receipt,
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Trash2,
   Upload,
   X,
@@ -40,21 +43,26 @@ import {
   CorporatePayment,
   CorporatePlan,
   CorporateSubscription,
+  CorporateTickerCampaign,
   createCorporateCampaign,
+  createCorporateTickerCampaign,
   deleteCorporateCampaign,
+  deleteCorporateTickerCampaign,
   fetchCorporateBilling,
   fetchCorporateCampaigns,
   fetchCorporateMe,
+  fetchCorporateTickerCampaigns,
   fetchPublicCorporatePlans,
   initializeCorporatePayment,
   logoutCorporateAccount,
   updateCorporateCampaign,
   updateCorporateProfile,
+  updateCorporateTickerCampaign,
   uploadCorporateMedia,
   verifyCorporatePayment,
 } from '../../lib/corporateAdsService';
 
-type DashboardTab = 'overview' | 'campaigns' | 'billing' | 'analytics' | 'profile';
+type DashboardTab = 'overview' | 'campaigns' | 'ticker' | 'billing' | 'analytics' | 'profile';
 
 interface CorporateDashboardViewProps {
   initialCompany: CorporateAccount;
@@ -89,7 +97,13 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     if (typeof window !== 'undefined') {
       const sp = new URLSearchParams(window.location.search);
       const t = sp.get('tab');
-      if (t === 'billing' || t === 'campaigns' || t === 'analytics' || t === 'profile') {
+      if (
+        t === 'billing' ||
+        t === 'campaigns' ||
+        t === 'ticker' ||
+        t === 'analytics' ||
+        t === 'profile'
+      ) {
         return t;
       }
     }
@@ -102,6 +116,7 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
   const [payments, setPayments] = useState<CorporatePayment[]>([]);
   const [plans, setPlans] = useState<CorporatePlan[]>([]);
   const [campaigns, setCampaigns] = useState<CorporateAdCampaign[]>([]);
+  const [tickerCampaigns, setTickerCampaigns] = useState<CorporateTickerCampaign[]>([]);
   const [summary, setSummary] = useState<CorporateAnalyticsSummary>({
     totalCampaigns: 0,
     activeCampaignsCount: 0,
@@ -115,6 +130,7 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     null
   );
   const [payingPlanId, setPayingPlanId] = useState<string | null>(null);
+  const [upgradingTicker, setUpgradingTicker] = useState(false);
   const [receiptModal, setReceiptModal] = useState<CorporatePayment | null>(null);
 
   // Campaign Builder Modal
@@ -130,6 +146,18 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
   const [isUploadingCreative, setIsUploadingCreative] = useState(false);
   const [isSavingCampaign, setIsSavingCampaign] = useState(false);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+
+  // Sponsor Ticker Builder Modal (Text-Only)
+  const [isTickerFormOpen, setIsTickerFormOpen] = useState(false);
+  const [editingTickerId, setEditingTickerId] = useState<string | null>(null);
+  const [tickerName, setTickerName] = useState('');
+  const [tickerShortMessage, setTickerShortMessage] = useState('');
+  const [tickerHeadline, setTickerHeadline] = useState('');
+  const [tickerFullDesc, setTickerFullDesc] = useState('');
+  const [tickerDestUrl, setTickerDestUrl] = useState('');
+  const [tickerCtaLabel, setTickerCtaLabel] = useState('Learn More');
+  const [tickerDurationDays, setTickerDurationDays] = useState(30);
+  const [isSavingTicker, setIsSavingTicker] = useState(false);
 
   // Company Profile Edit Form
   const [profBrandName, setProfBrandName] = useState(initialCompany.brandName || '');
@@ -147,10 +175,11 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
   const loadAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [meRes, billingRes, campsRes, plansRes] = await Promise.all([
+      const [meRes, billingRes, campsRes, tickersRes, plansRes] = await Promise.all([
         fetchCorporateMe(),
         fetchCorporateBilling(),
         fetchCorporateCampaigns(),
+        fetchCorporateTickerCampaigns(),
         fetchPublicCorporatePlans(),
       ]);
 
@@ -176,6 +205,9 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
       if (campsRes.success) {
         setCampaigns(campsRes.campaigns || []);
       }
+      if (tickersRes.success) {
+        setTickerCampaigns(tickersRes.tickerCampaigns || []);
+      }
       if (plansRes.success) {
         setPlans(plansRes.plans || []);
       }
@@ -195,9 +227,12 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
         .then((res) => {
           if (!mounted) return;
           if (res.success && res.verified) {
+            const isTickerUpgradePay = res.payment?.purchaseType === 'ticker_upgrade';
             setNotice({
               type: 'success',
-              text: 'Paystack payment verified! Your Corporate Advertising subscription is now active.',
+              text: isTickerUpgradePay
+                ? 'Paystack payment verified! Your Sponsor Ticker add-on is now active.'
+                : 'Paystack payment verified! Your Corporate Advertising subscription is now active.',
             });
             if (res.payment) setReceiptModal(res.payment);
           } else if (res.isPending) {
@@ -228,6 +263,43 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
   const isCompanyApproved = company.status === 'Approved';
   const hasActiveSubscription = Boolean(activeSub && activeSub.status === 'active');
 
+  const hasTickerPlanAccess = Boolean(
+    hasActiveSubscription &&
+      Number(activeSub?.maxTickerCampaignsSnapshot || 0) >= 1 &&
+      (activeSub?.sponsorTickerModeSnapshot === 'included' ||
+        activeSub?.sponsorTickerModeSnapshot === 'required' ||
+        (activeSub?.sponsorTickerModeSnapshot === 'optional_upgrade' &&
+          activeSub?.tickerUpgradeActive))
+  );
+
+  const canPurchaseTickerUpgrade = Boolean(
+    isCompanyApproved &&
+      hasActiveSubscription &&
+      activeSub?.sponsorTickerModeSnapshot === 'optional_upgrade' &&
+      !activeSub?.tickerUpgradeActive &&
+      Number(activeSub?.tickerUpgradePriceSnapshot || 0) > 0
+  );
+
+  const tickerTotals = useMemo(() => {
+    return tickerCampaigns.reduce(
+      (acc, t) => {
+        if (t.status === 'Active') acc.activeCount += 1;
+        acc.barImpressions += Number(t.barImpressionsCount || 0);
+        acc.barClicks += Number(t.barClicksCount || 0);
+        acc.detailViews += Number(t.detailViewsCount || 0);
+        acc.websiteClicks += Number(t.websiteClicksCount || 0);
+        return acc;
+      },
+      {
+        activeCount: 0,
+        barImpressions: 0,
+        barClicks: 0,
+        detailViews: 0,
+        websiteClicks: 0,
+      }
+    );
+  }, [tickerCampaigns]);
+
   const daysRemaining = useMemo(() => {
     if (!activeSub?.expiryDate) return 0;
     const ms = new Date(activeSub.expiryDate).getTime() - Date.now();
@@ -248,7 +320,7 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
       const origin =
         typeof window !== 'undefined' ? window.location.origin : CORPORATE_PORTAL_ORIGIN;
       const callbackUrl = `${origin}/dashboard?tab=billing`;
-      const res = await initializeCorporatePayment(planId, callbackUrl);
+      const res = await initializeCorporatePayment(planId, callbackUrl, 'plan_subscription');
       if (!res.success || !res.authorizationUrl) {
         setNotice({
           type: 'error',
@@ -264,6 +336,37 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
       });
     } finally {
       setPayingPlanId(null);
+    }
+  };
+
+  const handleSubscribeTickerUpgrade = async () => {
+    if (!activeSub?.planId) return;
+    setNotice(null);
+    setUpgradingTicker(true);
+    try {
+      const origin =
+        typeof window !== 'undefined' ? window.location.origin : CORPORATE_PORTAL_ORIGIN;
+      const callbackUrl = `${origin}/dashboard?tab=billing`;
+      const res = await initializeCorporatePayment(
+        activeSub.planId,
+        callbackUrl,
+        'ticker_upgrade'
+      );
+      if (!res.success || !res.authorizationUrl) {
+        setNotice({
+          type: 'error',
+          text: res.error || 'Unable to start Sponsor Ticker upgrade checkout.',
+        });
+        return;
+      }
+      window.location.assign(res.authorizationUrl);
+    } catch (err: any) {
+      setNotice({
+        type: 'error',
+        text: err?.message || 'Upgrade payment initialization failed.',
+      });
+    } finally {
+      setUpgradingTicker(false);
     }
   };
 
@@ -395,6 +498,108 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     }
   };
 
+  // Sponsor Ticker CRUD handlers (strictly text-only)
+  const openNewTickerModal = () => {
+    setEditingTickerId(null);
+    setTickerName('');
+    setTickerShortMessage('');
+    setTickerHeadline('');
+    setTickerFullDesc('');
+    setTickerDestUrl(company.website || '');
+    setTickerCtaLabel('Learn More');
+    setTickerDurationDays(activeSub?.tickerCampaignDurationDaysSnapshot || 30);
+    setIsTickerFormOpen(true);
+  };
+
+  const openEditTickerModal = (t: CorporateTickerCampaign) => {
+    setEditingTickerId(t.id);
+    setTickerName(t.campaignName);
+    setTickerShortMessage(t.shortMessage);
+    setTickerHeadline(t.headline);
+    setTickerFullDesc(t.fullDescription);
+    setTickerDestUrl(t.destinationUrl);
+    setTickerCtaLabel(t.ctaLabel || 'Learn More');
+    setTickerDurationDays(
+      t.requestedDurationDays || activeSub?.tickerCampaignDurationDaysSnapshot || 30
+    );
+    setIsTickerFormOpen(true);
+  };
+
+  const handleSaveTickerCampaign = async (submitForReview: boolean) => {
+    setNotice(null);
+    setIsSavingTicker(true);
+    try {
+      const payload = {
+        campaignName: tickerName.trim(),
+        shortMessage: tickerShortMessage.trim(),
+        headline: tickerHeadline.trim(),
+        fullDescription: tickerFullDesc.trim(),
+        destinationUrl: tickerDestUrl.trim(),
+        ctaLabel: tickerCtaLabel.trim() || 'Learn More',
+        requestedDurationDays: Number(tickerDurationDays) || 30,
+        submitForReview,
+      };
+
+      const res = editingTickerId
+        ? await updateCorporateTickerCampaign(editingTickerId, payload)
+        : await createCorporateTickerCampaign(payload);
+
+      if (!res.success) {
+        setNotice({ type: 'error', text: res.error || 'Could not save Sponsor Ticker ad.' });
+        return;
+      }
+
+      setIsTickerFormOpen(false);
+      setNotice({
+        type: 'success',
+        text: submitForReview
+          ? 'Sponsor Ticker ad submitted for Grobaax Admin review!'
+          : 'Sponsor Ticker ad saved as Draft.',
+      });
+      await loadAllData();
+    } finally {
+      setIsSavingTicker(false);
+    }
+  };
+
+  const handleTickerTogglePause = async (
+    t: CorporateTickerCampaign,
+    action: 'pause' | 'resume'
+  ) => {
+    setNotice(null);
+    setActionBusyId(t.id);
+    try {
+      const res = await updateCorporateTickerCampaign(t.id, { action });
+      if (!res.success) {
+        setNotice({ type: 'error', text: res.error || `Failed to ${action} ticker ad.` });
+        return;
+      }
+      setNotice({
+        type: 'success',
+        text: action === 'pause' ? 'Sponsor Ticker ad paused.' : 'Sponsor Ticker ad resumed.',
+      });
+      await loadAllData();
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const handleDeleteTicker = async (id: string) => {
+    setNotice(null);
+    setActionBusyId(id);
+    try {
+      const res = await deleteCorporateTickerCampaign(id);
+      if (!res.success) {
+        setNotice({ type: 'error', text: res.error || 'Failed to delete ticker ad.' });
+        return;
+      }
+      setNotice({ type: 'success', text: 'Sponsor Ticker ad deleted.' });
+      await loadAllData();
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setNotice(null);
@@ -514,7 +719,8 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
           {(
             [
               { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-              { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
+              { id: 'campaigns', label: 'School Blog Ads', icon: Megaphone },
+              { id: 'ticker', label: 'Sponsor Ticker', icon: Radio },
               { id: 'billing', label: 'Plans & Billing', icon: CreditCard },
               { id: 'analytics', label: 'Analytics', icon: BarChart3 },
               { id: 'profile', label: 'Company Profile', icon: Building2 },
@@ -761,6 +967,29 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
 
                       <button
                         type="button"
+                        onClick={() => {
+                          setActiveTab('ticker');
+                          if (isCompanyApproved && hasTickerPlanAccess) {
+                            openNewTickerModal();
+                          }
+                        }}
+                        className="w-full py-3 px-4 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-900 text-xs sm:text-sm font-bold flex items-center justify-between cursor-pointer transition-colors"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Radio className="w-4 h-4 text-indigo-600" />
+                          <span>Sponsor Ticker Ads</span>
+                        </span>
+                        <span className="text-[11px] font-semibold text-indigo-600 tabular-nums">
+                          {hasTickerPlanAccess
+                            ? `${tickerTotals.activeCount} / ${activeSub?.maxTickerCampaignsSnapshot ?? 0}`
+                            : canPurchaseTickerUpgrade
+                            ? 'Upgrade'
+                            : 'Text Bar'}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setActiveTab('billing')}
                         className="w-full py-3 px-4 rounded-xl border border-slate-200 bg-[#f8faff] hover:bg-slate-100 text-slate-800 text-xs sm:text-sm font-bold flex items-center justify-between cursor-pointer"
                       >
@@ -978,6 +1207,270 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
               </div>
             )}
 
+            {/* SPONSOR TICKER TAB (TEXT-ONLY) */}
+            {activeTab === 'ticker' && (
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                      Sponsor Ticker Campaigns (Text-Only)
+                    </h1>
+                    <p className="text-xs sm:text-sm text-slate-500">
+                      Run scrolling promotional text announcements in Grobaax&apos;s student Sponsor Ticker bar. Clicking opens the Active Sponsors list and your Advertiser Details modal.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!isCompanyApproved || !hasTickerPlanAccess}
+                    onClick={openNewTickerModal}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold disabled:opacity-45 cursor-pointer shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>New Sponsor Ticker Ad</span>
+                  </button>
+                </div>
+
+                {/* Isolated Sponsor Ticker Totals */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 tabular-nums">
+                  <div className="rounded-2xl bg-white border border-slate-200/80 p-4 space-y-1">
+                    <div className="text-[11px] font-bold text-slate-500">Ticker Bar Impressions</div>
+                    <div className="text-xl font-extrabold text-slate-900">
+                      {tickerTotals.barImpressions.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-white border border-slate-200/80 p-4 space-y-1">
+                    <div className="text-[11px] font-bold text-slate-500">Ticker Bar Clicks</div>
+                    <div className="text-xl font-extrabold text-blue-700">
+                      {tickerTotals.barClicks.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-white border border-slate-200/80 p-4 space-y-1">
+                    <div className="text-[11px] font-bold text-slate-500">Advertiser Detail Views</div>
+                    <div className="text-xl font-extrabold text-indigo-700">
+                      {tickerTotals.detailViews.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-white border border-slate-200/80 p-4 space-y-1">
+                    <div className="text-[11px] font-bold text-slate-500">Website Link Clicks</div>
+                    <div className="text-xl font-extrabold text-emerald-700">
+                      {tickerTotals.websiteClicks.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {!isCompanyApproved ? (
+                  <div className="rounded-2xl bg-white border border-slate-200 p-5 text-xs sm:text-sm text-slate-600">
+                    Sponsor Ticker creation requires an Approved company status.
+                  </div>
+                ) : !hasActiveSubscription ? (
+                  <div className="rounded-2xl bg-white border border-slate-200 p-5 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm text-slate-600">
+                    <span>
+                      Subscribe to an eligible advertising plan in Plans &amp; Billing to run Sponsor Ticker campaigns.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('billing')}
+                      className="px-4 py-2 rounded-full bg-blue-600 text-white text-xs font-bold cursor-pointer"
+                    >
+                      View Plans
+                    </button>
+                  </div>
+                ) : canPurchaseTickerUpgrade ? (
+                  <div className="rounded-2xl bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 p-5 flex flex-wrap items-center justify-between gap-4">
+                    <div className="space-y-1 max-w-xl">
+                      <h3 className="text-sm font-extrabold text-slate-900">
+                        Unlock Sponsor Ticker Add-on ({activeSub?.planNameSnapshot})
+                      </h3>
+                      <p className="text-xs text-slate-600">
+                        Your current subscription supports up to{' '}
+                        <strong>{activeSub?.maxTickerCampaignsSnapshot}</strong> Sponsor Ticker
+                        campaign(s) as an optional paid add-on. Unlock now to publish scrolling
+                        ticker announcements.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={upgradingTicker}
+                      onClick={handleSubscribeTickerUpgrade}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50 shrink-0"
+                    >
+                      {upgradingTicker ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <CreditCard className="w-4 h-4" />
+                      )}
+                      <span>
+                        Unlock Sponsor Ticker (₦
+                        {Number(activeSub?.tickerUpgradePriceSnapshot || 0).toLocaleString()})
+                      </span>
+                    </button>
+                  </div>
+                ) : !hasTickerPlanAccess ? (
+                  <div className="rounded-2xl bg-white border border-slate-200 p-5 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm text-slate-600">
+                    <span>
+                      Your current plan (<strong>{activeSub?.planNameSnapshot}</strong>) only covers School Blog Footer advertisements. Upgrade to a Sponsor Ticker-enabled plan under Plans &amp; Billing.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('billing')}
+                      className="px-4 py-2 rounded-full bg-blue-600 text-white text-xs font-bold cursor-pointer"
+                    >
+                      Browse Plans
+                    </button>
+                  </div>
+                ) : null}
+
+                {tickerCampaigns.length === 0 ? (
+                  <div className="rounded-3xl bg-white border border-slate-200 p-10 text-center space-y-3">
+                    <Radio className="w-10 h-10 text-blue-600 mx-auto opacity-80" />
+                    <h3 className="text-base font-bold text-slate-900">
+                      No Sponsor Ticker Ads Yet
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+                      Sponsor Ticker ads are strictly text-only announcements that scroll across the
+                      top ticker bar and open your full offer card when tapped by students.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {tickerCampaigns.map((t) => (
+                      <div
+                        key={t.id}
+                        className="rounded-3xl bg-white border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between gap-4"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <h3 className="text-base font-extrabold text-slate-900">
+                                {t.campaignName}
+                              </h3>
+                              <p className="text-xs font-semibold text-blue-700">{t.headline}</p>
+                            </div>
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap ${
+                                STATUS_BADGE[t.status] || 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {t.status}
+                            </span>
+                          </div>
+
+                          {/* Exact text-only bar preview strip */}
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 flex items-center gap-2 overflow-hidden">
+                            <span className="shrink-0 inline-flex items-center gap-1 pr-2 border-r border-slate-300 text-[10px] font-black uppercase tracking-wider text-blue-600">
+                              <Sparkles className="w-3 h-3" />
+                              <span>SPONSOR TICKER</span>
+                            </span>
+                            <div className="flex items-center gap-1.5 text-[11px] truncate">
+                              <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 border border-blue-500/20 font-black text-[10px] shrink-0">
+                                {company.brandName || company.companyName}
+                              </span>
+                              <span className="font-semibold text-slate-700 truncate">
+                                {t.shortMessage}
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                            {t.fullDescription}
+                          </p>
+
+                          <div className="text-[11px] text-slate-500 truncate">
+                            CTA: <strong>{t.ctaLabel}</strong> &middot; {t.destinationUrl}
+                          </div>
+
+                          {t.status === 'Rejected' && t.rejectionReason && (
+                            <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800">
+                              <strong>Admin Feedback:</strong> {t.rejectionReason}
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-xs tabular-nums">
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Bar Views</span>
+                              <strong className="text-slate-900">
+                                {t.barImpressionsCount.toLocaleString()}
+                              </strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Bar Taps</span>
+                              <strong className="text-slate-900">
+                                {t.barClicksCount.toLocaleString()}
+                              </strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Details</span>
+                              <strong className="text-slate-900">
+                                {t.detailViewsCount.toLocaleString()}
+                              </strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Site Clicks</span>
+                              <strong className="text-emerald-700">
+                                {t.websiteClicksCount.toLocaleString()}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                          {['Draft', 'Rejected', 'Paused', 'Pending Review'].includes(
+                            t.status
+                          ) && (
+                            <button
+                              type="button"
+                              onClick={() => openEditTickerModal(t)}
+                              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                          )}
+
+                          {t.status === 'Active' && (
+                            <button
+                              type="button"
+                              disabled={actionBusyId === t.id}
+                              onClick={() => handleTickerTogglePause(t, 'pause')}
+                              className="px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-800 inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Pause className="w-3.5 h-3.5" />
+                              <span>Pause</span>
+                            </button>
+                          )}
+
+                          {t.status === 'Paused' && t.reviewedAt && (
+                            <button
+                              type="button"
+                              disabled={actionBusyId === t.id}
+                              onClick={() => handleTickerTogglePause(t, 'resume')}
+                              className="px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-800 inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Play className="w-3.5 h-3.5" />
+                              <span>Resume</span>
+                            </button>
+                          )}
+
+                          {['Draft', 'Rejected'].includes(t.status) && (
+                            <button
+                              type="button"
+                              disabled={actionBusyId === t.id}
+                              onClick={() => handleDeleteTicker(t.id)}
+                              className="px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 inline-flex items-center gap-1 cursor-pointer ml-auto"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* PLANS & BILLING TAB */}
             {activeTab === 'billing' && (
               <div className="space-y-8">
@@ -1062,6 +1555,27 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                                     </strong>
                                   </span>
                                 </div>
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <span>
+                                    Sponsor Ticker:{' '}
+                                    <strong>
+                                      {plan.sponsorTickerMode === 'included'
+                                        ? `Included (${plan.maxTickerCampaigns || 1} ad${
+                                            (plan.maxTickerCampaigns || 1) > 1 ? 's' : ''
+                                          })`
+                                        : plan.sponsorTickerMode === 'required'
+                                        ? `Bundled (${plan.maxTickerCampaigns || 1} ad${
+                                            (plan.maxTickerCampaigns || 1) > 1 ? 's' : ''
+                                          })`
+                                        : plan.sponsorTickerMode === 'optional_upgrade'
+                                        ? `Optional Add-on (+₦${Number(
+                                            plan.tickerUpgradePriceNaira || 0
+                                          ).toLocaleString()})`
+                                        : 'Blog Footer Only'}
+                                    </strong>
+                                  </span>
+                                </div>
                                 {plan.features.map((feat, idx) => (
                                   <div key={idx} className="flex items-center gap-2">
                                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -1071,26 +1585,50 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                               </div>
                             </div>
 
-                            <button
-                              type="button"
-                              disabled={!isCompanyApproved || payingPlanId === plan.id}
-                              onClick={() => handleSubscribe(plan.id)}
-                              className="w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-45 cursor-pointer transition-colors"
-                            >
-                              {payingPlanId === plan.id ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  <span>Redirecting to Paystack...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CreditCard className="w-4 h-4" />
+                            <div className="space-y-2">
+                              <button
+                                type="button"
+                                disabled={!isCompanyApproved || payingPlanId === plan.id}
+                                onClick={() => handleSubscribe(plan.id)}
+                                className="w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-45 cursor-pointer transition-colors"
+                              >
+                                {payingPlanId === plan.id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span>Redirecting to Paystack...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CreditCard className="w-4 h-4" />
+                                    <span>
+                                      {isCurrent ? 'Renew Plan' : 'Subscribe via Paystack'}
+                                    </span>
+                                  </>
+                                )}
+                              </button>
+
+                              {isCurrent && canPurchaseTickerUpgrade && (
+                                <button
+                                  type="button"
+                                  disabled={upgradingTicker}
+                                  onClick={handleSubscribeTickerUpgrade}
+                                  className="w-full py-2.5 rounded-full border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                >
+                                  {upgradingTicker ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Radio className="w-3.5 h-3.5" />
+                                  )}
                                   <span>
-                                    {isCurrent ? 'Renew Plan' : 'Subscribe via Paystack'}
+                                    Upgrade: Add Sponsor Ticker (₦
+                                    {Number(
+                                      activeSub?.tickerUpgradePriceSnapshot || 0
+                                    ).toLocaleString()}
+                                    )
                                   </span>
-                                </>
+                                </button>
                               )}
-                            </button>
+                            </div>
                           </div>
                         );
                       })}
@@ -1220,72 +1758,142 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
 
             {/* ANALYTICS TAB */}
             {activeTab === 'analytics' && (
-              <div className="rounded-3xl bg-white border border-slate-200/80 p-6 shadow-xs space-y-5">
-                <div>
-                  <h1 className="text-xl font-extrabold text-slate-900">
-                    Campaign Performance Breakdown
-                  </h1>
-                  <p className="text-xs sm:text-sm text-slate-500">
-                    Deduplicated School Blog impressions, clicks, and click-through rates
-                    across your campaigns.
-                  </p>
+              <div className="space-y-6">
+                <div className="rounded-3xl bg-white border border-slate-200/80 p-6 shadow-xs space-y-5">
+                  <div>
+                    <h1 className="text-xl font-extrabold text-slate-900">
+                      School Blog Campaign Performance Breakdown
+                    </h1>
+                    <p className="text-xs sm:text-sm text-slate-500">
+                      Deduplicated School Blog impressions, clicks, and click-through rates
+                      across your banner campaigns.
+                    </p>
+                  </div>
+
+                  {campaigns.length === 0 ? (
+                    <p className="text-sm text-slate-500 py-4">
+                      No School Blog campaign telemetry available yet.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs sm:text-sm tabular-nums">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-slate-500 text-xs">
+                            <th className="py-2.5 pr-4 font-bold">Campaign</th>
+                            <th className="py-2.5 pr-4 font-bold">Status</th>
+                            <th className="py-2.5 pr-4 font-bold">Impressions</th>
+                            <th className="py-2.5 pr-4 font-bold">Clicks</th>
+                            <th className="py-2.5 pr-4 font-bold">CTR</th>
+                            <th className="py-2.5 font-bold">Expiry</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {campaigns.map((c) => (
+                            <tr key={c.id}>
+                              <td className="py-3 pr-4">
+                                <div className="font-bold text-slate-900">
+                                  {c.campaignName}
+                                </div>
+                                <div className="text-[11px] text-slate-500">
+                                  {c.headline}
+                                </div>
+                              </td>
+                              <td className="py-3 pr-4">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                                    STATUS_BADGE[c.status] || 'bg-slate-100 text-slate-700'
+                                  }`}
+                                >
+                                  {c.status}
+                                </span>
+                              </td>
+                              <td className="py-3 pr-4 font-bold text-slate-900">
+                                {c.impressionsCount.toLocaleString()}
+                              </td>
+                              <td className="py-3 pr-4 font-bold text-slate-900">
+                                {c.clicksCount.toLocaleString()}
+                              </td>
+                              <td className="py-3 pr-4 font-bold text-blue-700">{c.ctr}%</td>
+                              <td className="py-3 text-slate-600">
+                                {c.expiryDate
+                                  ? new Date(c.expiryDate).toLocaleDateString()
+                                  : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
 
-                {campaigns.length === 0 ? (
-                  <p className="text-sm text-slate-500 py-6">
-                    No campaign telemetry available yet.
-                  </p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs sm:text-sm tabular-nums">
-                      <thead>
-                        <tr className="border-b border-slate-200 text-slate-500 text-xs">
-                          <th className="py-2.5 pr-4 font-bold">Campaign</th>
-                          <th className="py-2.5 pr-4 font-bold">Status</th>
-                          <th className="py-2.5 pr-4 font-bold">Impressions</th>
-                          <th className="py-2.5 pr-4 font-bold">Clicks</th>
-                          <th className="py-2.5 pr-4 font-bold">CTR</th>
-                          <th className="py-2.5 font-bold">Expiry</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {campaigns.map((c) => (
-                          <tr key={c.id}>
-                            <td className="py-3 pr-4">
-                              <div className="font-bold text-slate-900">
-                                {c.campaignName}
-                              </div>
-                              <div className="text-[11px] text-slate-500">
-                                {c.headline}
-                              </div>
-                            </td>
-                            <td className="py-3 pr-4">
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
-                                  STATUS_BADGE[c.status] || 'bg-slate-100 text-slate-700'
-                                }`}
-                              >
-                                {c.status}
-                              </span>
-                            </td>
-                            <td className="py-3 pr-4 font-bold text-slate-900">
-                              {c.impressionsCount.toLocaleString()}
-                            </td>
-                            <td className="py-3 pr-4 font-bold text-slate-900">
-                              {c.clicksCount.toLocaleString()}
-                            </td>
-                            <td className="py-3 pr-4 font-bold text-blue-700">{c.ctr}%</td>
-                            <td className="py-3 text-slate-600">
-                              {c.expiryDate
-                                ? new Date(c.expiryDate).toLocaleDateString()
-                                : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {/* Isolated Sponsor Ticker Analytics */}
+                <div className="rounded-3xl bg-white border border-slate-200/80 p-6 shadow-xs space-y-5">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-slate-900">
+                      Sponsor Ticker Performance Breakdown
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500">
+                      Isolated telemetry for scrolling ticker bar impressions, bar taps, detail modal views, and Visit Website clicks.
+                    </p>
                   </div>
-                )}
+
+                  {tickerCampaigns.length === 0 ? (
+                    <p className="text-sm text-slate-500 py-4">
+                      No Sponsor Ticker telemetry available yet.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs sm:text-sm tabular-nums">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-slate-500 text-xs">
+                            <th className="py-2.5 pr-4 font-bold">Ticker Campaign</th>
+                            <th className="py-2.5 pr-4 font-bold">Status</th>
+                            <th className="py-2.5 pr-4 font-bold">Bar Views</th>
+                            <th className="py-2.5 pr-4 font-bold">Bar Clicks</th>
+                            <th className="py-2.5 pr-4 font-bold">Detail Views</th>
+                            <th className="py-2.5 pr-4 font-bold">Site Clicks</th>
+                            <th className="py-2.5 font-bold">Site CTR</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {tickerCampaigns.map((t) => (
+                            <tr key={t.id}>
+                              <td className="py-3 pr-4">
+                                <div className="font-bold text-slate-900">{t.campaignName}</div>
+                                <div className="text-[11px] text-slate-500 line-clamp-1">
+                                  {t.shortMessage}
+                                </div>
+                              </td>
+                              <td className="py-3 pr-4">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                                    STATUS_BADGE[t.status] || 'bg-slate-100 text-slate-700'
+                                  }`}
+                                >
+                                  {t.status}
+                                </span>
+                              </td>
+                              <td className="py-3 pr-4 font-bold text-slate-900">
+                                {t.barImpressionsCount.toLocaleString()}
+                              </td>
+                              <td className="py-3 pr-4 font-bold text-blue-700">
+                                {t.barClicksCount.toLocaleString()}
+                              </td>
+                              <td className="py-3 pr-4 font-bold text-indigo-700">
+                                {t.detailViewsCount.toLocaleString()}
+                              </td>
+                              <td className="py-3 pr-4 font-bold text-emerald-700">
+                                {t.websiteClicksCount.toLocaleString()}
+                              </td>
+                              <td className="py-3 font-bold text-slate-800">{t.websiteCtr}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1647,6 +2255,237 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                     type="button"
                     disabled={isSavingCampaign || isUploadingCreative}
                     onClick={() => handleSaveCampaign(false)}
+                    className="w-full py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
+                  >
+                    Save as Draft
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sponsor Ticker Builder Modal (Strictly Text-Only — Zero Image Upload) */}
+      {isTickerFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-4xl rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden my-6">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <Radio className="w-4 h-4 text-blue-600" />
+                <span>
+                  {editingTickerId
+                    ? 'Edit Sponsor Ticker Ad'
+                    : 'Create Sponsor Ticker Campaign (Text-Only)'}
+                </span>
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsTickerFormOpen(false)}
+                className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-h-[82vh] overflow-y-auto">
+              <div className="lg:col-span-7 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Internal Ticker Campaign Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={tickerName}
+                    onChange={(e) => setTickerName(e.target.value)}
+                    placeholder="e.g. Semester Zero-Fee Student Promo"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Short Scrolling Ticker Message (Bar Text) *
+                    </label>
+                    <span className="text-[11px] font-semibold text-slate-400 tabular-nums">
+                      {tickerShortMessage.length}/140
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    minLength={5}
+                    maxLength={140}
+                    value={tickerShortMessage}
+                    onChange={(e) => setTickerShortMessage(e.target.value)}
+                    placeholder="Get instant student transfers with zero charges all semester!"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Scrolls right-to-left inside the student SPONSOR TICKER bar (text only).
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Promotional Headline (Details Popup) *
+                    </label>
+                    <span className="text-[11px] font-semibold text-slate-400 tabular-nums">
+                      {tickerHeadline.length}/100
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    minLength={4}
+                    maxLength={100}
+                    value={tickerHeadline}
+                    onChange={(e) => setTickerHeadline(e.target.value)}
+                    placeholder="Zero-Fee Campus Banking for Verified Students"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Full Promotional Description *
+                    </label>
+                    <span className="text-[11px] font-semibold text-slate-400 tabular-nums">
+                      {tickerFullDesc.length}/600
+                    </span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    required
+                    minLength={10}
+                    maxLength={600}
+                    value={tickerFullDesc}
+                    onChange={(e) => setTickerFullDesc(e.target.value)}
+                    placeholder="Explain the full offer shown when students click your brand inside the Active Sponsors popup."
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Visit Button Label
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={32}
+                      value={tickerCtaLabel}
+                      onChange={(e) => setTickerCtaLabel(e.target.value)}
+                      placeholder="Visit Website"
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Duration (Days)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={activeSub?.tickerCampaignDurationDaysSnapshot || 30}
+                      value={tickerDurationDays}
+                      onChange={(e) => setTickerDurationDays(Number(e.target.value) || 30)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Approved Destination URL *
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={tickerDestUrl}
+                    onChange={(e) => setTickerDestUrl(e.target.value)}
+                    placeholder="https://yourbrand.com/campus-offer"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Live Preview Panel */}
+              <div className="lg:col-span-5 space-y-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Live Student Experience Preview
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-[11px] font-semibold text-slate-500">
+                    1. Student Sponsor Ticker Bar (Text-Only)
+                  </div>
+                  <div className="w-full overflow-hidden bg-white border border-slate-200 rounded-xl py-1.5 px-3 flex items-center">
+                    <div className="shrink-0 flex items-center gap-1 pr-2 font-black text-blue-600 border-r border-slate-300 mr-2 text-[10px] uppercase tracking-wider">
+                      <Sparkles className="w-3 h-3 text-blue-500" />
+                      <span>SPONSOR TICKER</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] truncate">
+                      <span className="px-1.5 py-0.5 text-[10px] font-black rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 shrink-0">
+                        {company.brandName || company.companyName}
+                      </span>
+                      <span className="text-slate-700 font-semibold truncate">
+                        {tickerShortMessage || 'Your short ticker promotion scrolls here...'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-[11px] font-semibold text-slate-500">
+                    2. Advertiser Details Popup Preview
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-[#f8faff] p-4 space-y-3">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-slate-900">
+                        {company.brandName || company.companyName}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Active
+                      </span>
+                    </div>
+                    <h4 className="text-sm font-extrabold text-slate-900">
+                      {tickerHeadline || 'Promotional Offer Headline'}
+                    </h4>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {tickerFullDesc ||
+                        'Full offer details appear cleanly inside the Advertiser Details modal when a student selects your brand from Active Sponsors.'}
+                    </p>
+                    <div className="pt-1 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-slate-400 truncate max-w-[140px]">
+                        {tickerDestUrl || 'https://yourbrand.com'}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-blue-600 text-white text-xs font-bold shrink-0">
+                        <span>{tickerCtaLabel || 'Visit Website'}</span>
+                        <ArrowUpRight className="w-3 h-3" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    disabled={isSavingTicker}
+                    onClick={() => handleSaveTickerCampaign(true)}
+                    className="w-full py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingTicker ? 'Submitting...' : 'Submit for Admin Review'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSavingTicker}
+                    onClick={() => handleSaveTickerCampaign(false)}
                     className="w-full py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
                   >
                     Save as Draft

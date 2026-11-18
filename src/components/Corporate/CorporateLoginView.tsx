@@ -16,6 +16,7 @@ import {
 } from '../../utils/domainPortal';
 import {
   CorporateAccount,
+  StudentCompletionPrefill,
   completeCorporatePasswordReset,
   loginCorporateAccount,
   requestCorporatePasswordReset,
@@ -30,6 +31,7 @@ interface CorporateLoginViewProps {
     targetPath: '/' | '/apply' | '/login' | '/dashboard'
   ) => void;
   onSuccess: (company: CorporateAccount) => void;
+  onRequiresCompletion?: (prefill: StudentCompletionPrefill) => void;
 }
 
 type AuthPanelMode = 'login' | 'forgot' | 'reset';
@@ -37,6 +39,7 @@ type AuthPanelMode = 'login' | 'forgot' | 'reset';
 export const CorporateLoginView: React.FC<CorporateLoginViewProps> = ({
   onNavigate,
   onSuccess,
+  onRequiresCompletion,
 }) => {
   const [mode, setMode] = useState<AuthPanelMode>('login');
   const [email, setEmail] = useState('');
@@ -78,6 +81,10 @@ export const CorporateLoginView: React.FC<CorporateLoginViewProps> = ({
     setIsLoading(true);
     try {
       const res = await loginCorporateAccount(email.trim(), password);
+      if (res.success && res.requiresApplicationCompletion && res.prefill) {
+        onRequiresCompletion?.(res.prefill);
+        return;
+      }
       if (!res.success || !res.company) {
         setError(
           res.error ||
@@ -211,7 +218,7 @@ export const CorporateLoginView: React.FC<CorporateLoginViewProps> = ({
                 ? 'Enter the email address registered on your advertiser account to receive a recovery link.'
                 : mode === 'reset'
                 ? 'Enter a new password for your Grobaax Corporate Advertiser account.'
-                : 'Sign in with any registered personal or business email to track applications, manage plans, and run approved campaigns.'}
+                : 'Sign in with your company credentials or your existing Grobaax student account email and password.'}
             </p>
           </div>
 
@@ -243,7 +250,7 @@ export const CorporateLoginView: React.FC<CorporateLoginViewProps> = ({
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <p className="mt-1.5 text-[11px] text-slate-500">
-                  Both normal personal emails (e.g. Gmail, Yahoo) and official company emails work.
+                  Existing Grobaax student accounts, personal emails (Gmail, Yahoo), and official business emails are all valid.
                 </p>
               </div>
 
@@ -316,7 +323,7 @@ export const CorporateLoginView: React.FC<CorporateLoginViewProps> = ({
                 </p>
                 <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Corporate Advertiser Portal &middot; Dedicated company workspace</span>
+                  <span>Corporate Advertiser Portal &middot; Student &amp; Company Sign-In Supported</span>
                 </p>
               </div>
             </form>
