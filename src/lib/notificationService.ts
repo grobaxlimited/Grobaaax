@@ -81,6 +81,7 @@ class GrobaaxNotificationService {
     minimart: 0,
     announcements: 0,
     campus: 0,
+    school_blog: 0,
   };
 
   private adminCounts: AdminSectionUnreadCounts = {
@@ -478,6 +479,7 @@ class GrobaaxNotificationService {
       minimart: minimartCount,
       announcements: annCount,
       campus: campusCount,
+      school_blog: this.eventCounts['school_blog'] || 0,
     };
 
     // --- ADMIN SECTION COUNTS ---

@@ -36,6 +36,7 @@ interface SchoolBlogPortalProps {
   institutionCategory?: string;
   homeInstitutionName: string;
   onBackToCampus: () => void;
+  backButtonLabel?: string;
   onSwitchBlogInstitution?: (instName: string, category?: string) => void;
 }
 
@@ -53,6 +54,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   institutionCategory,
   homeInstitutionName,
   onBackToCampus,
+  backButtonLabel,
   onSwitchBlogInstitution,
 }) => {
   const { currentUser } = useApp();
@@ -235,7 +237,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
           className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Campus Directory</span>
+          <span>{backButtonLabel || 'Back to Campus Directory'}</span>
         </button>
 
         <div className="flex items-center gap-2 flex-wrap">

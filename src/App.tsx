@@ -7,6 +7,8 @@ import { HomeTab } from './components/Home/HomeTab';
 import { SchoolDomeView } from './components/SchoolDome/SchoolDomeView';
 import { CommunityTab } from './components/Community/CommunityTab';
 import { HintsView } from './components/Hints/HintsView';
+import { SchoolBlogPortal } from './components/Community/Campus/Blog/SchoolBlogPortal';
+import { InstitutionCategory } from './types';
 import { WalletModal } from './components/Wallet/WalletModal';
 import { AuthModal } from './components/Auth/AuthModal';
 import { AuthLandingScreen } from './components/Auth/AuthLandingScreen';
@@ -26,6 +28,7 @@ import { isCorporateAdvertisingDomain } from './utils/domainPortal';
 function MainLayout() {
   const {
     activeTab,
+    setActiveTab,
     firebaseUser,
     currentUser,
     isAuthModalOpen,
@@ -127,6 +130,29 @@ function MainLayout() {
             <HintsView />
           </div>
         )}
+        {activeTab === 'school_blog' && (() => {
+          const homeInstitution =
+            currentUser.institution ||
+            currentUser.institutionName ||
+            currentUser.academicProfile?.institutionName ||
+            'Ekiti State University, Ado-Ekiti';
+          const homeCategory: InstitutionCategory =
+            (currentUser.institutionCategory as InstitutionCategory) ||
+            (currentUser.academicProfile?.institutionCategory as InstitutionCategory) ||
+            'University';
+          return (
+            <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-10">
+              <SchoolBlogPortal
+                institutionKey={homeInstitution}
+                institutionName={homeInstitution}
+                institutionCategory={homeCategory}
+                homeInstitutionName={homeInstitution}
+                backButtonLabel="Back to Home"
+                onBackToCampus={() => setActiveTab('home')}
+              />
+            </div>
+          );
+        })()}
         {activeTab === 'community' && <CommunityTab />}
       </main>
 

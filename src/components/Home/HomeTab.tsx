@@ -19,6 +19,7 @@ import {
   Lightbulb,
   Play,
   Zap,
+  Newspaper,
 } from 'lucide-react';
 
 export const HomeTab: React.FC = () => {
@@ -211,7 +212,7 @@ export const HomeTab: React.FC = () => {
       </section>
 
       {/* ======================================================== */}
-      {/* 3. THREE HORIZONTAL FEATURE CARDS */}
+      {/* 3. HORIZONTAL FEATURE CARDS */}
       {/* ======================================================== */}
       <section id="home-feature-cards" className="space-y-3 sm:space-y-3.5">
         {/* Card A: Mini Mart & Skills (Peach/Amber) */}
@@ -318,6 +319,45 @@ export const HomeTab: React.FC = () => {
             className="relative z-10 px-4 py-2 rounded-full bg-gradient-to-r from-[#0d9488] to-[#059669] hover:from-[#0f766e] hover:to-[#047857] active:scale-95 text-white font-black text-xs shadow-sm flex items-center gap-1.5 self-start sm:self-auto shrink-0 transition-all cursor-pointer"
           >
             <span>Explore Hints</span>
+            <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+          </button>
+        </div>
+
+        {/* Card D: School Blog (Sky/Blue) */}
+        <div
+          id="home-school-blog-card"
+          className="bg-gradient-to-r from-[#f0f7ff] via-[#e6f1ff] to-[#d9eaff] border border-blue-200/90 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 relative overflow-hidden shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:shadow-md transition-all"
+        >
+          {/* Faint Newsroom Watermark Background */}
+          <div className="absolute right-28 sm:right-40 -top-4 -bottom-4 w-32 pointer-events-none opacity-[0.08] flex items-center justify-center text-blue-700">
+            <Newspaper className="w-32 h-32" />
+          </div>
+
+          <div className="flex items-start sm:items-center gap-3 relative z-10">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#dbeafe] border border-[#93c5fd] flex items-center justify-center text-[#1d4ed8] shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <Newspaper className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="space-y-0.5 sm:space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">
+                  School Blog
+                </h3>
+                <span className="px-2 py-0.5 rounded-md bg-[#3b82f6]/20 border border-[#3b82f6]/40 text-blue-950 text-[10px] font-black uppercase tracking-wider">
+                  NEWSROOM
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-600 max-w-xl leading-relaxed">
+                Read verified campus news, academic updates, and student journalism from your institution—or publish articles and earn GP rewards.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('school_blog')}
+            className="relative z-10 px-4 py-2 rounded-full bg-gradient-to-r from-[#1d4ed8] to-[#2563eb] hover:from-[#1e40af] hover:to-[#1d4ed8] active:scale-95 text-white font-black text-xs shadow-sm flex items-center gap-1.5 self-start sm:self-auto shrink-0 transition-all cursor-pointer"
+          >
+            <span>Read School Blog</span>
             <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
           </button>
         </div>

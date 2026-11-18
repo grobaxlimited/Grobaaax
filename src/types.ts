@@ -193,7 +193,7 @@ export type AdminTabType =
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 
-export type TabType = 'home' | 'gus' | 'daily_qa' | 'school_dome' | 'school_dome_results' | 'hints' | 'community';
+export type TabType = 'home' | 'gus' | 'daily_qa' | 'school_dome' | 'school_dome_results' | 'hints' | 'school_blog' | 'community';
 
 // ==========================================
 // GROBAAX COMPETITION HINTS TYPES & SCHEMAS
@@ -2890,7 +2890,8 @@ export type UserNavSectionKey =
   | 'user'
   | 'minimart'
   | 'announcements'
-  | 'campus';
+  | 'campus'
+  | 'school_blog';
 
 export type AdminNavSectionKey = AdminTabType;
 
@@ -2908,6 +2909,7 @@ export interface UserSectionUnreadCounts {
   minimart: number;
   announcements: number;
   campus: number;
+  school_blog: number;
   [key: string]: number;
 }
 

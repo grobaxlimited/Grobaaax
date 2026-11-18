@@ -21,6 +21,7 @@ import {
   Swords,
   Shield,
   Lightbulb,
+  Newspaper,
 } from 'lucide-react';
 
 interface TopNavigationProps {
@@ -77,6 +78,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
     { id: 'home', label: 'Home', icon: Home, badgeKey: 'home' },
     { id: 'school_dome', label: 'School Dome', icon: Swords, badgeKey: 'school_dome' },
     { id: 'hints', label: 'Hints', icon: Lightbulb, badgeKey: 'hints' },
+    { id: 'school_blog', label: 'School Blog', icon: Newspaper, badgeKey: 'school_blog' },
     { id: 'community', label: 'Community', icon: Users, badgeKey: 'community' },
   ];
 
@@ -90,6 +92,9 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
       }
       if (tabId === 'hints') {
         clearSectionNotification('hints');
+      }
+      if (tabId === 'school_blog') {
+        clearSectionNotification('school_blog');
       }
     }
   };
