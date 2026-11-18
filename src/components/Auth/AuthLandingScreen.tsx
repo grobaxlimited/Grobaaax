@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AuthModal } from './AuthModal';
 import { signInWithGoogle, setSessionFromUrlOrHash, ensureUserInFirestore, formatAuthError } from '../../lib/firebase';
@@ -26,6 +26,14 @@ export const AuthLandingScreen: React.FC = () => {
     }
     return true;
   });
+
+  useLayoutEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  }, [showOnboarding]);
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
   const [googleError, setGoogleError] = useState('');
   const [showPasteHelper, setShowPasteHelper] = useState(false);

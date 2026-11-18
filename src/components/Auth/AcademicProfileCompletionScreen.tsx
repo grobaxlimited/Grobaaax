@@ -267,6 +267,16 @@ export const AcademicProfileCompletionScreen: React.FC = () => {
         department: resolvedDeptName,
         level: selectedLevel,
       }));
+      if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+        try {
+          document.activeElement.blur();
+        } catch (_) {}
+      }
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
       setActiveTab('home');
     } catch (err: any) {
       console.error('Error saving academic profile:', err);

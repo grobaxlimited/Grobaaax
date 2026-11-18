@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { GraduationCap } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Navigation/Header';
@@ -25,6 +25,18 @@ import { CorporateAdvertisingPortal } from './components/Corporate/CorporateAdve
 import { useDevicePlatform } from './hooks/useDevicePlatform';
 import { isCorporateAdvertisingDomain } from './utils/domainPortal';
 
+function resetViewportToTop(blurFocused = false) {
+  if (typeof window === 'undefined') return;
+  if (blurFocused && document.activeElement instanceof HTMLElement) {
+    try {
+      document.activeElement.blur();
+    } catch (_) {}
+  }
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
+
 function MainLayout() {
   const {
     activeTab,
@@ -41,30 +53,12 @@ function MainLayout() {
 
   const { isIOS } = useDevicePlatform();
 
-  // If this window is the OAuth callback path, render the clean return screen that closes this tab
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/callback')) {
-    return <AuthCallbackReturn />;
-  }
-
-  // If user is not authenticated with Firebase, show Auth Landing Screen (Login/Register)
-  if (!firebaseUser) {
-    return <AuthLandingScreen />;
-  }
-
-  // If user is authenticated, but their profile document has not yet loaded for this uid,
-  // show an authentic Scholar loading state instead of prematurely flashing AcademicProfileCompletionScreen
-  if (!currentUser || (currentUser.id !== firebaseUser.uid && currentUser.uid !== firebaseUser.uid)) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 space-y-4 font-sans">
-        <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center animate-bounce shadow-xl shadow-blue-500/25">
-          <GraduationCap className="w-8 h-8 text-white" />
-        </div>
-        <p className="text-sm font-bold text-slate-300 animate-pulse tracking-wide">
-          Connecting Scholar Profile...
-        </p>
-      </div>
-    );
-  }
+  const isAuthenticated = Boolean(firebaseUser);
+  const isProfileLoaded = Boolean(
+    firebaseUser &&
+      currentUser &&
+      (currentUser.id === firebaseUser.uid || currentUser.uid === firebaseUser.uid)
+  );
 
   // Check if academic profile was marked complete in localStorage or Firestore
   const isLocallyCompleted = Boolean(
@@ -82,6 +76,47 @@ function MainLayout() {
     isLocallyCompleted ||
     currentUser?.academicProfileCompleted === true
   );
+
+  // Always start fresh at the very top of the page when entering after auth/registration,
+  // completing academic profile, toggling admin/app mode, or switching top-level tabs.
+  useLayoutEffect(() => {
+    resetViewportToTop(true);
+    let rafId = 0;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+    rafId = window.requestAnimationFrame(() => {
+      resetViewportToTop(false);
+      timerId = setTimeout(() => resetViewportToTop(false), 80);
+    });
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [isAuthenticated, isProfileLoaded, isAcademicProfileComplete, viewMode, activeTab]);
+
+  // If this window is the OAuth callback path, render the clean return screen that closes this tab
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/callback')) {
+    return <AuthCallbackReturn />;
+  }
+
+  // If user is not authenticated with Firebase, show Auth Landing Screen (Login/Register)
+  if (!firebaseUser) {
+    return <AuthLandingScreen />;
+  }
+
+  // If user is authenticated, but their profile document has not yet loaded for this uid,
+  // show an authentic Scholar loading state instead of prematurely flashing AcademicProfileCompletionScreen
+  if (!isProfileLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 space-y-4 font-sans">
+        <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center animate-bounce shadow-xl shadow-blue-500/25">
+          <GraduationCap className="w-8 h-8 text-white" />
+        </div>
+        <p className="text-sm font-bold text-slate-300 animate-pulse tracking-wide">
+          Connecting Scholar Profile...
+        </p>
+      </div>
+    );
+  }
 
   if (!isAcademicProfileComplete) {
     return <AcademicProfileCompletionScreen />;
@@ -185,7 +220,14 @@ function MainLayout() {
 function StudentAppRoot() {
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+      try {
+        window.history.scrollRestoration = 'manual';
+      } catch (_) {}
+    }
+    resetViewportToTop(false);
+
     const handleOpenMobileModal = () => setIsMobileModalOpen(true);
     window.addEventListener('open_mobile_packaging_modal', handleOpenMobileModal);
     return () => window.removeEventListener('open_mobile_packaging_modal', handleOpenMobileModal);

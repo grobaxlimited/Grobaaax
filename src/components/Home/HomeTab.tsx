@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { EventDetailsModal } from './EventDetailsModal';
 import { WelcomeVideoModal } from './WelcomeVideoModal';
@@ -36,6 +36,19 @@ export const HomeTab: React.FC = () => {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [selectedEventForDetails, setSelectedEventForDetails] = useState<PlatformEventItem | null>(null);
   const [eventCategoryFilter, setEventCategoryFilter] = useState<string>('All');
+
+  // Always land fresh at the very top of HomeTab so the Welcome to Grobaax banner is visible first
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    const scrollTopNow = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    scrollTopNow();
+    const rafId = window.requestAnimationFrame(scrollTopNow);
+    return () => window.cancelAnimationFrame(rafId);
+  }, []);
 
   // Clear home notification badge when user views Home tab
   useEffect(() => {
