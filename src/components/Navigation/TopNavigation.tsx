@@ -180,10 +180,10 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
                 id="header-open-admin-btn"
                 onClick={onOpenAdminPanel}
                 title="Open Admin Dashboard"
-                className="relative px-2 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800 text-white font-bold text-xs flex items-center gap-1 sm:gap-1.5 shadow-md hover:from-blue-900 hover:to-blue-700 border border-blue-700/40 transition cursor-pointer"
+                aria-label="Open Admin Dashboard"
+                className="relative p-1.5 sm:p-2 rounded-xl bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800 text-white font-bold text-xs flex items-center gap-1 shadow-md hover:from-blue-900 hover:to-blue-700 border border-blue-700/40 transition cursor-pointer shrink-0"
               >
                 <ShieldCheck className="w-4 h-4 text-amber-400" />
-                <span className="text-[11px] sm:text-xs font-bold">Admin</span>
                 {adminTotalUnread > 0 && (
                   <NotificationBadge
                     count={adminTotalUnread}
