@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import {
   ArrowLeft,
@@ -181,6 +182,178 @@ export const AdvertisementTicker: React.FC = () => {
     setIsSponsorsModalOpen(false);
   };
 
+  // Lock background scroll & support Escape key when pop-up modal is open
+  useEffect(() => {
+    if (!isSponsorsModalOpen || typeof document === 'undefined') return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedSponsor(null);
+        setIsSponsorsModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSponsorsModalOpen]);
+
+  const sponsorModalNode =
+    isSponsorsModalOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={selectedSponsor ? 'Advertiser Details' : 'Active Sponsors'}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/65 backdrop-blur-sm animate-in fade-in duration-150"
+            onClick={closeAllModals}
+          >
+            <div
+              className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {!selectedSponsor ? (
+                <>
+                  <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-blue-600" />
+                      <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                        Active Sponsors
+                      </h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeAllModals}
+                      aria-label="Close Active Sponsors"
+                      className="p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="p-4 sm:p-5 overflow-y-auto space-y-2.5">
+                    {unifiedSponsors.length === 0 ? (
+                      <p className="text-sm text-slate-500 text-center py-6">
+                        No active sponsors right now.
+                      </p>
+                    ) : (
+                      unifiedSponsors.map((sponsor) => (
+                        <button
+                          key={sponsor.id}
+                          type="button"
+                          onClick={() => handleSelectSponsor(sponsor)}
+                          className="w-full text-left rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-slate-800 p-4 transition-colors flex items-center justify-between gap-3 cursor-pointer"
+                        >
+                          <div className="min-w-0 space-y-1.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                                {sponsor.brandName}
+                              </span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Active
+                              </span>
+                            </div>
+                            {sponsor.headline && sponsor.headline !== sponsor.brandName && (
+                              <div className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug">
+                                {sponsor.headline}
+                              </div>
+                            )}
+                            <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+                              {sponsor.shortMessage}
+                            </p>
+                            <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                              View advertiser details
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSponsor(null)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>All Active Sponsors</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeAllModals}
+                      aria-label="Close Advertiser Details"
+                      className="p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-4 overflow-y-auto">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="inline-flex items-center gap-2">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                          <Building2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+                            {selectedSponsor.brandName}
+                          </div>
+                          <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                            Advertiser Details
+                          </div>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Active Sponsor
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-4">
+                      <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug">
+                        {selectedSponsor.headline}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                        {selectedSponsor.fullDescription}
+                      </p>
+                    </div>
+
+                    {normalizeDestinationUrl(selectedSponsor.destinationUrl) ? (
+                      <div className="space-y-3 pt-1">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
+                          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">
+                            {normalizeDestinationUrl(selectedSponsor.destinationUrl)}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleVisitWebsite(selectedSponsor)}
+                          className="w-full py-3 px-5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-colors"
+                        >
+                          <span>{selectedSponsor.ctaLabel || 'Visit Website'}</span>
+                          <ArrowUpRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <>
       <div
@@ -210,10 +383,10 @@ export const AdvertisementTicker: React.FC = () => {
         </div>
 
         {/* Ticker Content Marquee - RIGHT TO LEFT CONTINUOUS MOTION (Strictly Text-Only) */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-hidden relative pointer-events-none">
           <div
             className={`animate-ticker-marquee items-center gap-6 whitespace-nowrap font-medium ${
-              isPaused ? 'animate-ticker-paused' : ''
+              isPaused || isSponsorsModalOpen ? 'animate-ticker-paused' : ''
             }`}
           >
             {repeatedItems.map((item, idx) => (
@@ -248,144 +421,7 @@ export const AdvertisementTicker: React.FC = () => {
         </button>
       </div>
 
-      {/* Modal 1: Active Sponsors List / Modal 2: Advertiser Details */}
-      {isSponsorsModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
-          onClick={closeAllModals}
-        >
-          <div
-            className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {!selectedSponsor ? (
-              <>
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-blue-600" />
-                    <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
-                      Active Sponsors
-                    </h2>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={closeAllModals}
-                    aria-label="Close Active Sponsors"
-                    className="p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="p-4 sm:p-5 overflow-y-auto space-y-2.5">
-                  {unifiedSponsors.length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-6">
-                      No active sponsors right now.
-                    </p>
-                  ) : (
-                    unifiedSponsors.map((sponsor) => (
-                      <button
-                        key={sponsor.id}
-                        type="button"
-                        onClick={() => handleSelectSponsor(sponsor)}
-                        className="w-full text-left rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-slate-800 p-4 transition-colors flex items-center justify-between gap-3 cursor-pointer"
-                      >
-                        <div className="min-w-0 space-y-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-extrabold text-slate-900 dark:text-white">
-                              {sponsor.brandName}
-                            </span>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                              Active
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
-                            {sponsor.shortMessage}
-                          </p>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                      </button>
-                    ))
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSponsor(null)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 cursor-pointer"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>All Active Sponsors</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeAllModals}
-                    aria-label="Close Advertiser Details"
-                    className="p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="p-6 space-y-4 overflow-y-auto">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="inline-flex items-center gap-2">
-                      <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                        <Building2 className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-extrabold text-slate-900 dark:text-white">
-                          {selectedSponsor.brandName}
-                        </div>
-                        <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
-                          Advertiser Details
-                        </div>
-                      </div>
-                    </div>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Active Sponsor
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-4">
-                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug">
-                      {selectedSponsor.headline}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-                      {selectedSponsor.fullDescription}
-                    </p>
-                  </div>
-
-                  {normalizeDestinationUrl(selectedSponsor.destinationUrl) ? (
-                    <div className="space-y-3 pt-1">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">
-                          {normalizeDestinationUrl(selectedSponsor.destinationUrl)}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleVisitWebsite(selectedSponsor)}
-                        className="w-full py-3 px-5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-colors"
-                      >
-                        <span>{selectedSponsor.ctaLabel || 'Visit Website'}</span>
-                        <ArrowUpRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {sponsorModalNode}
     </>
   );
 };
