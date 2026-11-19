@@ -3,6 +3,11 @@ import { createPortal } from 'react-dom';
 import { NotificationItem } from '../../types';
 import { useApp, formatNotificationTime } from '../../context/AppContext';
 import {
+  resolveAdminNotificationTab,
+  resolveNotificationKind,
+  setPendingCampusView,
+} from '../../lib/notificationRouting';
+import {
   X,
   Bell,
   Swords,
@@ -22,6 +27,7 @@ import {
   Crown,
   GraduationCap,
   Lightbulb,
+  Newspaper,
 } from 'lucide-react';
 
 interface NotificationDetailModalProps {
@@ -55,6 +61,9 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
 
   if (!notification) return null;
 
+  const resolvedKind = resolveNotificationKind(notification);
+  const target = (notification.actionUrl || '').toLowerCase();
+
   const handleDismiss = () => {
     markCurrentAsRead();
     onClose();
@@ -64,17 +73,20 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
     markCurrentAsRead();
     onClose();
 
-    const userRoleStr = String(currentUser?.role || '').toLowerCase();
-    const isAdminUser = userRoleStr === 'admin' || userRoleStr === 'super_admin';
-
-    if (
-      notification.targetRole === 'admin'
-    ) {
-      navigateToAdminTab('dashboard');
+    if (notification.targetRole === 'admin' || target.startsWith('/admin')) {
+      navigateToAdminTab(resolveAdminNotificationTab(notification));
       return;
     }
 
-    const target = (notification.actionUrl || '').toLowerCase();
+    if (resolvedKind === 'school_blog') {
+      setActiveTab('school_blog');
+      return;
+    }
+
+    if (resolvedKind === 'reward' || resolvedKind === 'wallet') {
+      openWalletModal('history');
+      return;
+    }
 
     if (notification.actionUrl) {
       if (target.includes('upgrade') || target.includes('membership') || target.includes('tier')) {
@@ -99,13 +111,11 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
         return;
       }
       if (target.includes('campus') || target.includes('connection')) {
-        setActiveTab('community');
+        setPendingCampusView('connections');
         if (setCommunitySubTab) {
           setCommunitySubTab('campus');
         }
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('grobax_open_campus_view', { detail: 'connections' }));
-        }
+        setActiveTab('community');
         return;
       }
       if (target.includes('hint')) {
@@ -118,23 +128,21 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
       }
     }
 
-    if (notification.type === 'hints' || notification.type === 'hint') {
+    if (resolvedKind === 'hints') {
       setActiveTab('hints');
       return;
     }
 
-    if (notification.type === 'campus') {
-      setActiveTab('community');
+    if (resolvedKind === 'campus') {
+      setPendingCampusView('connections');
       if (setCommunitySubTab) {
         setCommunitySubTab('campus');
       }
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('grobax_open_campus_view', { detail: 'connections' }));
-      }
+      setActiveTab('community');
       return;
     }
 
-    if (notification.type === 'dome' || target.includes('dome') || target.includes('school_dome')) {
+    if (resolvedKind === 'dome') {
       if (target.includes('result')) {
         setActiveTab('school_dome_results');
       } else {
@@ -143,18 +151,29 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
       return;
     }
 
-    if (notification.type === 'reward') {
-      openWalletModal('history');
-    } else if (notification.type === 'gus') {
+    if (resolvedKind === 'gus') {
       setActiveTab('gus');
+    } else if (resolvedKind === 'minimart') {
+      if (setCommunitySubTab) {
+        setCommunitySubTab('minimart');
+      }
+      setActiveTab('community');
     } else {
       setActiveTab('home');
     }
   };
 
   const getActionLabel = () => {
-    const target = (notification.actionUrl || '').toLowerCase();
-    if (target.includes('dome') || notification.type === 'dome') {
+    if (notification.targetRole === 'admin' || target.startsWith('/admin')) {
+      const adminTab = resolveAdminNotificationTab(notification);
+      if (adminTab === 'school_blogs') {
+        return { label: 'Open Admin School Blogs', icon: <Newspaper className="w-4 h-4 text-blue-300" /> };
+      }
+    }
+    if (resolvedKind === 'school_blog') {
+      return { label: 'Open School Blog', icon: <Newspaper className="w-4 h-4 text-blue-300" /> };
+    }
+    if (resolvedKind === 'dome') {
       if (target.includes('result')) {
         return { label: 'View Season Results & Winners', icon: <Trophy className="w-4 h-4 text-amber-300" /> };
       }
@@ -166,16 +185,16 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
     if (target.includes('profile') || target === 'wallet:profile') {
       return { label: 'View Trophy Cabinet & Pass', icon: <Trophy className="w-4 h-4 text-amber-300" /> };
     }
-    if (target.includes('wallet') || notification.type === 'reward') {
+    if (resolvedKind === 'wallet' || resolvedKind === 'reward' || target.includes('wallet')) {
       return { label: 'View Wallet & Ledger', icon: <Wallet className="w-4 h-4 text-amber-300" /> };
     }
-    if (target.includes('gus') || notification.type === 'gus') {
+    if (resolvedKind === 'gus') {
       return { label: 'Enter GUS Olympiad', icon: <Trophy className="w-4 h-4 text-amber-300" /> };
     }
-    if (target.includes('campus') || notification.type === 'campus') {
+    if (resolvedKind === 'campus') {
       return { label: 'Open Campus Connections & Chat', icon: <GraduationCap className="w-4 h-4 text-blue-300" /> };
     }
-    if (target.includes('hint') || notification.type === 'hints' || notification.type === 'hint') {
+    if (resolvedKind === 'hints') {
       return { label: 'Explore Competition Hints', icon: <Lightbulb className="w-4 h-4 text-amber-300" /> };
     }
     return { label: 'View Activity', icon: <ArrowRight className="w-4 h-4" /> };
@@ -183,8 +202,14 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
 
   const actionMeta = getActionLabel();
 
-  const getNotifBadge = (type: string) => {
-    switch (type) {
+  const getNotifBadge = (kind: string) => {
+    switch (kind) {
+      case 'school_blog':
+        return {
+          icon: <Newspaper className="w-5 h-5 text-blue-500 dark:text-blue-400" />,
+          label: 'School Blog',
+          style: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+        };
       case 'dome':
       case 'arena':
         return {
@@ -263,7 +288,7 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
     }
   };
 
-  const badgeInfo = getNotifBadge(notification.type);
+  const badgeInfo = getNotifBadge(resolvedKind);
 
   const modalContent = (
     <div
@@ -330,7 +355,7 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
         </div>
 
         {/* Scholar Profile & Origin Card for Chat Requests */}
-        {(notification.type === 'campus' || notification.senderInstitution || notification.senderDepartment) && (
+        {(resolvedKind === 'campus' || notification.senderInstitution || notification.senderDepartment) && (
           <div className="relative z-10 p-4 rounded-2xl bg-[#021733]/90 border border-blue-700/40 space-y-3 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
@@ -401,7 +426,11 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
         {/* Notification Body / Message Text */}
         <div className="relative z-10 p-5 rounded-2xl bg-[#011429]/95 border border-blue-900/60 space-y-2.5 shadow-inner">
           <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 block">
-            {notification.type === 'campus' ? 'Connection Request Note' : 'Message Body'}
+            {resolvedKind === 'campus'
+              ? 'Connection Request Note'
+              : resolvedKind === 'school_blog'
+              ? 'School Blog Update'
+              : 'Message Body'}
           </span>
           <p className="text-sm font-medium text-slate-100 leading-relaxed whitespace-pre-wrap">
             {notification.message}

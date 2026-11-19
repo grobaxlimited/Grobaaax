@@ -164,27 +164,17 @@ export const AdvertisementTicker: React.FC = () => {
     });
   };
 
-  // Hide sponsored ticker on Community tab or when manually dismissed or empty
-  if (!isVisible || activeTab === 'community' || unifiedSponsors.length === 0) return null;
-
-  // Repeat items to ensure smooth continuous 50% translation loop
-  const repeatedItems = [
-    ...unifiedSponsors,
-    ...unifiedSponsors,
-    ...unifiedSponsors,
-    ...unifiedSponsors,
-    ...unifiedSponsors,
-    ...unifiedSponsors,
-  ];
-
   const closeAllModals = () => {
     setSelectedSponsor(null);
     setIsSponsorsModalOpen(false);
   };
 
   // Lock background scroll & support Escape key when pop-up modal is open
+  // (Must execute unconditionally before any early return to preserve React hook ordering)
   useEffect(() => {
-    if (!isSponsorsModalOpen || typeof document === 'undefined') return;
+    if (!isSponsorsModalOpen || !isVisible || activeTab === 'community' || typeof document === 'undefined') {
+      return;
+    }
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
@@ -199,7 +189,20 @@ export const AdvertisementTicker: React.FC = () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isSponsorsModalOpen]);
+  }, [isSponsorsModalOpen, isVisible, activeTab]);
+
+  // Hide sponsored ticker on Community tab or when manually dismissed or empty
+  if (!isVisible || activeTab === 'community' || unifiedSponsors.length === 0) return null;
+
+  // Repeat items to ensure smooth continuous 50% translation loop
+  const repeatedItems = [
+    ...unifiedSponsors,
+    ...unifiedSponsors,
+    ...unifiedSponsors,
+    ...unifiedSponsors,
+    ...unifiedSponsors,
+    ...unifiedSponsors,
+  ];
 
   const sponsorModalNode =
     isSponsorsModalOpen && typeof document !== 'undefined'

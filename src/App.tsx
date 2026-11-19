@@ -37,6 +37,58 @@ function resetViewportToTop(blurFocused = false) {
   document.body.scrollTop = 0;
 }
 
+class TabContentErrorBoundary extends React.Component<
+  { activeTab: string; onResetHome: () => void; children: React.ReactNode },
+  { hasError: boolean; errorTab: string }
+> {
+  constructor(props: { activeTab: string; onResetHome: () => void; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, errorTab: props.activeTab };
+  }
+
+  static getDerivedStateFromError(_error: Error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[App] Tab render error:', error, info);
+  }
+
+  componentDidUpdate(prevProps: { activeTab: string }) {
+    if (this.state.hasError && prevProps.activeTab !== this.props.activeTab) {
+      this.setState({ hasError: false, errorTab: this.props.activeTab });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="max-w-md mx-auto my-12 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg text-center space-y-4">
+          <h3 className="text-base font-black text-slate-900 dark:text-white">
+            Something went wrong loading this view
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Please return home or refresh this section to continue.
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                this.setState({ hasError: false });
+                this.props.onResetHome();
+              }}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
+            >
+              Return Home
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function MainLayout() {
   const {
     activeTab,
@@ -149,46 +201,51 @@ function MainLayout() {
             : undefined
         }
       >
-        {activeTab === 'home' && <HomeTab />}
-        {activeTab === 'school_dome' && (
-          <div className="max-w-7xl mx-auto px-1.5 sm:px-4 lg:px-6 pt-1.5 sm:pt-3 pb-1.5 sm:pb-3">
-            <SchoolDomeView initialTab="arena" />
-          </div>
-        )}
-        {activeTab === 'school_dome_results' && (
-          <div className="max-w-7xl mx-auto px-1.5 sm:px-4 lg:px-6 pt-1.5 sm:pt-3 pb-1.5 sm:pb-3">
-            <SchoolDomeView initialTab="results" />
-          </div>
-        )}
-        {activeTab === 'hints' && (
-          <div className="max-w-7xl mx-auto px-1.5 sm:px-4 lg:px-6 pt-1.5 sm:pt-3 pb-1.5 sm:pb-3">
-            <HintsView />
-          </div>
-        )}
-        {activeTab === 'school_blog' && (() => {
-          const homeInstitution =
-            currentUser.institution ||
-            currentUser.institutionName ||
-            currentUser.academicProfile?.institutionName ||
-            'Ekiti State University, Ado-Ekiti';
-          const homeCategory: InstitutionCategory =
-            (currentUser.institutionCategory as InstitutionCategory) ||
-            (currentUser.academicProfile?.institutionCategory as InstitutionCategory) ||
-            'University';
-          return (
-            <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-10">
-              <SchoolBlogPortal
-                institutionKey={homeInstitution}
-                institutionName={homeInstitution}
-                institutionCategory={homeCategory}
-                homeInstitutionName={homeInstitution}
-                backButtonLabel="Back to Home"
-                onBackToCampus={() => setActiveTab('home')}
-              />
+        <TabContentErrorBoundary
+          activeTab={activeTab}
+          onResetHome={() => setActiveTab('home')}
+        >
+          {activeTab === 'home' && <HomeTab />}
+          {activeTab === 'school_dome' && (
+            <div className="max-w-7xl mx-auto px-1.5 sm:px-4 lg:px-6 pt-1.5 sm:pt-3 pb-1.5 sm:pb-3">
+              <SchoolDomeView initialTab="arena" />
             </div>
-          );
-        })()}
-        {activeTab === 'community' && <CommunityTab />}
+          )}
+          {activeTab === 'school_dome_results' && (
+            <div className="max-w-7xl mx-auto px-1.5 sm:px-4 lg:px-6 pt-1.5 sm:pt-3 pb-1.5 sm:pb-3">
+              <SchoolDomeView initialTab="results" />
+            </div>
+          )}
+          {activeTab === 'hints' && (
+            <div className="max-w-7xl mx-auto px-1.5 sm:px-4 lg:px-6 pt-1.5 sm:pt-3 pb-1.5 sm:pb-3">
+              <HintsView />
+            </div>
+          )}
+          {activeTab === 'school_blog' && (() => {
+            const homeInstitution =
+              currentUser.institution ||
+              currentUser.institutionName ||
+              currentUser.academicProfile?.institutionName ||
+              'Ekiti State University, Ado-Ekiti';
+            const homeCategory: InstitutionCategory =
+              (currentUser.institutionCategory as InstitutionCategory) ||
+              (currentUser.academicProfile?.institutionCategory as InstitutionCategory) ||
+              'University';
+            return (
+              <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-10">
+                <SchoolBlogPortal
+                  institutionKey={homeInstitution}
+                  institutionName={homeInstitution}
+                  institutionCategory={homeCategory}
+                  homeInstitutionName={homeInstitution}
+                  backButtonLabel="Back to Home"
+                  onBackToCampus={() => setActiveTab('home')}
+                />
+              </div>
+            );
+          })()}
+          {activeTab === 'community' && <CommunityTab />}
+        </TabContentErrorBoundary>
       </main>
 
       {/* Bottom Main User Navigation (Hidden, replaced by TopNavigation) */}

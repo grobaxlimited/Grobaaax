@@ -157,6 +157,7 @@ async function writeAuditLog(params: {
 async function notifyUserOrAdmins(params: {
   title: string;
   message: string;
+  type?: string;
   targetUserId?: string;
   targetRole?: 'admin';
   actionUrl?: string;
@@ -164,6 +165,8 @@ async function notifyUserOrAdmins(params: {
   try {
     const id = `notif_blog_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const nowIso = new Date().toISOString();
+    const resolvedType = params.type || 'school_blog';
+    const defaultUrl = params.targetRole === 'admin' ? '/admin?tab=school_blogs' : '/school-blog';
     await supabaseAdmin.from('notifications').upsert(
       {
         id,
@@ -171,11 +174,11 @@ async function notifyUserOrAdmins(params: {
           id,
           title: params.title,
           message: params.message,
-          type: 'campus',
+          type: resolvedType,
           targetUserId: params.targetUserId || null,
           userId: params.targetUserId || null,
           targetRole: params.targetRole || null,
-          actionUrl: params.actionUrl || '/community?tab=campus',
+          actionUrl: params.actionUrl || defaultUrl,
           isRead: false,
           createdAt: nowIso,
           timestamp: nowIso,
@@ -750,8 +753,9 @@ schoolBlogRouter.post('/applications', requireAuth, async (req: Request, res: Re
       notifyUserOrAdmins({
         title: 'School Blogger Application Submitted',
         message: `Your free School Blogger application for ${user.institutionName} has been received and is pending Admin review.`,
+        type: 'school_blog',
         targetUserId: user.id,
-        actionUrl: '/community?tab=campus',
+        actionUrl: '/school-blog',
       }),
       notifyUserOrAdmins({
         title: 'New School Blogger Application',
@@ -1000,6 +1004,7 @@ schoolBlogRouter.post('/articles/:articleId/view', requireAuth, async (req: Requ
         notifyUserOrAdmins({
           title: 'Campus Blogger GP Reward Credited!',
           message: `+${totalCreditedNow.toLocaleString()} GP has been automatically credited to your Grobaax wallet for reaching ${highestThreshold.toLocaleString()} eligible unique views on "${rpcResult.articleTitle || 'your article'}".`,
+          type: 'reward',
           targetUserId: rpcResult.authorUserId,
           actionUrl: '/wallet',
         }),

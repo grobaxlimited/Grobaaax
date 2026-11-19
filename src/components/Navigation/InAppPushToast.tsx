@@ -2,6 +2,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { NotificationItem } from '../../types';
 import {
+  resolveAdminNotificationTab,
+  resolveNotificationKind,
+  setPendingCampusView,
+} from '../../lib/notificationRouting';
+import {
   Bell,
   X,
   ArrowRight,
@@ -18,6 +23,7 @@ import {
   ShieldCheck,
   Megaphone,
   GraduationCap,
+  Newspaper,
 } from 'lucide-react';
 
 /**
@@ -125,26 +131,32 @@ export const InAppPushToast: React.FC = () => {
 
   if (!activeToast) return null;
 
+  const resolvedKind = resolveNotificationKind(activeToast);
+  const target = (activeToast.actionUrl || '').toLowerCase();
+
   const handleAction = () => {
     markNotificationRead(activeToast.id);
 
-    // If targeted to admin or an admin-specific past question upload
-    const userRoleStr = String(currentUser?.role || '').toLowerCase();
-    const isAdminUser = userRoleStr === 'admin' || userRoleStr === 'super_admin';
+    if (activeToast.targetRole === 'admin' || target.startsWith('/admin') || target.includes('admin')) {
+      navigateToAdminTab(resolveAdminNotificationTab(activeToast));
+      setActiveToast(null);
+      return;
+    }
 
-    if (
-      activeToast.targetRole === 'admin'
-    ) {
-      navigateToAdminTab('dashboard');
+    if (resolvedKind === 'school_blog') {
+      setActiveTab('school_blog');
+      setActiveToast(null);
+      return;
+    }
+
+    if (resolvedKind === 'reward' || resolvedKind === 'wallet') {
+      openWalletModal('history');
       setActiveToast(null);
       return;
     }
 
     if (activeToast.actionUrl) {
-      const target = activeToast.actionUrl.toLowerCase();
-      if (target.includes('admin')) {
-        navigateToAdminTab('dashboard');
-      } else if (target.includes('upgrade') || target.includes('membership') || target.includes('tier')) {
+      if (target.includes('upgrade') || target.includes('membership') || target.includes('tier')) {
         openWalletModal('upgrade');
       } else if (target.startsWith('wallet:')) {
         const subTab = target.split(':')[1] || 'profile';
@@ -155,45 +167,45 @@ export const InAppPushToast: React.FC = () => {
         openWalletModal('history');
       } else if (target.includes('gus') || target.includes('dome') || target.includes('arena') || target.includes('daily')) {
         setActiveTab('school_dome');
+      } else if (target.includes('hint')) {
+        setActiveTab('hints');
       } else if (target.includes('chat')) {
         setActiveTab('community');
       } else if (target.includes('campus') || target.includes('connection')) {
-        setActiveTab('community');
+        setPendingCampusView('connections');
         if (setCommunitySubTab) {
           setCommunitySubTab('campus');
         }
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('grobax_open_campus_view', { detail: 'connections' }));
-        }
+        setActiveTab('community');
       } else if (target.includes('community') || target.includes('feed') || target.includes('minimart')) {
         setActiveTab('community');
       } else {
         setActiveTab('home');
       }
-    } else if (activeToast.type === 'campus') {
-      setActiveTab('community');
+    } else if (resolvedKind === 'campus') {
+      setPendingCampusView('connections');
       if (setCommunitySubTab) {
         setCommunitySubTab('campus');
       }
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('grobax_open_campus_view', { detail: 'connections' }));
-      }
-    } else if (activeToast.type === 'dome' || activeToast.type === 'league') {
-      setActiveTab('home');
-    } else if (activeToast.type === 'gus') {
-      setActiveTab('gus');
-    } else if (activeToast.type === 'minimart') {
       setActiveTab('community');
-    } else if (activeToast.type === 'reward') {
-      openWalletModal('history');
+    } else if (resolvedKind === 'hints') {
+      setActiveTab('hints');
+    } else if (resolvedKind === 'dome' || resolvedKind === 'league') {
+      setActiveTab('school_dome');
+    } else if (resolvedKind === 'gus') {
+      setActiveTab('gus');
+    } else if (resolvedKind === 'minimart') {
+      setActiveTab('community');
     } else {
       setActiveTab('home');
     }
     setActiveToast(null);
   };
 
-  const getToastIcon = (t: string) => {
-    switch (t) {
+  const getToastIcon = (kind: string) => {
+    switch (kind) {
+      case 'school_blog':
+        return <Newspaper className="w-5 h-5 text-blue-400" />;
       case 'campus':
         return <GraduationCap className="w-5 h-5 text-blue-400" />;
       case 'dome':
@@ -236,12 +248,16 @@ export const InAppPushToast: React.FC = () => {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-blue-500/20 border border-blue-400/30 shrink-0">
-              {getToastIcon(activeToast.type)}
+              {getToastIcon(resolvedKind)}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-blue-400">
-                  {activeToast.type === 'campus' ? 'Campus Connection' : 'New Update'}
+                  {resolvedKind === 'campus'
+                    ? 'Campus Connection'
+                    : resolvedKind === 'school_blog'
+                    ? 'School Blog'
+                    : 'New Update'}
                 </span>
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
               </div>
@@ -267,7 +283,7 @@ export const InAppPushToast: React.FC = () => {
         </div>
 
         {/* Full Details of Person Sending Chat Request */}
-        {(activeToast.type === 'campus' || activeToast.senderInstitution || activeToast.senderDepartment) && (
+        {(resolvedKind === 'campus' || activeToast.senderInstitution || activeToast.senderDepartment) && (
           <div className="p-2.5 rounded-xl bg-slate-800/90 border border-blue-500/30 space-y-1.5 text-[11px]">
             <div className="flex items-center gap-2">
               {activeToast.senderAvatar ? (
@@ -331,11 +347,13 @@ export const InAppPushToast: React.FC = () => {
             className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] flex items-center gap-1 transition cursor-pointer shadow-xs"
           >
             <span>
-              {activeToast.type === 'campus' || activeToast.actionUrl?.includes('campus')
+              {resolvedKind === 'school_blog'
+                ? 'Open School Blog'
+                : resolvedKind === 'campus'
                 ? 'Review & Connect'
                 : activeToast.targetRole === 'admin' ||
-                  activeToast.actionUrl?.includes('library') ||
-                  activeToast.type === 'academic_library'
+                  target.includes('library') ||
+                  resolvedKind === 'academic_library'
                 ? 'Review in Vault'
                 : 'View'}
             </span>

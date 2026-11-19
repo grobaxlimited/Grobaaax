@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { NotificationItem } from '../../types';
 import { useApp, formatNotificationTime } from '../../context/AppContext';
+import { resolveNotificationKind } from '../../lib/notificationRouting';
 import {
   Bell,
   X,
@@ -14,13 +15,14 @@ import {
   Trophy,
   Swords,
   BookOpen,
-  Smartphone,
   ShoppingBag,
   Megaphone,
   Lightbulb,
   ShieldCheck,
   Sparkles,
   ExternalLink,
+  Smartphone,
+  Newspaper,
 } from 'lucide-react';
 
 interface NotificationsModalProps {
@@ -75,8 +77,11 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const getNotifIcon = (type: string) => {
-    switch (type) {
+  const getNotifIcon = (notif: NotificationItem) => {
+    const kind = resolveNotificationKind(notif);
+    switch (kind) {
+      case 'school_blog':
+        return <Newspaper className="w-4 h-4 text-blue-500 dark:text-blue-400" />;
       case 'campus':
         return <GraduationCap className="w-4 h-4 text-blue-500 dark:text-blue-400" />;
       case 'league':
@@ -88,10 +93,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       case 'gus':
         return <Trophy className="w-4 h-4 text-amber-500 dark:text-amber-400" />;
       case 'dome':
-      case 'arena':
         return <Swords className="w-4 h-4 text-blue-500 dark:text-blue-400" />;
       case 'academic_library':
-      case 'library':
         return <BookOpen className="w-4 h-4 text-teal-500 dark:text-teal-400" />;
       case 'vtu':
         return <Smartphone className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />;
@@ -100,7 +103,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       case 'announcement':
         return <Megaphone className="w-4 h-4 text-blue-500 dark:text-blue-400" />;
       case 'hints':
-      case 'hint':
         return <Lightbulb className="w-4 h-4 text-amber-500 dark:text-amber-400" />;
       case 'system':
         return <ShieldCheck className="w-4 h-4 text-blue-500 dark:text-blue-400" />;
@@ -238,7 +240,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                         : 'bg-slate-100 dark:bg-[#02142b] border-slate-200 dark:border-slate-800'
                     }`}
                   >
-                    {getNotifIcon(notif.type)}
+                    {getNotifIcon(notif)}
                   </div>
 
                   <div className="flex-1 min-w-0 space-y-1">

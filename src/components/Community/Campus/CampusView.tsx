@@ -21,6 +21,7 @@ import {
   fetchCampusFollowStatus,
 } from '../../../lib/campusService';
 import { DEFAULT_CAMPUS_SKILL_CATEGORIES } from '../../../data/campusSkillsData';
+import { consumePendingCampusView, PENDING_CAMPUS_VIEW_KEY } from '../../../lib/notificationRouting';
 import { openExternalWhatsApp } from '../../../lib/whatsappUtils';
 import {
   getFacultiesByCategory,
@@ -69,7 +70,28 @@ export const CampusView: React.FC = () => {
   const [isEditSkillsOpen, setIsEditSkillsOpen] = useState(false);
 
   // 2. Navigation State within Campus
-  const [activeView, setActiveView] = useState<'directory' | 'connections' | 'other_schools' | 'school_blog'>('directory');
+  const [activeView, setActiveView] = useState<'directory' | 'connections' | 'other_schools' | 'school_blog'>(
+    () => consumePendingCampusView() || 'directory'
+  );
+
+  useEffect(() => {
+    const handleOpenCampusView = (event: Event) => {
+      const targetView = (event as CustomEvent)?.detail;
+      if (
+        targetView === 'directory' ||
+        targetView === 'connections' ||
+        targetView === 'other_schools' ||
+        targetView === 'school_blog'
+      ) {
+        setActiveView(targetView);
+        try {
+          sessionStorage.removeItem(PENDING_CAMPUS_VIEW_KEY);
+        } catch {}
+      }
+    };
+    window.addEventListener('grobax_open_campus_view', handleOpenCampusView);
+    return () => window.removeEventListener('grobax_open_campus_view', handleOpenCampusView);
+  }, []);
   const tabsScrollRef = useRef<HTMLDivElement>(null);
   const [canScrollTabsLeft, setCanScrollTabsLeft] = useState(false);
   const [canScrollTabsRight, setCanScrollTabsRight] = useState(false);
