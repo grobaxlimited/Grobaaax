@@ -211,17 +211,55 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         </button>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Publishing control strictly visible ONLY to authorized active blogger of this institution */}
-          {!isBlogSuspendedGate && viewerStatus?.isActiveBloggerForThisSchool && (
-            <button
-              id="school-blog-open-studio-btn"
-              type="button"
-              onClick={() => setActiveSubView('studio')}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
-            >
-              <PenTool className="w-3.5 h-3.5" />
-              <span>Blogger Studio</span>
-            </button>
+          {!isLoading && !isBlogSuspendedGate && viewerStatus?.isHomeInstitution && (
+            viewerStatus.isActiveBloggerForThisSchool ? (
+              <button
+                id="school-blog-open-studio-btn"
+                type="button"
+                onClick={() => setActiveSubView('studio')}
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Blogger Studio</span>
+              </button>
+            ) : viewerStatus.isSuspendedBloggerForThisSchool ? (
+              <button
+                id="school-blog-apply-btn"
+                type="button"
+                onClick={() => setIsApplyModalOpen(true)}
+                title="Your School Blogger access is suspended or revoked"
+                className="px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Ban className="w-3.5 h-3.5" />
+                <span>Blogger Suspended</span>
+              </button>
+            ) : viewerStatus.myApplication?.status === 'Pending' ? (
+              <button
+                id="school-blog-apply-btn"
+                type="button"
+                onClick={() => setIsApplyModalOpen(true)}
+                title="View or withdraw your pending School Blogger application"
+                className="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Application Pending</span>
+              </button>
+            ) : (
+              <button
+                id="school-blog-apply-btn"
+                type="button"
+                onClick={handleApplyButtonClick}
+                title={`Apply to Become a School Blogger for ${displayInstitutionName}`}
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>
+                  {viewerStatus.myApplication?.status === 'Rejected'
+                    ? 'Reapply as Blogger'
+                    : 'Apply as Blogger'}
+                </span>
+              </button>
+            )
           )}
         </div>
       </div>
@@ -401,99 +439,6 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
           })}
         </div>
       )}
-
-      {/* SECTION D: Blogger Access Section */}
-      <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        {viewerStatus?.isHomeInstitution ? (
-          viewerStatus.isActiveBloggerForThisSchool ? (
-            <>
-              <div className="space-y-1">
-                <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
-                  You are an Active School Blogger for {displayInstitutionName}
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Use your Blogger Dashboard to create drafts, publish campus news, and track GP view rewards.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveSubView('studio')}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shrink-0 cursor-pointer"
-              >
-                Open Blogger Dashboard
-              </button>
-            </>
-          ) : viewerStatus.isSuspendedBloggerForThisSchool ? (
-            <div className="space-y-1">
-              <h4 className="text-sm font-black text-rose-600 dark:text-rose-400">
-                Your School Blogger Access is Suspended or Revoked
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Contact Grobaax administrators if you believe your publishing privileges should be restored.
-              </p>
-            </div>
-          ) : viewerStatus.myApplication?.status === 'Pending' ? (
-            <>
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Application Pending Admin Review</span>
-                </div>
-                <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
-                  Your Blogger Application for {displayInstitutionName} is Under Review
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Grobaax Administrators will review your application shortly and send you a notification once a decision is made.
-                </p>
-              </div>
-              <button
-                id="school-blog-apply-btn"
-                type="button"
-                onClick={() => setIsApplyModalOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-500/30 text-xs font-bold shrink-0 flex items-center gap-1.5 cursor-pointer"
-              >
-                <Clock className="w-3.5 h-3.5" />
-                <span>View / Withdraw Application</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="space-y-1">
-                <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
-                  Become a School Blogger for {displayInstitutionName}
-                </h4>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
-                  Are you a student of {displayInstitutionName} passionate about campus journalism, event coverage, and student updates? Apply below for free (subject to Admin approval; reading articles is free for everyone). Approved bloggers with 500+ followers earn 1,000 GP once per article upon reaching 250 eligible views!
-                </p>
-              </div>
-              <button
-                id="school-blog-apply-btn"
-                type="button"
-                onClick={handleApplyButtonClick}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
-              >
-                <PenTool className="w-3.5 h-3.5" />
-                <span>
-                  {viewerStatus.myApplication?.status === 'Rejected'
-                    ? 'Submit New Application'
-                    : 'Apply to Become a Blogger'}
-                </span>
-              </button>
-            </>
-          )
-        ) : (
-          <div className="space-y-1">
-            <h4 className="text-sm font-black text-slate-900 dark:text-white">
-              Reading {displayInstitutionName} Blog
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              You can read articles from any registered school on Grobaax. Only verified students of{' '}
-              <strong>{displayInstitutionName}</strong> can become School Bloggers for this blog (your home school is{' '}
-              <strong>{homeInstitutionName}</strong>).
-            </p>
-          </div>
-        )}
-      </section>
 
       {/* School Blogger Application Modal (Admin Approval Required) */}
       <BloggerApplicationModal

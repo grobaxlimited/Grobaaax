@@ -485,6 +485,54 @@ export function getCanonicalQuestionId(idOrMsg: any): string {
   return clean;
 }
 
+export function formatSchoolDomePrizeDisplay(
+  prizePool?: number,
+  prizeCurrency?: 'NGN' | 'GP'
+): string {
+  const amount = Math.max(0, Number(prizePool ?? 50000) || 0);
+  const currency = prizeCurrency || 'GP';
+  return currency === 'NGN'
+    ? `₦${amount.toLocaleString()}`
+    : `${amount.toLocaleString()} GP`;
+}
+
+export function syncAnnouncementTextWithSeason(
+  messageText: string,
+  season?: Pick<SchoolDomeSeason, 'seasonNumber' | 'title' | 'prizePool' | 'prizeCurrency'> | null
+): string {
+  if (!messageText || !season) return messageText;
+  if (messageText.includes('HAS CONCLUDED')) return messageText;
+
+  const prizeDisplay = formatSchoolDomePrizeDisplay(season.prizePool, season.prizeCurrency);
+  let nextText = messageText;
+
+  if (season.seasonNumber !== undefined && season.seasonNumber !== null) {
+    nextText = nextText.replace(
+      /(Welcome to School Dome Season #)\d+(!)/i,
+      `$1${season.seasonNumber}$2`
+    );
+  }
+
+  if (season.title) {
+    nextText = nextText.replace(
+      /(REGISTRATION IS NOW OPEN FOR )([^!\n]+)(!)/i,
+      `$1${season.title}$3`
+    );
+  }
+
+  nextText = nextText.replace(
+    /(\b(?:Compete )?for the\s+)(?:₦\s*)?[\d,]+(?:\s*(?:GP|NGN))?(\s+prize pool)/gi,
+    `$1${prizeDisplay}$2`
+  );
+
+  nextText = nextText.replace(
+    /(Prize Pool:\s*)(?:₦\s*)?[\d,]+(?:\s*(?:GP|NGN))?(?:\s*\.)?/gi,
+    `$1${prizeDisplay}.`
+  );
+
+  return nextText;
+}
+
 // Subscribe to latest/active season
 export function subscribeSchoolDomeActiveSeason(
   callback: (season: SchoolDomeSeason) => void
@@ -1566,7 +1614,7 @@ export async function startNewSchoolDomeSeason(
       institution: 'Grobaax Arena HQ',
       isPremium: true,
       isVip: true,
-      messageText: `📢 REGISTRATION IS NOW OPEN FOR ${newSeason.title}!\n\nPrize Pool: ${newSeason.prizeCurrency === 'NGN' ? '₦' : ''}${newSeason.prizePool.toLocaleString()} ${newSeason.prizeCurrency === 'GP' ? 'GP' : ''}.\nRegister now to claim your battle slot before Question #1 launches!`,
+      messageText: `📢 REGISTRATION IS NOW OPEN FOR ${newSeason.title}!\n\nPrize Pool: ${formatSchoolDomePrizeDisplay(newSeason.prizePool, newSeason.prizeCurrency)}.\nRegister now to claim your battle slot before Question #1 launches!`,
       timestamp: Date.now(),
       type: 'announcement',
       reactions: { '🔥': 5, '⚡': 4 },
@@ -1984,20 +2032,115 @@ export async function updateSchoolDomeSeason(
       }
     }
 
-    await setDoc(seasonRef, sanitizedUpdates, { merge: true });
+    let existingData: Partial<SchoolDomeSeason> | null = null;
+    try {
+      const existingSnap = await getDoc(seasonRef);
+      if (existingSnap.exists()) {
+        existingData = existingSnap.data() as SchoolDomeSeason;
+      }
+    } catch {}
 
-    // Sync localStorage fallback active season and notify all subscribers
+    const writePayload = existingData
+      ? sanitizedUpdates
+      : { ...DEFAULT_INITIAL_SEASON, id: seasonId, ...sanitizedUpdates };
+
+    await setDoc(seasonRef, writePayload, { merge: true });
+
+    let mergedSeason: SchoolDomeSeason = {
+      ...DEFAULT_INITIAL_SEASON,
+      ...(existingData || {}),
+      id: seasonId,
+    };
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('grobax_school_dome_active_season');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && (!parsed.id || parsed.id === seasonId)) {
+            mergedSeason = { ...mergedSeason, ...parsed, id: seasonId };
+          }
+        }
+      } catch {}
+    }
+    const { updatedAt: _ignoredTs, ...plainSanitized } = sanitizedUpdates;
+    mergedSeason = { ...mergedSeason, ...plainSanitized, id: seasonId };
+
+    // Sync updated season record to Supabase school_dome_seasons
+    try {
+      if (supabaseAdmin) {
+        await supabaseAdmin.from('school_dome_seasons').upsert({
+          id: seasonId,
+          data: mergedSeason,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    } catch {}
+
+    // Dynamically update existing welcome/registration announcement messages in database & local cache
+    try {
+      const seasonMsgsSnap = await getDocs(
+        query(collection(db, 'school_dome_messages'), where('seasonId', '==', seasonId))
+      );
+      const msgUpdates: Promise<void>[] = [];
+      seasonMsgsSnap.forEach((d) => {
+        const msgData = d.data() as SchoolDomeMessage;
+        if (
+          (msgData.type === 'announcement' || msgData.type === 'system' || (msgData as any).isAnnouncement || d.id.startsWith('dome_msg_welcome') || d.id.startsWith('ann_')) &&
+          msgData.messageText
+        ) {
+          const updatedText = syncAnnouncementTextWithSeason(msgData.messageText, mergedSeason);
+          if (updatedText !== msgData.messageText) {
+            msgUpdates.push(
+              updateDoc(doc(db, 'school_dome_messages', d.id), {
+                messageText: updatedText,
+              }).catch(() => {})
+            );
+          }
+        }
+      });
+      if (msgUpdates.length > 0) {
+        await Promise.allSettled(msgUpdates);
+      }
+    } catch {}
+
+    // Sync localStorage fallback active season & cached messages and notify all subscribers
     try {
       if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('grobax_school_dome_active_season');
-        const currentObj = stored ? JSON.parse(stored) : { id: seasonId, ...DEFAULT_INITIAL_SEASON };
-        Object.assign(currentObj, sanitizedUpdates);
-        localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(currentObj));
+        localStorage.setItem('grobax_school_dome_active_season', JSON.stringify(mergedSeason));
         window.dispatchEvent(
           new CustomEvent('school_dome_season_updated', {
-            detail: currentObj,
+            detail: mergedSeason,
           })
         );
+
+        const cachedMsgsStr = localStorage.getItem('grobax_school_dome_cached_messages');
+        if (cachedMsgsStr) {
+          const cachedMsgs = JSON.parse(cachedMsgsStr);
+          if (Array.isArray(cachedMsgs)) {
+            let changed = false;
+            const nextMsgs = cachedMsgs.map((m: SchoolDomeMessage) => {
+              if (
+                m &&
+                (!m.seasonId || m.seasonId === seasonId) &&
+                (m.type === 'announcement' || m.type === 'system' || (m as any).isAnnouncement || m.id?.startsWith('dome_msg_welcome') || m.id?.startsWith('ann_')) &&
+                m.messageText
+              ) {
+                const updatedText = syncAnnouncementTextWithSeason(m.messageText, mergedSeason);
+                if (updatedText !== m.messageText) {
+                  changed = true;
+                  return { ...m, messageText: updatedText };
+                }
+              }
+              return m;
+            });
+            if (changed) {
+              localStorage.setItem('grobax_school_dome_cached_messages', JSON.stringify(nextMsgs));
+              window.dispatchEvent(
+                new CustomEvent('school_dome_messages_reset', { detail: nextMsgs })
+              );
+            }
+          }
+        }
       }
     } catch {}
   } catch (err) {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   SchoolDomeMessage,
   SchoolDomeQuestion,
+  SchoolDomeSeason,
 } from '../../types';
 import {
   Reply,
@@ -24,7 +25,11 @@ import {
 import { UserBadgeItem } from '../ui/UserBadgeItem';
 import { useApp } from '../../context/AppContext';
 import { getUserProfileDoc, isSubscriptionExpired } from '../../lib/firebase';
-import { isAnswerCorrect, getCanonicalQuestionId } from '../../lib/schoolDomeService';
+import {
+  isAnswerCorrect,
+  getCanonicalQuestionId,
+  syncAnnouncementTextWithSeason,
+} from '../../lib/schoolDomeService';
 
 interface SchoolDomeMessageItemProps {
   message: SchoolDomeMessage;
@@ -36,6 +41,7 @@ interface SchoolDomeMessageItemProps {
   isUserStanding?: boolean;
   activeQuestion?: SchoolDomeQuestion | null;
   questions?: SchoolDomeQuestion[];
+  season?: SchoolDomeSeason | null;
   onReply?: (message: SchoolDomeMessage) => void;
   onAnswerSubmit?: (message: SchoolDomeMessage, answerText: string) => void;
   onOpenRegistration?: () => void;
@@ -142,6 +148,7 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
   isUserStanding = false,
   activeQuestion,
   questions,
+  season,
   onReply,
   onAnswerSubmit,
   onOpenRegistration,
@@ -420,6 +427,11 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
 
   // 1. DEDICATED ANNOUNCEMENT CARD (Matching Screenshot Card 1)
   if (message.type === 'announcement' || message.type === 'system' || (message as any).isAnnouncement) {
+    const announcementDisplayText =
+      season && (!message.seasonId || message.seasonId === season.id)
+        ? syncAnnouncementTextWithSeason(message.messageText, season)
+        : message.messageText;
+
     return (
       <div
         id={`dome-msg-${message.id}`}
@@ -432,7 +444,7 @@ export const SchoolDomeMessageItem: React.FC<SchoolDomeMessageItemProps> = ({
 
           <div className="flex-1 min-w-0 space-y-2">
             <p className="text-sm font-bold text-slate-900 dark:text-white leading-relaxed">
-              {message.messageText}
+              {announcementDisplayText}
             </p>
 
             {/* Reactions & Reply Row */}

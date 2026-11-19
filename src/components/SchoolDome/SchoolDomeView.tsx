@@ -1718,6 +1718,7 @@ export const SchoolDomeView: React.FC<SchoolDomeViewProps> = ({ initialTab = 'ar
                   isUserStanding={isUserStanding || isStaffOrAdmin}
                   activeQuestion={activeQuestion}
                   questions={seasonQuestions}
+                  season={currentSeason}
                   onReply={(m) => {
                     const isMForAll = Boolean(
                       (m.targetTier || '').toLowerCase() === 'all' ||

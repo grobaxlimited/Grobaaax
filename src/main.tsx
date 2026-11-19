@@ -72,6 +72,56 @@ if (typeof window !== 'undefined') {
 
 const root = createRoot(document.getElementById('root')!);
 
+async function importWithRetry<T>(
+  loader: () => Promise<T>,
+  retries = 3
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await loader();
+    } catch (err) {
+      lastError = err;
+      if (attempt < retries) {
+        const delayMs = 350 * (attempt + 1);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
+
+function handleBootstrapFailure(err: unknown) {
+  console.error('Failed to load Grobaax application module:', err);
+  if (typeof window !== 'undefined') {
+    try {
+      const reloadKey = 'grobaax_module_retry_reloaded';
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, '1');
+        window.location.reload();
+        return;
+      }
+      sessionStorage.removeItem(reloadKey);
+    } catch (_) {}
+  }
+
+  root.render(
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center font-sans space-y-4">
+      <h1 className="text-xl font-black tracking-tight">Unable to load Grobaax</h1>
+      <p className="text-sm text-slate-300 max-w-md">
+        A temporary connection issue interrupted loading. Tap below to reload cleanly.
+      </p>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold cursor-pointer"
+      >
+        Reload App
+      </button>
+    </div>
+  );
+}
+
 if (isCorporatePortal) {
   // Ensure any previously installed student PWA service worker is removed on advertise.grobaax.com
   if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
@@ -86,43 +136,65 @@ if (isCorporatePortal) {
   }
 
   // Load ONLY the Corporate Advertising Portal without importing or executing any student modules
-  void import('./components/Corporate/CorporateAdvertisingPortal').then(
-    ({ CorporateAdvertisingPortal }) => {
+  void importWithRetry(() => import('./components/Corporate/CorporateAdvertisingPortal'))
+    .then(({ CorporateAdvertisingPortal }) => {
+      try {
+        sessionStorage.removeItem('grobaax_module_retry_reloaded');
+      } catch (_) {}
       root.render(
         <StrictMode>
           <CorporateAdvertisingPortal />
         </StrictMode>
       );
-    }
-  );
+    })
+    .catch(handleBootstrapFailure);
 } else {
-  // Student domains (grobaax.com, www.grobaax.com): register student PWA SW and mount existing App
   if (typeof window !== 'undefined') {
-    void import('virtual:pwa-register').then(({ registerSW }) => {
-      const updateSW = registerSW({
-        immediate: true,
-        onNeedRefresh() {
-          console.log('PWA: New content available, applying update and reloading...');
-          updateSW(true);
-        },
-        onOfflineReady() {
-          console.log('PWA: App is ready for offline use.');
-        },
-      });
+    if (import.meta.env.DEV && 'serviceWorker' in navigator) {
+      // Unregister stale service workers during development so Vite /src/* modules are never intercepted
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+          registrations.forEach((registration) => {
+            void registration.unregister();
+          });
+        })
+        .catch(() => {});
+    } else if (import.meta.env.PROD) {
+      // Student domains (grobaax.com, www.grobaax.com): register student PWA SW in production
+      void import('virtual:pwa-register')
+        .then(({ registerSW }) => {
+          const updateSW = registerSW({
+            immediate: true,
+            onNeedRefresh() {
+              console.log('PWA: New content available, applying update and reloading...');
+              updateSW(true);
+            },
+            onOfflineReady() {
+              console.log('PWA: App is ready for offline use.');
+            },
+          });
 
-      window.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          updateSW(true);
-        }
-      });
-    });
+          window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+              updateSW(true);
+            }
+          });
+        })
+        .catch(() => {});
+    }
   }
 
-  void import('./App').then(({ default: App }) => {
-    root.render(
-      <StrictMode>
-        <App />
-      </StrictMode>
-    );
-  });
+  void importWithRetry(() => import('./App'))
+    .then(({ default: App }) => {
+      try {
+        sessionStorage.removeItem('grobaax_module_retry_reloaded');
+      } catch (_) {}
+      root.render(
+        <StrictMode>
+          <App />
+        </StrictMode>
+      );
+    })
+    .catch(handleBootstrapFailure);
 }
