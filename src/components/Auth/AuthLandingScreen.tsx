@@ -11,9 +11,12 @@ import {
   AlertCircle,
   Link2,
   ArrowRight,
+  ArrowUpRight,
   Compass,
+  Megaphone,
 } from 'lucide-react';
 import { OnboardingFlow } from '../Onboarding/OnboardingFlow';
+import { getBrandPromotionPortalHref } from '../../utils/domainPortal';
 
 export const AuthLandingScreen: React.FC = () => {
   const { openAuthModal, setIsAuthModalOpen, isAuthModalOpen, authModalMode, login } = useApp();
@@ -291,6 +294,33 @@ export const AuthLandingScreen: React.FC = () => {
                 <span>Login</span>
               </button>
             </div>
+
+            {/* Brand Promotion CTA -> Corporate Advertising Portal (advertise.grobaax.com) */}
+            <div className="w-full pt-2">
+              <a
+                id="landing-brand-promotion-btn"
+                href={getBrandPromotionPortalHref()}
+                className="w-full py-3.5 px-4 bg-blue-50/80 hover:bg-blue-100/80 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100 border border-blue-200 dark:border-slate-700 font-bold text-xs sm:text-sm rounded-2xl shadow-xs transition-all flex items-center justify-between gap-3 cursor-pointer group"
+              >
+                <div className="flex items-center gap-3 min-w-0 text-left">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Megaphone className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight">
+                      Brand Promotion
+                    </div>
+                    <div className="text-[11px] font-medium text-slate-600 dark:text-slate-400 truncate">
+                      Promote your company on Grobaax
+                    </div>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 dark:text-blue-400 group-hover:translate-x-0.5 transition-transform shrink-0">
+                  <span>Advertise</span>
+                  <ArrowUpRight className="w-4 h-4" />
+                </span>
+              </a>
+            </div>
           </div>
         </div>
       </main>
@@ -298,7 +328,7 @@ export const AuthLandingScreen: React.FC = () => {
       {/* Footer info matching screenshot */}
       <footer className="w-full max-w-7xl mx-auto px-6 py-6 border-t border-slate-200/60 dark:border-slate-800 flex flex-col items-center justify-center gap-2 text-xs text-slate-400 relative z-10">
         <div>©2023 Grobaaxylimited • Inter-Institutional Arena</div>
-        <div className="flex items-center gap-3 text-slate-400">
+        <div className="flex items-center justify-center flex-wrap gap-3 text-slate-400">
           <button onClick={() => openAuthModal('LOGIN')} className="hover:text-blue-600 transition-colors cursor-pointer">
             Login
           </button>
@@ -310,6 +340,13 @@ export const AuthLandingScreen: React.FC = () => {
           <button onClick={() => setShowOnboarding(true)} className="hover:text-blue-600 transition-colors cursor-pointer">
             View Tour
           </button>
+          <span>•</span>
+          <a
+            href={getBrandPromotionPortalHref()}
+            className="hover:text-blue-600 transition-colors cursor-pointer"
+          >
+            Brand Promotion
+          </a>
         </div>
       </footer>
 

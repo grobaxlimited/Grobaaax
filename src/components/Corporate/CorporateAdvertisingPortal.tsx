@@ -3,6 +3,7 @@ import {
   CorporatePortalRoute,
   getCorporatePortalRoute,
   isCorporateAdvertisingDomain,
+  isCorporateAdvertisingHostname,
 } from '../../utils/domainPortal';
 import {
   CorporateAccount,
@@ -76,8 +77,14 @@ export const CorporateAdvertisingPortal: React.FC = () => {
       targetPath: '/' | '/apply' | '/login' | '/dashboard'
     ) => {
       if (typeof window !== 'undefined') {
-        if (window.location.pathname !== targetPath) {
-          window.history.pushState({}, '', targetPath);
+        const useSubdomainPaths = isCorporateAdvertisingHostname();
+        const resolvedPath = useSubdomainPaths
+          ? targetPath
+          : targetPath === '/'
+          ? '/advertise'
+          : `/advertise${targetPath}`;
+        if (window.location.pathname !== resolvedPath) {
+          window.history.pushState({}, '', resolvedPath);
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }

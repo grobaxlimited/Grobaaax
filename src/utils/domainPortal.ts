@@ -12,7 +12,7 @@ export type CorporatePortalRoute = 'landing' | 'apply' | 'login' | 'dashboard';
  * Main student domains (grobaax.com, www.grobaax.com) and preview/local
  * hosts continue rendering the existing student application.
  */
-export function isCorporateAdvertisingDomain(hostname?: string): boolean {
+export function isCorporateAdvertisingHostname(hostname?: string): boolean {
   const rawHost =
     hostname ?? (typeof window !== 'undefined' ? window.location.hostname : '');
   const normalized = rawHost
@@ -24,13 +24,56 @@ export function isCorporateAdvertisingDomain(hostname?: string): boolean {
 }
 
 /**
+ * Determines whether the visitor is accessing the Grobaax Corporate Advertising Portal,
+ * either via the dedicated subdomain (advertise.grobaax.com) or via /advertise* on preview/local hosts.
+ */
+export function isCorporateAdvertisingDomain(
+  hostname?: string,
+  pathname?: string
+): boolean {
+  if (isCorporateAdvertisingHostname(hostname)) {
+    return true;
+  }
+  const rawPath =
+    pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '/');
+  const normalizedPath = rawPath.trim().toLowerCase().replace(/\/+$/, '') || '/';
+  return normalizedPath === '/advertise' || normalizedPath.startsWith('/advertise/');
+}
+
+/**
+ * Returns the destination URL for the Brand Promotion CTA:
+ * - On live production student domains (grobaax.com / www.grobaax.com): https://advertise.grobaax.com
+ * - On preview/local hosts: /advertise so the Corporate Advertising Portal loads cleanly in-app
+ */
+export function getBrandPromotionPortalHref(hostname?: string): string {
+  const rawHost =
+    hostname ?? (typeof window !== 'undefined' ? window.location.hostname : '');
+  const normalized = rawHost
+    .trim()
+    .toLowerCase()
+    .replace(/:\d+$/, '')
+    .replace(/\.$/, '');
+  if (normalized === 'grobaax.com' || normalized === 'www.grobaax.com') {
+    return CORPORATE_PORTAL_ORIGIN;
+  }
+  return '/advertise';
+}
+
+/**
  * Resolves the active path within the Corporate Advertising portal so that
- * direct visits and browser refreshes on /, /apply, /login, and /dashboard render cleanly.
+ * direct visits and browser refreshes on /, /apply, /login, and /dashboard
+ * (or /advertise, /advertise/apply, etc.) render cleanly.
  */
 export function getCorporatePortalRoute(pathname?: string): CorporatePortalRoute {
   const rawPath =
     pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '/');
-  const normalized = rawPath.trim().toLowerCase().replace(/\/+$/, '') || '/';
+  let normalized = rawPath.trim().toLowerCase().replace(/\/+$/, '') || '/';
+
+  if (normalized === '/advertise') {
+    normalized = '/';
+  } else if (normalized.startsWith('/advertise/')) {
+    normalized = normalized.slice('/advertise'.length) || '/';
+  }
 
   if (normalized === '/apply') {
     return 'apply';
