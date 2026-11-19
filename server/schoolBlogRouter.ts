@@ -549,6 +549,44 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       }
     }
 
+    const authorIds = Array.from(
+      new Set(filtered.map((r: any) => String(r.author_user_id || '').trim()).filter(Boolean))
+    );
+    const authorUserMap = new Map<string, any>();
+    if (authorIds.length > 0) {
+      const { data: authorRows } = await supabaseAdmin
+        .from('users')
+        .select('id, data')
+        .in('id', authorIds);
+      for (const u of authorRows || []) {
+        authorUserMap.set(u.id, u.data);
+      }
+    }
+
+    const enrichedArticles = filtered.map((row: any) => {
+      const u = authorUserMap.get(row.author_user_id);
+      const isVip = Boolean(u?.isVip || String(u?.subscriptionTier || '').toLowerCase().includes('vip'));
+      const isPremium = Boolean(u?.isPremium || String(u?.subscriptionTier || '').toLowerCase().includes('premium'));
+      const tier: 'free' | 'premium' | 'vip' = isVip ? 'vip' : isPremium ? 'premium' : 'free';
+      const hasBlue = Boolean(
+        tier === 'premium' || tier === 'vip' || u?.isVerified || u?.hasBlueBadge || u?.verifiedBadge
+      );
+      return {
+        ...mapArticleRow(row),
+        authorAvatar:
+          u?.avatar ||
+          u?.profileImage ||
+          `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(row.author_name || row.author_user_id)}`,
+        authorUsername: u?.username
+          ? u.username.startsWith('@')
+            ? u.username
+            : `@${u.username}`
+          : undefined,
+        authorTier: tier,
+        authorHasBlueBadge: hasBlue,
+      };
+    });
+
     return res.json({
       success: true,
       requiresSubscription: false,
@@ -559,7 +597,7 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
         activeBlogger: mapAssignmentRow(featuredAssign),
       },
       categoryCounts,
-      articles: filtered.map(mapArticleRow),
+      articles: enrichedArticles,
       viewerStatus,
     });
   } catch (err: any) {
@@ -866,7 +904,13 @@ schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, 
       });
     }
 
-    const [{ data: reactions }, { data: blogRow }] = await Promise.all([
+    const [
+      { data: reactions },
+      { data: blogRow },
+      { data: authorRow },
+      authorFollowersCount,
+      { data: myFollowRow },
+    ] = await Promise.all([
       supabaseAdmin
         .from('school_blog_article_reactions')
         .select('user_id, reaction_type')
@@ -876,6 +920,22 @@ schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, 
         .select('*')
         .eq('institution_id', articleRow.blog_institution_id)
         .maybeSingle(),
+      articleRow.author_user_id
+        ? supabaseAdmin
+            .from('users')
+            .select('id, data')
+            .eq('id', articleRow.author_user_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      articleRow.author_user_id ? getGenuineFollowerCount(articleRow.author_user_id) : Promise.resolve(0),
+      req.authUser && articleRow.author_user_id && req.authUser.id !== articleRow.author_user_id
+        ? supabaseAdmin
+            .from('campus_follows')
+            .select('id')
+            .eq('follower_user_id', req.authUser.id)
+            .eq('following_user_id', articleRow.author_user_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
     if (blogRow && blogRow.status !== 'active' && !isAdmin) {
@@ -903,10 +963,47 @@ schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, 
       }
     }
 
+    const authorData = authorRow?.data || null;
+    const isAuthorVip = Boolean(
+      authorData?.isVip || String(authorData?.subscriptionTier || '').toLowerCase().includes('vip')
+    );
+    const isAuthorPremium = Boolean(
+      authorData?.isPremium || String(authorData?.subscriptionTier || '').toLowerCase().includes('premium')
+    );
+    const authorTier: 'free' | 'premium' | 'vip' = isAuthorVip
+      ? 'vip'
+      : isAuthorPremium
+      ? 'premium'
+      : 'free';
+    const authorHasBlueBadge = Boolean(
+      authorTier === 'premium' ||
+        authorTier === 'vip' ||
+        authorData?.isVerified ||
+        authorData?.hasBlueBadge ||
+        authorData?.verifiedBadge
+    );
+    const authorAvatar =
+      authorData?.avatar ||
+      authorData?.profileImage ||
+      `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
+        articleRow.author_name || articleRow.author_user_id || 'blogger'
+      )}`;
+    const authorUsername = authorData?.username
+      ? authorData.username.startsWith('@')
+        ? authorData.username
+        : `@${authorData.username}`
+      : undefined;
+
     return res.json({
       success: true,
       article: {
         ...mapArticleRow(articleRow),
+        authorAvatar,
+        authorUsername,
+        authorTier,
+        authorHasBlueBadge,
+        authorFollowersCount,
+        authorIsFollowing: Boolean(myFollowRow),
         reactionBreakdown: breakdown,
         userReaction,
       },

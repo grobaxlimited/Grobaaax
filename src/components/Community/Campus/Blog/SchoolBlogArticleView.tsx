@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useApp } from '../../../../context/AppContext';
 import {
+  CampusStudentCard,
   SchoolBlogArticle,
   SchoolBlogReactionType,
   SchoolBlogRecord,
@@ -10,11 +12,23 @@ import {
   reportSchoolBlogArticle,
   trackSchoolBlogArticleView,
 } from '../../../../lib/schoolBlogService';
+import {
+  fetchCampusStudentProfile,
+  followCampusStudent,
+  getSecureWhatsAppLink,
+  respondCampusChatRequest,
+  sendCampusChatRequest,
+  unfollowCampusStudent,
+} from '../../../../lib/campusService';
+import { openExternalWhatsApp } from '../../../../lib/whatsappUtils';
+import { CampusStudentProfileModal } from '../CampusStudentProfileModal';
 import { renderFormattedBlogText } from './blogTextFormatter';
 import { SponsoredBlogAdCard } from './SponsoredBlogAdCard';
 import {
+  AlertCircle,
   ArrowLeft,
   Award,
+  BadgeCheck,
   CheckCircle2,
   Eye,
   Flag,
@@ -24,6 +38,8 @@ import {
   Newspaper,
   Sparkles,
   ThumbsUp,
+  UserCheck,
+  UserPlus,
   X,
 } from 'lucide-react';
 
@@ -45,12 +61,51 @@ const REACTION_OPTIONS: Array<{
   { type: 'celebrate', label: 'Celebrate', icon: Award },
 ];
 
+function buildFallbackAuthorCard(
+  art: SchoolBlogArticle,
+  currentUserId?: string,
+  followersCount?: number,
+  followingCount?: number,
+  isFollowing?: boolean
+): CampusStudentCard {
+  const fallbackName = art.authorName || 'School Blogger';
+  const avatar =
+    art.authorAvatar ||
+    `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
+      fallbackName || art.authorUserId || 'blogger'
+    )}`;
+  return {
+    id: art.authorUserId,
+    name: fallbackName,
+    username: art.authorUsername || '',
+    avatar,
+    institution: art.institutionName || 'Grobaax Campus',
+    faculty: '',
+    department: '',
+    level: 'School Blogger',
+    bio: '',
+    skills: [],
+    skillIds: [],
+    tier: art.authorTier || 'free',
+    hasBlueBadge: Boolean(art.authorHasBlueBadge),
+    isVerified: Boolean(art.authorHasBlueBadge),
+    isOnline: true,
+    connectionStatus: currentUserId && currentUserId === art.authorUserId ? 'self' : 'none',
+    joinedCampus: true,
+    followersCount: followersCount ?? Number(art.authorFollowersCount || 0),
+    followingCount: followingCount ?? Number(art.authorFollowingCount || 0),
+    isFollowing: isFollowing ?? Boolean(art.authorIsFollowing),
+  };
+}
+
 export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
   article: initialArticle,
   blog,
   onBack,
   onArticleUpdated,
 }) => {
+  const { currentUser } = useApp();
+
   const [article, setArticle] = useState<SchoolBlogArticle>(initialArticle);
   const [isLoadingFull, setIsLoadingFull] = useState(false);
   const [isReacting, setIsReacting] = useState(false);
@@ -58,11 +113,38 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [isReporting, setIsReporting] = useState(false);
-  const [reportNotice, setReportNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Author Profile & Follow state
+  const [authorFollowersCount, setAuthorFollowersCount] = useState<number>(
+    Number(initialArticle.authorFollowersCount || 0)
+  );
+  const [authorFollowingCount, setAuthorFollowingCount] = useState<number>(
+    Number(initialArticle.authorFollowingCount || 0)
+  );
+  const [authorIsFollowing, setAuthorIsFollowing] = useState<boolean>(
+    Boolean(initialArticle.authorIsFollowing)
+  );
+  const [isInlineFollowLoading, setIsInlineFollowLoading] = useState(false);
+  const [authorProfileStudent, setAuthorProfileStudent] = useState<CampusStudentCard | null>(null);
+  const [authorProfileModalOpen, setAuthorProfileModalOpen] = useState(false);
+  const [authorModalInitialView, setAuthorModalInitialView] = useState<
+    'profile' | 'followers' | 'following'
+  >('profile');
+
+  const showNotice = (text: string, type: 'success' | 'error' = 'success') => {
+    setNotice({ text, type });
+    setTimeout(() => {
+      setNotice((prev) => (prev?.text === text ? null : prev));
+    }, 4000);
+  };
 
   useEffect(() => {
     let mounted = true;
     setArticle(initialArticle);
+    setAuthorFollowersCount(Number(initialArticle.authorFollowersCount || 0));
+    setAuthorFollowingCount(Number(initialArticle.authorFollowingCount || 0));
+    setAuthorIsFollowing(Boolean(initialArticle.authorIsFollowing));
 
     async function hydrateAndTrackView() {
       setIsLoadingFull(true);
@@ -72,6 +154,15 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
         if (mounted && res.success && res.article) {
           latestArticle = res.article;
           setArticle(res.article);
+          if (typeof res.article.authorFollowersCount === 'number') {
+            setAuthorFollowersCount(res.article.authorFollowersCount);
+          }
+          if (typeof res.article.authorFollowingCount === 'number') {
+            setAuthorFollowingCount(res.article.authorFollowingCount);
+          }
+          if (typeof res.article.authorIsFollowing === 'boolean') {
+            setAuthorIsFollowing(res.article.authorIsFollowing);
+          }
         }
       } catch {}
       finally {
@@ -93,6 +184,148 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
       mounted = false;
     };
   }, [initialArticle.id]);
+
+  const handleOpenAuthorProfile = async (
+    initialView: 'profile' | 'followers' | 'following' = 'profile'
+  ) => {
+    if (!article.authorUserId) return;
+    setAuthorModalInitialView(initialView);
+    setAuthorProfileStudent(
+      buildFallbackAuthorCard(
+        article,
+        currentUser?.id,
+        authorFollowersCount,
+        authorFollowingCount,
+        authorIsFollowing
+      )
+    );
+    setAuthorProfileModalOpen(true);
+
+    const hydrated = await fetchCampusStudentProfile(article.authorUserId, currentUser?.id);
+    if (hydrated) {
+      setAuthorProfileStudent(hydrated);
+      if (typeof hydrated.followersCount === 'number') {
+        setAuthorFollowersCount(hydrated.followersCount);
+      }
+      if (typeof hydrated.followingCount === 'number') {
+        setAuthorFollowingCount(hydrated.followingCount);
+      }
+      if (typeof hydrated.isFollowing === 'boolean') {
+        setAuthorIsFollowing(hydrated.isFollowing);
+      }
+    }
+  };
+
+  const handleInlineToggleFollow = async () => {
+    if (!article.authorUserId || isInlineFollowLoading) return;
+    if (!currentUser?.id) {
+      showNotice('Please sign in to follow this School Blogger.', 'error');
+      return;
+    }
+    if (currentUser.id === article.authorUserId) return;
+
+    setIsInlineFollowLoading(true);
+    try {
+      const res = authorIsFollowing
+        ? await unfollowCampusStudent(article.authorUserId)
+        : await followCampusStudent(article.authorUserId);
+
+      if (res.success) {
+        const nextFollowers = Number(
+          res.followersCount ??
+            (authorIsFollowing ? Math.max(0, authorFollowersCount - 1) : authorFollowersCount + 1)
+        );
+        const nextFollowing = Number(res.followingCount ?? authorFollowingCount);
+        const nextIsFollowing = Boolean(res.isFollowing ?? !authorIsFollowing);
+
+        setAuthorFollowersCount(nextFollowers);
+        setAuthorFollowingCount(nextFollowing);
+        setAuthorIsFollowing(nextIsFollowing);
+
+        const nextArticle: SchoolBlogArticle = {
+          ...article,
+          authorFollowersCount: nextFollowers,
+          authorFollowingCount: nextFollowing,
+          authorIsFollowing: nextIsFollowing,
+        };
+        setArticle(nextArticle);
+        if (onArticleUpdated) onArticleUpdated(nextArticle);
+
+        setAuthorProfileStudent((prev) =>
+          prev && prev.id === article.authorUserId
+            ? {
+                ...prev,
+                followersCount: nextFollowers,
+                followingCount: nextFollowing,
+                isFollowing: nextIsFollowing,
+              }
+            : prev
+        );
+
+        showNotice(
+          nextIsFollowing
+            ? `You are now following ${article.authorName || 'this author'}.`
+            : `You unfollowed ${article.authorName || 'this author'}.`
+        );
+      } else {
+        showNotice(res.error || 'Could not update follow status.', 'error');
+      }
+    } finally {
+      setIsInlineFollowLoading(false);
+    }
+  };
+
+  const handleAuthorSendRequest = async (student: CampusStudentCard) => {
+    if (!currentUser) {
+      showNotice('Please sign in to connect with this author.', 'error');
+      return;
+    }
+    const res = await sendCampusChatRequest(currentUser, student);
+    if (res.success) {
+      showNotice(res.message || 'Connection request sent!');
+      setAuthorProfileStudent((prev) =>
+        prev && prev.id === student.id ? { ...prev, connectionStatus: 'pending_sent' } : prev
+      );
+    } else {
+      showNotice(res.error || 'Failed to send request.', 'error');
+    }
+  };
+
+  const handleAuthorAcceptRequest = async (requestId: string, student: CampusStudentCard) => {
+    if (!currentUser) return;
+    const res = await respondCampusChatRequest(requestId, currentUser.id, 'ACCEPT');
+    if (res.success) {
+      showNotice(res.message || 'Connection accepted! You can now chat on WhatsApp.');
+      setAuthorProfileStudent((prev) =>
+        prev && prev.id === student.id ? { ...prev, connectionStatus: 'accepted' } : prev
+      );
+    } else {
+      showNotice(res.error || 'Failed to accept connection.', 'error');
+    }
+  };
+
+  const handleAuthorRejectRequest = async (requestId: string, student: CampusStudentCard) => {
+    if (!currentUser) return;
+    const res = await respondCampusChatRequest(requestId, currentUser.id, 'REJECT');
+    if (res.success) {
+      showNotice(res.message || 'Connection request declined.');
+      setAuthorProfileStudent((prev) =>
+        prev && prev.id === student.id ? { ...prev, connectionStatus: 'none' } : prev
+      );
+    } else {
+      showNotice(res.error || 'Failed to decline request.', 'error');
+    }
+  };
+
+  const handleAuthorOpenWhatsApp = async (student: CampusStudentCard) => {
+    if (!currentUser) return;
+    const res = await getSecureWhatsAppLink(currentUser.id, student.id, student.requestId);
+    if (res.success && res.whatsappUrl) {
+      openExternalWhatsApp(res.whatsappUrl);
+    } else {
+      showNotice(res.error || 'Unable to open WhatsApp chat.', 'error');
+    }
+  };
 
   const handleReact = async (reactionType: SchoolBlogReactionType) => {
     if (isReacting) return;
@@ -122,7 +355,7 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
     try {
       const res = await reportSchoolBlogArticle(article.id, reportReason.trim());
       if (res.success) {
-        setReportNotice('Report submitted to Grobaax administrators for review.');
+        showNotice('Report submitted to Grobaax administrators for review.');
         setIsReportOpen(false);
         setReportReason('');
       }
@@ -139,6 +372,14 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
         day: 'numeric',
       })
     : '';
+
+  const authorAvatarUrl =
+    article.authorAvatar ||
+    `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
+      article.authorName || article.authorUserId || 'blogger'
+    )}`;
+
+  const isOwnArticle = Boolean(currentUser?.id && article.authorUserId === currentUser.id);
 
   const blocks =
     Array.isArray(article.contentBlocks) && article.contentBlocks.length > 0
@@ -175,10 +416,20 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
         </button>
       </div>
 
-      {reportNotice && (
-        <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs font-bold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{reportNotice}</span>
+      {notice && (
+        <div
+          className={`p-3.5 rounded-2xl border text-xs font-bold flex items-center gap-2 ${
+            notice.type === 'error'
+              ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'
+              : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+          }`}
+        >
+          {notice.type === 'error' ? (
+            <AlertCircle className="w-4 h-4 shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+          )}
+          <span>{notice.text}</span>
         </div>
       )}
 
@@ -199,11 +450,57 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
             {article.title}
           </h1>
 
-          <div className="flex items-center justify-between gap-4 pt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-slate-800 dark:text-slate-200">
-                By {article.authorName || 'School Blogger'}
-              </span>
+          <div className="flex items-center justify-between gap-3 pt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400 flex-wrap">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                id={`school-blog-author-profile-btn-${article.id}`}
+                type="button"
+                onClick={() => handleOpenAuthorProfile('profile')}
+                title={`View ${article.authorName || 'Author'}'s profile & follow`}
+                className="inline-flex items-center gap-2 group text-left cursor-pointer rounded-xl pr-2 py-0.5 hover:bg-slate-100/80 dark:hover:bg-slate-800/70 transition-colors"
+              >
+                <img
+                  src={authorAvatarUrl}
+                  alt={article.authorName || 'School Blogger'}
+                  referrerPolicy="no-referrer"
+                  className="w-7 h-7 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
+                      article.authorUserId || 'blogger'
+                    )}`;
+                  }}
+                />
+                <span className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:underline underline-offset-4 transition-colors">
+                  By {article.authorName || 'School Blogger'}
+                </span>
+                {article.authorHasBlueBadge && (
+                  <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-500/20 shrink-0" />
+                )}
+              </button>
+
+              {!isOwnArticle && article.authorUserId && (
+                <button
+                  id={`school-blog-inline-follow-btn-${article.authorUserId}`}
+                  type="button"
+                  disabled={isInlineFollowLoading}
+                  onClick={handleInlineToggleFollow}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                    authorIsFollowing
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 dark:hover:bg-rose-950/40 dark:hover:text-rose-300'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs'
+                  }`}
+                >
+                  {isInlineFollowLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : authorIsFollowing ? (
+                    <UserCheck className="w-3.5 h-3.5" />
+                  ) : (
+                    <UserPlus className="w-3.5 h-3.5" />
+                  )}
+                  <span>{authorIsFollowing ? 'Following' : 'Follow'}</span>
+                </button>
+              )}
+
               {formattedDate && (
                 <>
                   <span aria-hidden="true">·</span>
@@ -355,6 +652,45 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
         institutionId={article.blogInstitutionId}
       />
 
+      {/* Author Profile & Follow Modal */}
+      <CampusStudentProfileModal
+        student={authorProfileStudent}
+        currentUserId={currentUser?.id}
+        initialViewMode={authorModalInitialView}
+        isOpen={authorProfileModalOpen}
+        onClose={() => setAuthorProfileModalOpen(false)}
+        onSendRequest={handleAuthorSendRequest}
+        onAcceptRequest={handleAuthorAcceptRequest}
+        onRejectRequest={handleAuthorRejectRequest}
+        onOpenWhatsApp={handleAuthorOpenWhatsApp}
+        onFollowChanged={(targetId, stats) => {
+          if (targetId === article.authorUserId) {
+            setAuthorFollowersCount(stats.followersCount);
+            setAuthorFollowingCount(stats.followingCount);
+            setAuthorIsFollowing(stats.isFollowing);
+            const nextArticle: SchoolBlogArticle = {
+              ...article,
+              authorFollowersCount: stats.followersCount,
+              authorFollowingCount: stats.followingCount,
+              authorIsFollowing: stats.isFollowing,
+            };
+            setArticle(nextArticle);
+            if (onArticleUpdated) onArticleUpdated(nextArticle);
+          }
+          setAuthorProfileStudent((prev) =>
+            prev && prev.id === targetId
+              ? {
+                  ...prev,
+                  followersCount: stats.followersCount,
+                  followingCount: stats.followingCount,
+                  isFollowing: stats.isFollowing,
+                }
+              : prev
+          );
+        }}
+        onNotify={(msg, type) => showNotice(msg, type || 'success')}
+      />
+
       {/* Report Modal */}
       {isReportOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -403,3 +739,4 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
     </div>
   );
 };
+

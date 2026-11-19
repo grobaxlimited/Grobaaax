@@ -3217,6 +3217,13 @@ export interface SchoolBlogArticle {
   institutionName: string;
   authorUserId: string;
   authorName: string;
+  authorUsername?: string;
+  authorAvatar?: string;
+  authorTier?: 'free' | 'premium' | 'vip';
+  authorHasBlueBadge?: boolean;
+  authorFollowersCount?: number;
+  authorFollowingCount?: number;
+  authorIsFollowing?: boolean;
   title: string;
   slug: string;
   excerpt: string;

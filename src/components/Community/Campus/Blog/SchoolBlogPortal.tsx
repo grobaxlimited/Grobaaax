@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../../../../context/AppContext';
 import {
+  CampusStudentCard,
   SchoolBlogArticle,
   SchoolBlogCategory,
   SchoolBlogRecord,
@@ -9,6 +10,14 @@ import {
   fetchSchoolBlogHomepage,
   SchoolBlogViewerStatus,
 } from '../../../../lib/schoolBlogService';
+import {
+  fetchCampusStudentProfile,
+  getSecureWhatsAppLink,
+  respondCampusChatRequest,
+  sendCampusChatRequest,
+} from '../../../../lib/campusService';
+import { openExternalWhatsApp } from '../../../../lib/whatsappUtils';
+import { CampusStudentProfileModal } from '../CampusStudentProfileModal';
 import { SchoolBlogArticleView } from './SchoolBlogArticleView';
 import { BloggerApplicationModal } from './BloggerApplicationModal';
 import { BloggerDashboardView } from './BloggerDashboardView';
@@ -16,6 +25,7 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
+  BadgeCheck,
   Ban,
   CheckCircle2,
   Clock,
@@ -83,6 +93,8 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
 
   // Modals
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [feedAuthorProfile, setFeedAuthorProfile] = useState<CampusStudentCard | null>(null);
+  const [isFeedAuthorModalOpen, setIsFeedAuthorModalOpen] = useState(false);
 
   const loadHomepage = async () => {
     setIsLoading(true);
@@ -156,6 +168,47 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
 
   const handleApplyButtonClick = () => {
     setIsApplyModalOpen(true);
+  };
+
+  const handleOpenFeedAuthorProfile = async (
+    e: React.MouseEvent,
+    art: SchoolBlogArticle
+  ) => {
+    e.stopPropagation();
+    if (!art.authorUserId) return;
+    const fallbackName = art.authorName || 'School Blogger';
+    setFeedAuthorProfile({
+      id: art.authorUserId,
+      name: fallbackName,
+      username: art.authorUsername || '',
+      avatar:
+        art.authorAvatar ||
+        `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
+          fallbackName || art.authorUserId
+        )}`,
+      institution: art.institutionName || displayInstitutionName || 'Grobaax Campus',
+      faculty: '',
+      department: '',
+      level: 'School Blogger',
+      bio: '',
+      skills: [],
+      skillIds: [],
+      tier: art.authorTier || 'free',
+      hasBlueBadge: Boolean(art.authorHasBlueBadge),
+      isVerified: Boolean(art.authorHasBlueBadge),
+      isOnline: true,
+      connectionStatus: currentUser?.id === art.authorUserId ? 'self' : 'none',
+      joinedCampus: true,
+      followersCount: Number(art.authorFollowersCount || 0),
+      followingCount: Number(art.authorFollowingCount || 0),
+      isFollowing: Boolean(art.authorIsFollowing),
+    });
+    setIsFeedAuthorModalOpen(true);
+
+    const hydrated = await fetchCampusStudentProfile(art.authorUserId, currentUser?.id);
+    if (hydrated) {
+      setFeedAuthorProfile(hydrated);
+    }
   };
 
   if (activeSubView === 'article' && selectedArticle) {
@@ -414,6 +467,31 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
                     <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed">
                       {art.excerpt}
                     </p>
+
+                    {art.authorUserId && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenFeedAuthorProfile(e, art)}
+                        className="inline-flex items-center gap-1.5 pt-1 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-4 cursor-pointer"
+                        title={`View ${art.authorName || 'Author'}'s profile & follow`}
+                      >
+                        <img
+                          src={
+                            art.authorAvatar ||
+                            `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
+                              art.authorName || art.authorUserId
+                            )}`
+                          }
+                          alt={art.authorName || 'School Blogger'}
+                          referrerPolicy="no-referrer"
+                          className="w-5 h-5 rounded-md object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                        />
+                        <span>By {art.authorName || 'School Blogger'}</span>
+                        {art.authorHasBlueBadge && (
+                          <BadgeCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/20 shrink-0" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -462,6 +540,87 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
           showNotice(msg);
           await loadHomepage();
         }}
+      />
+
+      {/* Author Profile & Follow Modal from Feed */}
+      <CampusStudentProfileModal
+        student={feedAuthorProfile}
+        currentUserId={currentUser?.id}
+        isOpen={isFeedAuthorModalOpen}
+        onClose={() => setIsFeedAuthorModalOpen(false)}
+        onSendRequest={async (student) => {
+          if (!currentUser) {
+            showNotice('Please sign in to connect with this author.');
+            return;
+          }
+          const res = await sendCampusChatRequest(currentUser, student);
+          if (res.success) {
+            showNotice(res.message || 'Connection request sent!');
+            setFeedAuthorProfile((prev) =>
+              prev && prev.id === student.id ? { ...prev, connectionStatus: 'pending_sent' } : prev
+            );
+          } else {
+            showNotice(res.error || 'Failed to send request.');
+          }
+        }}
+        onAcceptRequest={async (requestId, student) => {
+          if (!currentUser) return;
+          const res = await respondCampusChatRequest(requestId, currentUser.id, 'ACCEPT');
+          if (res.success) {
+            showNotice(res.message || 'Connection accepted!');
+            setFeedAuthorProfile((prev) =>
+              prev && prev.id === student.id ? { ...prev, connectionStatus: 'accepted' } : prev
+            );
+          } else {
+            showNotice(res.error || 'Failed to accept connection.');
+          }
+        }}
+        onRejectRequest={async (requestId, student) => {
+          if (!currentUser) return;
+          const res = await respondCampusChatRequest(requestId, currentUser.id, 'REJECT');
+          if (res.success) {
+            showNotice(res.message || 'Connection request declined.');
+            setFeedAuthorProfile((prev) =>
+              prev && prev.id === student.id ? { ...prev, connectionStatus: 'none' } : prev
+            );
+          } else {
+            showNotice(res.error || 'Failed to decline request.');
+          }
+        }}
+        onOpenWhatsApp={async (student) => {
+          if (!currentUser) return;
+          const res = await getSecureWhatsAppLink(currentUser.id, student.id, student.requestId);
+          if (res.success && res.whatsappUrl) {
+            openExternalWhatsApp(res.whatsappUrl);
+          } else {
+            showNotice(res.error || 'Unable to open WhatsApp chat.');
+          }
+        }}
+        onFollowChanged={(targetId, stats) => {
+          setFeedAuthorProfile((prev) =>
+            prev && prev.id === targetId
+              ? {
+                  ...prev,
+                  followersCount: stats.followersCount,
+                  followingCount: stats.followingCount,
+                  isFollowing: stats.isFollowing,
+                }
+              : prev
+          );
+          setArticles((prev) =>
+            prev.map((a) =>
+              a.authorUserId === targetId
+                ? {
+                    ...a,
+                    authorFollowersCount: stats.followersCount,
+                    authorFollowingCount: stats.followingCount,
+                    authorIsFollowing: stats.isFollowing,
+                  }
+                : a
+            )
+          );
+        }}
+        onNotify={(msg) => showNotice(msg)}
       />
         </>
       )}

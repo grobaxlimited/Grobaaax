@@ -1314,3 +1314,146 @@ export async function fetchCampusFollowList(
     return { success: false, users: [], total: 0, error: err?.message };
   }
 }
+
+/**
+ * 10. Fetch a single Campus student profile (used when clicking a School Blog author or peer)
+ */
+export async function fetchCampusStudentProfile(
+  targetUserId: string,
+  currentUserId?: string
+): Promise<CampusStudentCard | null> {
+  if (!targetUserId) return null;
+
+  try {
+    const qs = currentUserId ? `?requestingUserId=${encodeURIComponent(currentUserId)}` : '';
+    const headers = await getAuthBearerHeaders();
+    const res = await safeFetchJson<{ success: boolean; student?: CampusStudentCard }>(
+      `/api/campus/students/${encodeURIComponent(targetUserId)}${qs}`,
+      { headers }
+    );
+    if (res.ok && res.data?.success && res.data.student) {
+      return res.data.student;
+    }
+  } catch {}
+
+  // Firestore + follow fallback if backend call was unreachable
+  try {
+    const [uSnap, memSnap, followStatus] = await Promise.all([
+      getDoc(doc(db, 'users', targetUserId)),
+      getDoc(doc(db, CAMPUS_MEMBERSHIPS_COLLECTION, targetUserId)),
+      fetchCampusFollowStatus(targetUserId),
+    ]);
+
+    const rawUser = uSnap.exists() ? uSnap.data() : null;
+    const memData = memSnap.exists() ? (memSnap.data() as CampusMembership) : null;
+    if (!rawUser && !memData) return null;
+
+    const uName = rawUser?.name || rawUser?.fullName || rawUser?.username || 'Scholar';
+    const uUsername = rawUser?.username
+      ? rawUser.username.startsWith('@')
+        ? rawUser.username
+        : `@${rawUser.username}`
+      : `@scholar_${targetUserId.substring(0, 5)}`;
+    const uAvatar =
+      rawUser?.avatar ||
+      rawUser?.profileImage ||
+      `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(uName || targetUserId)}`;
+    const uTier = rawUser ? resolveUserSubscriptionTier(rawUser) : 'free';
+    const blueBadge = rawUser ? isUserBlueBadge(rawUser) : false;
+
+    let connectionStatus: CampusStudentCard['connectionStatus'] =
+      currentUserId && currentUserId === targetUserId ? 'self' : 'none';
+    let requestId: string | undefined;
+
+    if (currentUserId && currentUserId !== targetUserId) {
+      try {
+        const [sentSnap, receivedSnap] = await Promise.all([
+          getDocs(
+            query(
+              collection(db, CAMPUS_REQUESTS_COLLECTION),
+              where('senderId', '==', currentUserId),
+              limit(30)
+            )
+          ),
+          getDocs(
+            query(
+              collection(db, CAMPUS_REQUESTS_COLLECTION),
+              where('recipientId', '==', currentUserId),
+              limit(30)
+            )
+          ),
+        ]);
+        sentSnap.forEach((d) => {
+          const r = d.data() as CampusConnectionRequest;
+          if (r.recipientId === targetUserId) {
+            if (r.status === 'PENDING') connectionStatus = 'pending_sent';
+            else if (r.status === 'ACCEPTED') connectionStatus = 'accepted';
+            else if (r.status === 'REJECTED') connectionStatus = 'rejected';
+            requestId = d.id;
+          }
+        });
+        receivedSnap.forEach((d) => {
+          const r = d.data() as CampusConnectionRequest;
+          if (r.senderId === targetUserId) {
+            if (r.status === 'PENDING') connectionStatus = 'pending_received';
+            else if (r.status === 'ACCEPTED') connectionStatus = 'accepted';
+            else if (r.status === 'REJECTED') connectionStatus = 'none';
+            requestId = d.id;
+          }
+        });
+      } catch {}
+    }
+
+    return {
+      id: targetUserId,
+      name: uName,
+      username: uUsername,
+      avatar: uAvatar,
+      institution:
+        memData?.institution ||
+        rawUser?.institution ||
+        rawUser?.institutionName ||
+        rawUser?.academicProfile?.institutionName ||
+        'Grobaax Campus',
+      institutionId:
+        memData?.institutionId || rawUser?.institutionId || rawUser?.academicProfile?.institutionId,
+      faculty:
+        memData?.faculty ||
+        rawUser?.faculty ||
+        rawUser?.facultyName ||
+        rawUser?.academicProfile?.facultyName ||
+        '',
+      department:
+        memData?.department ||
+        rawUser?.department ||
+        rawUser?.departmentName ||
+        rawUser?.academicProfile?.departmentName ||
+        '',
+      level: memData?.level || rawUser?.level || rawUser?.academicProfile?.level || 'Student',
+      bio: rawUser?.bio || '',
+      skills: Array.isArray(memData?.skills)
+        ? memData.skills
+        : Array.isArray(rawUser?.skills)
+        ? rawUser.skills
+        : [],
+      skillIds: Array.isArray(memData?.skillIds)
+        ? memData.skillIds
+        : Array.isArray(rawUser?.skillIds)
+        ? rawUser.skillIds
+        : [],
+      tier: uTier,
+      hasBlueBadge: blueBadge,
+      isVerified: blueBadge,
+      isOnline: true,
+      connectionStatus,
+      requestId,
+      joinedCampus: Boolean(memData),
+      followersCount: followStatus.success ? followStatus.followersCount : 0,
+      followingCount: followStatus.success ? followStatus.followingCount : 0,
+      isFollowing: followStatus.success ? followStatus.isFollowing : false,
+    };
+  } catch {
+    return null;
+  }
+}
+

@@ -954,6 +954,188 @@ campusRouter.get('/students', optionalAuth, async (req: Request, res: Response) 
   }
 });
 
+// 4B. GET SINGLE STUDENT PROFILE (for article author profile modal & direct profile lookup)
+campusRouter.get('/students/:targetUserId', optionalAuth, async (req: Request, res: Response) => {
+  try {
+    const targetUserId = decodeURIComponent(req.params.targetUserId || '').trim();
+    const { requestingUserId } = req.query as { requestingUserId?: string };
+    const effectiveViewerId = req.authUser?.id || requestingUserId || '';
+
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: 'Target student user ID is required.' });
+    }
+
+    const [{ data: userRow }, { data: memRow }, { data: skillRows }] = await Promise.all([
+      supabaseAdmin.from('users').select('id, data').eq('id', targetUserId).maybeSingle(),
+      supabaseAdmin.from('campus_memberships').select('id, data').eq('id', targetUserId).maybeSingle(),
+      supabaseAdmin.from('student_skills').select('skill_id, skill_name').eq('user_id', targetUserId),
+    ]);
+
+    let rawUser: any = userRow?.data || null;
+    if (!rawUser) {
+      try {
+        const uSnap = await getDoc(doc(db, 'users', targetUserId));
+        if (uSnap.exists()) rawUser = uSnap.data();
+      } catch {}
+    }
+
+    let memData: any = memRow?.data || null;
+    if (!memData) {
+      try {
+        const mSnap = await getDoc(doc(db, 'campus_memberships', targetUserId));
+        if (mSnap.exists()) memData = mSnap.data();
+      } catch {}
+    }
+
+    if (!rawUser && !memData) {
+      return res.status(404).json({ success: false, error: 'Student profile not found.' });
+    }
+
+    if (rawUser && !isUserAccountActive(rawUser)) {
+      return res.status(404).json({ success: false, error: 'Student profile is unavailable.' });
+    }
+
+    const userName = rawUser?.name || rawUser?.fullName || rawUser?.username || memData?.userName || 'Scholar';
+    const userUsername = rawUser?.username
+      ? rawUser.username.startsWith('@')
+        ? rawUser.username
+        : `@${rawUser.username}`
+      : `@scholar_${targetUserId.substring(0, 5)}`;
+    const userAvatar =
+      rawUser?.avatar ||
+      rawUser?.profileImage ||
+      `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userName || targetUserId)}`;
+
+    const userInstitution = (
+      memData?.institution ||
+      rawUser?.institution ||
+      rawUser?.institutionName ||
+      rawUser?.academicProfile?.institutionName ||
+      'Grobaax Campus'
+    ).trim();
+    const userFaculty = (
+      memData?.faculty ||
+      rawUser?.faculty ||
+      rawUser?.facultyName ||
+      rawUser?.academicProfile?.facultyName ||
+      rawUser?.academicProfile?.faculty ||
+      ''
+    ).trim();
+    const userDepartment = (
+      memData?.department ||
+      rawUser?.department ||
+      rawUser?.departmentName ||
+      rawUser?.academicProfile?.departmentName ||
+      rawUser?.academicProfile?.department ||
+      ''
+    ).trim();
+    const userLevel =
+      memData?.level ||
+      rawUser?.level ||
+      rawUser?.academicProfile?.level ||
+      'Student';
+
+    const relSkillNames = Array.from(new Set((skillRows || []).map((r: any) => r.skill_name).filter(Boolean)));
+    const relSkillIds = Array.from(new Set((skillRows || []).map((r: any) => r.skill_id).filter(Boolean)));
+    const mSkills: string[] = relSkillNames.length
+      ? relSkillNames
+      : Array.isArray(memData?.skills) && memData.skills.length > 0
+      ? memData.skills
+      : Array.isArray(rawUser?.skills)
+      ? rawUser.skills
+      : [];
+    const mSkillIds: string[] = relSkillIds.length
+      ? relSkillIds
+      : Array.isArray(memData?.skillIds) && memData.skillIds.length > 0
+      ? memData.skillIds
+      : Array.isArray(rawUser?.skillIds)
+      ? rawUser.skillIds
+      : [];
+
+    const userTier = rawUser ? getUserTier(rawUser) : 'free';
+    const hasBlue = Boolean(
+      userTier === 'premium' ||
+        userTier === 'vip' ||
+        rawUser?.isVerified ||
+        rawUser?.hasBlueBadge ||
+        rawUser?.verifiedBadge
+    );
+
+    const followStats = await computeFollowCounts(targetUserId, effectiveViewerId || undefined);
+
+    let connectionStatus: CampusStudentCard['connectionStatus'] =
+      effectiveViewerId && effectiveViewerId === targetUserId ? 'self' : 'none';
+    let requestId: string | undefined;
+
+    if (effectiveViewerId && effectiveViewerId !== targetUserId) {
+      try {
+        const reqSnap = await getDocs(collection(db, 'campus_connection_requests'));
+        reqSnap.forEach((docSnap) => {
+          const reqData = docSnap.data() as CampusConnectionRequest;
+          if (reqData.senderId === effectiveViewerId && reqData.recipientId === targetUserId) {
+            if (reqData.status === 'PENDING') connectionStatus = 'pending_sent';
+            else if (reqData.status === 'ACCEPTED') connectionStatus = 'accepted';
+            else if (reqData.status === 'REJECTED') connectionStatus = 'rejected';
+            requestId = docSnap.id;
+          } else if (reqData.recipientId === effectiveViewerId && reqData.senderId === targetUserId) {
+            if (reqData.status === 'PENDING') connectionStatus = 'pending_received';
+            else if (reqData.status === 'ACCEPTED') connectionStatus = 'accepted';
+            else if (reqData.status === 'REJECTED') connectionStatus = 'none';
+            requestId = docSnap.id;
+          }
+        });
+      } catch (reqErr) {
+        console.warn('Error checking connection status for profile:', reqErr);
+      }
+
+      connectionRequestsCache.forEach((reqData) => {
+        if (reqData.senderId === effectiveViewerId && reqData.recipientId === targetUserId) {
+          if (reqData.status === 'PENDING') connectionStatus = 'pending_sent';
+          else if (reqData.status === 'ACCEPTED') connectionStatus = 'accepted';
+          else if (reqData.status === 'REJECTED') connectionStatus = 'rejected';
+          requestId = reqData.id;
+        } else if (reqData.recipientId === effectiveViewerId && reqData.senderId === targetUserId) {
+          if (reqData.status === 'PENDING') connectionStatus = 'pending_received';
+          else if (reqData.status === 'ACCEPTED') connectionStatus = 'accepted';
+          else if (reqData.status === 'REJECTED') connectionStatus = 'none';
+          requestId = reqData.id;
+        }
+      });
+    }
+
+    const student: CampusStudentCard = {
+      id: targetUserId,
+      name: userName,
+      username: userUsername,
+      avatar: userAvatar,
+      institution: userInstitution,
+      institutionId:
+        memData?.institutionId || rawUser?.institutionId || rawUser?.academicProfile?.institutionId,
+      faculty: userFaculty,
+      department: userDepartment,
+      level: userLevel,
+      bio: rawUser?.bio || '',
+      skills: mSkills,
+      skillIds: mSkillIds,
+      tier: userTier,
+      hasBlueBadge: hasBlue,
+      isVerified: hasBlue,
+      isOnline: true,
+      connectionStatus,
+      requestId,
+      joinedCampus: Boolean(memData),
+      followersCount: followStats.followersCount,
+      followingCount: followStats.followingCount,
+      isFollowing: effectiveViewerId && effectiveViewerId !== targetUserId ? followStats.isFollowing : false,
+    };
+
+    return res.json({ success: true, student });
+  } catch (err: any) {
+    console.error('Error in GET /api/campus/students/:targetUserId:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Failed to load student profile.' });
+  }
+});
+
 // 5. SEND CHAT REQUEST
 campusRouter.post('/request', async (req: Request, res: Response) => {
   try {
