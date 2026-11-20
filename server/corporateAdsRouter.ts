@@ -276,6 +276,7 @@ function mapTickerCampaignRow(row: any, company?: any) {
     companyId: row.company_id,
     companyName: company?.company_name || row.corporate_accounts?.company_name || '',
     brandName: company?.brand_name || row.corporate_accounts?.brand_name || '',
+    logoUrl: company?.logo_url || row.corporate_accounts?.logo_url || '',
     brandHighlightColor: resolvedColor,
     companyStatus: company?.status || row.corporate_accounts?.status || '',
     subscriptionId: row.subscription_id || null,
@@ -764,7 +765,7 @@ corporateAdsRouter.get('/ticker/active', async (_req: Request, res: Response) =>
     const { data: candidates, error } = await supabaseAdmin
       .from('corporate_ticker_campaigns')
       .select(
-        '*, corporate_accounts!inner(id, company_name, brand_name, status, brand_highlight_color), corporate_subscriptions!inner(id, status, start_date, expiry_date, sponsor_ticker_mode_snapshot, max_ticker_campaigns_snapshot, ticker_upgrade_active)'
+        '*, corporate_accounts!inner(id, company_name, brand_name, status, logo_url, brand_highlight_color), corporate_subscriptions!inner(id, status, start_date, expiry_date, sponsor_ticker_mode_snapshot, max_ticker_campaigns_snapshot, ticker_upgrade_active)'
       )
       .eq('status', 'Active')
       .eq('corporate_accounts.status', 'Approved')
@@ -808,12 +809,13 @@ corporateAdsRouter.get('/ticker/active', async (_req: Request, res: Response) =>
       }
     }
 
-    // Return ONLY safe public advertising display fields (strictly text-only for ticker bar)
+    // Return ONLY safe public advertising display fields (logo is rendered in Advertiser Details popup; scrolling bar stays text-only)
     const items = interleaved.map((c: any) => ({
       tickerId: c.id,
       companyId: c.company_id,
       brandName: c.corporate_accounts?.brand_name || c.corporate_accounts?.company_name || 'Partner',
       companyName: c.corporate_accounts?.company_name || '',
+      logoUrl: c.corporate_accounts?.logo_url || '',
       brandHighlightColor:
         sanitizeHexColor(c.brand_highlight_color) ||
         sanitizeHexColor(c.corporate_accounts?.brand_highlight_color) ||

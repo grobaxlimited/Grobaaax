@@ -2870,14 +2870,33 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                         2. Advertiser Details Popup Preview
                       </div>
                       <div className="rounded-2xl border border-slate-200 bg-[#f8faff] p-4 space-y-3">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span
-                            style={tickerStyle.pillStyle}
-                            className="px-2 py-0.5 rounded-md border font-black"
-                          >
-                            {displayBrand}
-                          </span>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px]">
+                        <div className="flex items-center justify-between gap-2 text-[11px]">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {company.logoUrl ? (
+                              <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                                <img
+                                  src={company.logoUrl}
+                                  alt={`${displayBrand} logo`}
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-contain rounded-lg"
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                style={tickerStyle.pillStyle}
+                                className="w-8 h-8 rounded-xl border flex items-center justify-center shrink-0"
+                              >
+                                <Building2 className="w-3.5 h-3.5" />
+                              </div>
+                            )}
+                            <span
+                              style={tickerStyle.pillStyle}
+                              className="px-2 py-0.5 rounded-md border font-black truncate"
+                            >
+                              {displayBrand}
+                            </span>
+                          </div>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px] shrink-0">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             Active
                           </span>

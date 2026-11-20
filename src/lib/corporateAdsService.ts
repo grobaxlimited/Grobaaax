@@ -175,6 +175,7 @@ export interface CorporateTickerCampaign {
   companyId: string;
   companyName?: string;
   brandName?: string;
+  logoUrl?: string;
   brandHighlightColor?: string;
   companyStatus?: CorporateAccountStatus | string;
   subscriptionId?: string | null;
@@ -208,6 +209,7 @@ export interface PublicSponsorTickerItem {
   companyId: string;
   brandName: string;
   companyName: string;
+  logoUrl?: string;
   brandHighlightColor?: string;
   shortMessage: string;
   headline: string;

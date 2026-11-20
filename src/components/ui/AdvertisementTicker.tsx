@@ -25,6 +25,7 @@ interface UnifiedTickerSponsor {
   id: string;
   isCorporate: boolean;
   brandName: string;
+  logoUrl?: string;
   brandHighlightColor?: string;
   shortMessage: string;
   headline: string;
@@ -41,6 +42,7 @@ export const AdvertisementTicker: React.FC = () => {
   const [corporateItems, setCorporateItems] = useState<PublicSponsorTickerItem[]>([]);
   const [isSponsorsModalOpen, setIsSponsorsModalOpen] = useState(false);
   const [selectedSponsor, setSelectedSponsor] = useState<UnifiedTickerSponsor | null>(null);
+  const [brokenLogos, setBrokenLogos] = useState<Record<string, boolean>>({});
   const lastImpressionKeyRef = useRef<string>('');
 
   // Automatically restore ticker visibility and continuous scrolling when user switches to any navigation tab
@@ -67,6 +69,7 @@ export const AdvertisementTicker: React.FC = () => {
       id: item.tickerId,
       isCorporate: true,
       brandName: item.brandName || item.companyName || 'Sponsor',
+      logoUrl: item.logoUrl || '',
       brandHighlightColor: item.brandHighlightColor,
       shortMessage: item.shortMessage,
       headline: item.headline || item.brandName || 'Sponsored Offer',
@@ -248,6 +251,7 @@ export const AdvertisementTicker: React.FC = () => {
                     ) : (
                       unifiedSponsors.map((sponsor) => {
                         const sponsorBrandStyle = getBrandHighlightStyles(sponsor.brandHighlightColor);
+                        const hasCardLogo = Boolean(sponsor.logoUrl && !brokenLogos[sponsor.id]);
                         return (
                           <button
                             key={sponsor.id}
@@ -257,6 +261,19 @@ export const AdvertisementTicker: React.FC = () => {
                           >
                             <div className="min-w-0 space-y-1.5">
                               <div className="flex items-center gap-2 flex-wrap">
+                                {hasCardLogo && (
+                                  <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 dark:border-slate-700 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                                    <img
+                                      src={sponsor.logoUrl}
+                                      alt={`${sponsor.brandName} logo`}
+                                      referrerPolicy="no-referrer"
+                                      onError={() =>
+                                        setBrokenLogos((prev) => ({ ...prev, [sponsor.id]: true }))
+                                      }
+                                      className="w-full h-full object-contain rounded"
+                                    />
+                                  </div>
+                                )}
                                 <span
                                   style={sponsorBrandStyle.pillStyle}
                                   className="px-2 py-0.5 rounded-md border text-xs font-extrabold tracking-tight"
@@ -313,17 +330,34 @@ export const AdvertisementTicker: React.FC = () => {
 
                       <div className="p-6 space-y-4 overflow-y-auto">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-2.5">
-                            <div
-                              style={selectedStyle.pillStyle}
-                              className="w-9 h-9 rounded-xl border flex items-center justify-center shrink-0"
-                            >
-                              <Building2 className="w-4 h-4" />
-                            </div>
-                            <div>
+                          <div className="inline-flex items-center gap-3 min-w-0">
+                            {selectedSponsor.logoUrl && !brokenLogos[selectedSponsor.id] ? (
+                              <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 dark:border-slate-700 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                                <img
+                                  src={selectedSponsor.logoUrl}
+                                  alt={`${selectedSponsor.brandName} logo`}
+                                  referrerPolicy="no-referrer"
+                                  onError={() =>
+                                    setBrokenLogos((prev) => ({
+                                      ...prev,
+                                      [selectedSponsor.id]: true,
+                                    }))
+                                  }
+                                  className="w-full h-full object-contain rounded-lg"
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                style={selectedStyle.pillStyle}
+                                className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0"
+                              >
+                                <Building2 className="w-4 h-4" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
                               <span
                                 style={selectedStyle.pillStyle}
-                                className="inline-block px-2.5 py-0.5 rounded-md border text-xs font-extrabold"
+                                className="inline-block px-2.5 py-0.5 rounded-md border text-xs font-extrabold truncate max-w-full"
                               >
                                 {selectedSponsor.brandName}
                               </span>
