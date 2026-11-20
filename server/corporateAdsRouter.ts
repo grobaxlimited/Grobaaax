@@ -81,6 +81,21 @@ function sanitizeHttpUrl(rawUrl: string): string | null {
   }
 }
 
+function sanitizeHexColor(rawColor: any): string | null {
+  const cleaned = String(rawColor || '').trim();
+  if (!cleaned) return null;
+  if (/^#[0-9a-fA-F]{6}$/.test(cleaned)) {
+    return cleaned.toUpperCase();
+  }
+  if (/^#[0-9a-fA-F]{3}$/.test(cleaned)) {
+    const r = cleaned[1];
+    const g = cleaned[2];
+    const b = cleaned[3];
+    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+  }
+  return null;
+}
+
 function mapCompanyRow(row: any, extra?: { accountSource?: 'external_signup' | 'grobaax_user' }) {
   if (!row) return null;
   return {
@@ -90,6 +105,8 @@ function mapCompanyRow(row: any, extra?: { accountSource?: 'external_signup' | '
     accountSource: extra?.accountSource || 'external_signup',
     companyName: row.company_name,
     brandName: row.brand_name,
+    logoUrl: row.logo_url || '',
+    brandHighlightColor: sanitizeHexColor(row.brand_highlight_color) || '#2563EB',
     industry: row.industry,
     registrationNumber: row.registration_number || '',
     website: row.website || '',
@@ -202,11 +219,18 @@ function mapCampaignRow(row: any, company?: any) {
   const impressions = Number(row.impressions_count || 0);
   const clicks = Number(row.clicks_count || 0);
   const ctr = impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0;
+  const resolvedColor =
+    sanitizeHexColor(row.brand_highlight_color) ||
+    sanitizeHexColor(company?.brand_highlight_color) ||
+    sanitizeHexColor(row.corporate_accounts?.brand_highlight_color) ||
+    '#2563EB';
   return {
     id: row.id,
     companyId: row.company_id,
     companyName: company?.company_name || row.corporate_accounts?.company_name || '',
     brandName: company?.brand_name || row.corporate_accounts?.brand_name || '',
+    logoUrl: company?.logo_url || row.corporate_accounts?.logo_url || '',
+    brandHighlightColor: resolvedColor,
     companyStatus: company?.status || row.corporate_accounts?.status || '',
     subscriptionId: row.subscription_id || null,
     campaignName: row.campaign_name,
@@ -242,11 +266,17 @@ function mapTickerCampaignRow(row: any, company?: any) {
   const websiteClicks = Number(row.website_clicks_count || 0);
   const websiteCtr =
     barImpressions > 0 ? Number(((websiteClicks / barImpressions) * 100).toFixed(2)) : 0;
+  const resolvedColor =
+    sanitizeHexColor(row.brand_highlight_color) ||
+    sanitizeHexColor(company?.brand_highlight_color) ||
+    sanitizeHexColor(row.corporate_accounts?.brand_highlight_color) ||
+    '#2563EB';
   return {
     id: row.id,
     companyId: row.company_id,
     companyName: company?.company_name || row.corporate_accounts?.company_name || '',
     brandName: company?.brand_name || row.corporate_accounts?.brand_name || '',
+    brandHighlightColor: resolvedColor,
     companyStatus: company?.status || row.corporate_accounts?.status || '',
     subscriptionId: row.subscription_id || null,
     campaignName: row.campaign_name,
@@ -534,7 +564,9 @@ corporateAdsRouter.get('/serve-ad', async (req: Request, res: Response) => {
 
     const { data: candidates, error } = await supabaseAdmin
       .from('corporate_ad_campaigns')
-      .select('*, corporate_accounts!inner(id, company_name, brand_name, status), corporate_subscriptions!inner(id, status, start_date, expiry_date, max_active_campaigns_snapshot, placement_eligibility_snapshot)')
+      .select(
+        '*, corporate_accounts!inner(id, company_name, brand_name, status, logo_url, brand_highlight_color), corporate_subscriptions!inner(id, status, start_date, expiry_date, max_active_campaigns_snapshot, placement_eligibility_snapshot)'
+      )
       .eq('status', 'Active')
       .eq('corporate_accounts.status', 'Approved')
       .eq('corporate_subscriptions.status', 'active')
@@ -578,6 +610,11 @@ corporateAdsRouter.get('/serve-ad', async (req: Request, res: Response) => {
       .update({ last_served_at: nowIso })
       .eq('id', selected.id);
 
+    const resolvedColor =
+      sanitizeHexColor(selected.brand_highlight_color) ||
+      sanitizeHexColor(selected.corporate_accounts?.brand_highlight_color) ||
+      '#2563EB';
+
     // Return ONLY safe public ad creative fields (no private corporate data)
     return res.json({
       success: true,
@@ -586,6 +623,8 @@ corporateAdsRouter.get('/serve-ad', async (req: Request, res: Response) => {
         campaignId: selected.id,
         brandName: selected.corporate_accounts?.brand_name || selected.corporate_accounts?.company_name || 'Sponsored Partner',
         companyName: selected.corporate_accounts?.company_name || '',
+        logoUrl: selected.corporate_accounts?.logo_url || '',
+        brandHighlightColor: resolvedColor,
         headline: selected.headline,
         adText: selected.ad_text,
         creativeImageUrl: selected.creative_image_url,
@@ -725,7 +764,7 @@ corporateAdsRouter.get('/ticker/active', async (_req: Request, res: Response) =>
     const { data: candidates, error } = await supabaseAdmin
       .from('corporate_ticker_campaigns')
       .select(
-        '*, corporate_accounts!inner(id, company_name, brand_name, status), corporate_subscriptions!inner(id, status, start_date, expiry_date, sponsor_ticker_mode_snapshot, max_ticker_campaigns_snapshot, ticker_upgrade_active)'
+        '*, corporate_accounts!inner(id, company_name, brand_name, status, brand_highlight_color), corporate_subscriptions!inner(id, status, start_date, expiry_date, sponsor_ticker_mode_snapshot, max_ticker_campaigns_snapshot, ticker_upgrade_active)'
       )
       .eq('status', 'Active')
       .eq('corporate_accounts.status', 'Approved')
@@ -769,12 +808,16 @@ corporateAdsRouter.get('/ticker/active', async (_req: Request, res: Response) =>
       }
     }
 
-    // Return ONLY safe public advertising display fields (zero private corporate contact/billing data)
+    // Return ONLY safe public advertising display fields (strictly text-only for ticker bar)
     const items = interleaved.map((c: any) => ({
       tickerId: c.id,
       companyId: c.company_id,
       brandName: c.corporate_accounts?.brand_name || c.corporate_accounts?.company_name || 'Partner',
       companyName: c.corporate_accounts?.company_name || '',
+      brandHighlightColor:
+        sanitizeHexColor(c.brand_highlight_color) ||
+        sanitizeHexColor(c.corporate_accounts?.brand_highlight_color) ||
+        '#2563EB',
       shortMessage: c.ticker_message ?? c.short_message ?? '',
       headline: c.headline,
       fullDescription: c.full_description,
@@ -903,6 +946,8 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
       state,
       password,
       supportingDocument,
+      brandHighlightColor,
+      companyLogo,
     } = req.body || {};
 
     const requiredFields: Array<[string, any]> = [
@@ -1043,6 +1088,20 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
       supportingDocName = String(supportingDocument.fileName || 'Supporting Document').slice(0, 120);
     }
 
+    let uploadedLogoUrl = '';
+    if (companyLogo?.dataUrl) {
+      const uploadedLogo = await uploadDataUrlToBucket({
+        bucket: 'corporate-ad-media',
+        dataUrl: companyLogo.dataUrl,
+        fileName: companyLogo.fileName || 'company_logo',
+        folder: `${createdAuthUserId}/logo`,
+        allowedMimes: ALLOWED_CREATIVE_MIME,
+      });
+      uploadedLogoUrl = uploadedLogo.url;
+    }
+
+    const cleanHighlightColor = sanitizeHexColor(brandHighlightColor) || '#2563EB';
+
     const { data: insertedCompany, error: insertErr } = await supabaseAdmin
       .from('corporate_accounts')
       .insert({
@@ -1050,6 +1109,8 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
         account_type: 'corporate_advertiser',
         company_name: String(companyName).trim(),
         brand_name: String(brandName).trim(),
+        logo_url: uploadedLogoUrl,
+        brand_highlight_color: cleanHighlightColor,
         industry: String(industry).trim(),
         registration_number: String(registrationNumber || '').trim(),
         website: normalizedWebsite,
@@ -1232,6 +1293,8 @@ corporateAdsRouter.post('/auth/complete-application', async (req: Request, res: 
       country,
       state,
       supportingDocument,
+      brandHighlightColor,
+      companyLogo,
     } = req.body || {};
 
     const requiredFields: Array<[string, any]> = [
@@ -1280,6 +1343,20 @@ corporateAdsRouter.post('/auth/complete-application', async (req: Request, res: 
       supportingDocName = String(supportingDocument.fileName || 'Supporting Document').slice(0, 120);
     }
 
+    let uploadedLogoUrl = '';
+    if (companyLogo?.dataUrl) {
+      const uploadedLogo = await uploadDataUrlToBucket({
+        bucket: 'corporate-ad-media',
+        dataUrl: companyLogo.dataUrl,
+        fileName: companyLogo.fileName || 'company_logo',
+        folder: `${authUid}/logo`,
+        allowedMimes: ALLOWED_CREATIVE_MIME,
+      });
+      uploadedLogoUrl = uploadedLogo.url;
+    }
+
+    const cleanHighlightColor = sanitizeHexColor(brandHighlightColor) || '#2563EB';
+
     const { data: insertedCompany, error: insertErr } = await supabaseAdmin
       .from('corporate_accounts')
       .insert({
@@ -1287,6 +1364,8 @@ corporateAdsRouter.post('/auth/complete-application', async (req: Request, res: 
         account_type: 'corporate_advertiser',
         company_name: String(companyName).trim(),
         brand_name: String(brandName).trim(),
+        logo_url: uploadedLogoUrl,
+        brand_highlight_color: cleanHighlightColor,
         industry: String(industry).trim(),
         registration_number: String(registrationNumber || '').trim(),
         website: normalizedWebsite,
@@ -1538,6 +1617,8 @@ corporateAdsRouter.put('/profile', requireCorporateAuth, async (req: Request, re
       country,
       state,
       registrationNumber,
+      brandHighlightColor,
+      logoUrl,
     } = req.body || {};
 
     let cleanWebsite = company.website || '';
@@ -1550,6 +1631,35 @@ corporateAdsRouter.put('/profile', requireCorporateAuth, async (req: Request, re
           return res.status(400).json({ success: false, error: 'Invalid website URL.' });
         }
         cleanWebsite = checked;
+      }
+    }
+
+    let cleanHighlightColor = sanitizeHexColor(company.brand_highlight_color) || '#2563EB';
+    if (brandHighlightColor !== undefined) {
+      if (String(brandHighlightColor).trim() === '') {
+        cleanHighlightColor = '#2563EB';
+      } else {
+        const validHex = sanitizeHexColor(brandHighlightColor);
+        if (!validHex) {
+          return res.status(400).json({
+            success: false,
+            error: 'Brand highlight color must be a valid hex color (e.g. #2563EB).',
+          });
+        }
+        cleanHighlightColor = validHex;
+      }
+    }
+
+    let cleanLogoUrl = company.logo_url || '';
+    if (logoUrl !== undefined) {
+      if (String(logoUrl).trim() === '') {
+        cleanLogoUrl = '';
+      } else {
+        const checkedLogo = sanitizeHttpUrl(logoUrl);
+        if (!checkedLogo) {
+          return res.status(400).json({ success: false, error: 'Invalid logo URL.' });
+        }
+        cleanLogoUrl = checkedLogo;
       }
     }
 
@@ -1568,6 +1678,8 @@ corporateAdsRouter.put('/profile', requireCorporateAuth, async (req: Request, re
           registrationNumber !== undefined
             ? String(registrationNumber).trim()
             : company.registration_number,
+        brand_highlight_color: cleanHighlightColor,
+        logo_url: cleanLogoUrl,
         updated_at: new Date().toISOString(),
       })
       .eq('id', company.id)
@@ -1613,6 +1725,36 @@ corporateAdsRouter.post(
           success: true,
           path: uploaded.path,
           fileName: String(fileName).slice(0, 120),
+        });
+      }
+
+      if (kind === 'logo') {
+        const uploaded = await uploadDataUrlToBucket({
+          bucket: 'corporate-ad-media',
+          dataUrl,
+          fileName,
+          folder: `${company.id}/logo`,
+          allowedMimes: ALLOWED_CREATIVE_MIME,
+        });
+        const { data: updatedCompany, error: updateErr } = await supabaseAdmin
+          .from('corporate_accounts')
+          .update({
+            logo_url: uploaded.url,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', company.id)
+          .select()
+          .single();
+
+        if (updateErr) {
+          return res.status(500).json({ success: false, error: updateErr.message });
+        }
+
+        return res.json({
+          success: true,
+          imageUrl: uploaded.url,
+          path: uploaded.path,
+          company: mapCompanyRow(updatedCompany),
         });
       }
 
@@ -2242,6 +2384,8 @@ corporateAdsRouter.post('/campaigns', requireCorporateAuth, async (req: Request,
       placementType = 'school_blog_article_footer',
       requestedDurationDays,
       submitForReview = true,
+      brandHighlightColor,
+      applyColorToBrand = false,
     } = req.body || {};
 
     if (!campaignName || String(campaignName).trim().length < 2) {
@@ -2262,6 +2406,21 @@ corporateAdsRouter.post('/campaigns', requireCorporateAuth, async (req: Request,
       return res.status(400).json({
         success: false,
         error: 'A valid destination website URL (https://...) is required.',
+      });
+    }
+
+    const validHighlightColor =
+      brandHighlightColor !== undefined && String(brandHighlightColor).trim() !== ''
+        ? sanitizeHexColor(brandHighlightColor)
+        : null;
+    if (
+      brandHighlightColor !== undefined &&
+      String(brandHighlightColor).trim() !== '' &&
+      !validHighlightColor
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Brand highlight color must be a valid hex color (e.g. #2563EB).',
       });
     }
 
@@ -2297,6 +2456,20 @@ corporateAdsRouter.post('/campaigns', requireCorporateAuth, async (req: Request,
       }
     }
 
+    let nextCompany = company;
+    if (applyColorToBrand && validHighlightColor) {
+      const { data: updatedCo } = await supabaseAdmin
+        .from('corporate_accounts')
+        .update({
+          brand_highlight_color: validHighlightColor,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', company.id)
+        .select()
+        .single();
+      if (updatedCo) nextCompany = updatedCo;
+    }
+
     // Company NEVER sets 'Active' or 'Approved' directly; only 'Draft' or 'Pending Review'
     const initialStatus = submitForReview ? 'Pending Review' : 'Draft';
 
@@ -2313,6 +2486,7 @@ corporateAdsRouter.post('/campaigns', requireCorporateAuth, async (req: Request,
         cta_label: String(ctaLabel || 'Learn More').trim().slice(0, 40),
         placement_type: targetPlacement,
         requested_duration_days: parsedDuration,
+        brand_highlight_color: validHighlightColor || '',
         status: initialStatus,
       })
       .select()
@@ -2327,7 +2501,7 @@ corporateAdsRouter.post('/campaigns', requireCorporateAuth, async (req: Request,
 
     return res.status(201).json({
       success: true,
-      campaign: mapCampaignRow(created, company),
+      campaign: mapCampaignRow(created, nextCompany),
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
@@ -2440,6 +2614,8 @@ corporateAdsRouter.patch(
         ctaLabel,
         requestedDurationDays,
         submitForReview,
+        brandHighlightColor,
+        applyColorToBrand = false,
       } = req.body || {};
 
       let cleanDestUrl = camp.destination_url;
@@ -2449,6 +2625,22 @@ corporateAdsRouter.patch(
           return res.status(400).json({ success: false, error: 'Invalid destination URL.' });
         }
         cleanDestUrl = checked;
+      }
+
+      let nextCampaignColor = camp.brand_highlight_color || '';
+      if (brandHighlightColor !== undefined) {
+        if (String(brandHighlightColor).trim() === '') {
+          nextCampaignColor = '';
+        } else {
+          const validHex = sanitizeHexColor(brandHighlightColor);
+          if (!validHex) {
+            return res.status(400).json({
+              success: false,
+              error: 'Brand highlight color must be a valid hex color (e.g. #2563EB).',
+            });
+          }
+          nextCampaignColor = validHex;
+        }
       }
 
       const activeSub = await getActiveSubscriptionForCompany(company.id);
@@ -2473,6 +2665,20 @@ corporateAdsRouter.patch(
         }
       }
 
+      let nextCompany = company;
+      if (applyColorToBrand && nextCampaignColor) {
+        const { data: updatedCo } = await supabaseAdmin
+          .from('corporate_accounts')
+          .update({
+            brand_highlight_color: nextCampaignColor,
+            updated_at: nowIso,
+          })
+          .eq('id', company.id)
+          .select()
+          .single();
+        if (updatedCo) nextCompany = updatedCo;
+      }
+
       const maxDuration = Number(activeSub?.campaign_duration_days_snapshot || camp.requested_duration_days || 30);
       const nextDuration =
         requestedDurationDays !== undefined
@@ -2493,6 +2699,7 @@ corporateAdsRouter.patch(
           destination_url: cleanDestUrl,
           cta_label: ctaLabel ? String(ctaLabel).trim().slice(0, 40) : camp.cta_label,
           requested_duration_days: nextDuration,
+          brand_highlight_color: nextCampaignColor,
           status: nextStatus,
           subscription_id: activeSub?.id || camp.subscription_id,
           rejection_reason: '',
@@ -2506,7 +2713,7 @@ corporateAdsRouter.patch(
         return res.status(500).json({ success: false, error: error.message });
       }
 
-      return res.json({ success: true, campaign: mapCampaignRow(updated, company) });
+      return res.json({ success: true, campaign: mapCampaignRow(updated, nextCompany) });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -2621,6 +2828,8 @@ corporateAdsRouter.post(
         ctaLabel = 'Learn More',
         requestedDurationDays,
         submitForReview = true,
+        brandHighlightColor,
+        applyColorToBrand = false,
       } = req.body || {};
 
       if (!campaignName || String(campaignName).trim().length < 2) {
@@ -2656,6 +2865,21 @@ corporateAdsRouter.post(
         });
       }
 
+      const validHighlightColor =
+        brandHighlightColor !== undefined && String(brandHighlightColor).trim() !== ''
+          ? sanitizeHexColor(brandHighlightColor)
+          : null;
+      if (
+        brandHighlightColor !== undefined &&
+        String(brandHighlightColor).trim() !== '' &&
+        !validHighlightColor
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: 'Brand highlight color must be a valid hex color (e.g. #2563EB).',
+        });
+      }
+
       const maxTickerQuota = Number(activeSub.max_ticker_campaigns_snapshot || 1);
       if (submitForReview) {
         const { count } = await supabaseAdmin
@@ -2670,6 +2894,20 @@ corporateAdsRouter.post(
             error: `Your plan allows up to ${maxTickerQuota} active or pending Sponsor Ticker campaign(s). Pause an existing ticker campaign or upgrade your plan.`,
           });
         }
+      }
+
+      let nextCompany = company;
+      if (applyColorToBrand && validHighlightColor) {
+        const { data: updatedCo } = await supabaseAdmin
+          .from('corporate_accounts')
+          .update({
+            brand_highlight_color: validHighlightColor,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', company.id)
+          .select()
+          .single();
+        if (updatedCo) nextCompany = updatedCo;
       }
 
       const maxDuration = Number(activeSub.ticker_campaign_duration_days_snapshot || 30);
@@ -2693,6 +2931,7 @@ corporateAdsRouter.post(
           cta_label: String(ctaLabel || 'Learn More').trim().slice(0, 40),
           destination_url: cleanDestUrl,
           requested_duration_days: parsedDuration,
+          brand_highlight_color: validHighlightColor || '',
           status: initialStatus,
         })
         .select()
@@ -2707,7 +2946,7 @@ corporateAdsRouter.post(
 
       return res.status(201).json({
         success: true,
-        tickerCampaign: mapTickerCampaignRow(created, company),
+        tickerCampaign: mapTickerCampaignRow(created, nextCompany),
       });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
@@ -2823,6 +3062,8 @@ corporateAdsRouter.patch(
         ctaLabel,
         requestedDurationDays,
         submitForReview,
+        brandHighlightColor,
+        applyColorToBrand = false,
       } = req.body || {};
 
       let cleanDestUrl = camp.destination_url;
@@ -2832,6 +3073,22 @@ corporateAdsRouter.patch(
           return res.status(400).json({ success: false, error: 'Invalid destination URL.' });
         }
         cleanDestUrl = checked;
+      }
+
+      let nextTickerColor = camp.brand_highlight_color || '';
+      if (brandHighlightColor !== undefined) {
+        if (String(brandHighlightColor).trim() === '') {
+          nextTickerColor = '';
+        } else {
+          const validHex = sanitizeHexColor(brandHighlightColor);
+          if (!validHex) {
+            return res.status(400).json({
+              success: false,
+              error: 'Brand highlight color must be a valid hex color (e.g. #2563EB).',
+            });
+          }
+          nextTickerColor = validHex;
+        }
       }
 
       const cleanShort =
@@ -2866,6 +3123,20 @@ corporateAdsRouter.patch(
         }
       }
 
+      let nextCompany = company;
+      if (applyColorToBrand && nextTickerColor) {
+        const { data: updatedCo } = await supabaseAdmin
+          .from('corporate_accounts')
+          .update({
+            brand_highlight_color: nextTickerColor,
+            updated_at: nowIso,
+          })
+          .eq('id', company.id)
+          .select()
+          .single();
+        if (updatedCo) nextCompany = updatedCo;
+      }
+
       const maxDuration = Number(
         activeSub?.ticker_campaign_duration_days_snapshot || camp.requested_duration_days || 30
       );
@@ -2888,6 +3159,7 @@ corporateAdsRouter.patch(
           destination_url: cleanDestUrl,
           cta_label: ctaLabel ? String(ctaLabel).trim().slice(0, 40) : camp.cta_label,
           requested_duration_days: nextDuration,
+          brand_highlight_color: nextTickerColor,
           status: nextStatus,
           subscription_id: activeSub?.id || camp.subscription_id,
           rejection_reason: '',
@@ -2901,7 +3173,7 @@ corporateAdsRouter.patch(
         return res.status(500).json({ success: false, error: error.message });
       }
 
-      return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated, company) });
+      return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated, nextCompany) });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -3590,7 +3862,7 @@ corporateAdsRouter.get(
 
       let q = supabaseAdmin
         .from('corporate_ad_campaigns')
-        .select('*, corporate_accounts(company_name, brand_name, status)')
+        .select('*, corporate_accounts(company_name, brand_name, status, logo_url, brand_highlight_color)')
         .order('created_at', { ascending: false });
 
       if (status && CAMPAIGN_STATUSES.has(status)) {
@@ -3729,7 +4001,7 @@ corporateAdsRouter.patch(
         .from('corporate_ad_campaigns')
         .update(updates)
         .eq('id', id)
-        .select('*, corporate_accounts(company_name, brand_name, status)')
+        .select('*, corporate_accounts(company_name, brand_name, status, logo_url, brand_highlight_color)')
         .single();
 
       if (error) {
@@ -3793,7 +4065,7 @@ corporateAdsRouter.get(
 
       let q = supabaseAdmin
         .from('corporate_ticker_campaigns')
-        .select('*, corporate_accounts(company_name, brand_name, status)')
+        .select('*, corporate_accounts(company_name, brand_name, status, brand_highlight_color)')
         .order('created_at', { ascending: false });
 
       if (status && CAMPAIGN_STATUSES.has(status)) {
@@ -3944,7 +4216,7 @@ corporateAdsRouter.patch(
         .from('corporate_ticker_campaigns')
         .update(updates)
         .eq('id', id)
-        .select('*, corporate_accounts(company_name, brand_name, status)')
+        .select('*, corporate_accounts(company_name, brand_name, status, brand_highlight_color)')
         .single();
 
       if (error) {

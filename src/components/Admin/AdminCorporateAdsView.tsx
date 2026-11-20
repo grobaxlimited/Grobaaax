@@ -1343,10 +1343,20 @@ export const AdminCorporateAdsView: React.FC = () => {
       {selectedCompany && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                {selectedCompany.companyName}
-              </h3>
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {selectedCompany.logoUrl ? (
+                  <img
+                    src={selectedCompany.logoUrl}
+                    alt={`${selectedCompany.brandName} logo`}
+                    referrerPolicy="no-referrer"
+                    className="w-8 h-8 rounded-lg object-contain bg-white border border-slate-200 p-0.5 shrink-0"
+                  />
+                ) : null}
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white truncate">
+                  {selectedCompany.companyName}
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setSelectedCompany(null)}

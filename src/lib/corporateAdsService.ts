@@ -20,6 +20,8 @@ export interface CorporateAccount {
   accountSource?: 'external_signup' | 'grobaax_user';
   companyName: string;
   brandName: string;
+  logoUrl?: string;
+  brandHighlightColor?: string;
   industry: string;
   registrationNumber: string;
   website: string;
@@ -118,6 +120,8 @@ export interface CorporateAdCampaign {
   companyId: string;
   companyName?: string;
   brandName?: string;
+  logoUrl?: string;
+  brandHighlightColor?: string;
   companyStatus?: CorporateAccountStatus | string;
   subscriptionId?: string | null;
   campaignName: string;
@@ -148,6 +152,8 @@ export interface PublicSponsoredBlogAd {
   campaignId: string;
   brandName: string;
   companyName: string;
+  logoUrl?: string;
+  brandHighlightColor?: string;
   headline: string;
   adText: string;
   creativeImageUrl: string;
@@ -169,6 +175,7 @@ export interface CorporateTickerCampaign {
   companyId: string;
   companyName?: string;
   brandName?: string;
+  brandHighlightColor?: string;
   companyStatus?: CorporateAccountStatus | string;
   subscriptionId?: string | null;
   campaignName: string;
@@ -201,6 +208,7 @@ export interface PublicSponsorTickerItem {
   companyId: string;
   brandName: string;
   companyName: string;
+  brandHighlightColor?: string;
   shortMessage: string;
   headline: string;
   fullDescription: string;
@@ -537,6 +545,11 @@ export interface CorporateRegistrationPayload {
   country: string;
   state: string;
   password: string;
+  brandHighlightColor?: string;
+  companyLogo?: {
+    dataUrl: string;
+    fileName: string;
+  } | null;
   supportingDocument?: {
     dataUrl: string;
     fileName: string;
@@ -695,6 +708,8 @@ export async function updateCorporateProfile(payload: {
   country?: string;
   state?: string;
   registrationNumber?: string;
+  brandHighlightColor?: string;
+  logoUrl?: string;
 }) {
   const data = await corporateFetch<{ company?: CorporateAccount }>(
     '/profile',
@@ -714,11 +729,16 @@ export async function updateCorporateProfile(payload: {
 }
 
 export async function uploadCorporateMedia(params: {
-  kind: 'creative' | 'verification_doc';
+  kind: 'creative' | 'verification_doc' | 'logo';
   dataUrl: string;
   fileName: string;
 }) {
-  return corporateFetch<{ imageUrl?: string; path?: string; fileName?: string }>(
+  const data = await corporateFetch<{
+    imageUrl?: string;
+    path?: string;
+    fileName?: string;
+    company?: CorporateAccount;
+  }>(
     '/upload-media',
     {
       method: 'POST',
@@ -726,6 +746,13 @@ export async function uploadCorporateMedia(params: {
     },
     'corporate'
   );
+  if (data.success && data.company) {
+    setCorporateSession({
+      accessToken: getStoredCorporateToken(),
+      company: data.company,
+    });
+  }
+  return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -802,6 +829,8 @@ export async function createCorporateCampaign(payload: {
   placementType?: string;
   requestedDurationDays?: number;
   submitForReview?: boolean;
+  brandHighlightColor?: string;
+  applyColorToBrand?: boolean;
 }) {
   return corporateFetch<{ campaign?: CorporateAdCampaign }>(
     '/campaigns',
@@ -826,6 +855,8 @@ export async function updateCorporateCampaign(
         ctaLabel?: string;
         requestedDurationDays?: number;
         submitForReview?: boolean;
+        brandHighlightColor?: string;
+        applyColorToBrand?: boolean;
       }
 ) {
   return corporateFetch<{ campaign?: CorporateAdCampaign }>(
@@ -863,6 +894,8 @@ export async function createCorporateTickerCampaign(payload: {
   ctaLabel?: string;
   requestedDurationDays?: number;
   submitForReview?: boolean;
+  brandHighlightColor?: string;
+  applyColorToBrand?: boolean;
 }) {
   return corporateFetch<{ tickerCampaign?: CorporateTickerCampaign }>(
     '/ticker-campaigns',
@@ -887,6 +920,8 @@ export async function updateCorporateTickerCampaign(
         ctaLabel?: string;
         requestedDurationDays?: number;
         submitForReview?: boolean;
+        brandHighlightColor?: string;
+        applyColorToBrand?: boolean;
       }
 ) {
   return corporateFetch<{ tickerCampaign?: CorporateTickerCampaign }>(

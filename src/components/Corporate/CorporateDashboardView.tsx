@@ -37,6 +37,12 @@ import {
   CorporatePortalRoute,
 } from '../../utils/domainPortal';
 import {
+  DEFAULT_BRAND_HIGHLIGHT_COLOR,
+  getBrandHighlightStyles,
+  normalizeHexColor,
+} from '../../utils/brandColor';
+import { BrandColorPicker } from './BrandColorPicker';
+import {
   CorporateAccount,
   CorporateAdCampaign,
   CorporateAnalyticsSummary,
@@ -143,6 +149,10 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
   const [campDestUrl, setCampDestUrl] = useState('');
   const [campCtaLabel, setCampCtaLabel] = useState('Learn More');
   const [campDurationDays, setCampDurationDays] = useState(30);
+  const [campHighlightColor, setCampHighlightColor] = useState(
+    normalizeHexColor(initialCompany.brandHighlightColor, DEFAULT_BRAND_HIGHLIGHT_COLOR)
+  );
+  const [campSyncBrandColor, setCampSyncBrandColor] = useState(true);
   const [isUploadingCreative, setIsUploadingCreative] = useState(false);
   const [isSavingCampaign, setIsSavingCampaign] = useState(false);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
@@ -157,10 +167,18 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
   const [tickerDestUrl, setTickerDestUrl] = useState('');
   const [tickerCtaLabel, setTickerCtaLabel] = useState('Learn More');
   const [tickerDurationDays, setTickerDurationDays] = useState(30);
+  const [tickerHighlightColor, setTickerHighlightColor] = useState(
+    normalizeHexColor(initialCompany.brandHighlightColor, DEFAULT_BRAND_HIGHLIGHT_COLOR)
+  );
+  const [tickerSyncBrandColor, setTickerSyncBrandColor] = useState(true);
   const [isSavingTicker, setIsSavingTicker] = useState(false);
 
   // Company Profile Edit Form
   const [profBrandName, setProfBrandName] = useState(initialCompany.brandName || '');
+  const [profLogoUrl, setProfLogoUrl] = useState(initialCompany.logoUrl || '');
+  const [profHighlightColor, setProfHighlightColor] = useState(
+    normalizeHexColor(initialCompany.brandHighlightColor, DEFAULT_BRAND_HIGHLIGHT_COLOR)
+  );
   const [profWebsite, setProfWebsite] = useState(initialCompany.website || '');
   const [profDescription, setProfDescription] = useState(initialCompany.description || '');
   const [profContactName, setProfContactName] = useState(initialCompany.contactName || '');
@@ -171,6 +189,7 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
   const [profRegNo, setProfRegNo] = useState(initialCompany.registrationNumber || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   const loadAllData = useCallback(async () => {
     setLoading(true);
@@ -187,6 +206,10 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
         setCompany(meRes.company);
         onCompanyUpdated(meRes.company);
         setProfBrandName(meRes.company.brandName || '');
+        setProfLogoUrl(meRes.company.logoUrl || '');
+        setProfHighlightColor(
+          normalizeHexColor(meRes.company.brandHighlightColor, DEFAULT_BRAND_HIGHLIGHT_COLOR)
+        );
         setProfWebsite(meRes.company.website || '');
         setProfDescription(meRes.company.description || '');
         setProfContactName(meRes.company.contactName || '');
@@ -379,6 +402,10 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     setCampDestUrl(company.website || '');
     setCampCtaLabel('Learn More');
     setCampDurationDays(activeSub?.campaignDurationDaysSnapshot || 30);
+    setCampHighlightColor(
+      normalizeHexColor(company.brandHighlightColor, DEFAULT_BRAND_HIGHLIGHT_COLOR)
+    );
+    setCampSyncBrandColor(true);
     setIsCampaignFormOpen(true);
   };
 
@@ -393,6 +420,13 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     setCampDurationDays(
       c.requestedDurationDays || activeSub?.campaignDurationDaysSnapshot || 30
     );
+    setCampHighlightColor(
+      normalizeHexColor(
+        c.brandHighlightColor || company.brandHighlightColor,
+        DEFAULT_BRAND_HIGHLIGHT_COLOR
+      )
+    );
+    setCampSyncBrandColor(true);
     setIsCampaignFormOpen(true);
   };
 
@@ -438,6 +472,8 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
         destinationUrl: campDestUrl.trim(),
         ctaLabel: campCtaLabel.trim() || 'Learn More',
         requestedDurationDays: Number(campDurationDays) || 30,
+        brandHighlightColor: normalizeHexColor(campHighlightColor),
+        applyColorToBrand: campSyncBrandColor,
         submitForReview,
       };
 
@@ -498,7 +534,7 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     }
   };
 
-  // Sponsor Ticker CRUD handlers (strictly text-only)
+  // Sponsor Ticker Builder Modal (Text-Only)
   const openNewTickerModal = () => {
     setEditingTickerId(null);
     setTickerName('');
@@ -508,6 +544,10 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     setTickerDestUrl(company.website || '');
     setTickerCtaLabel('Learn More');
     setTickerDurationDays(activeSub?.tickerCampaignDurationDaysSnapshot || 30);
+    setTickerHighlightColor(
+      normalizeHexColor(company.brandHighlightColor, DEFAULT_BRAND_HIGHLIGHT_COLOR)
+    );
+    setTickerSyncBrandColor(true);
     setIsTickerFormOpen(true);
   };
 
@@ -522,6 +562,13 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     setTickerDurationDays(
       t.requestedDurationDays || activeSub?.tickerCampaignDurationDaysSnapshot || 30
     );
+    setTickerHighlightColor(
+      normalizeHexColor(
+        t.brandHighlightColor || company.brandHighlightColor,
+        DEFAULT_BRAND_HIGHLIGHT_COLOR
+      )
+    );
+    setTickerSyncBrandColor(true);
     setIsTickerFormOpen(true);
   };
 
@@ -537,6 +584,8 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
         destinationUrl: tickerDestUrl.trim(),
         ctaLabel: tickerCtaLabel.trim() || 'Learn More',
         requestedDurationDays: Number(tickerDurationDays) || 30,
+        brandHighlightColor: normalizeHexColor(tickerHighlightColor),
+        applyColorToBrand: tickerSyncBrandColor,
         submitForReview,
       };
 
@@ -615,6 +664,8 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
         country: profCountry.trim(),
         state: profState.trim(),
         registrationNumber: profRegNo.trim(),
+        brandHighlightColor: normalizeHexColor(profHighlightColor),
+        logoUrl: profLogoUrl.trim(),
       });
       if (!res.success || !res.company) {
         setNotice({ type: 'error', text: res.error || 'Profile update failed.' });
@@ -622,9 +673,68 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
       }
       setCompany(res.company);
       onCompanyUpdated(res.company);
-      setNotice({ type: 'success', text: 'Company profile updated.' });
+      setNotice({
+        type: 'success',
+        text: 'Company profile, brand logo & highlight color updated across School Blog and Sponsor Ticker.',
+      });
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4.5 * 1024 * 1024) {
+      setNotice({ type: 'error', text: 'Company logo image must be smaller than 4.5 MB.' });
+      return;
+    }
+    setNotice(null);
+    setIsUploadingLogo(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        if (typeof reader.result !== 'string') return;
+        const res = await uploadCorporateMedia({
+          kind: 'logo',
+          dataUrl: reader.result,
+          fileName: file.name,
+        });
+        if (res.success && res.imageUrl) {
+          setProfLogoUrl(res.imageUrl);
+          if (res.company) {
+            setCompany(res.company);
+            onCompanyUpdated(res.company);
+          }
+          setNotice({
+            type: 'success',
+            text: 'Company logo uploaded! It now appears on your sponsored blog advertisements.',
+          });
+        } else {
+          setNotice({ type: 'error', text: res.error || 'Logo upload failed.' });
+        }
+      } finally {
+        setIsUploadingLogo(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = async () => {
+    setNotice(null);
+    setIsUploadingLogo(true);
+    try {
+      const res = await updateCorporateProfile({ logoUrl: '' });
+      if (res.success && res.company) {
+        setProfLogoUrl('');
+        setCompany(res.company);
+        onCompanyUpdated(res.company);
+        setNotice({ type: 'success', text: 'Company logo removed.' });
+      } else {
+        setNotice({ type: 'error', text: res.error || 'Could not remove company logo.' });
+      }
+    } finally {
+      setIsUploadingLogo(false);
     }
   };
 
@@ -1068,14 +1178,36 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                       >
                         <div className="space-y-3">
                           <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <h3 className="text-base font-extrabold text-slate-900">
-                                {c.campaignName}
-                              </h3>
-                              <p className="text-xs text-slate-500">{c.headline}</p>
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              {(c.logoUrl || company.logoUrl) ? (
+                                <img
+                                  src={c.logoUrl || company.logoUrl}
+                                  alt={`${company.brandName} logo`}
+                                  referrerPolicy="no-referrer"
+                                  className="w-8 h-8 rounded-lg object-contain bg-white border border-slate-200 p-0.5 shrink-0"
+                                />
+                              ) : null}
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="text-base font-extrabold text-slate-900 truncate">
+                                    {c.campaignName}
+                                  </h3>
+                                  <span
+                                    style={
+                                      getBrandHighlightStyles(
+                                        c.brandHighlightColor || company.brandHighlightColor
+                                      ).pillStyle
+                                    }
+                                    className="px-2 py-0.5 rounded text-[10px] font-black border"
+                                  >
+                                    {company.brandName || company.companyName}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-0.5">{c.headline}</p>
+                              </div>
                             </div>
                             <span
-                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap ${
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap shrink-0 ${
                                 STATUS_BADGE[c.status] || 'bg-slate-100 text-slate-700'
                               }`}
                             >
@@ -1363,7 +1495,14 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                               <span>SPONSOR TICKER</span>
                             </span>
                             <div className="flex items-center gap-1.5 text-[11px] truncate">
-                              <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 border border-blue-500/20 font-black text-[10px] shrink-0">
+                              <span
+                                style={
+                                  getBrandHighlightStyles(
+                                    t.brandHighlightColor || company.brandHighlightColor
+                                  ).pillStyle
+                                }
+                                className="px-2 py-0.5 rounded border font-black text-[10px] shrink-0"
+                              >
                                 {company.brandName || company.companyName}
                               </span>
                               <span className="font-semibold text-slate-700 truncate">
@@ -1899,156 +2038,333 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
 
             {/* PROFILE TAB */}
             {activeTab === 'profile' && (
-              <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
-                <div>
-                  <h1 className="text-xl font-extrabold text-slate-900">
-                    Company Profile &amp; Verification Document
-                  </h1>
-                  <p className="text-xs sm:text-sm text-slate-500">
-                    Registered Company: <strong>{company.companyName}</strong> &middot;{' '}
-                    Account Email: <strong>{company.officialEmail}</strong>
-                  </p>
+              <div className="space-y-6">
+                {/* Brand Logo & Text Highlight Color Studio */}
+                {(() => {
+                  const previewBrandStyle = getBrandHighlightStyles(profHighlightColor);
+                  const previewName = profBrandName.trim() || company.brandName || company.companyName;
+                  return (
+                    <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
+                      <div>
+                        <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">
+                          Brand Logo &amp; Text Highlight Appearance
+                        </h2>
+                        <p className="text-xs sm:text-sm text-slate-500">
+                          Your company logo renders on sponsored ads beneath School Blog posts. Your brand highlight color styles text highlights on both School Blog ads and the scrolling Sponsor Ticker.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        <div className="lg:col-span-6 space-y-5">
+                          {/* Company Logo Upload */}
+                          <div className="rounded-2xl border border-slate-200 bg-[#f8faff] p-4 flex items-center gap-4">
+                            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden p-1.5 shrink-0 shadow-2xs">
+                              {profLogoUrl ? (
+                                <img
+                                  src={profLogoUrl}
+                                  alt={`${previewName} logo`}
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-contain rounded-lg"
+                                />
+                              ) : (
+                                <Building2 className="w-7 h-7 text-slate-400" />
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <div className="text-xs font-extrabold text-slate-900">
+                                Company Logo (Blog Ads)
+                              </div>
+                              <p className="text-[11px] text-slate-500">
+                                Square PNG, JPG, or WEBP recommended (up to 4.5 MB). Shown beside your brand name beneath blog posts.
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <label className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer">
+                                  {isUploadingLogo ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <ImagePlus className="w-3.5 h-3.5" />
+                                  )}
+                                  <span>
+                                    {isUploadingLogo
+                                      ? 'Uploading...'
+                                      : profLogoUrl
+                                      ? 'Change Logo'
+                                      : 'Upload Logo'}
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/gif"
+                                    onChange={handleLogoUpload}
+                                    className="hidden"
+                                  />
+                                </label>
+                                {profLogoUrl && (
+                                  <button
+                                    type="button"
+                                    disabled={isUploadingLogo}
+                                    onClick={handleRemoveLogo}
+                                    className="px-3 py-1.5 rounded-full border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold cursor-pointer"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Brand Highlight Color Selector */}
+                          <div className="rounded-2xl border border-slate-200 bg-[#f8faff] p-4">
+                            <BrandColorPicker
+                              value={profHighlightColor}
+                              onChange={setProfHighlightColor}
+                              label="Brand Text Highlight Color (Blog + Sponsor Ticker)"
+                              helperText="Click 'Save Company Profile' below after choosing a color to apply it across your brand's blog post ads and Sponsor Ticker highlights."
+                            />
+                          </div>
+                        </div>
+
+                        {/* Live Dual Placement Preview */}
+                        <div className="lg:col-span-6 space-y-4">
+                          <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                            Live Brand Placement Previews
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="text-[11px] font-semibold text-slate-500">
+                              1. Sponsor Ticker Bar (Text-Only Highlight)
+                            </div>
+                            <div className="w-full overflow-hidden bg-white border border-slate-200 rounded-xl py-2 px-3 flex items-center">
+                              <span className="shrink-0 inline-flex items-center gap-1 pr-2 border-r border-slate-300 mr-2 text-[10px] font-black uppercase tracking-wider text-blue-600">
+                                <Sparkles className="w-3 h-3 text-blue-500" />
+                                <span>SPONSOR TICKER</span>
+                              </span>
+                              <div className="flex items-center gap-1.5 text-[11px] truncate">
+                                <span
+                                  style={previewBrandStyle.pillStyle}
+                                  className="px-2 py-0.5 rounded border text-[10px] font-black shrink-0"
+                                >
+                                  {previewName}
+                                </span>
+                                <span className="text-slate-700 font-semibold truncate">
+                                  Sample promotional message scrolling on the Grobaax Sponsor Ticker...
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="text-[11px] font-semibold text-slate-500">
+                              2. School Blog Footer Ad (Logo + Highlight Color)
+                            </div>
+                            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 space-y-2.5 shadow-2xs">
+                              <div
+                                aria-hidden="true"
+                                style={previewBrandStyle.accentBarStyle}
+                                className="absolute inset-x-0 top-0 h-1"
+                              />
+                              <div className="flex items-center gap-2 pt-0.5">
+                                {profLogoUrl ? (
+                                  <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0">
+                                    <img
+                                      src={profLogoUrl}
+                                      alt={`${previewName} logo`}
+                                      referrerPolicy="no-referrer"
+                                      className="w-full h-full object-contain rounded"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div
+                                    style={previewBrandStyle.iconBoxStyle}
+                                    className="w-7 h-7 rounded-lg border flex items-center justify-center shrink-0"
+                                  >
+                                    <Building2 className="w-3.5 h-3.5" />
+                                  </div>
+                                )}
+                                <span
+                                  style={previewBrandStyle.pillStyle}
+                                  className="px-2 py-0.5 rounded-md border text-[11px] font-black"
+                                >
+                                  {previewName}
+                                </span>
+                                <span
+                                  style={previewBrandStyle.softBadgeStyle}
+                                  className="px-2 py-0.5 rounded-md border text-[10px] font-extrabold uppercase tracking-wider"
+                                >
+                                  Sponsored
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-xs font-bold text-slate-800 truncate">
+                                  Your Sponsored Headline Beneath Campus Articles
+                                </span>
+                                <span
+                                  style={previewBrandStyle.ctaButtonStyle}
+                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full border text-[11px] font-bold shrink-0"
+                                >
+                                  <span>Learn More</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
+                  <div>
+                    <h1 className="text-xl font-extrabold text-slate-900">
+                      Company Profile &amp; Verification Document
+                    </h1>
+                    <p className="text-xs sm:text-sm text-slate-500">
+                      Registered Company: <strong>{company.companyName}</strong> &middot;{' '}
+                      Account Email: <strong>{company.officialEmail}</strong>
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleSaveProfile} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Brand / Business Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={profBrandName}
+                          onChange={(e) => setProfBrandName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Registration Number
+                        </label>
+                        <input
+                          type="text"
+                          value={profRegNo}
+                          onChange={(e) => setProfRegNo(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Website
+                        </label>
+                        <input
+                          type="url"
+                          value={profWebsite}
+                          onChange={(e) => setProfWebsite(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Contact Person
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={profContactName}
+                          onChange={(e) => setProfContactName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={profPhone}
+                          onChange={(e) => setProfPhone(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Address
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={profAddress}
+                          onChange={(e) => setProfAddress(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          State / Region
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={profState}
+                          onChange={(e) => setProfState(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Country
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={profCountry}
+                          onChange={(e) => setProfCountry(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Company Description
+                        </label>
+                        <textarea
+                          rows={3}
+                          required
+                          value={profDescription}
+                          onChange={(e) => setProfDescription(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-slate-100">
+                      <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer">
+                        {isUploadingDoc ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5" />
+                        )}
+                        <span>
+                          {company.supportingDocumentName
+                            ? `Replace Doc (${company.supportingDocumentName})`
+                            : 'Upload Verification Document'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="application/pdf,image/jpeg,image/png,image/webp"
+                          onChange={handleDocUpload}
+                          className="hidden"
+                        />
+                      </label>
+
+                      <button
+                        type="submit"
+                        disabled={isSavingProfile}
+                        className="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-60"
+                      >
+                        {isSavingProfile ? 'Saving...' : 'Save Company Profile'}
+                      </button>
+                    </div>
+                  </form>
                 </div>
-
-                <form onSubmit={handleSaveProfile} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Brand / Business Name
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={profBrandName}
-                        onChange={(e) => setProfBrandName(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Registration Number
-                      </label>
-                      <input
-                        type="text"
-                        value={profRegNo}
-                        onChange={(e) => setProfRegNo(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Website
-                      </label>
-                      <input
-                        type="url"
-                        value={profWebsite}
-                        onChange={(e) => setProfWebsite(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Contact Person
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={profContactName}
-                        onChange={(e) => setProfContactName(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        value={profPhone}
-                        onChange={(e) => setProfPhone(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Address
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={profAddress}
-                        onChange={(e) => setProfAddress(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        State / Region
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={profState}
-                        onChange={(e) => setProfState(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Country
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={profCountry}
-                        onChange={(e) => setProfCountry(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Company Description
-                      </label>
-                      <textarea
-                        rows={3}
-                        required
-                        value={profDescription}
-                        onChange={(e) => setProfDescription(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-slate-100">
-                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer">
-                      {isUploadingDoc ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Upload className="w-3.5 h-3.5" />
-                      )}
-                      <span>
-                        {company.supportingDocumentName
-                          ? `Replace Doc (${company.supportingDocumentName})`
-                          : 'Upload Verification Document'}
-                      </span>
-                      <input
-                        type="file"
-                        accept="application/pdf,image/jpeg,image/png,image/webp"
-                        onChange={handleDocUpload}
-                        className="hidden"
-                      />
-                    </label>
-
-                    <button
-                      type="submit"
-                      disabled={isSavingProfile}
-                      className="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-60"
-                    >
-                      {isSavingProfile ? 'Saving...' : 'Save Company Profile'}
-                    </button>
-                  </div>
-                </form>
               </div>
             )}
           </>
@@ -2191,76 +2507,167 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                     )}
                   </div>
                 </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-[#f8faff] p-4 space-y-3">
+                  <BrandColorPicker
+                    compact
+                    value={campHighlightColor}
+                    onChange={setCampHighlightColor}
+                    syncToBrand={campSyncBrandColor}
+                    onSyncToBrandChange={setCampSyncBrandColor}
+                    label="Brand Text Highlight Color"
+                  />
+
+                  <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {company.logoUrl ? (
+                        <img
+                          src={company.logoUrl}
+                          alt={`${company.brandName} logo`}
+                          referrerPolicy="no-referrer"
+                          className="w-8 h-8 rounded-lg object-contain bg-white border border-slate-200 p-0.5 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                          <Building2 className="w-4 h-4 text-slate-400" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-bold text-slate-800">
+                          Company Logo on Blog Ad
+                        </div>
+                        <div className="text-[10px] text-slate-500 truncate">
+                          {company.logoUrl ? 'Logo attached to your brand ads' : 'No company logo uploaded yet'}
+                        </div>
+                      </div>
+                    </div>
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-white hover:bg-blue-50 text-blue-700 text-[11px] font-bold cursor-pointer shrink-0">
+                      {isUploadingLogo ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <ImagePlus className="w-3 h-3" />
+                      )}
+                      <span>{company.logoUrl ? 'Change Logo' : 'Upload Logo'}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
 
               {/* Live School Blog Placement Preview */}
-              <div className="lg:col-span-5 space-y-3">
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Live School Blog Placement Preview
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-[#f8faff] p-4 space-y-3">
-                  <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span className="font-bold uppercase tracking-wider text-blue-700">
-                      Sponsored
-                    </span>
-                    <span>{company.brandName || company.companyName}</span>
-                  </div>
-
-                  {campImageUrl ? (
-                    <div className="rounded-xl overflow-hidden border border-slate-200 aspect-[16/9] bg-slate-100">
-                      <img
-                        src={campImageUrl}
-                        alt="Ad creative preview"
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
+              {(() => {
+                const campStyle = getBrandHighlightStyles(campHighlightColor);
+                const displayBrand = company.brandName || company.companyName;
+                return (
+                  <div className="lg:col-span-5 space-y-3">
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Live School Blog Placement Preview
+                    </div>
+                    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-[#f8faff] p-4 space-y-3">
+                      <div
+                        aria-hidden="true"
+                        style={campStyle.accentBarStyle}
+                        className="absolute inset-x-0 top-0 h-1"
                       />
+                      <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 pt-0.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {company.logoUrl ? (
+                            <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0">
+                              <img
+                                src={company.logoUrl}
+                                alt={`${displayBrand} logo`}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-contain rounded"
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              style={campStyle.iconBoxStyle}
+                              className="w-7 h-7 rounded-lg border flex items-center justify-center shrink-0"
+                            >
+                              <Building2 className="w-3.5 h-3.5" />
+                            </div>
+                          )}
+                          <span
+                            style={campStyle.pillStyle}
+                            className="px-2 py-0.5 rounded-md border text-[10px] font-black truncate max-w-[140px]"
+                          >
+                            {displayBrand}
+                          </span>
+                          <span
+                            style={campStyle.softBadgeStyle}
+                            className="px-1.5 py-0.5 rounded border text-[9px] font-extrabold uppercase tracking-wider shrink-0"
+                          >
+                            Sponsored
+                          </span>
+                        </div>
+                      </div>
+
+                      {campImageUrl ? (
+                        <div className="rounded-xl overflow-hidden border border-slate-200 aspect-[16/9] bg-slate-100">
+                          <img
+                            src={campImageUrl}
+                            alt="Ad creative preview"
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-white aspect-[16/9] flex items-center justify-center text-xs text-slate-400">
+                          Creative Image Preview
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-extrabold text-slate-900">
+                          {campHeadline || 'Your Campaign Headline'}
+                        </h4>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          {campAdText ||
+                            'Concise advertisement message displayed directly beneath School Blog articles.'}
+                        </p>
+                      </div>
+
+                      <div className="pt-1 flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-slate-400 truncate max-w-[140px]">
+                          {campDestUrl || 'https://yourbrand.com'}
+                        </span>
+                        <span
+                          style={campStyle.ctaButtonStyle}
+                          className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full border text-xs font-bold shrink-0"
+                        >
+                          <span>{campCtaLabel || 'Learn More'}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </span>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-slate-300 bg-white aspect-[16/9] flex items-center justify-center text-xs text-slate-400">
-                      Creative Image Preview
+
+                    <div className="pt-4 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        disabled={isSavingCampaign || isUploadingCreative}
+                        onClick={() => handleSaveCampaign(true)}
+                        className="w-full py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
+                      >
+                        {isSavingCampaign ? 'Submitting...' : 'Submit for Admin Review'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSavingCampaign || isUploadingCreative}
+                        onClick={() => handleSaveCampaign(false)}
+                        className="w-full py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
+                      >
+                        Save as Draft
+                      </button>
                     </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-extrabold text-slate-900">
-                      {campHeadline || 'Your Campaign Headline'}
-                    </h4>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      {campAdText ||
-                        'Concise advertisement message displayed directly beneath School Blog articles.'}
-                    </p>
                   </div>
-
-                  <div className="pt-1 flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-slate-400 truncate max-w-[140px]">
-                      {campDestUrl || 'https://yourbrand.com'}
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-blue-600 text-white text-xs font-bold shrink-0">
-                      <span>{campCtaLabel || 'Learn More'}</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </span>
-                  </div>
-                </div>
-
-                <div className="pt-4 flex flex-col gap-2">
-                  <button
-                    type="button"
-                    disabled={isSavingCampaign || isUploadingCreative}
-                    onClick={() => handleSaveCampaign(true)}
-                    className="w-full py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
-                  >
-                    {isSavingCampaign ? 'Submitting...' : 'Submit for Admin Review'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isSavingCampaign || isUploadingCreative}
-                    onClick={() => handleSaveCampaign(false)}
-                    className="w-full py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
-                  >
-                    Save as Draft
-                  </button>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -2412,86 +2819,112 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm"
                   />
                 </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-[#f8faff] p-4">
+                  <BrandColorPicker
+                    compact
+                    value={tickerHighlightColor}
+                    onChange={setTickerHighlightColor}
+                    syncToBrand={tickerSyncBrandColor}
+                    onSyncToBrandChange={setTickerSyncBrandColor}
+                    label="Brand Text Highlight Color"
+                  />
+                </div>
               </div>
 
               {/* Live Preview Panel */}
-              <div className="lg:col-span-5 space-y-4">
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Live Student Experience Preview
-                </div>
+              {(() => {
+                const tickerStyle = getBrandHighlightStyles(tickerHighlightColor);
+                const displayBrand = company.brandName || company.companyName;
+                return (
+                  <div className="lg:col-span-5 space-y-4">
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Live Student Experience Preview
+                    </div>
 
-                <div className="space-y-2">
-                  <div className="text-[11px] font-semibold text-slate-500">
-                    1. Student Sponsor Ticker Bar (Text-Only)
-                  </div>
-                  <div className="w-full overflow-hidden bg-white border border-slate-200 rounded-xl py-1.5 px-3 flex items-center">
-                    <div className="shrink-0 flex items-center gap-1 pr-2 font-black text-blue-600 border-r border-slate-300 mr-2 text-[10px] uppercase tracking-wider">
-                      <Sparkles className="w-3 h-3 text-blue-500" />
-                      <span>SPONSOR TICKER</span>
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-semibold text-slate-500">
+                        1. Student Sponsor Ticker Bar (Text-Only)
+                      </div>
+                      <div className="w-full overflow-hidden bg-white border border-slate-200 rounded-xl py-1.5 px-3 flex items-center">
+                        <div className="shrink-0 flex items-center gap-1 pr-2 font-black text-blue-600 border-r border-slate-300 mr-2 text-[10px] uppercase tracking-wider">
+                          <Sparkles className="w-3 h-3 text-blue-500" />
+                          <span>SPONSOR TICKER</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] truncate">
+                          <span
+                            style={tickerStyle.pillStyle}
+                            className="px-2 py-0.5 text-[10px] font-black rounded border shrink-0"
+                          >
+                            {displayBrand}
+                          </span>
+                          <span className="text-slate-700 font-semibold truncate">
+                            {tickerShortMessage || 'Your short ticker promotion scrolls here...'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[11px] truncate">
-                      <span className="px-1.5 py-0.5 text-[10px] font-black rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 shrink-0">
-                        {company.brandName || company.companyName}
-                      </span>
-                      <span className="text-slate-700 font-semibold truncate">
-                        {tickerShortMessage || 'Your short ticker promotion scrolls here...'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <div className="text-[11px] font-semibold text-slate-500">
-                    2. Advertiser Details Popup Preview
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-[#f8faff] p-4 space-y-3">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="font-bold text-slate-900">
-                        {company.brandName || company.companyName}
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        Active
-                      </span>
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-semibold text-slate-500">
+                        2. Advertiser Details Popup Preview
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-[#f8faff] p-4 space-y-3">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span
+                            style={tickerStyle.pillStyle}
+                            className="px-2 py-0.5 rounded-md border font-black"
+                          >
+                            {displayBrand}
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Active
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-extrabold text-slate-900">
+                          {tickerHeadline || 'Promotional Offer Headline'}
+                        </h4>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          {tickerFullDesc ||
+                            'Full offer details appear cleanly inside the Advertiser Details modal when a student selects your brand from Active Sponsors.'}
+                        </p>
+                        <div className="pt-1 flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-400 truncate max-w-[140px]">
+                            {tickerDestUrl || 'https://yourbrand.com'}
+                          </span>
+                          <span
+                            style={tickerStyle.ctaButtonStyle}
+                            className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full border text-xs font-bold shrink-0"
+                          >
+                            <span>{tickerCtaLabel || 'Visit Website'}</span>
+                            <ArrowUpRight className="w-3 h-3" />
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <h4 className="text-sm font-extrabold text-slate-900">
-                      {tickerHeadline || 'Promotional Offer Headline'}
-                    </h4>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      {tickerFullDesc ||
-                        'Full offer details appear cleanly inside the Advertiser Details modal when a student selects your brand from Active Sponsors.'}
-                    </p>
-                    <div className="pt-1 flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-slate-400 truncate max-w-[140px]">
-                        {tickerDestUrl || 'https://yourbrand.com'}
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-blue-600 text-white text-xs font-bold shrink-0">
-                        <span>{tickerCtaLabel || 'Visit Website'}</span>
-                        <ArrowUpRight className="w-3 h-3" />
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="pt-2 flex flex-col gap-2">
-                  <button
-                    type="button"
-                    disabled={isSavingTicker}
-                    onClick={() => handleSaveTickerCampaign(true)}
-                    className="w-full py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
-                  >
-                    {isSavingTicker ? 'Submitting...' : 'Submit for Admin Review'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isSavingTicker}
-                    onClick={() => handleSaveTickerCampaign(false)}
-                    className="w-full py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
-                  >
-                    Save as Draft
-                  </button>
-                </div>
-              </div>
+                    <div className="pt-2 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        disabled={isSavingTicker}
+                        onClick={() => handleSaveTickerCampaign(true)}
+                        className="w-full py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
+                      >
+                        {isSavingTicker ? 'Submitting...' : 'Submit for Admin Review'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSavingTicker}
+                        onClick={() => handleSaveTickerCampaign(false)}
+                        className="w-full py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
+                      >
+                        Save as Draft
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

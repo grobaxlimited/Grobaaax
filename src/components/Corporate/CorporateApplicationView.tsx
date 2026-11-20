@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
+  Building2,
   CheckCircle2,
   Eye,
   EyeOff,
   FileUp,
+  ImagePlus,
   Loader2,
   Lock,
   ShieldCheck,
@@ -15,6 +17,11 @@ import {
   CORPORATE_PORTAL_ORIGIN,
   CorporatePortalRoute,
 } from '../../utils/domainPortal';
+import {
+  DEFAULT_BRAND_HIGHLIGHT_COLOR,
+  normalizeHexColor,
+} from '../../utils/brandColor';
+import { BrandColorPicker } from './BrandColorPicker';
 import {
   CorporateAccount,
   StudentCompletionPrefill,
@@ -77,6 +84,13 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
     dataUrl: string;
     fileName: string;
   } | null>(null);
+  const [companyLogo, setCompanyLogo] = useState<{
+    dataUrl: string;
+    fileName: string;
+  } | null>(null);
+  const [brandHighlightColor, setBrandHighlightColor] = useState(
+    DEFAULT_BRAND_HIGHLIGHT_COLOR
+  );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +119,23 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setSupportingDoc({ dataUrl: reader.result, fileName: file.name });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4.5 * 1024 * 1024) {
+      setError('Company logo image must be smaller than 4.5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setCompanyLogo({ dataUrl: reader.result, fileName: file.name });
       }
     };
     reader.readAsDataURL(file);
@@ -140,6 +171,8 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
         address: address.trim(),
         country: country.trim(),
         state: state.trim(),
+        brandHighlightColor: normalizeHexColor(brandHighlightColor),
+        companyLogo,
         supportingDocument: supportingDoc,
       };
 
@@ -345,6 +378,59 @@ export const CorporateApplicationView: React.FC<CorporateApplicationViewProps> =
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Describe your company's products or services and what you intend to advertise to campus readers..."
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-slate-200 bg-[#f8faff] p-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 p-1 flex items-center justify-center overflow-hidden shrink-0">
+                      {companyLogo?.dataUrl ? (
+                        <img
+                          src={companyLogo.dataUrl}
+                          alt="Company logo preview"
+                          className="w-full h-full object-contain rounded-lg"
+                        />
+                      ) : (
+                        <Building2 className="w-6 h-6 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="text-xs font-bold text-slate-800">
+                        Company Logo (Optional)
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Shown on sponsored ads beneath blog posts.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-white hover:bg-blue-50 text-blue-700 text-[11px] font-bold cursor-pointer">
+                          <ImagePlus className="w-3.5 h-3.5" />
+                          <span>{companyLogo ? 'Change Logo' : 'Upload Logo'}</span>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            onChange={handleLogoChange}
+                            className="hidden"
+                          />
+                        </label>
+                        {companyLogo && (
+                          <button
+                            type="button"
+                            onClick={() => setCompanyLogo(null)}
+                            className="text-[11px] font-bold text-slate-500 hover:text-rose-600 cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <BrandColorPicker
+                    compact
+                    value={brandHighlightColor}
+                    onChange={setBrandHighlightColor}
+                    label="Brand Text Highlight Color (Optional)"
+                    helperText="Applies to highlights beneath blog posts & on Sponsor Ticker."
                   />
                 </div>
               </div>
