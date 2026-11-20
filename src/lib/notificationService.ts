@@ -36,6 +36,7 @@ const isMockSchoolDomeMessage = (m: any): boolean => {
 export interface NotificationDataSource {
   userId?: string;
   userRole?: string;
+  userJoinedAtMs?: number;
   posts?: Post[];
   announcements?: Announcement[];
   chatMessages?: Array<{ id: string; timestamp?: any; userId?: string; createdAt?: any }>;
@@ -50,6 +51,25 @@ export interface NotificationDataSource {
   liveFixtures?: Array<{ id: string; status?: string }>;
   hints?: CompetitionHint[];
   schoolDomeMessages?: Array<{ id: string; timestamp?: any; userId?: string; createdAt?: any; isDeleted?: boolean }>;
+  schoolBlogArticles?: Array<{
+    id: string;
+    authorUserId?: string;
+    publishedAt?: any;
+    createdAt?: any;
+    updatedAt?: any;
+  }>;
+  sponsorships?: Array<{ id: string; status?: string; createdAt?: any; updatedAt?: any }>;
+  adminUnreadAlertsCount?: number;
+  adminQueues?: {
+    corporatePendingCompanies?: number;
+    corporatePendingCampaigns?: number;
+    corporatePendingTickers?: number;
+    corporatePendingPayments?: number;
+    corporateRecentActivityTimestamps?: string[];
+    blogPendingApplications?: number;
+    blogOpenReports?: number;
+    blogRecentArticleTimestamps?: string[];
+  };
 }
 
 type NotificationSubscriber = (state: {
@@ -142,10 +162,10 @@ class GrobaaxNotificationService {
       if (raw) {
         this.lastReadState = JSON.parse(raw);
       } else {
-        // If brand new user, initialize default read timestamp as now
-        // so that existing history does not falsely show unread notifications
+        // Initialize synthetic defaults for first-time device state (overridden by DB sectionReadState when hydrated)
         const defaultTime = Date.now();
         this.lastReadState = {
+          _synthetic: 1,
           home: defaultTime,
           league: defaultTime,
           gus: defaultTime,
@@ -166,12 +186,45 @@ class GrobaaxNotificationService {
           admin_users: defaultTime,
           admin_transactions: defaultTime,
           admin_hints: defaultTime,
+          admin_subscriptions: defaultTime,
+          admin_airtime_data: defaultTime,
+          admin_events: defaultTime,
+          admin_sponsorship: defaultTime,
+          admin_announcements: defaultTime,
+          admin_chatroom_live: defaultTime,
+          admin_school_dome: defaultTime,
+          admin_school_blogs: defaultTime,
+          admin_corporate_ads: defaultTime,
         };
         this.saveReadState();
       }
     } catch (e) {
       console.warn('[NotificationService] Failed to load read state:', e);
       this.lastReadState = {};
+    }
+  }
+
+  /**
+   * Merge authoritative server sectionReadState from DB profile
+   */
+  hydrateReadState(serverState?: Record<string, number> | null) {
+    if (!serverState || typeof serverState !== 'object') return;
+    let changed = false;
+    const isSynthetic = Boolean((this.lastReadState as any)._synthetic);
+    Object.entries(serverState).forEach(([key, val]) => {
+      const ts = Number(val || 0);
+      if (ts > 0 && (isSynthetic || ts > Number(this.lastReadState[key] || 0))) {
+        this.lastReadState[key] = ts;
+        changed = true;
+      }
+    });
+    if (isSynthetic && Object.keys(serverState).length > 0) {
+      delete (this.lastReadState as any)._synthetic;
+      changed = true;
+    }
+    if (changed) {
+      this.saveReadState();
+      this.recalculate();
     }
   }
 
@@ -186,6 +239,22 @@ class GrobaaxNotificationService {
     } catch (e) {
       console.warn('[NotificationService] Failed to save read state:', e);
     }
+  }
+
+  private syncSectionReadToServer(sectionKey: string, readAt: number) {
+    if (typeof window === 'undefined') return;
+    if (!this.currentUserId || this.currentUserId === 'guest') return;
+    try {
+      fetch('/api/notifications/section-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: this.currentUserId,
+          sectionKey,
+          readAt,
+        }),
+      }).catch(() => {});
+    } catch {}
   }
 
   /**
@@ -246,6 +315,7 @@ class GrobaaxNotificationService {
   markSectionRead(sectionKey: string) {
     if (!sectionKey) return;
     const now = Date.now();
+    delete (this.lastReadState as any)._synthetic;
     this.lastReadState[sectionKey] = now;
 
     if (sectionKey === 'community' || sectionKey === 'admin_community') {
@@ -280,6 +350,7 @@ class GrobaaxNotificationService {
     }
 
     this.saveReadState();
+    this.syncSectionReadToServer(sectionKey, now);
     this.recalculate();
   }
 
@@ -463,6 +534,20 @@ class GrobaaxNotificationService {
       hintsCount = Math.max(hintsCount, unreadHints);
     }
 
+    // 12. School Blog Published Articles (Unread updates since user last visited School Blog or joined)
+    const blogReadTime = lastRead['school_blog'] ?? ds.userJoinedAtMs ?? 0;
+    let schoolBlogCount = this.eventCounts['school_blog'] || 0;
+    if (ds.schoolBlogArticles && ds.schoolBlogArticles.length > 0) {
+      const unreadArticles = ds.schoolBlogArticles.filter((a) => {
+        if (a.authorUserId && (a.authorUserId === uid || a.authorUserId === `@${uid}`)) {
+          return false;
+        }
+        const time = this.parseTimestamp(a.publishedAt || a.updatedAt || a.createdAt);
+        return time > blogReadTime;
+      }).length;
+      schoolBlogCount += unreadArticles;
+    }
+
     this.userCounts = {
       home: homeCount,
       league: leagueCount,
@@ -479,34 +564,16 @@ class GrobaaxNotificationService {
       minimart: minimartCount,
       announcements: annCount,
       campus: campusCount,
-      school_blog: this.eventCounts['school_blog'] || 0,
+      school_blog: schoolBlogCount,
     };
 
     // --- ADMIN SECTION COUNTS ---
 
-    // 1. Withdrawals
-    const adminWithdrawalsRead = Math.max(
-      lastRead['admin_withdrawals'] || 0,
-      lastRead['withdrawals'] || 0
-    );
+    // 1. Withdrawals (Persistent pending queue until resolved by admin)
     let pendingWithdrawals = (this.eventCounts['admin_withdrawals'] || 0) + (this.eventCounts['withdrawals'] || 0);
     if (ds.withdrawals && ds.withdrawals.length > 0) {
       pendingWithdrawals += ds.withdrawals.filter((w) => {
-        const isPending = w.status === 'Pending' || (w as any).status === 'Processing';
-        if (!isPending) return false;
-        let time = this.parseTimestamp(
-          (w as any).createdAtMillis ||
-          (w as any).createdAt ||
-          (w as any).timestamp ||
-          (w as any).requestDate ||
-          (w as any).updatedAt
-        );
-        // Guard against future mock dates
-        if (time > Date.now() + 60000) {
-          time = Date.now() - 86400000;
-        }
-        // Only count pending requests that arrived AFTER the admin last read/viewed the withdrawals tab
-        return !adminWithdrawalsRead || time > adminWithdrawalsRead;
+        return w.status === 'Pending' || (w as any).status === 'Processing';
       }).length;
     }
 
@@ -592,14 +659,91 @@ class GrobaaxNotificationService {
       }).length;
     }
 
-    // Populate full admin counts map
+    // 11. Admin School Blogger Management (Pending apps + open reports + new articles since visit)
+    const adminBlogsRead = lastRead['admin_school_blogs'] || lastRead['school_blogs'] || 0;
+    const blogQueues = ds.adminQueues;
+    const pendingBlogReviews =
+      (blogQueues?.blogPendingApplications || 0) + (blogQueues?.blogOpenReports || 0);
+    const unseenBlogArticles = (blogQueues?.blogRecentArticleTimestamps || []).filter((ts) => {
+      const t = this.parseTimestamp(ts);
+      return t > adminBlogsRead;
+    }).length;
+    const adminSchoolBlogsCount =
+      pendingBlogReviews + unseenBlogArticles + (this.eventCounts['admin_school_blogs'] || 0);
+
+    // 12. Admin Corporate Advertising Portal (Pending companies/campaigns/tickers/payments + new activity)
+    const adminCorpRead = lastRead['admin_corporate_ads'] || lastRead['corporate_ads'] || 0;
+    const pendingCorpReviews =
+      (blogQueues?.corporatePendingCompanies || 0) +
+      (blogQueues?.corporatePendingCampaigns || 0) +
+      (blogQueues?.corporatePendingTickers || 0) +
+      (blogQueues?.corporatePendingPayments || 0);
+    const unseenCorpActivity = (blogQueues?.corporateRecentActivityTimestamps || []).filter((ts) => {
+      const t = this.parseTimestamp(ts);
+      return t > adminCorpRead;
+    }).length;
+    const adminCorporateAdsCount =
+      pendingCorpReviews + unseenCorpActivity + (this.eventCounts['admin_corporate_ads'] || 0);
+
+    // 13. Admin Subscriptions & Airtime/VTU activity splits
+    const adminSubRead = lastRead['admin_subscriptions'] || lastRead['subscriptions'] || 0;
+    let adminSubscriptionsCount = this.eventCounts['admin_subscriptions'] || 0;
+    const adminVtuRead = lastRead['admin_airtime_data'] || lastRead['airtime_data'] || 0;
+    let adminAirtimeCount = this.eventCounts['admin_airtime_data'] || 0;
+    if (ds.transactions && ds.transactions.length > 0) {
+      ds.transactions.forEach((t) => {
+        const time = this.parseTimestamp((t as any).createdAt || (t as any).timestamp);
+        const typeStr = String((t as any).type || (t as any).category || '').toLowerCase();
+        if (typeStr.includes('subscription') || typeStr.includes('upgrade') || typeStr.includes('vip') || typeStr.includes('premium')) {
+          if (time > adminSubRead) adminSubscriptionsCount += 1;
+        }
+        if (typeStr.includes('airtime') || typeStr.includes('data') || typeStr.includes('vtu')) {
+          if (time > adminVtuRead) adminAirtimeCount += 1;
+        }
+      });
+    }
+
+    // 14. Admin Events, Hints, Sponsorships & Notifications
+    const adminEventsRead = lastRead['admin_events'] || lastRead['events'] || 0;
+    let adminEventsCount = this.eventCounts['admin_events'] || 0;
+    if (ds.platformEvents && ds.platformEvents.length > 0) {
+      adminEventsCount += ds.platformEvents.filter((e) => {
+        const time = this.parseTimestamp((e as any).updatedAt || (e as any).createdAt);
+        return time > adminEventsRead;
+      }).length;
+    }
+
+    const adminHintsRead = lastRead['admin_hints'] || lastRead['hints'] || 0;
+    let adminHintsCount = this.eventCounts['admin_hints'] || 0;
+    if (ds.hints && ds.hints.length > 0) {
+      adminHintsCount += ds.hints.filter((h) => {
+        const time = this.parseTimestamp((h as any).updatedAt || (h as any).createdAt);
+        return time > adminHintsRead;
+      }).length;
+    }
+
+    const adminSponsorRead = lastRead['admin_sponsorship'] || lastRead['sponsorship'] || 0;
+    let adminSponsorshipCount = this.eventCounts['admin_sponsorship'] || 0;
+    if (ds.sponsorships && ds.sponsorships.length > 0) {
+      adminSponsorshipCount += ds.sponsorships.filter((s) => {
+        const time = this.parseTimestamp((s as any).updatedAt || (s as any).createdAt);
+        return time > adminSponsorRead;
+      }).length;
+    }
+
+    const adminNotifAlertsCount = Math.max(
+      this.eventCounts['admin_notifications'] || 0,
+      Number(ds.adminUnreadAlertsCount || 0)
+    );
+
+    // Populate full admin counts map (dashboard = 0 so header badge never double-counts sections)
     this.adminCounts = {
-      dashboard: pendingWithdrawals + pendingVerif + reportedPostsCount + adminChatCount + adminLibCount,
+      dashboard: 0,
       users: pendingVerif > 0 ? pendingVerif : (this.eventCounts['admin_users'] || 0),
       managers: this.eventCounts['admin_managers'] || 0,
       transactions: txCount,
-      subscriptions: this.eventCounts['admin_subscriptions'] || 0,
-      airtime_data: this.eventCounts['admin_airtime_data'] || 0,
+      subscriptions: adminSubscriptionsCount,
+      airtime_data: adminAirtimeCount,
       withdrawals: pendingWithdrawals,
       wallet: this.eventCounts['admin_wallet'] || 0,
       sug_management: 0,
@@ -607,21 +751,21 @@ class GrobaaxNotificationService {
       gus: this.eventCounts['admin_gus'] || 0,
       group_battle: this.eventCounts['admin_group_battle'] || 0,
       community: reportedPostsCount + adminChatCount,
-      school_blogs: this.eventCounts['admin_school_blogs'] || 0,
-      corporate_ads: this.eventCounts['admin_corporate_ads'] || 0,
+      school_blogs: adminSchoolBlogsCount,
+      corporate_ads: adminCorporateAdsCount,
       announcements: adminAnnCount,
-      sponsorship: this.eventCounts['admin_sponsorship'] || 0,
+      sponsorship: adminSponsorshipCount,
       questions: this.eventCounts['admin_questions'] || 0,
       live_management: liveMatchCount,
       chatroom_live: adminChatCount,
       school_dome: adminSchoolDomeCount,
-      notifications: this.eventCounts['admin_notifications'] || 0,
+      notifications: adminNotifAlertsCount,
       settings: this.eventCounts['admin_settings'] || 0,
       library: adminLibCount,
-      events: this.eventCounts['admin_events'] || 0,
+      events: adminEventsCount,
       badges: this.eventCounts['admin_badges'] || 0,
       contact: this.eventCounts['admin_contact'] || 0,
-      hints: this.eventCounts['admin_hints'] || 0,
+      hints: adminHintsCount,
     };
 
     // Broadcast to all active subscribers

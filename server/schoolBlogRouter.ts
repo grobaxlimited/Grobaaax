@@ -1752,6 +1752,36 @@ schoolBlogRouter.post('/studio/articles', requireAuth, async (req: Request, res:
         message: `Your article "${cleanTitle}" is now live on ${activeAssign.institution_name} Blog! Earn 1,000 GP once your article reaches 250 eligible unique reader views (paid once per article).`,
         targetUserId: user.id,
       });
+      await notifyUserOrAdmins({
+        title: 'New School Blog Article Published',
+        message: `${activeAssign.user_name || user.name} published "${cleanTitle}" on ${activeAssign.institution_name} Blog.`,
+        targetRole: 'admin',
+        actionUrl: '/admin?tab=school_blogs',
+      });
+      try {
+        const feedNotifId = `notif_blog_feed_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        await supabaseAdmin.from('notifications').upsert(
+          {
+            id: feedNotifId,
+            data: {
+              id: feedNotifId,
+              title: `New ${activeAssign.institution_name} Blog Post`,
+              message: `${cleanTitle} — Open School Blog to read the full update.`,
+              type: 'school_blog',
+              targetRole: 'student',
+              targetUserId: null,
+              userId: null,
+              excludeUserId: user.id,
+              actionUrl: '/school-blog',
+              isRead: false,
+              createdAt: nowIso,
+              timestamp: nowIso,
+            },
+            updated_at: nowIso,
+          },
+          { onConflict: 'id' }
+        );
+      } catch {}
     }
 
     return res.json({
@@ -1911,6 +1941,36 @@ schoolBlogRouter.put('/studio/articles/:articleId', requireAuth, async (req: Req
         message: `Your article "${nextTitle}" is now live on ${activeAssign.institution_name} Blog!`,
         targetUserId: user.id,
       });
+      await notifyUserOrAdmins({
+        title: 'New School Blog Article Published',
+        message: `${activeAssign.user_name || user.name} published "${nextTitle}" on ${activeAssign.institution_name} Blog.`,
+        targetRole: 'admin',
+        actionUrl: '/admin?tab=school_blogs',
+      });
+      try {
+        const feedNotifId = `notif_blog_feed_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        await supabaseAdmin.from('notifications').upsert(
+          {
+            id: feedNotifId,
+            data: {
+              id: feedNotifId,
+              title: `New ${activeAssign.institution_name} Blog Post`,
+              message: `${nextTitle} — Open School Blog to read the full update.`,
+              type: 'school_blog',
+              targetRole: 'student',
+              targetUserId: null,
+              userId: null,
+              excludeUserId: user.id,
+              actionUrl: '/school-blog',
+              isRead: false,
+              createdAt: nowIso,
+              timestamp: nowIso,
+            },
+            updated_at: nowIso,
+          },
+          { onConflict: 'id' }
+        );
+      } catch {}
     }
 
     return res.json({

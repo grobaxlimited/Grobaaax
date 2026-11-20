@@ -943,25 +943,14 @@ export const getReadNotifSet = (uid?: string, fallbackUid?: string, fbUid?: stri
     } catch {}
   }
 
-  const keys = [
-    ...(resolvedUid ? [`grobax_read_notifs_${resolvedUid}`] : []),
-    ...(uid ? [`grobax_read_notifs_${uid}`] : []),
-    ...(fallbackUid ? [`grobax_read_notifs_${fallbackUid}`] : []),
-    ...(fbUid ? [`grobax_read_notifs_${fbUid}`] : []),
-    'grobax_read_notifs',
-    'grobax_read_notifs_global',
-  ];
-
-  if (typeof window !== 'undefined') {
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('grobax_read_notifs')) {
-          if (!keys.includes(k)) keys.push(k);
-        }
-      }
-    } catch {}
-  }
+  // Strictly scope to the active user's IDs so User A and User B never share read states on a device
+  const candidateUids = Array.from(
+    new Set(
+      [resolvedUid, uid, fallbackUid, fbUid]
+        .filter((v): v is string => Boolean(v && typeof v === 'string' && v !== 'guest' && v !== 'user_student'))
+    )
+  );
+  const keys = candidateUids.map((id) => `grobax_read_notifs_${id}`);
 
   keys.forEach((k) => {
     try {
@@ -1006,15 +995,14 @@ export const persistReadNotifKeys = (
       set.add(k.trim().toLowerCase());
     }
   });
-  const arr = Array.from(set);
-  const keys = [
-    ...(resolvedUid ? [`grobax_read_notifs_${resolvedUid}`] : []),
-    ...(uid ? [`grobax_read_notifs_${uid}`] : []),
-    ...(fallbackUid ? [`grobax_read_notifs_${fallbackUid}`] : []),
-    ...(fbUid ? [`grobax_read_notifs_${fbUid}`] : []),
-    'grobax_read_notifs',
-    'grobax_read_notifs_global',
-  ];
+  const arr = Array.from(set).slice(-600);
+  const candidateUids = Array.from(
+    new Set(
+      [resolvedUid, uid, fallbackUid, fbUid]
+        .filter((v): v is string => Boolean(v && typeof v === 'string' && v !== 'guest' && v !== 'user_student'))
+    )
+  );
+  const keys = candidateUids.map((id) => `grobax_read_notifs_${id}`);
   keys.forEach((k) => {
     try {
       localStorage.setItem(k, JSON.stringify(arr));
@@ -1247,7 +1235,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
            key.includes('auth-token') ||
            key.includes('oauth'))
         ) {
-          if (key !== 'grobax_theme') {
+          if (
+            key !== 'grobax_theme' &&
+            !key.startsWith('grobax_read_notifs_') &&
+            !key.startsWith('grobax_nav_last_read_')
+          ) {
             keysToRemove.push(key);
           }
         }
@@ -1362,6 +1354,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             try {
               localStorage.setItem(`grobax_academic_completed_${user.uid}`, 'true');
             } catch {}
+          }
+          if ((profileDoc as any).sectionReadState) {
+            grobaxNotificationService.hydrateReadState((profileDoc as any).sectionReadState);
+          }
+          if (Array.isArray((profileDoc as any).readNotificationIds) && (profileDoc as any).readNotificationIds.length > 0) {
+            persistReadNotifKeys((profileDoc as any).readNotificationIds, user.uid);
           }
         } catch (initErr) {
           console.warn('Initial profile load notice:', initErr);
@@ -1580,6 +1578,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     badges: data.badges || (isSameUser ? prev.badges : []) || [],
                     purchasedBadgeIds: data.purchasedBadgeIds || (isSameUser ? prev.purchasedBadgeIds : []) || [],
                     dailyQaUsage: data.dailyQaUsage || (isSameUser ? prev.dailyQaUsage : undefined),
+                    readNotificationIds: Array.isArray(data.readNotificationIds)
+                      ? data.readNotificationIds
+                      : (isSameUser ? prev.readNotificationIds : undefined),
+                    sectionReadState: data.sectionReadState || (isSameUser ? prev.sectionReadState : undefined),
                   };
 
                   try {
@@ -1589,6 +1591,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
                   return nextUser;
                 });
+
+                if (data.sectionReadState && typeof data.sectionReadState === 'object') {
+                  grobaxNotificationService.hydrateReadState(data.sectionReadState);
+                }
+
+                if (Array.isArray(data.readNotificationIds) && data.readNotificationIds.length > 0) {
+                  persistReadNotifKeys(data.readNotificationIds, user.uid);
+                  const readSetNow = getReadNotifSet(user.uid);
+                  setNotifications((prev) =>
+                    prev.map((n) => (isNotificationRead(n, readSetNow) ? { ...n, isRead: true } : n))
+                  );
+                }
 
                 if (data.dailyQaUsage?.date && data.dailyQaUsage?.count !== undefined) {
                   try {
@@ -1889,6 +1903,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {}
     return [];
   });
+  const [liveNotifSummary, setLiveNotifSummary] = useState<{
+    schoolBlogArticles: Array<{
+      id: string;
+      authorUserId?: string;
+      publishedAt?: any;
+      createdAt?: any;
+      updatedAt?: any;
+    }>;
+    adminQueues?: {
+      corporatePendingCompanies?: number;
+      corporatePendingCampaigns?: number;
+      corporatePendingTickers?: number;
+      corporatePendingPayments?: number;
+      corporateRecentActivityTimestamps?: string[];
+      blogPendingApplications?: number;
+      blogOpenReports?: number;
+      blogRecentArticleTimestamps?: string[];
+    };
+  }>({ schoolBlogArticles: [] });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [gpConversionConfig, setGpConversionConfig] = useState<GpConversionConfig>(() => {
     try {
@@ -2595,18 +2628,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         notifQuery,
         (snapshot) => {
           if (!snapshot.empty) {
-            // Read stored read-notification ids & fingerprints from localStorage
+            // Merge stored local read-notification ids & DB profile readNotificationIds
             const readSet = getReadNotifSet(currentUid, currentUser.id, firebaseUser?.uid);
+            const serverReadIds = (currentUserRef.current as any)?.readNotificationIds;
+            if (Array.isArray(serverReadIds)) {
+              serverReadIds.forEach((x: any) => {
+                if (typeof x === 'string' && x.trim()) {
+                  readSet.add(x.trim());
+                  readSet.add(x.trim().toLowerCase());
+                }
+              });
+            }
 
             const rawNotifs: NotificationItem[] = snapshot.docs.map((docSnap) => {
               const data = docSnap.data();
               const createdAtMs = getNotificationTimestampMs(data);
+              const readByUser = Boolean(
+                (data.readBy && typeof data.readBy === 'object' && (data.readBy[currentUid] || (currentUser.id && data.readBy[currentUser.id]))) ||
+                (Array.isArray(data.readByUserIds) && (data.readByUserIds.includes(currentUid) || (currentUser.id && data.readByUserIds.includes(currentUser.id))))
+              );
+              const hasDirectTarget = Boolean(data.targetUserId || data.userId);
               const isRead = isNotificationRead(
                 {
                   id: docSnap.id,
                   title: data.title,
                   message: data.message,
-                  isRead: data.isRead,
+                  isRead: hasDirectTarget ? Boolean(data.isRead === true || readByUser) : readByUser,
                   requestId: data.requestId,
                 },
                 readSet
@@ -2740,13 +2787,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 }
               }
 
-              // Broadcast for all users (genuine platform announcements, league alerts, arena matches, system notices)
+              // Broadcast for all users or role targets (platform announcements, school blog, admin portal alerts, league alerts, arena matches, system notices)
               const isBroadcast =
                 notif.type === 'announcement' ||
                 notif.type === 'dome' ||
                 notif.type === 'league' ||
                 notif.type === 'gus' ||
-                notif.type === 'system';
+                notif.type === 'system' ||
+                (notif.type as string) === 'school_blog' ||
+                (notif.type as string) === 'corporate_ads';
 
               if (!isBroadcast) return false;
 
@@ -5726,9 +5775,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {}
     }
 
-    if (trimmedId && !trimmedId.startsWith('notif_')) {
+    if (trimmedId) {
       try {
-        updateDoc(doc(db, 'notifications', trimmedId), { isRead: true }).catch(() => {});
+        fetch('/api/notifications/mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUid,
+            notificationIds: [trimmedId],
+            fingerprints: keysToPersist,
+          }),
+        }).catch(() => {});
+
+        // Only mutate global isRead on Firestore doc when notification is directly targeted to this user
+        if (targetNotif && (targetNotif.targetUserId || targetNotif.userId)) {
+          updateDoc(doc(db, 'notifications', trimmedId), { isRead: true }).catch(() => {});
+        }
       } catch {}
     }
   };
@@ -5736,8 +5798,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const markAllNotificationsRead = () => {
     const currentUid = firebaseUser?.uid || currentUser.id;
     const keysToPersist: string[] = [];
+    const allIdsToSync: string[] = [];
     notifications.forEach(n => {
       if (n.id) {
+        allIdsToSync.push(n.id.trim());
         keysToPersist.push(n.id.trim());
         keysToPersist.push(n.id.trim().toLowerCase());
       }
@@ -5755,6 +5819,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     persistReadNotifKeys(keysToPersist, currentUid, currentUser.id, firebaseUser?.uid);
 
+    const unreadDirectTargets = notifications.filter(
+      (n) => !n.isRead && n.id && (n.targetUserId || n.userId)
+    );
+    const unreadIds = notifications.filter((n) => !n.isRead && n.id).map((n) => n.id.trim());
+    const idsForServer = unreadIds.length > 0 ? unreadIds : allIdsToSync;
+
     setNotifications(prev => {
       const updated = prev.map(n => ({ ...n, isRead: true }));
       try {
@@ -5770,12 +5840,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {}
     }
 
-    notifications.forEach(n => {
-      if (!n.isRead && n.id && !n.id.startsWith('notif_')) {
-        try {
-          updateDoc(doc(db, 'notifications', n.id), { isRead: true }).catch(() => {});
-        } catch {}
-      }
+    if (idsForServer.length > 0 || keysToPersist.length > 0) {
+      try {
+        fetch('/api/notifications/mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUid,
+            notificationIds: idsForServer,
+            fingerprints: keysToPersist,
+          }),
+        }).catch(() => {});
+      } catch {}
+    }
+
+    unreadDirectTargets.forEach(n => {
+      try {
+        updateDoc(doc(db, 'notifications', n.id), { isRead: true }).catch(() => {});
+      } catch {}
     });
   };
 
@@ -6022,11 +6104,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => unsub();
   }, []);
 
+  // Live polling for Student School Blog updates & Admin portal pending queues
+  useEffect(() => {
+    const currentUid = firebaseUser?.uid || currentUser.id;
+    if (!currentUid || currentUid === 'guest' || currentUid === 'user_student') return;
+
+    const currentRole = String(currentUser.role || 'student').toLowerCase();
+    const isAdminUser =
+      currentRole === 'admin' ||
+      currentRole === 'super_admin' ||
+      Boolean((currentUser as any)?.managerRole) ||
+      currentUid === PRIMARY_SUPER_ADMIN_UID ||
+      firebaseUser?.email === 'grobaxycompany@gmail.com' ||
+      currentUser?.email === 'grobaxycompany@gmail.com' ||
+      firebaseUser?.email === 'grobaxlimited@gmail.com' ||
+      currentUser?.email === 'grobaxlimited@gmail.com' ||
+      firebaseUser?.email === 'basmock@gmail.com' ||
+      currentUser?.email === 'basmock@gmail.com';
+
+    let cancelled = false;
+    const fetchSummary = async () => {
+      try {
+        const res = await fetch(
+          `/api/notifications/live-summary?userId=${encodeURIComponent(currentUid)}&isAdmin=${isAdminUser ? 'true' : 'false'}&role=${encodeURIComponent(currentRole)}`
+        );
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled && json?.success) {
+          setLiveNotifSummary({
+            schoolBlogArticles: Array.isArray(json.schoolBlogArticles) ? json.schoolBlogArticles : [],
+            adminQueues: json.adminQueues || undefined,
+          });
+        }
+      } catch {}
+    };
+
+    void fetchSummary();
+    const interval = setInterval(fetchSummary, 25000);
+    const onRefreshEvent = () => {
+      void fetchSummary();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('grobax_refresh_live_badges', onRefreshEvent);
+    }
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('grobax_refresh_live_badges', onRefreshEvent);
+      }
+    };
+  }, [
+    firebaseUser?.uid,
+    firebaseUser?.email,
+    currentUser.id,
+    currentUser.role,
+    currentUser.email,
+    (currentUser as any)?.managerRole,
+    activeTab,
+    viewMode,
+    adminActiveTab,
+  ]);
+
   // Sync state data sources to Notification Engine for automatic real-time unread calculation
   useEffect(() => {
+    const unreadAdminAlerts = notifications.filter(
+      (n) => !n.isRead && (n.targetRole === 'admin' || n.actionUrl?.includes('admin'))
+    ).length;
+    const userJoinedAtMs = getNotificationTimestampMs({ createdAt: currentUser.createdAt });
+
     grobaxNotificationService.updateDataSource({
       userId: firebaseUser?.uid || currentUser.id,
       userRole: currentUser.role,
+      userJoinedAtMs: userJoinedAtMs > 0 ? userJoinedAtMs : undefined,
       posts,
       announcements,
       chatMessages: chatroomMessages,
@@ -6041,11 +6191,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       liveFixtures: fixtures as any,
       libraryMaterials: pendingPastQuestions as any,
       hints: competitionHints,
+      schoolBlogArticles: liveNotifSummary.schoolBlogArticles,
+      sponsorships: sponsorshipCampaigns as any,
+      adminUnreadAlertsCount: unreadAdminAlerts,
+      adminQueues: liveNotifSummary.adminQueues,
     });
   }, [
     firebaseUser?.uid,
     currentUser.id,
     currentUser.role,
+    currentUser.createdAt,
     posts,
     announcements,
     chatroomMessages,
@@ -6059,6 +6214,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fixtures,
     pendingPastQuestions,
     competitionHints,
+    liveNotifSummary,
+    sponsorshipCampaigns,
+    notifications,
   ]);
 
   // When active tab changes, mark that section as read automatically

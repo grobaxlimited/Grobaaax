@@ -96,6 +96,39 @@ function sanitizeHexColor(rawColor: any): string | null {
   return null;
 }
 
+async function dispatchCorporateAdminNotification(params: {
+  title: string;
+  message: string;
+  actionUrl?: string;
+}) {
+  try {
+    const id = `notif_corp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const nowIso = new Date().toISOString();
+    await supabaseAdmin.from('notifications').upsert(
+      {
+        id,
+        data: {
+          id,
+          title: params.title,
+          message: params.message,
+          type: 'system',
+          targetRole: 'admin',
+          targetUserId: null,
+          userId: null,
+          actionUrl: params.actionUrl || '/admin?tab=corporate_ads',
+          isRead: false,
+          createdAt: nowIso,
+          timestamp: nowIso,
+        },
+        updated_at: nowIso,
+      },
+      { onConflict: 'id' }
+    );
+  } catch (err) {
+    console.warn('[CorporateAds] Admin notification dispatch notice:', err);
+  }
+}
+
 function mapCompanyRow(row: any, extra?: { accountSource?: 'external_signup' | 'grobaax_user' }) {
   if (!row) return null;
   return {
@@ -1161,6 +1194,12 @@ corporateAdsRouter.post('/auth/register', async (req: Request, res: Response) =>
       },
     });
 
+    await dispatchCorporateAdminNotification({
+      title: 'New Corporate Advertiser Application',
+      message: `${insertedCompany.brand_name || insertedCompany.company_name} (${insertedCompany.industry}) submitted a Corporate Advertising account application and awaits Admin review.`,
+      actionUrl: '/admin?tab=corporate_ads',
+    });
+
     return res.status(201).json({
       success: true,
       accessToken: signInData?.session?.access_token || '',
@@ -1405,6 +1444,12 @@ corporateAdsRouter.post('/auth/complete-application', async (req: Request, res: 
         industry: insertedCompany.industry,
         officialEmail: cleanEmail,
       },
+    });
+
+    await dispatchCorporateAdminNotification({
+      title: 'New Corporate Advertiser Application',
+      message: `${insertedCompany.brand_name || insertedCompany.company_name} (${insertedCompany.industry}) completed a Corporate Advertising application and awaits Admin review.`,
+      actionUrl: '/admin?tab=corporate_ads',
     });
 
     return res.status(201).json({
@@ -2501,6 +2546,14 @@ corporateAdsRouter.post('/campaigns', requireCorporateAuth, async (req: Request,
       });
     }
 
+    if (initialStatus === 'Pending Review') {
+      await dispatchCorporateAdminNotification({
+        title: 'Corporate Blog Ad Pending Review',
+        message: `${nextCompany.brand_name || nextCompany.company_name} submitted "${created.campaign_name}" for Admin moderation.`,
+        actionUrl: '/admin?tab=corporate_ads',
+      });
+    }
+
     return res.status(201).json({
       success: true,
       campaign: mapCampaignRow(created, nextCompany),
@@ -2713,6 +2766,14 @@ corporateAdsRouter.patch(
 
       if (error) {
         return res.status(500).json({ success: false, error: error.message });
+      }
+
+      if (nextStatus === 'Pending Review') {
+        await dispatchCorporateAdminNotification({
+          title: 'Corporate Blog Ad Submitted for Review',
+          message: `${nextCompany.brand_name || nextCompany.company_name} submitted "${updated.campaign_name}" for Admin moderation.`,
+          actionUrl: '/admin?tab=corporate_ads',
+        });
       }
 
       return res.json({ success: true, campaign: mapCampaignRow(updated, nextCompany) });
@@ -2946,6 +3007,14 @@ corporateAdsRouter.post(
         });
       }
 
+      if (initialStatus === 'Pending Review') {
+        await dispatchCorporateAdminNotification({
+          title: 'Sponsor Ticker Ad Pending Review',
+          message: `${nextCompany.brand_name || nextCompany.company_name} submitted ticker ad "${created.campaign_name}" for Admin moderation.`,
+          actionUrl: '/admin?tab=corporate_ads',
+        });
+      }
+
       return res.status(201).json({
         success: true,
         tickerCampaign: mapTickerCampaignRow(created, nextCompany),
@@ -3173,6 +3242,14 @@ corporateAdsRouter.patch(
 
       if (error) {
         return res.status(500).json({ success: false, error: error.message });
+      }
+
+      if (nextStatus === 'Pending Review') {
+        await dispatchCorporateAdminNotification({
+          title: 'Sponsor Ticker Ad Submitted for Review',
+          message: `${nextCompany.brand_name || nextCompany.company_name} submitted Sponsor Ticker "${updated.campaign_name}" for Admin approval.`,
+          actionUrl: '/admin?tab=corporate_ads',
+        });
       }
 
       return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated, nextCompany) });

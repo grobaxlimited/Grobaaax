@@ -37,6 +37,7 @@ import { CampusStudentProfileModal } from './CampusStudentProfileModal';
 import { ConnectOtherSchoolsView } from './ConnectOtherSchoolsView';
 import { CrossCampusUpgradeModal } from './CrossCampusUpgradeModal';
 import { SchoolBlogPortal } from './Blog/SchoolBlogPortal';
+import { NotificationBadge } from '../../ui/NotificationBadge';
 import {
   GraduationCap,
   Building2,
@@ -61,7 +62,7 @@ import {
 } from 'lucide-react';
 
 export const CampusView: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser, sectionNotifications, clearSectionNotification } = useApp();
 
   // 1. Membership State
   const [membership, setMembership] = useState<CampusMembership | null>(null);
@@ -87,11 +88,20 @@ export const CampusView: React.FC = () => {
         try {
           sessionStorage.removeItem(PENDING_CAMPUS_VIEW_KEY);
         } catch {}
+        if (targetView === 'school_blog') {
+          clearSectionNotification?.('school_blog');
+        }
       }
     };
     window.addEventListener('grobax_open_campus_view', handleOpenCampusView);
     return () => window.removeEventListener('grobax_open_campus_view', handleOpenCampusView);
-  }, []);
+  }, [clearSectionNotification]);
+
+  useEffect(() => {
+    if (activeView === 'school_blog') {
+      clearSectionNotification?.('school_blog');
+    }
+  }, [activeView, clearSectionNotification]);
   const tabsScrollRef = useRef<HTMLDivElement>(null);
   const [canScrollTabsLeft, setCanScrollTabsLeft] = useState(false);
   const [canScrollTabsRight, setCanScrollTabsRight] = useState(false);
@@ -351,6 +361,7 @@ export const CampusView: React.FC = () => {
     setBlogInstitutionName(instName || activeInstitutionName || homeInstitutionName);
     setBlogInstitutionCategory(instCategory || activeInstitutionCategory || homeInstitutionCategory);
     setActiveView('school_blog');
+    clearSectionNotification?.('school_blog');
   };
 
   // Handle Joining Campus
@@ -770,6 +781,9 @@ export const CampusView: React.FC = () => {
               >
                 <Newspaper className="w-4 h-4" />
                 <span>School Blog</span>
+                {Number(sectionNotifications?.school_blog || 0) > 0 && (
+                  <NotificationBadge count={sectionNotifications.school_blog} />
+                )}
               </button>
 
               <button

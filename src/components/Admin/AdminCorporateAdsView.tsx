@@ -243,6 +243,7 @@ export const AdminCorporateAdsView: React.FC = () => {
         type: 'success',
         text: `${res.company.companyName} status updated to ${status}.`,
       });
+      window.dispatchEvent(new CustomEvent('grobax_refresh_live_badges'));
       await loadData();
     } finally {
       setCompanyActionBusy(false);
@@ -277,6 +278,7 @@ export const AdminCorporateAdsView: React.FC = () => {
         type: 'success',
         text: `Campaign "${res.campaign.campaignName}" updated (${res.campaign.status}).`,
       });
+      window.dispatchEvent(new CustomEvent('grobax_refresh_live_badges'));
       await loadData();
     } finally {
       setCampActionBusy(false);
@@ -311,6 +313,7 @@ export const AdminCorporateAdsView: React.FC = () => {
         type: 'success',
         text: `Sponsor Ticker "${res.tickerCampaign.campaignName}" updated (${res.tickerCampaign.status}).`,
       });
+      window.dispatchEvent(new CustomEvent('grobax_refresh_live_badges'));
       await loadData();
     } finally {
       setTickerActionBusy(false);
@@ -328,6 +331,7 @@ export const AdminCorporateAdsView: React.FC = () => {
       }
       if (selectedTicker?.id === tickerId) setSelectedTicker(null);
       setNotice({ type: 'success', text: 'Sponsor Ticker campaign removed.' });
+      window.dispatchEvent(new CustomEvent('grobax_refresh_live_badges'));
       await loadData();
     } finally {
       setTickerActionBusy(false);

@@ -367,12 +367,14 @@ export function AdminPanelLayout({ onReturnToUserApp }: AdminPanelLayoutProps) {
                                 <button
                                   onClick={() => {
                                     markNotificationRead(alert.id);
-                                    setActiveTab('dashboard');
+                                    const match = String(alert.actionUrl || '').match(/[?&]tab=([a-z0-9_]+)/i);
+                                    const targetTab = (match?.[1] as AdminTabType) || 'dashboard';
+                                    setActiveTab(targetTab);
                                     setIsAlertsOpen(false);
                                   }}
                                   className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-xs cursor-pointer transition"
                                 >
-                                  <span>View Dashboard</span>
+                                  <span>{String(alert.actionUrl || '').includes('tab=') ? 'Open Section' : 'View Dashboard'}</span>
                                   <ChevronRight className="w-3 h-3" />
                                 </button>
                               </div>

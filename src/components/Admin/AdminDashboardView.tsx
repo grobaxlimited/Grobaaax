@@ -24,6 +24,7 @@ import {
   BookOpen,
   ChevronRight,
   Newspaper,
+  Megaphone,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -209,6 +210,7 @@ export function AdminDashboardView({ onNavigateTab }: AdminDashboardProps) {
           { [
             { label: 'User Accounts', tab: 'users', icon: Users, color: 'text-blue-500 bg-blue-500/10' },
             { label: 'School Blogs', tab: 'school_blogs', icon: Newspaper, color: 'text-blue-600 bg-blue-500/10' },
+            { label: 'Corporate Ads', tab: 'corporate_ads', icon: Megaphone, color: 'text-indigo-500 bg-indigo-500/10' },
             { label: 'Roles & RBAC', tab: 'managers', icon: ShieldCheck, color: 'text-indigo-500 bg-indigo-500/10' },
             { label: 'Events Catalog', tab: 'events', icon: Calendar, color: 'text-cyan-500 bg-cyan-500/10' },
             { label: 'Subscriptions (₦)', tab: 'subscriptions', icon: Zap, color: 'text-amber-500 bg-amber-500/10' },

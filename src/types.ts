@@ -948,6 +948,8 @@ export interface UserProfile {
     count: number;
     lastSubmittedAt?: number;
   };
+  readNotificationIds?: string[];
+  sectionReadState?: Record<string, number>;
   subscription?: {
     planId: string;
     name: string;

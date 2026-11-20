@@ -65,7 +65,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   backButtonLabel,
   onSwitchBlogInstitution,
 }) => {
-  const { currentUser } = useApp();
+  const { currentUser, markSectionAsRead } = useApp();
 
   const [activeSubView, setActiveSubView] = useState<'feed' | 'article' | 'studio'>('feed');
   const [selectedCategory, setSelectedCategory] = useState<'All Posts' | SchoolBlogCategory>(
@@ -145,8 +145,9 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   useEffect(() => {
     setActiveSubView('feed');
     setSelectedArticle(null);
+    markSectionAsRead?.('school_blog');
     loadHomepage();
-  }, [institutionKey, institutionName]);
+  }, [institutionKey, institutionName, markSectionAsRead]);
 
   useEffect(() => {
     if (activeSubView === 'feed') {

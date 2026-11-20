@@ -165,6 +165,7 @@ export const AdminSchoolBlogsView: React.FC = () => {
     try {
       await actionModal.onConfirm(actionNote.trim());
       setActionModal(null);
+      window.dispatchEvent(new CustomEvent('grobax_refresh_live_badges'));
       await loadOverview();
     } catch (err: any) {
       setError(err?.message || 'Action failed.');

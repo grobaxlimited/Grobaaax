@@ -13,6 +13,7 @@ import { spinRouter } from './spinRouter';
 import { systemSettingsRouter } from './systemSettingsRouter';
 import { mobileDownloadRouter } from './mobileDownloadRouter';
 import { corporateAdsRouter } from './corporateAdsRouter';
+import { notificationsRouter } from './notificationsRouter';
 import {
   enrichHandoutWithFullChaptersAndImages,
   getAcademicPhotoForChapter,
@@ -855,6 +856,10 @@ apiApp.use('/downloads', mobileDownloadRouter);
 // Corporate Advertising Portal & School Blog Sponsored Ad Engine
 apiApp.use('/api/corporate', corporateAdsRouter);
 apiApp.use('/corporate', corporateAdsRouter);
+
+// Unified Notifications Persistence & Live Section Badges Router
+apiApp.use('/api/notifications', notificationsRouter);
+apiApp.use('/notifications', notificationsRouter);
 
 // AI Academic Library Handout Generation Route
 const libraryGenerateHandler = async (req: Request, res: Response) => {
