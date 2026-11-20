@@ -11,6 +11,7 @@ import { ContactSupportTab } from './ContactSupportTab';
 import { CampusSkillsSelector } from '../Community/Campus/CampusSkillsSelector';
 import { updateMyCampusSkills } from '../../lib/campusService';
 import { useDevicePlatform } from '../../hooks/useDevicePlatform';
+import { getBrandPromotionPortalHref } from '../../utils/domainPortal';
 import {
   ACADEMIC_STRUCTURE_BY_CATEGORY,
   getFacultiesByCategory,
@@ -93,6 +94,7 @@ import {
   Copy,
   Clock,
   ArrowRight,
+  Megaphone,
 } from 'lucide-react';
 
 const STANDARD_ACADEMIC_LEVELS = [
@@ -1392,6 +1394,30 @@ export const WalletModal: React.FC = () => {
                   })}
                 </div>
               </div>
+
+              {/* Company / Brand Promotion Portal Entry under Profile */}
+              <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Megaphone className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white">
+                      Brand Promotion
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Promote your company or brand to students on the Grobaax Corporate Advertising Portal.
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={getBrandPromotionPortalHref()}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  <span>Company Promotion</span>
+                  <ArrowUpRight className="w-4 h-4" />
+                </a>
+              </div>
             </div>
           )}
 
@@ -1931,6 +1957,33 @@ export const WalletModal: React.FC = () => {
                         </button>
                       )}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 5B. BRAND & COMPANY PROMOTION */}
+              {(settingsSection === 'all' || settingsSection === 'account') && (
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Megaphone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>Brand Promotion</span>
+                  </h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        Grobaax Corporate Advertising Portal
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Manage corporate ad campaigns or promote your company on Grobaax.
+                      </p>
+                    </div>
+                    <a
+                      href={getBrandPromotionPortalHref()}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      <span>Company Promotion</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </a>
                   </div>
                 </div>
               )}
