@@ -1840,8 +1840,17 @@ async function verifyAndActivateCorporatePayment(params: {
   // Enforce verified Paystack status & paid amount >= plan price
   const paidNaira = gatewayTx.amount ? Number(gatewayTx.amount) / 100 : 0;
   const expectedNaira = Number(payment.amount_naira || 0);
-  if (gatewayTx.status !== 'success' || paidNaira < expectedNaira) {
-    if (['failed', 'abandoned', 'reversed'].includes(String(gatewayTx.status || '').toLowerCase())) {
+  const gatewayStatus = String(gatewayTx.status || '').toLowerCase();
+  if (gatewayStatus !== 'success' || paidNaira < expectedNaira) {
+    const createdAgeMs = payment.created_at
+      ? Date.now() - new Date(payment.created_at).getTime()
+      : 0;
+    const isTerminalFailure =
+      gatewayStatus === 'failed' ||
+      gatewayStatus === 'reversed' ||
+      (gatewayStatus === 'abandoned' && createdAgeMs > 15 * 60 * 1000);
+
+    if (isTerminalFailure) {
       await supabaseAdmin
         .from('corporate_payments')
         .update({
@@ -1853,12 +1862,12 @@ async function verifyAndActivateCorporatePayment(params: {
         .eq('id', payment.id)
         .eq('status', 'pending');
     }
+
+    // Treat all non-terminal statuses (ongoing, pending, open_url, processing, queued, send_otp, send_pin, pay_offline, pending_bank_transfer, recent abandoned) as pending
     return {
       verified: false,
-      isPending: ['ongoing', 'pending', 'pending_bank_transfer'].includes(
-        String(gatewayTx.status || '').toLowerCase()
-      ),
-      status: gatewayTx.status || 'failed',
+      isPending: !isTerminalFailure,
+      status: gatewayStatus || 'pending',
     };
   }
 
@@ -2158,7 +2167,7 @@ corporateAdsRouter.post(
             reference,
             currency: plan.currency || 'NGN',
             callback_url: resolvedCallback,
-            channels: ['card', 'bank', 'bank_transfer', 'ussd', 'qr'],
+            channels: ['card', 'bank', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],
             metadata: {
               channel_type: 'corporate_advertising',
               purchaseType: isTickerUpgrade ? 'ticker_upgrade' : 'plan_subscription',
@@ -2265,10 +2274,18 @@ corporateAdsRouter.post(
       );
 
       if (!psVerify.isJson || !psVerify.data?.status || !psVerify.data?.data) {
+        const psMsg = String(psVerify.data?.message || '').toLowerCase();
+        const looksInProgress =
+          psVerify.status >= 500 ||
+          psVerify.status === 0 ||
+          psMsg.includes('not found') ||
+          psMsg.includes('pending') ||
+          psMsg.includes('try again');
         return res.json({
-          success: false,
+          success: looksInProgress,
           verified: false,
-          status: 'failed',
+          isPending: looksInProgress,
+          status: looksInProgress ? 'pending' : 'failed',
           error: psVerify.data?.message || 'Unable to verify payment with Paystack.',
         });
       }
@@ -2287,6 +2304,143 @@ corporateAdsRouter.post(
     }
   }
 );
+
+async function reconcilePendingPaymentsForCompany(companyId: string) {
+  const secretKey = getSecretKey();
+  if (!secretKey || (!secretKey.startsWith('sk_live_') && !secretKey.startsWith('sk_test_'))) {
+    return { verifiedPayments: [] as any[], latestSubscription: null as any };
+  }
+
+  const cutoffIso = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+  const { data: pendingRows } = await supabaseAdmin
+    .from('corporate_payments')
+    .select('*')
+    .eq('company_id', companyId)
+    .eq('status', 'pending')
+    .gte('created_at', cutoffIso)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  const verifiedPayments: any[] = [];
+  let latestSubscription: any = null;
+
+  if (!pendingRows || pendingRows.length === 0) {
+    return { verifiedPayments, latestSubscription };
+  }
+
+  await Promise.all(
+    pendingRows.map(async (payRow: any) => {
+      try {
+        const psVerify = await safePaystackFetch(
+          `${getPaystackBaseUrl()}/transaction/verify/${encodeURIComponent(payRow.reference)}`,
+          {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${secretKey}` },
+          }
+        );
+        if (psVerify.isJson && psVerify.data?.status && psVerify.data?.data) {
+          const result: any = await verifyAndActivateCorporatePayment({
+            payment: payRow,
+            gatewayTx: psVerify.data.data,
+          });
+          if (result?.verified && result.payment) {
+            verifiedPayments.push(result.payment);
+            if (result.subscription) {
+              latestSubscription = result.subscription;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[CorporateAds] Pending payment reconcile notice:', err);
+      }
+    })
+  );
+
+  return { verifiedPayments, latestSubscription };
+}
+
+corporateAdsRouter.post(
+  '/payments/reconcile-pending',
+  requireCorporateAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const company = req.corporateCompany;
+      const { verifiedPayments, latestSubscription } =
+        await reconcilePendingPaymentsForCompany(company.id);
+
+      await expireOverdueRecords(company.id);
+
+      const [activeSub, subsRes, payRes] = await Promise.all([
+        getActiveSubscriptionForCompany(company.id),
+        supabaseAdmin
+          .from('corporate_subscriptions')
+          .select('*')
+          .eq('company_id', company.id)
+          .order('created_at', { ascending: false }),
+        supabaseAdmin
+          .from('corporate_payments')
+          .select('*')
+          .eq('company_id', company.id)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      return res.json({
+        success: true,
+        reconciledCount: verifiedPayments.length,
+        verifiedPayments,
+        latestVerifiedPayment: verifiedPayments[0] || null,
+        activeSubscription: mapSubscriptionRow(activeSub) || latestSubscription,
+        subscriptions: (subsRes.data || []).map(mapSubscriptionRow),
+        payments: (payRes.data || []).map(mapPaymentRow),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+
+export async function handleCorporatePaystackWebhookEvent(event: {
+  event?: string;
+  data?: any;
+}): Promise<boolean> {
+  try {
+    const reference = String(event?.data?.reference || '');
+    const isCorporateChannel =
+      reference.startsWith('GRBX_CORP_') ||
+      event?.data?.metadata?.channel_type === 'corporate_advertising';
+    if (!isCorporateChannel || !reference) return false;
+
+    const { data: payment } = await supabaseAdmin
+      .from('corporate_payments')
+      .select('*')
+      .eq('reference', reference)
+      .maybeSingle();
+
+    if (!payment) return true;
+
+    if (event.event === 'charge.success') {
+      await verifyAndActivateCorporatePayment({
+        payment,
+        gatewayTx: event.data,
+      });
+    } else if (event.event === 'charge.failed' && payment.status === 'pending') {
+      await supabaseAdmin
+        .from('corporate_payments')
+        .update({
+          status: 'failed',
+          gateway_response: String(event.data?.gateway_response || 'Payment failed'),
+          gateway_payload: event.data,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', payment.id)
+        .eq('status', 'pending');
+    }
+    return true;
+  } catch (err) {
+    console.warn('[CorporateAds] Webhook processing notice:', err);
+    return false;
+  }
+}
 
 corporateAdsRouter.post('/payments/webhook', async (req: Request, res: Response) => {
   try {
@@ -2309,34 +2463,7 @@ corporateAdsRouter.post('/payments/webhook', async (req: Request, res: Response)
       event = JSON.parse(bodyStr);
     }
 
-    const reference = String(event?.data?.reference || '');
-    if (reference.startsWith('GRBX_CORP_')) {
-      const { data: payment } = await supabaseAdmin
-        .from('corporate_payments')
-        .select('*')
-        .eq('reference', reference)
-        .maybeSingle();
-
-      if (payment) {
-        if (event.event === 'charge.success') {
-          await verifyAndActivateCorporatePayment({
-            payment,
-            gatewayTx: event.data,
-          });
-        } else if (event.event === 'charge.failed' && payment.status === 'pending') {
-          await supabaseAdmin
-            .from('corporate_payments')
-            .update({
-              status: 'failed',
-              gateway_response: String(event.data?.gateway_response || 'Payment failed'),
-              gateway_payload: event.data,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', payment.id)
-            .eq('status', 'pending');
-        }
-      }
-    }
+    await handleCorporatePaystackWebhookEvent(event);
 
     return res.status(200).json({ received: true });
   } catch (err: any) {
@@ -2347,6 +2474,8 @@ corporateAdsRouter.post('/payments/webhook', async (req: Request, res: Response)
 corporateAdsRouter.get('/billing', requireCorporateAuth, async (req: Request, res: Response) => {
   try {
     const company = req.corporateCompany;
+    // Automatically reconcile any recent pending Paystack transactions (e.g. OPay, Zap, Bank, Card 3DS)
+    await reconcilePendingPaymentsForCompany(company.id);
     await expireOverdueRecords(company.id);
 
     const [activeSub, subsRes, payRes] = await Promise.all([

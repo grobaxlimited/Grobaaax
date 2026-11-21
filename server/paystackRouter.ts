@@ -9,6 +9,7 @@ import {
   chargeTransferCore,
   verifyPaystackRefCore,
 } from './paystackCore';
+import { handleCorporatePaystackWebhookEvent } from './corporateAdsRouter';
 
 export { getSecretKey, getPublicKey, getPaystackBaseUrl, safePaystackFetch };
 
@@ -580,6 +581,15 @@ paystackRouter.post('/webhook', async (req, res) => {
 
     console.log(`[Paystack Webhook] Received event: ${event.event} | Ref: ${event.data?.reference}`);
 
+    const isCorporatePayment =
+      String(event?.data?.reference || '').startsWith('GRBX_CORP_') ||
+      event?.data?.metadata?.channel_type === 'corporate_advertising';
+
+    if (isCorporatePayment) {
+      await handleCorporatePaystackWebhookEvent(event);
+      return res.status(200).json({ received: true, corporate: true });
+    }
+
     if (event.event === 'charge.success') {
       const data = event.data;
       console.log(`[Paystack Webhook] Successful payment for ${data.customer?.email} - ₦${data.amount / 100}`);
@@ -636,19 +646,26 @@ paystackRouter.get('/sensor-status', async (req, res) => {
             const isSuccess = tx.status === 'success';
             let activationResult = null;
             if (isSuccess) {
-              try {
-                activationResult = await safeActivateSubscription({
-                  reference: tx.reference,
-                  userId: tx.metadata?.userId || tx.metadata?.scholar_uid || userId || '',
-                  userEmail: tx.customer?.email || email || '',
-                  userName: tx.metadata?.userName || '',
-                  planId: tx.metadata?.planId,
-                  planName: tx.metadata?.planName,
-                  amountNaira: tx.amount ? tx.amount / 100 : 0,
-                  channel: tx.channel || 'paystack',
-                });
-              } catch (actErr) {
-                console.warn('[Sensor Status] Firestore activation notice:', actErr);
+              if (
+                String(tx.reference || '').startsWith('GRBX_CORP_') ||
+                tx.metadata?.channel_type === 'corporate_advertising'
+              ) {
+                await handleCorporatePaystackWebhookEvent({ event: 'charge.success', data: tx });
+              } else {
+                try {
+                  activationResult = await safeActivateSubscription({
+                    reference: tx.reference,
+                    userId: tx.metadata?.userId || tx.metadata?.scholar_uid || userId || '',
+                    userEmail: tx.customer?.email || email || '',
+                    userName: tx.metadata?.userName || '',
+                    planId: tx.metadata?.planId,
+                    planName: tx.metadata?.planName,
+                    amountNaira: tx.amount ? tx.amount / 100 : 0,
+                    channel: tx.channel || 'paystack',
+                  });
+                } catch (actErr) {
+                  console.warn('[Sensor Status] Firestore activation notice:', actErr);
+                }
               }
             }
             return res.json({

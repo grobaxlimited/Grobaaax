@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -35,6 +35,7 @@ import {
 import {
   CORPORATE_PORTAL_ORIGIN,
   CorporatePortalRoute,
+  isCorporateAdvertisingHostname,
 } from '../../utils/domainPortal';
 import {
   DEFAULT_BRAND_HIGHLIGHT_COLOR,
@@ -61,12 +62,22 @@ import {
   fetchPublicCorporatePlans,
   initializeCorporatePayment,
   logoutCorporateAccount,
+  reconcilePendingCorporatePayments,
   updateCorporateCampaign,
   updateCorporateProfile,
   updateCorporateTickerCampaign,
   uploadCorporateMedia,
   verifyCorporatePayment,
 } from '../../lib/corporateAdsService';
+
+const PENDING_CORP_CHECKOUT_KEY = 'grobax_corp_pending_checkout';
+
+interface PendingCheckoutState {
+  reference: string;
+  planId: string;
+  purchaseType: 'plan_subscription' | 'ticker_upgrade';
+  startedAt: number;
+}
 
 type DashboardTab = 'overview' | 'campaigns' | 'ticker' | 'billing' | 'analytics' | 'profile';
 
@@ -137,6 +148,21 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
   );
   const [payingPlanId, setPayingPlanId] = useState<string | null>(null);
   const [upgradingTicker, setUpgradingTicker] = useState(false);
+  const [verifyingRef, setVerifyingRef] = useState<string | null>(null);
+  const [pendingCheckout, setPendingCheckout] = useState<PendingCheckoutState | null>(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(PENDING_CORP_CHECKOUT_KEY) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.reference && Date.now() - Number(parsed.startedAt || 0) < 60 * 60 * 1000) {
+          return parsed;
+        }
+        localStorage.removeItem(PENDING_CORP_CHECKOUT_KEY);
+      }
+    } catch {}
+    return null;
+  });
+  const reconcileBusyRef = useRef(false);
   const [receiptModal, setReceiptModal] = useState<CorporatePayment | null>(null);
 
   // Campaign Builder Modal
@@ -239,7 +265,90 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     }
   }, [onCompanyUpdated]);
 
-  // Verify Paystack return URL if ?reference=... is present
+  const clearPendingCheckout = useCallback(() => {
+    setPendingCheckout(null);
+    try {
+      localStorage.removeItem(PENDING_CORP_CHECKOUT_KEY);
+    } catch {}
+  }, []);
+
+  const savePendingCheckout = useCallback((state: PendingCheckoutState) => {
+    setPendingCheckout(state);
+    try {
+      localStorage.setItem(PENDING_CORP_CHECKOUT_KEY, JSON.stringify(state));
+    } catch {}
+  }, []);
+
+  const handleVerifiedSuccess = useCallback(
+    (payment?: CorporatePayment | null) => {
+      clearPendingCheckout();
+      const isTickerUpgradePay = payment?.purchaseType === 'ticker_upgrade';
+      setNotice({
+        type: 'success',
+        text: isTickerUpgradePay
+          ? 'Paystack payment verified! Your Sponsor Ticker add-on is now active.'
+          : 'Paystack payment verified! Your Corporate Advertising subscription is now active.',
+      });
+      if (payment) setReceiptModal(payment);
+    },
+    [clearPendingCheckout]
+  );
+
+  const checkPendingCheckoutNow = useCallback(
+    async (explicitRef?: string, isUserManualCheck = false) => {
+      if (reconcileBusyRef.current && !isUserManualCheck) return;
+      reconcileBusyRef.current = true;
+      const refToVerify = explicitRef || pendingCheckout?.reference;
+      if (isUserManualCheck) setVerifyingRef(refToVerify || 'all');
+
+      try {
+        if (refToVerify) {
+          const res = await verifyCorporatePayment(refToVerify);
+          if (res.success && res.verified) {
+            handleVerifiedSuccess(res.payment);
+            await loadAllData();
+            return;
+          }
+          if (!res.isPending && (res.status === 'failed' || res.status === 'abandoned' || res.status === 'reversed')) {
+            clearPendingCheckout();
+            if (isUserManualCheck) {
+              setNotice({
+                type: 'error',
+                text: `Payment status is "${res.status}". Please retry checkout if you have not completed payment.`,
+              });
+            }
+            await loadAllData();
+            return;
+          }
+        }
+
+        const recRes = await reconcilePendingCorporatePayments();
+        if (recRes.success) {
+          if (recRes.activeSubscription !== undefined) setActiveSub(recRes.activeSubscription || null);
+          if (recRes.subscriptions) setSubscriptions(recRes.subscriptions);
+          if (recRes.payments) setPayments(recRes.payments);
+          if ((recRes.reconciledCount || 0) > 0 && recRes.latestVerifiedPayment) {
+            handleVerifiedSuccess(recRes.latestVerifiedPayment);
+            await loadAllData();
+            return;
+          }
+        }
+
+        if (isUserManualCheck) {
+          setNotice({
+            type: 'error',
+            text: 'Payment is still awaiting confirmation from Paystack. If you just paid via OPay, Bank, or Transfer, wait a few seconds and click Verify again.',
+          });
+        }
+      } finally {
+        reconcileBusyRef.current = false;
+        if (isUserManualCheck) setVerifyingRef(null);
+      }
+    },
+    [pendingCheckout?.reference, handleVerifiedSuccess, clearPendingCheckout, loadAllData]
+  );
+
+  // Verify Paystack return URL if ?reference=... is present (handles Bank/OPay/Card/Transfer redirect returns)
   useEffect(() => {
     let mounted = true;
     const sp = new URLSearchParams(window.location.search);
@@ -250,20 +359,20 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
         .then((res) => {
           if (!mounted) return;
           if (res.success && res.verified) {
-            const isTickerUpgradePay = res.payment?.purchaseType === 'ticker_upgrade';
-            setNotice({
-              type: 'success',
-              text: isTickerUpgradePay
-                ? 'Paystack payment verified! Your Sponsor Ticker add-on is now active.'
-                : 'Paystack payment verified! Your Corporate Advertising subscription is now active.',
-            });
-            if (res.payment) setReceiptModal(res.payment);
+            handleVerifiedSuccess(res.payment);
           } else if (res.isPending) {
+            savePendingCheckout({
+              reference: ref,
+              planId: pendingCheckout?.planId || '',
+              purchaseType: pendingCheckout?.purchaseType || 'plan_subscription',
+              startedAt: Date.now(),
+            });
             setNotice({
               type: 'error',
-              text: 'Payment is still awaiting confirmation from Paystack. Refresh in a moment.',
+              text: 'Awaiting final confirmation from Paystack. This page will auto-activate as soon as Paystack settles your payment.',
             });
           } else {
+            clearPendingCheckout();
             setNotice({
               type: 'error',
               text: res.error || 'Payment could not be verified as successful.',
@@ -281,7 +390,43 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     return () => {
       mounted = false;
     };
-  }, [loadAllData]);
+  }, [loadAllData, handleVerifiedSuccess, savePendingCheckout, clearPendingCheckout]);
+
+  // Auto-reconcile whenever company switches back from OPay / Bank app / browser tab or polls while pending
+  const hasRecentPendingPayment = useMemo(() => {
+    if (pendingCheckout) return true;
+    const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
+    return payments.some(
+      (p) => p.status === 'pending' && new Date(p.createdAt).getTime() > thirtyMinsAgo
+    );
+  }, [pendingCheckout, payments]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleReturnToApp = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (hasRecentPendingPayment) {
+        void checkPendingCheckoutNow();
+      }
+    };
+    window.addEventListener('focus', handleReturnToApp);
+    window.addEventListener('pageshow', handleReturnToApp);
+    document.addEventListener('visibilitychange', handleReturnToApp);
+    return () => {
+      window.removeEventListener('focus', handleReturnToApp);
+      window.removeEventListener('pageshow', handleReturnToApp);
+      document.removeEventListener('visibilitychange', handleReturnToApp);
+    };
+  }, [hasRecentPendingPayment, checkPendingCheckoutNow]);
+
+  useEffect(() => {
+    if (!hasRecentPendingPayment) return;
+    // Check immediately once, then poll every 5s while pending checkout or recent pending payment exists
+    const timer = setInterval(() => {
+      void checkPendingCheckoutNow();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [hasRecentPendingPayment, checkPendingCheckoutNow]);
 
   const isCompanyApproved = company.status === 'Approved';
   const hasActiveSubscription = Boolean(activeSub && activeSub.status === 'active');
@@ -342,7 +487,10 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     try {
       const origin =
         typeof window !== 'undefined' ? window.location.origin : CORPORATE_PORTAL_ORIGIN;
-      const callbackUrl = `${origin}/dashboard?tab=billing`;
+      const dashboardPath = isCorporateAdvertisingHostname()
+        ? '/dashboard'
+        : '/advertise/dashboard';
+      const callbackUrl = `${origin}${dashboardPath}?tab=billing`;
       const res = await initializeCorporatePayment(planId, callbackUrl, 'plan_subscription');
       if (!res.success || !res.authorizationUrl) {
         setNotice({
@@ -350,6 +498,14 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
           text: res.error || 'Unable to start Paystack checkout.',
         });
         return;
+      }
+      if (res.reference) {
+        savePendingCheckout({
+          reference: res.reference,
+          planId,
+          purchaseType: 'plan_subscription',
+          startedAt: Date.now(),
+        });
       }
       window.location.assign(res.authorizationUrl);
     } catch (err: any) {
@@ -369,7 +525,10 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
     try {
       const origin =
         typeof window !== 'undefined' ? window.location.origin : CORPORATE_PORTAL_ORIGIN;
-      const callbackUrl = `${origin}/dashboard?tab=billing`;
+      const dashboardPath = isCorporateAdvertisingHostname()
+        ? '/dashboard'
+        : '/advertise/dashboard';
+      const callbackUrl = `${origin}${dashboardPath}?tab=billing`;
       const res = await initializeCorporatePayment(
         activeSub.planId,
         callbackUrl,
@@ -381,6 +540,14 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
           text: res.error || 'Unable to start Sponsor Ticker upgrade checkout.',
         });
         return;
+      }
+      if (res.reference) {
+        savePendingCheckout({
+          reference: res.reference,
+          planId: activeSub.planId,
+          purchaseType: 'ticker_upgrade',
+          startedAt: Date.now(),
+        });
       }
       window.location.assign(res.authorizationUrl);
     } catch (err: any) {
@@ -1626,13 +1793,47 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                     </div>
                     <button
                       type="button"
-                      onClick={() => loadAllData()}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 cursor-pointer"
+                      onClick={() => checkPendingCheckoutNow(undefined, true)}
+                      disabled={verifyingRef !== null}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 cursor-pointer disabled:opacity-50"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Refresh Billing</span>
+                      <RefreshCw className={`w-3.5 h-3.5 ${verifyingRef ? 'animate-spin' : ''}`} />
+                      <span>{verifyingRef ? 'Checking Paystack...' : 'Refresh & Verify Billing'}</span>
                     </button>
                   </div>
+
+                  {pendingCheckout && (
+                    <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-start gap-2.5 text-xs sm:text-sm text-amber-900">
+                        <Loader2 className="w-4 h-4 text-amber-600 animate-spin shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-extrabold">
+                            Checking Paystack for payment confirmation ({pendingCheckout.reference})
+                          </div>
+                          <div className="text-xs text-amber-800/90 mt-0.5">
+                            If you completed payment via OPay, Zap, Bank App, USSD, Card, or Transfer, your plan will activate automatically in a moment.
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => checkPendingCheckoutNow(pendingCheckout.reference, true)}
+                          disabled={verifyingRef === pendingCheckout.reference}
+                          className="px-3.5 py-1.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer disabled:opacity-50"
+                        >
+                          {verifyingRef === pendingCheckout.reference ? 'Verifying...' : 'Verify Now'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearPendingCheckout}
+                          className="px-3 py-1.5 rounded-full border border-amber-300 bg-white text-amber-800 text-xs font-semibold cursor-pointer"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {plans.length === 0 ? (
                     <div className="rounded-3xl bg-white border border-slate-200 p-8 text-center text-sm text-slate-600">
@@ -1835,6 +2036,22 @@ export const CorporateDashboardView: React.FC<CorporateDashboardViewProps> = ({
                                   >
                                     <FileText className="w-3.5 h-3.5" />
                                     <span>View Receipt</span>
+                                  </button>
+                                ) : p.status === 'pending' ? (
+                                  <button
+                                    type="button"
+                                    disabled={verifyingRef === p.reference}
+                                    onClick={() => checkPendingCheckoutNow(p.reference, true)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold cursor-pointer disabled:opacity-50"
+                                  >
+                                    {verifyingRef === p.reference ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="w-3 h-3" />
+                                    )}
+                                    <span>
+                                      {verifyingRef === p.reference ? 'Verifying...' : 'Verify Payment'}
+                                    </span>
                                   </button>
                                 ) : (
                                   <span className="text-slate-400 text-xs">—</span>

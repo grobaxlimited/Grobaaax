@@ -6,6 +6,7 @@ import {
   resolveCanonicalInstitution,
   ensureSchoolBlogRecord,
   slugifyText,
+  invalidateSchoolBlogRecordCache,
 } from './utils/institutionResolver';
 import {
   ArticleRewardProgress,
@@ -17,6 +18,54 @@ import {
 } from '../src/types';
 
 export const schoolBlogRouter = Router();
+
+const HOMEPAGE_ARTICLE_COLUMNS =
+  'id, blog_institution_id, institution_name, author_user_id, author_name, title, slug, excerpt, category, cover_image_url, status, eligible_views_count, qualifying_views_count, reactions_count, published_at, created_at, updated_at';
+
+const PUBLIC_CACHE_TTL_MS = 30 * 1000;
+const HOMEPAGE_ARTICLE_LIMIT = 200;
+
+interface CachedPublicHomepage {
+  expiresAt: number;
+  blog: any;
+  activeAssigns: any[];
+  categoryCounts: Record<string, number>;
+  enrichedArticles: any[];
+  publishedArticlesCount: number;
+}
+
+const publicHomepageCache = new Map<string, CachedPublicHomepage>();
+const publicArticleCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    articleRow: any;
+    blogRow: any;
+    authorData: any;
+    authorFollowersCount: number;
+  }
+>();
+let allBlogsSummaryCache: {
+  expiresAt: number;
+  dbBlogs: any[];
+  activeBloggers: any[];
+  articleStats: any[];
+} | null = null;
+
+function invalidateSchoolBlogCaches(opts?: { institutionId?: string | null; articleId?: string | null }) {
+  allBlogsSummaryCache = null;
+  if (opts?.articleId) {
+    publicArticleCache.delete(opts.articleId);
+  }
+  if (opts?.institutionId) {
+    publicHomepageCache.delete(opts.institutionId);
+    invalidateSchoolBlogRecordCache(opts.institutionId);
+  } else {
+    publicHomepageCache.clear();
+    publicArticleCache.clear();
+    invalidateSchoolBlogRecordCache();
+  }
+}
 
 const VALID_CATEGORIES: SchoolBlogCategory[] = ['News', 'Events', 'Academics', 'Campus Life'];
 const VALID_REACTIONS: SchoolBlogReactionType[] = ['like', 'helpful', 'insightful', 'celebrate'];
@@ -302,18 +351,36 @@ function normalizeArticleBlocks(
 // List institutions with School Blogs + aggregate counts (Free for all students)
 schoolBlogRouter.get('/', optionalAuth, async (req: Request, res: Response) => {
   try {
-
     const q = String(req.query.search || '').trim().toLowerCase();
     const category = String(req.query.category || 'All').trim();
 
-    const [{ data: dbBlogs }, { data: activeBloggers }, { data: articleStats }] = await Promise.all([
-      supabaseAdmin.from('school_blogs').select('*').eq('status', 'active'),
-      supabaseAdmin.from('school_blogger_assignments').select('*').eq('status', 'active'),
-      supabaseAdmin
-        .from('school_blog_articles')
-        .select('blog_institution_id, published_at, status')
-        .eq('status', 'published'),
-    ]);
+    let dbBlogs: any[];
+    let activeBloggers: any[];
+    let articleStats: any[];
+
+    if (allBlogsSummaryCache && allBlogsSummaryCache.expiresAt > Date.now()) {
+      dbBlogs = allBlogsSummaryCache.dbBlogs;
+      activeBloggers = allBlogsSummaryCache.activeBloggers;
+      articleStats = allBlogsSummaryCache.articleStats;
+    } else {
+      const [blogsRes, bloggersRes, statsRes] = await Promise.all([
+        supabaseAdmin.from('school_blogs').select('*').eq('status', 'active'),
+        supabaseAdmin.from('school_blogger_assignments').select('*').eq('status', 'active'),
+        supabaseAdmin
+          .from('school_blog_articles')
+          .select('blog_institution_id, published_at, status')
+          .eq('status', 'published'),
+      ]);
+      dbBlogs = blogsRes.data || [];
+      activeBloggers = bloggersRes.data || [];
+      articleStats = statsRes.data || [];
+      allBlogsSummaryCache = {
+        expiresAt: Date.now() + PUBLIC_CACHE_TTL_MS,
+        dbBlogs,
+        activeBloggers,
+        articleStats,
+      };
+    }
 
     const blogMap = new Map<string, any>();
     for (const b of dbBlogs || []) {
@@ -415,8 +482,106 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       return res.status(404).json({ success: false, error: 'Institution not found.' });
     }
 
-    const blogRow = await ensureSchoolBlogRecord(canonical);
-    const blog = mapBlogRow(blogRow);
+    let publicEntry = publicHomepageCache.get(canonical.institutionId);
+    if (!publicEntry || publicEntry.expiresAt <= Date.now()) {
+      const blogRow = await ensureSchoolBlogRecord(canonical);
+      const baseBlog = mapBlogRow(blogRow);
+
+      if (baseBlog.status !== 'active' && !req.authUser?.isAdmin) {
+        return res.status(403).json({
+          success: false,
+          code: 'BLOG_SUSPENDED',
+          blogSuspended: true,
+          blog: baseBlog,
+          error: `The ${canonical.institutionName} School Blog is currently suspended by Grobaax Administrators.`,
+        });
+      }
+
+      const [{ data: activeAssignRows }, { data: allArticles }] = await Promise.all([
+        supabaseAdmin
+          .from('school_blogger_assignments')
+          .select('*')
+          .eq('institution_id', canonical.institutionId)
+          .eq('status', 'active')
+          .order('appointed_at', { ascending: false }),
+        supabaseAdmin
+          .from('school_blog_articles')
+          .select(HOMEPAGE_ARTICLE_COLUMNS)
+          .eq('blog_institution_id', canonical.institutionId)
+          .eq('status', 'published')
+          .order('published_at', { ascending: false })
+          .limit(HOMEPAGE_ARTICLE_LIMIT),
+      ]);
+
+      const activeAssigns = Array.isArray(activeAssignRows) ? activeAssignRows : [];
+      const publishedRows = allArticles || [];
+      const categoryCounts: Record<string, number> = {
+        'All Posts': publishedRows.length,
+        News: 0,
+        Events: 0,
+        Academics: 0,
+        'Campus Life': 0,
+      };
+      for (const art of publishedRows) {
+        if (categoryCounts[art.category] !== undefined) {
+          categoryCounts[art.category] += 1;
+        }
+      }
+
+      const authorIds = Array.from(
+        new Set(publishedRows.map((r: any) => String(r.author_user_id || '').trim()).filter(Boolean))
+      );
+      const authorUserMap = new Map<string, any>();
+      if (authorIds.length > 0) {
+        const { data: authorRows } = await supabaseAdmin
+          .from('users')
+          .select('id, data')
+          .in('id', authorIds);
+        for (const u of authorRows || []) {
+          authorUserMap.set(u.id, u.data);
+        }
+      }
+
+      const enrichedArticles = publishedRows.map((row: any) => {
+        const u = authorUserMap.get(row.author_user_id);
+        const isVip = Boolean(u?.isVip || String(u?.subscriptionTier || '').toLowerCase().includes('vip'));
+        const isPremium = Boolean(u?.isPremium || String(u?.subscriptionTier || '').toLowerCase().includes('premium'));
+        const tier: 'free' | 'premium' | 'vip' = isVip ? 'vip' : isPremium ? 'premium' : 'free';
+        const hasBlue = Boolean(
+          tier === 'premium' || tier === 'vip' || u?.isVerified || u?.hasBlueBadge || u?.verifiedBadge
+        );
+        return {
+          ...mapArticleRow(row),
+          authorAvatar:
+            u?.avatar ||
+            u?.profileImage ||
+            `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(row.author_name || row.author_user_id)}`,
+          authorUsername: u?.username
+            ? u.username.startsWith('@')
+              ? u.username
+              : `@${u.username}`
+            : undefined,
+          authorTier: tier,
+          authorHasBlueBadge: hasBlue,
+        };
+      });
+
+      publicEntry = {
+        expiresAt: Date.now() + PUBLIC_CACHE_TTL_MS,
+        blog: baseBlog,
+        activeAssigns,
+        categoryCounts,
+        enrichedArticles,
+        publishedArticlesCount: publishedRows.length,
+      };
+
+      if (publicHomepageCache.size > 200) {
+        publicHomepageCache.clear();
+      }
+      publicHomepageCache.set(canonical.institutionId, publicEntry);
+    }
+
+    const { blog, activeAssigns, categoryCounts, enrichedArticles, publishedArticlesCount } = publicEntry;
 
     if (blog.status !== 'active' && !req.authUser?.isAdmin) {
       return res.status(403).json({
@@ -428,42 +593,12 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       });
     }
 
-    const [{ data: activeAssignRows }, { data: allArticles }] = await Promise.all([
-      supabaseAdmin
-        .from('school_blogger_assignments')
-        .select('*')
-        .eq('institution_id', canonical.institutionId)
-        .eq('status', 'active')
-        .order('appointed_at', { ascending: false }),
-      supabaseAdmin
-        .from('school_blog_articles')
-        .select('*')
-        .eq('blog_institution_id', canonical.institutionId)
-        .eq('status', 'published')
-        .order('published_at', { ascending: false }),
-    ]);
-
-    const activeAssigns = Array.isArray(activeAssignRows) ? activeAssignRows : [];
     const myActiveAssign = req.authUser
       ? activeAssigns.find((a: any) => a.user_id === req.authUser!.id) || null
       : null;
     const featuredAssign = myActiveAssign || activeAssigns[0] || null;
 
-    const publishedRows = allArticles || [];
-    const categoryCounts: Record<string, number> = {
-      'All Posts': publishedRows.length,
-      News: 0,
-      Events: 0,
-      Academics: 0,
-      'Campus Life': 0,
-    };
-    for (const art of publishedRows) {
-      if (categoryCounts[art.category] !== undefined) {
-        categoryCounts[art.category] += 1;
-      }
-    }
-
-    let filtered = publishedRows;
+    let filtered = enrichedArticles;
     if (category && category !== 'All Posts') {
       filtered = filtered.filter((a: any) => a.category === category);
     }
@@ -472,9 +607,15 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
         (a: any) =>
           String(a.title || '').toLowerCase().includes(search) ||
           String(a.excerpt || '').toLowerCase().includes(search) ||
-          String(a.author_name || '').toLowerCase().includes(search)
+          String(a.authorName || '').toLowerCase().includes(search)
       );
     }
+
+    const isHomeInstitution = Boolean(
+      req.authUser &&
+        (req.authUser.institutionId === canonical.institutionId ||
+          req.authUser.institutionName.toLowerCase() === canonical.institutionName.toLowerCase())
+    );
 
     // Viewer permissions & blogger status (Free for all verified students)
     const viewerStatus: {
@@ -492,11 +633,7 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       subscriptionTier: string;
       subscriptionExpired: boolean;
     } = {
-      isHomeInstitution: Boolean(
-        req.authUser &&
-          (req.authUser.institutionId === canonical.institutionId ||
-            req.authUser.institutionName.toLowerCase() === canonical.institutionName.toLowerCase())
-      ),
+      isHomeInstitution,
       isActiveBloggerForThisSchool: Boolean(myActiveAssign),
       isSuspendedBloggerForThisSchool: false,
       bloggerRevokedStatus: null,
@@ -512,30 +649,36 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
     };
 
     if (req.authUser) {
-      const followerCount = await getGenuineFollowerCount(req.authUser.id);
+      const [followerCount, assignRes, appRes] = await Promise.all([
+        getGenuineFollowerCount(req.authUser.id),
+        isHomeInstitution && !myActiveAssign
+          ? supabaseAdmin
+              .from('school_blogger_assignments')
+              .select('*')
+              .eq('institution_id', canonical.institutionId)
+              .eq('user_id', req.authUser.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        isHomeInstitution && !myActiveAssign
+          ? supabaseAdmin
+              .from('school_blogger_applications')
+              .select('*')
+              .eq('institution_id', canonical.institutionId)
+              .eq('applicant_user_id', req.authUser.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+
       viewerStatus.followerCount = followerCount;
       viewerStatus.isRewardEligible = Boolean(myActiveAssign) && followerCount >= MIN_FOLLOWERS_FOR_REWARDS;
 
-      if (viewerStatus.isHomeInstitution) {
-        const [{ data: myAssign }, { data: myApp }] = await Promise.all([
-          supabaseAdmin
-            .from('school_blogger_assignments')
-            .select('*')
-            .eq('institution_id', canonical.institutionId)
-            .eq('user_id', req.authUser.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabaseAdmin
-            .from('school_blogger_applications')
-            .select('*')
-            .eq('institution_id', canonical.institutionId)
-            .eq('applicant_user_id', req.authUser.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ]);
-
+      if (isHomeInstitution) {
+        const myAssign = assignRes?.data;
+        const myApp = appRes?.data;
         viewerStatus.isSuspendedBloggerForThisSchool = Boolean(
           !myActiveAssign &&
             myAssign &&
@@ -549,55 +692,17 @@ schoolBlogRouter.get('/institution/:institutionKey', optionalAuth, async (req: R
       }
     }
 
-    const authorIds = Array.from(
-      new Set(filtered.map((r: any) => String(r.author_user_id || '').trim()).filter(Boolean))
-    );
-    const authorUserMap = new Map<string, any>();
-    if (authorIds.length > 0) {
-      const { data: authorRows } = await supabaseAdmin
-        .from('users')
-        .select('id, data')
-        .in('id', authorIds);
-      for (const u of authorRows || []) {
-        authorUserMap.set(u.id, u.data);
-      }
-    }
-
-    const enrichedArticles = filtered.map((row: any) => {
-      const u = authorUserMap.get(row.author_user_id);
-      const isVip = Boolean(u?.isVip || String(u?.subscriptionTier || '').toLowerCase().includes('vip'));
-      const isPremium = Boolean(u?.isPremium || String(u?.subscriptionTier || '').toLowerCase().includes('premium'));
-      const tier: 'free' | 'premium' | 'vip' = isVip ? 'vip' : isPremium ? 'premium' : 'free';
-      const hasBlue = Boolean(
-        tier === 'premium' || tier === 'vip' || u?.isVerified || u?.hasBlueBadge || u?.verifiedBadge
-      );
-      return {
-        ...mapArticleRow(row),
-        authorAvatar:
-          u?.avatar ||
-          u?.profileImage ||
-          `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(row.author_name || row.author_user_id)}`,
-        authorUsername: u?.username
-          ? u.username.startsWith('@')
-            ? u.username
-            : `@${u.username}`
-          : undefined,
-        authorTier: tier,
-        authorHasBlueBadge: hasBlue,
-      };
-    });
-
     return res.json({
       success: true,
       requiresSubscription: false,
       blog: {
         ...blog,
-        publishedArticlesCount: publishedRows.length,
+        publishedArticlesCount,
         activeBloggersCount: activeAssigns.length,
         activeBlogger: mapAssignmentRow(featuredAssign),
       },
       categoryCounts,
-      articles: enrichedArticles,
+      articles: filtered,
       viewerStatus,
     });
   } catch (err: any) {
@@ -879,21 +984,55 @@ schoolBlogRouter.post('/applications/:applicationId/withdraw', requireAuth, asyn
 // Get Full Single Article + reaction breakdown (Free for all students)
 schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, res: Response) => {
   try {
-
     const { articleId } = req.params;
     if (!UUID_RE.test(articleId)) {
       return res.status(404).json({ success: false, error: 'Article not found.' });
     }
-    const { data: articleRow, error } = await supabaseAdmin
-      .from('school_blog_articles')
-      .select('*')
-      .eq('id', articleId)
-      .maybeSingle();
 
-    if (error || !articleRow) {
-      return res.status(404).json({ success: false, error: 'Article not found.' });
+    let cachedArt = publicArticleCache.get(articleId);
+    if (!cachedArt || cachedArt.expiresAt <= Date.now()) {
+      const { data: fetchedRow, error } = await supabaseAdmin
+        .from('school_blog_articles')
+        .select('*')
+        .eq('id', articleId)
+        .maybeSingle();
+
+      if (error || !fetchedRow) {
+        return res.status(404).json({ success: false, error: 'Article not found.' });
+      }
+
+      const [{ data: blogRow }, { data: authorRow }, authorFollowersCount] = await Promise.all([
+        supabaseAdmin
+          .from('school_blogs')
+          .select('*')
+          .eq('institution_id', fetchedRow.blog_institution_id)
+          .maybeSingle(),
+        fetchedRow.author_user_id
+          ? supabaseAdmin
+              .from('users')
+              .select('id, data')
+              .eq('id', fetchedRow.author_user_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        fetchedRow.author_user_id
+          ? getGenuineFollowerCount(fetchedRow.author_user_id)
+          : Promise.resolve(0),
+      ]);
+
+      cachedArt = {
+        expiresAt: Date.now() + PUBLIC_CACHE_TTL_MS,
+        articleRow: fetchedRow,
+        blogRow: blogRow || null,
+        authorData: authorRow?.data || null,
+        authorFollowersCount,
+      };
+      if (fetchedRow.status === 'published') {
+        if (publicArticleCache.size > 300) publicArticleCache.clear();
+        publicArticleCache.set(articleId, cachedArt);
+      }
     }
 
+    const { articleRow, blogRow, authorData, authorFollowersCount } = cachedArt;
     const isOwner = Boolean(req.authUser && req.authUser.id === articleRow.author_user_id);
     const isAdmin = Boolean(req.authUser?.isAdmin);
 
@@ -904,30 +1043,20 @@ schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, 
       });
     }
 
-    const [
-      { data: reactions },
-      { data: blogRow },
-      { data: authorRow },
-      authorFollowersCount,
-      { data: myFollowRow },
-    ] = await Promise.all([
+    if (blogRow && blogRow.status !== 'active' && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        code: 'BLOG_SUSPENDED',
+        blogSuspended: true,
+        error: 'This School Blog is currently suspended.',
+      });
+    }
+
+    const [{ data: reactions }, { data: myFollowRow }] = await Promise.all([
       supabaseAdmin
         .from('school_blog_article_reactions')
         .select('user_id, reaction_type')
         .eq('article_id', articleId),
-      supabaseAdmin
-        .from('school_blogs')
-        .select('*')
-        .eq('institution_id', articleRow.blog_institution_id)
-        .maybeSingle(),
-      articleRow.author_user_id
-        ? supabaseAdmin
-            .from('users')
-            .select('id, data')
-            .eq('id', articleRow.author_user_id)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-      articleRow.author_user_id ? getGenuineFollowerCount(articleRow.author_user_id) : Promise.resolve(0),
       req.authUser && articleRow.author_user_id && req.authUser.id !== articleRow.author_user_id
         ? supabaseAdmin
             .from('campus_follows')
@@ -937,15 +1066,6 @@ schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, 
             .maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
-
-    if (blogRow && blogRow.status !== 'active' && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        code: 'BLOG_SUSPENDED',
-        blogSuspended: true,
-        error: 'This School Blog is currently suspended.',
-      });
-    }
 
     const breakdown: Record<SchoolBlogReactionType, number> = {
       like: 0,
@@ -963,7 +1083,6 @@ schoolBlogRouter.get('/articles/:articleId', optionalAuth, async (req: Request, 
       }
     }
 
-    const authorData = authorRow?.data || null;
     const isAuthorVip = Boolean(
       authorData?.isVip || String(authorData?.subscriptionTier || '').toLowerCase().includes('vip')
     );
@@ -1108,6 +1227,10 @@ schoolBlogRouter.post('/articles/:articleId/view', requireAuth, async (req: Requ
       ]);
     }
 
+    if (rpcResult.counted) {
+      invalidateSchoolBlogCaches({ institutionId: artCheck.blog_institution_id, articleId });
+    }
+
     return res.json({
       success: true,
       counted: Boolean(rpcResult.counted),
@@ -1213,6 +1336,8 @@ schoolBlogRouter.post('/articles/:articleId/react', requireAuth, async (req: Req
       .from('school_blog_articles')
       .update({ reactions_count: totalReactions })
       .eq('id', articleId);
+
+    invalidateSchoolBlogCaches({ institutionId: articleRow.blog_institution_id, articleId });
 
     return res.json({
       success: true,
@@ -1784,6 +1909,8 @@ schoolBlogRouter.post('/studio/articles', requireAuth, async (req: Request, res:
       } catch {}
     }
 
+    invalidateSchoolBlogCaches({ institutionId: activeAssign.institution_id, articleId: created.id });
+
     return res.json({
       success: true,
       message: nextStatus === 'published' ? 'Article published to School Blog!' : 'Article saved as draft.',
@@ -1972,6 +2099,8 @@ schoolBlogRouter.put('/studio/articles/:articleId', requireAuth, async (req: Req
         );
       } catch {}
     }
+
+    invalidateSchoolBlogCaches({ institutionId: activeAssign.institution_id, articleId });
 
     return res.json({
       success: true,
@@ -2343,6 +2472,8 @@ schoolBlogRouter.post('/admin/blogs/:institutionId/status', requireAdmin, async 
       details: { previousStatus: blogRow.status, nextStatus: status, reason: reason || '' },
     });
 
+    invalidateSchoolBlogCaches({ institutionId });
+
     return res.json({
       success: true,
       message: `${blogRow.institution_name} School Blog is now ${status}.`,
@@ -2475,6 +2606,8 @@ schoolBlogRouter.post('/admin/applications/:applicationId/approve', requireAdmin
         replacedCount: (prevActives || []).length,
       },
     });
+
+    invalidateSchoolBlogCaches({ institutionId: appRow.institution_id });
 
     return res.json({
       success: true,
@@ -2614,6 +2747,8 @@ schoolBlogRouter.post('/admin/bloggers/:assignmentId/status', requireAdmin, asyn
       details: { targetUserId: assignRow.user_id, previousStatus: assignRow.status, nextStatus: status, reason },
     });
 
+    invalidateSchoolBlogCaches({ institutionId: assignRow.institution_id });
+
     return res.json({
       success: true,
       message: `Blogger privileges updated to ${status}.`,
@@ -2690,6 +2825,8 @@ schoolBlogRouter.post('/admin/articles/:articleId/moderate', requireAdmin, async
       targetId: articleId,
       details: { title: art.title, previousStatus: art.status, nextStatus, reason },
     });
+
+    invalidateSchoolBlogCaches({ institutionId: art.blog_institution_id, articleId });
 
     return res.json({
       success: true,

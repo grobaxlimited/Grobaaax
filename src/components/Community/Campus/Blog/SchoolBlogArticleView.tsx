@@ -8,6 +8,7 @@ import {
 } from '../../../../types';
 import {
   fetchSchoolBlogArticle,
+  getCachedSchoolBlogArticle,
   reactToSchoolBlogArticle,
   reportSchoolBlogArticle,
   trackSchoolBlogArticleView,
@@ -105,8 +106,10 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
   onArticleUpdated,
 }) => {
   const { currentUser } = useApp();
+  const cachedFull = getCachedSchoolBlogArticle(initialArticle.id, currentUser?.id)?.article;
+  const startingArticle = cachedFull || initialArticle;
 
-  const [article, setArticle] = useState<SchoolBlogArticle>(initialArticle);
+  const [article, setArticle] = useState<SchoolBlogArticle>(startingArticle);
   const [isLoadingFull, setIsLoadingFull] = useState(false);
   const [isReacting, setIsReacting] = useState(false);
 
@@ -117,13 +120,13 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
 
   // Author Profile & Follow state
   const [authorFollowersCount, setAuthorFollowersCount] = useState<number>(
-    Number(initialArticle.authorFollowersCount || 0)
+    Number(startingArticle.authorFollowersCount || 0)
   );
   const [authorFollowingCount, setAuthorFollowingCount] = useState<number>(
-    Number(initialArticle.authorFollowingCount || 0)
+    Number(startingArticle.authorFollowingCount || 0)
   );
   const [authorIsFollowing, setAuthorIsFollowing] = useState<boolean>(
-    Boolean(initialArticle.authorIsFollowing)
+    Boolean(startingArticle.authorIsFollowing)
   );
   const [isInlineFollowLoading, setIsInlineFollowLoading] = useState(false);
   const [authorProfileStudent, setAuthorProfileStudent] = useState<CampusStudentCard | null>(null);
@@ -141,16 +144,20 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
 
   useEffect(() => {
     let mounted = true;
-    setArticle(initialArticle);
-    setAuthorFollowersCount(Number(initialArticle.authorFollowersCount || 0));
-    setAuthorFollowingCount(Number(initialArticle.authorFollowingCount || 0));
-    setAuthorIsFollowing(Boolean(initialArticle.authorIsFollowing));
+    const preCached = getCachedSchoolBlogArticle(initialArticle.id, currentUser?.id)?.article;
+    const baseArt = preCached || initialArticle;
+    setArticle(baseArt);
+    setAuthorFollowersCount(Number(baseArt.authorFollowersCount || 0));
+    setAuthorFollowingCount(Number(baseArt.authorFollowingCount || 0));
+    setAuthorIsFollowing(Boolean(baseArt.authorIsFollowing));
 
     async function hydrateAndTrackView() {
-      setIsLoadingFull(true);
-      let latestArticle = initialArticle;
+      if (!preCached) {
+        setIsLoadingFull(true);
+      }
+      let latestArticle = baseArt;
       try {
-        const res = await fetchSchoolBlogArticle(initialArticle.id);
+        const res = await fetchSchoolBlogArticle(initialArticle.id, { userId: currentUser?.id });
         if (mounted && res.success && res.article) {
           latestArticle = res.article;
           setArticle(res.article);
@@ -183,7 +190,7 @@ export const SchoolBlogArticleView: React.FC<SchoolBlogArticleViewProps> = ({
     return () => {
       mounted = false;
     };
-  }, [initialArticle.id]);
+  }, [initialArticle.id, currentUser?.id]);
 
   const handleOpenAuthorProfile = async (
     initialView: 'profile' | 'followers' | 'following' = 'profile'

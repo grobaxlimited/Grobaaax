@@ -165,6 +165,7 @@ import {
 } from '../types';
 import { grobaxNotificationService } from '../lib/notificationService';
 import { subscribeToCompetitionHints, getCachedCompetitionHints } from '../lib/hintsService';
+import { prefetchSchoolBlogHomepage } from '../lib/schoolBlogService';
 import {
   saveMinimartProductToFirestore,
   updateMinimartProductStatusInFirestore,
@@ -6815,6 +6816,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {}
     return DEFAULT_FREE_SCHOLAR_PLAN;
   }, [subscriptionPlans]);
+
+  const prefetchedBlogKeyRef = useRef<string>('');
+  useEffect(() => {
+    if (!isAuthReady) return;
+    const inst =
+      currentUser?.institution ||
+      currentUser?.institutionName ||
+      currentUser?.academicProfile?.institutionName ||
+      '';
+    if (!inst) return;
+    const uid = currentUser?.id || '';
+    const refKey = `${uid}::${inst.toLowerCase()}`;
+    if (prefetchedBlogKeyRef.current === refKey) return;
+    prefetchedBlogKeyRef.current = refKey;
+
+    const instCategory =
+      currentUser?.institutionCategory ||
+      currentUser?.academicProfile?.institutionCategory ||
+      'University';
+
+    const timer = window.setTimeout(() => {
+      prefetchSchoolBlogHomepage({
+        institutionKey: inst,
+        institutionCategory: instCategory,
+        userId: uid || undefined,
+      });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [
+    isAuthReady,
+    currentUser?.id,
+    currentUser?.institution,
+    currentUser?.institutionName,
+    currentUser?.academicProfile?.institutionName,
+    currentUser?.institutionCategory,
+    currentUser?.academicProfile?.institutionCategory,
+  ]);
 
   return (
     <AppContext.Provider

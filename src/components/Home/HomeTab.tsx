@@ -8,6 +8,7 @@ import {
   OFFICIAL_EVENT_HOST,
 } from '../../types';
 import { resolveEventChannel } from '../../utils/eventNavigation';
+import { prefetchSchoolBlogHomepage } from '../../lib/schoolBlogService';
 import {
   Trophy,
   ShieldCheck,
@@ -24,6 +25,7 @@ import {
 
 export const HomeTab: React.FC = () => {
   const {
+    currentUser,
     setActiveTab,
     events: contextEvents,
     markSectionAsRead,
@@ -368,6 +370,38 @@ export const HomeTab: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('school_blog')}
+            onMouseEnter={() => {
+              const inst =
+                currentUser?.institution ||
+                currentUser?.institutionName ||
+                currentUser?.academicProfile?.institutionName ||
+                'Ekiti State University, Ado-Ekiti';
+              const cat =
+                currentUser?.institutionCategory ||
+                currentUser?.academicProfile?.institutionCategory ||
+                'University';
+              prefetchSchoolBlogHomepage({
+                institutionKey: inst,
+                institutionCategory: cat,
+                userId: currentUser?.id,
+              });
+            }}
+            onTouchStart={() => {
+              const inst =
+                currentUser?.institution ||
+                currentUser?.institutionName ||
+                currentUser?.academicProfile?.institutionName ||
+                'Ekiti State University, Ado-Ekiti';
+              const cat =
+                currentUser?.institutionCategory ||
+                currentUser?.academicProfile?.institutionCategory ||
+                'University';
+              prefetchSchoolBlogHomepage({
+                institutionKey: inst,
+                institutionCategory: cat,
+                userId: currentUser?.id,
+              });
+            }}
             className="relative z-10 px-4 py-2 rounded-full bg-gradient-to-r from-[#1d4ed8] to-[#2563eb] hover:from-[#1e40af] hover:to-[#1d4ed8] active:scale-95 text-white font-black text-xs shadow-sm flex items-center gap-1.5 self-start sm:self-auto shrink-0 transition-all cursor-pointer"
           >
             <span>Read School Blog</span>

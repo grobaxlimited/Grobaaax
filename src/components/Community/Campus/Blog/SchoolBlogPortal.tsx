@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../../../context/AppContext';
 import {
   CampusStudentCard,
@@ -8,6 +8,9 @@ import {
 } from '../../../../types';
 import {
   fetchSchoolBlogHomepage,
+  getCachedSchoolBlogHomepage,
+  invalidateSchoolBlogHomepageCache,
+  prefetchSchoolBlogArticle,
   SchoolBlogViewerStatus,
 } from '../../../../lib/schoolBlogService';
 import {
@@ -31,7 +34,6 @@ import {
   Clock,
   Eye,
   Heart,
-  Loader2,
   Newspaper,
   PenTool,
   Search,
@@ -56,6 +58,14 @@ const BLOG_CATEGORY_TABS: Array<'All Posts' | SchoolBlogCategory> = [
   'Campus Life',
 ];
 
+const EMPTY_CATEGORY_COUNTS: Record<string, number> = {
+  'All Posts': 0,
+  News: 0,
+  Events: 0,
+  Academics: 0,
+  'Campus Life': 0,
+};
+
 export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   institutionKey,
   institutionName,
@@ -63,9 +73,16 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   homeInstitutionName,
   onBackToCampus,
   backButtonLabel,
-  onSwitchBlogInstitution,
 }) => {
   const { currentUser, markSectionAsRead } = useApp();
+  const targetInstitutionKey = institutionKey || institutionName;
+  const userId = currentUser?.id;
+
+  const initialCached = useMemo(
+    () => getCachedSchoolBlogHomepage(targetInstitutionKey, userId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   const [activeSubView, setActiveSubView] = useState<'feed' | 'article' | 'studio'>('feed');
   const [selectedCategory, setSelectedCategory] = useState<'All Posts' | SchoolBlogCategory>(
@@ -73,21 +90,21 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   );
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [blog, setBlog] = useState<SchoolBlogRecord | null>(null);
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({
-    'All Posts': 0,
-    News: 0,
-    Events: 0,
-    Academics: 0,
-    'Campus Life': 0,
-  });
-  const [articles, setArticles] = useState<SchoolBlogArticle[]>([]);
-  const [viewerStatus, setViewerStatus] = useState<SchoolBlogViewerStatus | null>(null);
+  const [blog, setBlog] = useState<SchoolBlogRecord | null>(() => initialCached?.blog || null);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>(
+    () => initialCached?.categoryCounts || EMPTY_CATEGORY_COUNTS
+  );
+  const [allArticles, setAllArticles] = useState<SchoolBlogArticle[]>(
+    () => initialCached?.articles || []
+  );
+  const [viewerStatus, setViewerStatus] = useState<SchoolBlogViewerStatus | null>(
+    () => initialCached?.viewerStatus || null
+  );
   const [selectedArticle, setSelectedArticle] = useState<SchoolBlogArticle | null>(null);
 
   const [isBlogSuspendedGate, setIsBlogSuspendedGate] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !(initialCached?.success && initialCached?.blog));
   const [error, setError] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -96,64 +113,115 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
   const [feedAuthorProfile, setFeedAuthorProfile] = useState<CampusStudentCard | null>(null);
   const [isFeedAuthorModalOpen, setIsFeedAuthorModalOpen] = useState(false);
 
-  const loadHomepage = async () => {
-    setIsLoading(true);
-    setError(null);
-    setIsBlogSuspendedGate(false);
-    try {
-      const res = await fetchSchoolBlogHomepage({
-        institutionKey: institutionKey || institutionName,
-        category: selectedCategory,
-        search: searchQuery.trim() || undefined,
-        institutionCategory,
-      });
+  const requestSeqRef = useRef(0);
+  const markReadRef = useRef(markSectionAsRead);
+  markReadRef.current = markSectionAsRead;
 
-      if (res.blog) {
-        setBlog(res.blog);
+  const loadHomepage = useCallback(
+    async (opts?: { silent?: boolean; forceFresh?: boolean }) => {
+      const seq = ++requestSeqRef.current;
+      const silent = Boolean(opts?.silent);
+      if (!silent) {
+        setIsLoading(true);
       }
-      if (res.viewerStatus) {
-        setViewerStatus(res.viewerStatus);
-      }
+      setError(null);
+      setIsBlogSuspendedGate(false);
 
-      if (res.blogSuspended || res.code === 'BLOG_SUSPENDED') {
-        setIsBlogSuspendedGate(true);
-        setArticles([]);
-        return;
-      }
+      try {
+        if (opts?.forceFresh) {
+          invalidateSchoolBlogHomepageCache(targetInstitutionKey);
+        }
+        const res = await fetchSchoolBlogHomepage({
+          institutionKey: targetInstitutionKey,
+          institutionCategory,
+          userId,
+        });
 
-      if (res.success && res.blog) {
-        setCategoryCounts(
-          res.categoryCounts || {
-            'All Posts': res.articles?.length || 0,
-            News: 0,
-            Events: 0,
-            Academics: 0,
-            'Campus Life': 0,
-          }
-        );
-        setArticles(res.articles || []);
-      } else {
-        setError(res.error || 'Could not load this School Blog.');
+        if (seq !== requestSeqRef.current) return;
+
+        if (res.blog) {
+          setBlog(res.blog);
+        }
+        if (res.viewerStatus) {
+          setViewerStatus(res.viewerStatus);
+        }
+
+        if (res.blogSuspended || res.code === 'BLOG_SUSPENDED') {
+          setIsBlogSuspendedGate(true);
+          setAllArticles([]);
+          return;
+        }
+
+        if (res.success && res.blog) {
+          setCategoryCounts(
+            res.categoryCounts || {
+              'All Posts': res.articles?.length || 0,
+              News: 0,
+              Events: 0,
+              Academics: 0,
+              'Campus Life': 0,
+            }
+          );
+          setAllArticles(res.articles || []);
+        } else if (!silent) {
+          setError(res.error || 'Could not load this School Blog.');
+        }
+      } catch (err: any) {
+        if (seq === requestSeqRef.current && !silent) {
+          setError(err?.message || 'Unable to load School Blog.');
+        }
+      } finally {
+        if (seq === requestSeqRef.current) {
+          setIsLoading(false);
+        }
       }
-    } catch (err: any) {
-      setError(err?.message || 'Unable to load School Blog.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [targetInstitutionKey, institutionCategory, userId]
+  );
 
   useEffect(() => {
     setActiveSubView('feed');
     setSelectedArticle(null);
-    markSectionAsRead?.('school_blog');
-    loadHomepage();
-  }, [institutionKey, institutionName, markSectionAsRead]);
+    markReadRef.current?.('school_blog');
 
-  useEffect(() => {
-    if (activeSubView === 'feed') {
-      loadHomepage();
+    const cached = getCachedSchoolBlogHomepage(targetInstitutionKey, userId);
+    if (cached?.success && cached.blog) {
+      setBlog(cached.blog);
+      setCategoryCounts(cached.categoryCounts || EMPTY_CATEGORY_COUNTS);
+      setAllArticles(cached.articles || []);
+      setViewerStatus(cached.viewerStatus || null);
+      setIsBlogSuspendedGate(false);
+      setError(null);
+      setIsLoading(false);
+      loadHomepage({ silent: true });
+    } else {
+      setBlog(null);
+      setCategoryCounts(EMPTY_CATEGORY_COUNTS);
+      setAllArticles([]);
+      setViewerStatus(null);
+      setIsLoading(true);
+      loadHomepage({ silent: false });
     }
-  }, [selectedCategory, searchQuery]);
+  }, [targetInstitutionKey, userId, loadHomepage]);
+
+  // 0ms instantaneous local category and search filtering over loaded articles
+  const articles = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return allArticles.filter((art) => {
+      if (selectedCategory !== 'All Posts' && art.category !== selectedCategory) {
+        return false;
+      }
+      if (q) {
+        const matchesTitle = String(art.title || '').toLowerCase().includes(q);
+        const matchesExcerpt = String(art.excerpt || '').toLowerCase().includes(q);
+        const matchesAuthor = String(art.authorName || '').toLowerCase().includes(q);
+        if (!matchesTitle && !matchesExcerpt && !matchesAuthor) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [allArticles, selectedCategory, searchQuery]);
 
   const handleOpenArticle = (article: SchoolBlogArticle) => {
     setSelectedArticle(article);
@@ -222,7 +290,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
           setSelectedArticle(null);
         }}
         onArticleUpdated={(updated) => {
-          setArticles((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+          setAllArticles((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
         }}
       />
     );
@@ -235,10 +303,10 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
         institutionName={displayInstitutionName}
         onBackToBlog={() => {
           setActiveSubView('feed');
-          loadHomepage();
+          loadHomepage({ silent: true, forceFresh: true });
         }}
         onArticlesChanged={() => {
-          loadHomepage();
+          loadHomepage({ silent: true, forceFresh: true });
         }}
       />
     );
@@ -319,11 +387,34 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
       </div>
 
       {isLoading ? (
-        <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
-          <Loader2 className="w-7 h-7 text-blue-600 animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-            Loading {displayInstitutionName} Blog...
-          </p>
+        <div className="space-y-4">
+          <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 overflow-hidden">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <div
+                  key={n}
+                  className="h-8 w-20 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse shrink-0"
+                />
+              ))}
+            </div>
+            <div className="hidden lg:block h-9 w-64 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden"
+              >
+                <div className="aspect-[16/10] bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                <div className="p-5 space-y-3">
+                  <div className="h-3 w-24 rounded-md bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                  <div className="h-5 w-4/5 rounded-md bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                  <div className="h-3 w-full rounded-md bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                  <div className="h-3 w-2/3 rounded-md bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : isBlogSuspendedGate ? (
         <section className="p-10 text-center rounded-3xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/50 space-y-3">
@@ -429,6 +520,8 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
             return (
               <article
                 key={art.id}
+                onMouseEnter={() => prefetchSchoolBlogArticle(art.id, userId)}
+                onTouchStart={() => prefetchSchoolBlogArticle(art.id, userId)}
                 onClick={() => handleOpenArticle(art)}
                 className="group rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between cursor-pointer"
               >
@@ -539,7 +632,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
               : null
           );
           showNotice(msg);
-          await loadHomepage();
+          await loadHomepage({ silent: true, forceFresh: true });
         }}
       />
 
@@ -608,7 +701,7 @@ export const SchoolBlogPortal: React.FC<SchoolBlogPortalProps> = ({
                 }
               : prev
           );
-          setArticles((prev) =>
+          setAllArticles((prev) =>
             prev.map((a) =>
               a.authorUserId === targetId
                 ? {

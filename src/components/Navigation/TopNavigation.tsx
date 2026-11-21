@@ -8,6 +8,7 @@ import { NotificationsModal } from './NotificationsModal';
 import { AdvertisementTicker } from '../ui/AdvertisementTicker';
 import { PRIMARY_SUPER_ADMIN_UID, NotificationItem } from '../../types';
 import { isPrimarySuperAdmin } from '../../lib/adminPermissions';
+import { prefetchSchoolBlogHomepage } from '../../lib/schoolBlogService';
 import {
   Home,
   Building2,
@@ -145,6 +146,42 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
                       key={item.id}
                       id={`nav-tab-${item.id}`}
                       onClick={() => handleTabClick(item.id)}
+                      onMouseEnter={() => {
+                        if (item.id === 'school_blog') {
+                          const inst =
+                            currentUser?.institution ||
+                            currentUser?.institutionName ||
+                            currentUser?.academicProfile?.institutionName ||
+                            'Ekiti State University, Ado-Ekiti';
+                          const cat =
+                            currentUser?.institutionCategory ||
+                            currentUser?.academicProfile?.institutionCategory ||
+                            'University';
+                          prefetchSchoolBlogHomepage({
+                            institutionKey: inst,
+                            institutionCategory: cat,
+                            userId: currentUser?.id,
+                          });
+                        }
+                      }}
+                      onTouchStart={() => {
+                        if (item.id === 'school_blog') {
+                          const inst =
+                            currentUser?.institution ||
+                            currentUser?.institutionName ||
+                            currentUser?.academicProfile?.institutionName ||
+                            'Ekiti State University, Ado-Ekiti';
+                          const cat =
+                            currentUser?.institutionCategory ||
+                            currentUser?.academicProfile?.institutionCategory ||
+                            'University';
+                          prefetchSchoolBlogHomepage({
+                            institutionKey: inst,
+                            institutionCategory: cat,
+                            userId: currentUser?.id,
+                          });
+                        }
+                      }}
                       title={item.label}
                       className={`relative p-2 sm:px-3 py-1.5 rounded-xl transition-all flex items-center gap-2 justify-center cursor-pointer ${
                         isActive

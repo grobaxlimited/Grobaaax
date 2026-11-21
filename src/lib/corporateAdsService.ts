@@ -801,6 +801,24 @@ export async function verifyCorporatePayment(reference: string) {
   );
 }
 
+export async function reconcilePendingCorporatePayments() {
+  return corporateFetch<{
+    reconciledCount?: number;
+    verifiedPayments?: CorporatePayment[];
+    latestVerifiedPayment?: CorporatePayment | null;
+    activeSubscription?: CorporateSubscription | null;
+    subscriptions?: CorporateSubscription[];
+    payments?: CorporatePayment[];
+  }>(
+    '/payments/reconcile-pending',
+    {
+      method: 'POST',
+      body: JSON.stringify({}),
+    },
+    'corporate'
+  );
+}
+
 export async function fetchCorporateBilling() {
   return corporateFetch<{
     activeSubscription?: CorporateSubscription | null;

@@ -1,10 +1,33 @@
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import {
   supabaseAdmin,
   isSuperAdmin,
 } from '../../src/lib/supabase';
 import { isPrimarySuperAdmin } from '../../src/lib/adminPermissions';
 import { resolveCanonicalInstitution, CanonicalInstitution } from './institutionResolver';
+
+const TOKEN_AUTH_CACHE_TTL_MS = 20 * 1000;
+const MANAGER_ASSIGNMENTS_CACHE_TTL_MS = 30 * 1000;
+const tokenAuthCache = new Map<string, { expiresAt: number; user: VerifiedRequestUser }>();
+let managerAssignmentsCache: { expiresAt: number; rows: any[] } | null = null;
+
+function hashTokenKey(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+export function invalidateAuthContextCache(userId?: string) {
+  if (!userId) {
+    tokenAuthCache.clear();
+    managerAssignmentsCache = null;
+    return;
+  }
+  for (const [k, v] of tokenAuthCache.entries()) {
+    if (v.user?.id === userId) {
+      tokenAuthCache.delete(k);
+    }
+  }
+}
 
 export interface VerifiedRequestUser {
   id: string;
@@ -241,8 +264,33 @@ function resolveAuthoritativeSubscription(params: {
   };
 }
 
-async function resolveUserContextFromToken(token: string): Promise<VerifiedRequestUser | null> {
+async function getCachedManagerAssignments(): Promise<any[]> {
+  if (managerAssignmentsCache && managerAssignmentsCache.expiresAt > Date.now()) {
+    return managerAssignmentsCache.rows;
+  }
+  const { data } = await supabaseAdmin.from('managerAssignments').select('id, data').limit(100);
+  const rows = data || [];
+  managerAssignmentsCache = {
+    expiresAt: Date.now() + MANAGER_ASSIGNMENTS_CACHE_TTL_MS,
+    rows,
+  };
+  return rows;
+}
+
+async function resolveUserContextFromToken(
+  token: string,
+  allowCache: boolean = true
+): Promise<VerifiedRequestUser | null> {
   if (!token) return null;
+  const cacheKey = hashTokenKey(token);
+  if (allowCache) {
+    const cached = tokenAuthCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.user;
+    }
+    if (cached) tokenAuthCache.delete(cacheKey);
+  }
+
   const { data: authData, error: authErr } = await supabaseAdmin.auth.getUser(token);
   if (authErr || !authData?.user) return null;
 
@@ -250,10 +298,10 @@ async function resolveUserContextFromToken(token: string): Promise<VerifiedReque
   const uid = sbUser.id;
   const email = (sbUser.email || '').trim().toLowerCase();
 
-  const [userRowRes, membershipRes, managerRes, userSubsRes] = await Promise.all([
+  const [userRowRes, membershipRes, managerRows, userSubsRes] = await Promise.all([
     supabaseAdmin.from('users').select('id, data').eq('id', uid).maybeSingle(),
     supabaseAdmin.from('campus_memberships').select('id, data').eq('id', uid).maybeSingle(),
-    supabaseAdmin.from('managerAssignments').select('id, data').limit(100),
+    getCachedManagerAssignments(),
     supabaseAdmin
       .from('userSubscriptions')
       .select('id, data')
@@ -266,7 +314,7 @@ async function resolveUserContextFromToken(token: string): Promise<VerifiedReque
   const subRows: any[] = (userSubsRes.data || []).map((r: any) => r.data).filter(Boolean);
 
   let managerAssignment: any = null;
-  for (const row of managerRes.data || []) {
+  for (const row of managerRows) {
     const d = row.data || {};
     if (
       d.status === 'active' &&
@@ -355,7 +403,7 @@ async function resolveUserContextFromToken(token: string): Promise<VerifiedReque
     ? 'deleted'
     : String(userData.accountStatus || 'active').toLowerCase().trim() || 'active';
 
-  return {
+  const resolvedUser: VerifiedRequestUser = {
     id: uid,
     email,
     name,
@@ -375,6 +423,16 @@ async function resolveUserContextFromToken(token: string): Promise<VerifiedReque
     subscriptionExpired: subscriptionStatus.subscriptionExpired,
     subscriptionExpiry: subscriptionStatus.subscriptionExpiry,
   };
+
+  if (tokenAuthCache.size > 500) {
+    tokenAuthCache.clear();
+  }
+  tokenAuthCache.set(cacheKey, {
+    expiresAt: Date.now() + TOKEN_AUTH_CACHE_TTL_MS,
+    user: resolvedUser,
+  });
+
+  return resolvedUser;
 }
 
 function extractBearerToken(req: Request): string {
@@ -389,7 +447,8 @@ export async function optionalAuth(req: Request, _res: Response, next: NextFunct
   try {
     const token = extractBearerToken(req);
     if (token) {
-      req.authUser = await resolveUserContextFromToken(token);
+      const allowCache = req.method === 'GET' || req.method === 'HEAD';
+      req.authUser = await resolveUserContextFromToken(token, allowCache);
     } else {
       req.authUser = null;
     }
@@ -408,7 +467,8 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         error: 'Authentication required. Please sign in to continue.',
       });
     }
-    const verified = await resolveUserContextFromToken(token);
+    const allowCache = req.method === 'GET' || req.method === 'HEAD';
+    const verified = await resolveUserContextFromToken(token, allowCache);
     if (!verified) {
       return res.status(401).json({
         success: false,

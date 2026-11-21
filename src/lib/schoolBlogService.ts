@@ -47,6 +47,162 @@ export interface SchoolBlogHomepageResponse {
   error?: string;
 }
 
+export interface SchoolBlogArticleDetailResponse {
+  success: boolean;
+  code?: string;
+  requiresSubscription?: boolean;
+  blogSuspended?: boolean;
+  article?: SchoolBlogArticle;
+  blog?: SchoolBlogRecord | null;
+  error?: string;
+}
+
+const HOMEPAGE_CACHE_PREFIX = 'grbx_sb_home_v1_';
+const HOMEPAGE_LOCAL_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const PREFETCH_COOLDOWN_MS = 20 * 1000;
+const ARTICLE_CACHE_TTL_MS = 30 * 1000;
+
+const homepageMemoryCache = new Map<string, { ts: number; data: SchoolBlogHomepageResponse }>();
+const inflightHomepageRequests = new Map<string, Promise<SchoolBlogHomepageResponse>>();
+const articleMemoryCache = new Map<string, { ts: number; data: SchoolBlogArticleDetailResponse }>();
+const inflightArticleRequests = new Map<string, Promise<SchoolBlogArticleDetailResponse>>();
+
+function normInstKey(raw?: string | null): string {
+  return String(raw || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function normUserScope(userId?: string | null): string {
+  return String(userId || 'anon').trim() || 'anon';
+}
+
+function makeHomepageCacheKey(institutionKey: string, userId?: string | null): string {
+  return `${normUserScope(userId)}::${normInstKey(institutionKey)}`;
+}
+
+function saveHomepageToCache(
+  keys: Array<string | null | undefined>,
+  userId: string | null | undefined,
+  data: SchoolBlogHomepageResponse
+) {
+  if (!data?.success || !data?.blog) return;
+  const ts = Date.now();
+  const payloadStr = (() => {
+    try {
+      return JSON.stringify({ ts, data });
+    } catch {
+      return '';
+    }
+  })();
+
+  const seen = new Set<string>();
+  for (const rawKey of keys) {
+    const k = normInstKey(rawKey);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    const fullKey = makeHomepageCacheKey(k, userId);
+    if (homepageMemoryCache.size > 40) {
+      homepageMemoryCache.clear();
+    }
+    homepageMemoryCache.set(fullKey, { ts, data });
+
+    if (payloadStr && typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(`${HOMEPAGE_CACHE_PREFIX}${fullKey}`, payloadStr);
+      } catch {
+        // Ignore storage quota errors
+      }
+    }
+  }
+}
+
+export function getCachedSchoolBlogHomepage(
+  institutionKey: string,
+  userId?: string | null
+): SchoolBlogHomepageResponse | null {
+  const k = normInstKey(institutionKey);
+  if (!k) return null;
+  const fullKey = makeHomepageCacheKey(k, userId);
+
+  const mem = homepageMemoryCache.get(fullKey);
+  if (mem?.data?.success && mem.data.blog) {
+    return mem.data;
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(`${HOMEPAGE_CACHE_PREFIX}${fullKey}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { ts?: number; data?: SchoolBlogHomepageResponse };
+        if (
+          parsed?.data?.success &&
+          parsed?.data?.blog &&
+          typeof parsed.ts === 'number' &&
+          Date.now() - parsed.ts <= HOMEPAGE_LOCAL_MAX_AGE_MS
+        ) {
+          homepageMemoryCache.set(fullKey, { ts: parsed.ts, data: parsed.data });
+          return parsed.data;
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }
+  return null;
+}
+
+export function invalidateSchoolBlogHomepageCache(institutionKey?: string) {
+  if (!institutionKey) {
+    homepageMemoryCache.clear();
+    if (typeof window !== 'undefined') {
+      try {
+        const toRemove: string[] = [];
+        for (let i = 0; i < window.localStorage.length; i += 1) {
+          const key = window.localStorage.key(i);
+          if (key && key.startsWith(HOMEPAGE_CACHE_PREFIX)) {
+            toRemove.push(key);
+          }
+        }
+        toRemove.forEach((k) => window.localStorage.removeItem(k));
+      } catch {}
+    }
+    return;
+  }
+
+  const target = normInstKey(institutionKey);
+  for (const k of Array.from(homepageMemoryCache.keys())) {
+    if (k.endsWith(`::${target}`)) {
+      homepageMemoryCache.delete(k);
+    }
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      const toRemove: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i);
+        if (key && key.startsWith(HOMEPAGE_CACHE_PREFIX) && key.endsWith(`::${target}`)) {
+          toRemove.push(key);
+        }
+      }
+      toRemove.forEach((k) => window.localStorage.removeItem(k));
+    } catch {}
+  }
+}
+
+export function invalidateSchoolBlogArticleCache(articleId?: string) {
+  if (!articleId) {
+    articleMemoryCache.clear();
+    return;
+  }
+  for (const k of Array.from(articleMemoryCache.keys())) {
+    if (k.endsWith(`::${articleId}`)) {
+      articleMemoryCache.delete(k);
+    }
+  }
+}
+
 async function apiJson<T = any>(
   url: string,
   options: RequestInit = {},
@@ -90,32 +246,118 @@ export async function fetchSchoolBlogHomepage(params: {
   category?: 'All Posts' | SchoolBlogCategory;
   search?: string;
   institutionCategory?: string;
+  userId?: string | null;
 }): Promise<SchoolBlogHomepageResponse> {
-  const qs = new URLSearchParams();
-  if (params.category && params.category !== 'All Posts') qs.set('category', params.category);
-  if (params.search) qs.set('search', params.search);
-  if (params.institutionCategory) qs.set('institutionCategory', params.institutionCategory);
+  const isUnfilteredAll =
+    (!params.category || params.category === 'All Posts') && !params.search?.trim();
+  const dedupeKey = isUnfilteredAll
+    ? makeHomepageCacheKey(params.institutionKey, params.userId)
+    : `${makeHomepageCacheKey(params.institutionKey, params.userId)}::${params.category || ''}::${params.search || ''}`;
 
-  const encodedKey = encodeURIComponent(params.institutionKey);
-  const res = await apiJson<SchoolBlogHomepageResponse>(
-    `/api/school-blogs/institution/${encodedKey}${qs.toString() ? `?${qs.toString()}` : ''}`,
-    { method: 'GET' },
-    true
-  );
-  return res.data;
+  const existingInflight = inflightHomepageRequests.get(dedupeKey);
+  if (existingInflight) {
+    return existingInflight;
+  }
+
+  const reqPromise = (async () => {
+    const qs = new URLSearchParams();
+    if (params.category && params.category !== 'All Posts') qs.set('category', params.category);
+    if (params.search) qs.set('search', params.search);
+    if (params.institutionCategory) qs.set('institutionCategory', params.institutionCategory);
+
+    const encodedKey = encodeURIComponent(params.institutionKey);
+    const res = await apiJson<SchoolBlogHomepageResponse>(
+      `/api/school-blogs/institution/${encodedKey}${qs.toString() ? `?${qs.toString()}` : ''}`,
+      { method: 'GET' },
+      true
+    );
+    if (isUnfilteredAll && res.data?.success && res.data?.blog) {
+      saveHomepageToCache(
+        [params.institutionKey, res.data.blog.institutionId, res.data.blog.institutionName],
+        params.userId,
+        res.data
+      );
+    }
+    return res.data;
+  })().finally(() => {
+    inflightHomepageRequests.delete(dedupeKey);
+  });
+
+  inflightHomepageRequests.set(dedupeKey, reqPromise);
+  return reqPromise;
 }
 
-export async function fetchSchoolBlogArticle(articleId: string) {
-  const res = await apiJson<{
-    success: boolean;
-    code?: string;
-    requiresSubscription?: boolean;
-    blogSuspended?: boolean;
-    article?: SchoolBlogArticle;
-    blog?: SchoolBlogRecord | null;
-    error?: string;
-  }>(`/api/school-blogs/articles/${encodeURIComponent(articleId)}`, { method: 'GET' }, true);
-  return res.data;
+export function prefetchSchoolBlogHomepage(params: {
+  institutionKey?: string | null;
+  institutionCategory?: string;
+  userId?: string | null;
+}): void {
+  const inst = String(params.institutionKey || '').trim();
+  if (!inst) return;
+  const fullKey = makeHomepageCacheKey(inst, params.userId);
+  const mem = homepageMemoryCache.get(fullKey);
+  if (mem && Date.now() - mem.ts < PREFETCH_COOLDOWN_MS) {
+    return;
+  }
+  if (inflightHomepageRequests.has(fullKey)) {
+    return;
+  }
+  fetchSchoolBlogHomepage({
+    institutionKey: inst,
+    institutionCategory: params.institutionCategory,
+    userId: params.userId,
+  }).catch(() => {});
+}
+
+export function getCachedSchoolBlogArticle(
+  articleId: string,
+  userId?: string | null
+): SchoolBlogArticleDetailResponse | null {
+  if (!articleId) return null;
+  const key = `${normUserScope(userId)}::${articleId}`;
+  const hit = articleMemoryCache.get(key);
+  if (hit && Date.now() - hit.ts <= ARTICLE_CACHE_TTL_MS) {
+    return hit.data;
+  }
+  return null;
+}
+
+export async function fetchSchoolBlogArticle(
+  articleId: string,
+  options?: { userId?: string | null; force?: boolean }
+): Promise<SchoolBlogArticleDetailResponse> {
+  const key = `${normUserScope(options?.userId)}::${articleId}`;
+  if (!options?.force) {
+    const cached = getCachedSchoolBlogArticle(articleId, options?.userId);
+    if (cached) return cached;
+  }
+
+  const inflight = inflightArticleRequests.get(key);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    const res = await apiJson<SchoolBlogArticleDetailResponse>(
+      `/api/school-blogs/articles/${encodeURIComponent(articleId)}`,
+      { method: 'GET' },
+      true
+    );
+    if (res.data?.success && res.data.article) {
+      if (articleMemoryCache.size > 100) articleMemoryCache.clear();
+      articleMemoryCache.set(key, { ts: Date.now(), data: res.data });
+    }
+    return res.data;
+  })().finally(() => {
+    inflightArticleRequests.delete(key);
+  });
+
+  inflightArticleRequests.set(key, promise);
+  return promise;
+}
+
+export function prefetchSchoolBlogArticle(articleId: string, userId?: string | null): void {
+  if (!articleId) return;
+  if (getCachedSchoolBlogArticle(articleId, userId)) return;
+  fetchSchoolBlogArticle(articleId, { userId }).catch(() => {});
 }
 
 export async function trackSchoolBlogArticleView(articleId: string) {
@@ -130,6 +372,9 @@ export async function trackSchoolBlogArticleView(articleId: string) {
     { method: 'POST', body: JSON.stringify({}) },
     true
   );
+  if (res.data?.counted) {
+    invalidateSchoolBlogArticleCache(articleId);
+  }
   return res.data;
 }
 
@@ -151,6 +396,10 @@ export async function reactToSchoolBlogArticle(
     },
     true
   );
+  if (res.data?.success) {
+    invalidateSchoolBlogArticleCache(articleId);
+    invalidateSchoolBlogHomepageCache();
+  }
   return res.data;
 }
 
@@ -213,6 +462,9 @@ export async function submitBloggerApplication(params: {
     },
     true
   );
+  if (res.data?.success) {
+    invalidateSchoolBlogHomepageCache();
+  }
   return res.data;
 }
 
@@ -227,6 +479,9 @@ export async function withdrawBloggerApplication(applicationId: string) {
     { method: 'POST', body: JSON.stringify({}) },
     true
   );
+  if (res.data?.success) {
+    invalidateSchoolBlogHomepageCache();
+  }
   return res.data;
 }
 
@@ -306,6 +561,9 @@ export async function createSchoolBlogArticle(params: {
     },
     true
   );
+  if (res.data?.success) {
+    invalidateSchoolBlogHomepageCache();
+  }
   return res.data;
 }
 
@@ -336,6 +594,10 @@ export async function updateSchoolBlogArticle(
     },
     true
   );
+  if (res.data?.success) {
+    invalidateSchoolBlogArticleCache(articleId);
+    invalidateSchoolBlogHomepageCache();
+  }
   return res.data;
 }
 

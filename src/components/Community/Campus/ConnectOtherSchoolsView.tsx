@@ -4,6 +4,7 @@ import {
   NIGERIAN_INSTITUTIONS,
   searchNigerianInstitutions,
 } from '../../../data/nigerianInstitutions';
+import { prefetchSchoolBlogHomepage } from '../../../lib/schoolBlogService';
 import {
   Building2,
   Search,
@@ -214,6 +215,18 @@ export const ConnectOtherSchoolsView: React.FC<ConnectOtherSchoolsViewProps> = (
                   {onOpenSchoolBlog && (
                     <button
                       type="button"
+                      onMouseEnter={() =>
+                        prefetchSchoolBlogHomepage({
+                          institutionKey: inst.name,
+                          institutionCategory: inst.category,
+                        })
+                      }
+                      onTouchStart={() =>
+                        prefetchSchoolBlogHomepage({
+                          institutionKey: inst.name,
+                          institutionCategory: inst.category,
+                        })
+                      }
                       onClick={(e) => {
                         e.stopPropagation();
                         onOpenSchoolBlog(inst);

@@ -37,6 +37,7 @@ import { CampusStudentProfileModal } from './CampusStudentProfileModal';
 import { ConnectOtherSchoolsView } from './ConnectOtherSchoolsView';
 import { CrossCampusUpgradeModal } from './CrossCampusUpgradeModal';
 import { SchoolBlogPortal } from './Blog/SchoolBlogPortal';
+import { prefetchSchoolBlogHomepage } from '../../../lib/schoolBlogService';
 import { NotificationBadge } from '../../ui/NotificationBadge';
 import {
   GraduationCap,
@@ -773,6 +774,20 @@ export const CampusView: React.FC = () => {
                 id="campus-tab-school-blog"
                 type="button"
                 onClick={() => handleOpenSchoolBlogTab(activeInstitutionName, activeInstitutionCategory)}
+                onMouseEnter={() =>
+                  prefetchSchoolBlogHomepage({
+                    institutionKey: activeInstitutionName || homeInstitutionName,
+                    institutionCategory: activeInstitutionCategory || homeInstitutionCategory,
+                    userId: currentUser?.id,
+                  })
+                }
+                onTouchStart={() =>
+                  prefetchSchoolBlogHomepage({
+                    institutionKey: activeInstitutionName || homeInstitutionName,
+                    institutionCategory: activeInstitutionCategory || homeInstitutionCategory,
+                    userId: currentUser?.id,
+                  })
+                }
                 className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer ${
                   activeView === 'school_blog'
                     ? 'bg-blue-600 text-white shadow-xs'
