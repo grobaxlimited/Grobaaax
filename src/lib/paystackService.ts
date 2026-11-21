@@ -16,6 +16,7 @@ export interface PaystackInitResponse {
 export interface PaystackTransferAccountResponse {
   success: boolean;
   reference?: string;
+  checkoutReference?: string;
   accountNumber?: string;
   accountName?: string;
   bankName?: string;
@@ -35,8 +36,12 @@ export interface PaystackVerifyResponse {
   status: string;
   amountNaira?: number;
   reference?: string;
+  originalReference?: string;
   planId?: string;
   planName?: string;
+  durationValue?: any;
+  durationUnit?: string;
+  metadata?: any;
   isPending?: boolean;
   gatewayResponse?: string;
   isSimulated?: boolean;
@@ -176,9 +181,19 @@ export async function createPaystackTransferAccount(params: {
   email: string;
   userId: string;
   userName: string;
+  callbackUrl?: string;
   durationValue?: number | string;
   durationUnit?: string;
 }): Promise<PaystackTransferAccountResponse> {
+  const defaultCallback = typeof window !== 'undefined'
+    ? `${window.location.origin}${window.location.pathname}?planId=${encodeURIComponent(params.planId)}`
+    : undefined;
+
+  const payload = {
+    ...params,
+    callbackUrl: params.callbackUrl || defaultCallback,
+  };
+
   const endpoints = ['/api/paystack/charge-transfer', '/paystack/charge-transfer'];
   let lastError = '';
 
@@ -187,7 +202,7 @@ export async function createPaystackTransferAccount(params: {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(params),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok || res.status === 400 || res.status === 500) {
@@ -207,11 +222,12 @@ export async function createPaystackTransferAccount(params: {
   // If direct charge-transfer failed (e.g. during Vercel cold boot or proxy routing delay),
   // seamlessly fall back to transaction initialization so checkout is always available
   try {
-    const initRes = await initializePaystackTransaction(params);
+    const initRes = await initializePaystackTransaction(payload);
     if (initRes && initRes.success && initRes.authorization_url) {
       return {
         success: true,
         reference: initRes.reference,
+        checkoutReference: initRes.reference,
         authorization_url: initRes.authorization_url,
         amountNaira: params.amountNaira,
         fallbackCheckout: true,
@@ -277,8 +293,11 @@ export async function initializePaystackTransaction(params: {
   };
 }
 
-// Verify transaction on backend
-export async function verifyPaystackTransaction(reference: string): Promise<PaystackVerifyResponse> {
+// Verify transaction on backend (automatically checks companion _CHK & any extraReferences)
+export async function verifyPaystackTransaction(
+  reference: string,
+  extraReferences?: string[]
+): Promise<PaystackVerifyResponse> {
   const trimmed = (reference || '').trim();
   if (!trimmed || trimmed === 'undefined' || trimmed === 'null') {
     return {
@@ -290,8 +309,17 @@ export async function verifyPaystackTransaction(reference: string): Promise<Pays
   }
 
   try {
+    const query = new URLSearchParams();
+    query.set('reference', trimmed);
+    const cleanedExtra = (extraReferences || [])
+      .map((r) => (r || '').trim())
+      .filter((r) => r && r !== trimmed && r !== 'undefined' && r !== 'null');
+    if (cleanedExtra.length > 0) {
+      query.set('references', Array.from(new Set(cleanedExtra)).join(','));
+    }
+
     // Try query param endpoint first (works natively on Vercel Serverless /api/paystack/verify?reference=...)
-    const res = await fetch(`/api/paystack/verify?reference=${encodeURIComponent(trimmed)}`, {
+    const res = await fetch(`/api/paystack/verify?${query.toString()}`, {
       headers: {
         Accept: 'application/json',
       },
@@ -303,7 +331,8 @@ export async function verifyPaystackTransaction(reference: string): Promise<Pays
 
     // Fallback path-based endpoint for Express router
     if (!res.ok || res.status === 404) {
-      const fallbackRes = await fetch(`/api/paystack/verify/${encodeURIComponent(trimmed)}`, {
+      const qs = cleanedExtra.length > 0 ? `?references=${encodeURIComponent(Array.from(new Set(cleanedExtra)).join(','))}` : '';
+      const fallbackRes = await fetch(`/api/paystack/verify/${encodeURIComponent(trimmed)}${qs}`, {
         headers: { Accept: 'application/json' },
       });
       return await safeParseResponse(fallbackRes, 'Verification connection failed.');
@@ -323,12 +352,16 @@ export async function verifyPaystackTransaction(reference: string): Promise<Pays
 // Check real-time payment sensor status
 export async function checkPaymentSensorStatus(params: {
   reference?: string;
+  references?: string[];
   email?: string;
   userId?: string;
 }): Promise<PaystackVerifyResponse> {
   try {
     const query = new URLSearchParams();
     if (params.reference) query.set('reference', params.reference);
+    if (params.references && params.references.length > 0) {
+      query.set('references', params.references.join(','));
+    }
     if (params.email) query.set('email', params.email);
     if (params.userId) query.set('userId', params.userId);
 

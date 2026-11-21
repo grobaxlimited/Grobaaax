@@ -8,6 +8,8 @@ import {
   initPaystackTransactionCore,
   chargeTransferCore,
   verifyPaystackRefCore,
+  buildPaystackCallbackUrl,
+  verifyPaystackCandidates,
 } from './paystackCore';
 import { handleCorporatePaystackWebhookEvent } from './corporateAdsRouter';
 
@@ -20,7 +22,9 @@ async function safeActivateSubscription(options: any) {
     if (fb && typeof fb.activateUserSubscriptionInFirestore === 'function') {
       return await fb.activateUserSubscriptionInFirestore(options);
     }
-  } catch {}
+  } catch (err) {
+    console.error('[Paystack] safeActivateSubscription error:', err);
+  }
   return { success: true, isLocalFallback: true };
 }
 
@@ -188,6 +192,9 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
       email,
       userId,
       userName,
+      callbackUrl,
+      durationValue,
+      durationUnit,
     } = req.body || {};
 
     if (!amountNaira || isNaN(Number(amountNaira)) || Number(amountNaira) <= 0) {
@@ -200,6 +207,7 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
     const cleanEmail = email && email.includes('@') ? email.trim().toLowerCase() : 'scholar@grobaax.org';
     const amountInKobo = Math.round(Number(amountNaira) * 100);
     const reference = `GRBX_TRF_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const checkoutRef = `${reference}_CHK`;
     const secretKey = getSecretKey();
 
     if (!secretKey || (!secretKey.startsWith('sk_live_') && !secretKey.startsWith('sk_test_'))) {
@@ -208,6 +216,24 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
         error: 'Paystack live secret key is not configured in server environment.',
       });
     }
+
+    let originHint = '';
+    try {
+      originHint =
+        (req.headers.origin as string) ||
+        (req.headers.referer ? new URL(req.headers.referer).origin : '');
+    } catch {}
+
+    const resolvedChkCallback = buildPaystackCallbackUrl(
+      callbackUrl || (originHint ? `${originHint}/` : undefined),
+      checkoutRef,
+      planId
+    );
+    const resolvedFallbackCallback = buildPaystackCallbackUrl(
+      callbackUrl || (originHint ? `${originHint}/` : undefined),
+      reference,
+      planId
+    );
 
     // Generate valid ISO expiration timestamp (1 hour from now) required by Paystack Charge API
     const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
@@ -237,6 +263,8 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
             planId: planId || 'premium_1m',
             planName: planName || 'Premium',
             amountNaira: Number(amountNaira),
+            durationValue: durationValue !== undefined ? durationValue : undefined,
+            durationUnit: durationUnit || undefined,
             platform: 'grobax_web',
             timestamp: Date.now(),
           },
@@ -251,7 +279,7 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
         const accountNumber = d.account_number;
 
         if (accountNumber) {
-          // Also generate an authorization URL in the background so "Open Paystack Checkout" never opens a blank screen
+          // Generate a companion _CHK checkout authorization URL so Web Checkout (OPay, Zap, Card, Bank, USSD) always tracks seamlessly
           let checkoutUrl: string | undefined = undefined;
           try {
             const initRes = await safePaystackFetch(`${baseUrl}/transaction/initialize`, {
@@ -263,14 +291,35 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
               body: JSON.stringify({
                 email: cleanEmail,
                 amount: amountInKobo,
-                reference: `${reference}_CHK`,
+                reference: checkoutRef,
                 currency: 'NGN',
-                channels: ['card', 'bank', 'bank_transfer', 'ussd', 'qr'],
+                callback_url: resolvedChkCallback || undefined,
+                channels: ['card', 'bank', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],
                 metadata: {
                   userId: userId || 'scholar',
+                  scholar_uid: userId || 'scholar',
+                  userName: userName || 'Scholar',
+                  userEmail: cleanEmail,
                   planId: planId || 'premium_1m',
                   planName: planName || 'Premium',
                   amountNaira: Number(amountNaira),
+                  durationValue: durationValue !== undefined ? durationValue : undefined,
+                  durationUnit: durationUnit || undefined,
+                  parentTransferReference: d.reference || reference,
+                  platform: 'grobax_web',
+                  timestamp: Date.now(),
+                  custom_fields: [
+                    {
+                      display_name: 'Plan Name',
+                      variable_name: 'plan_name',
+                      value: planName || 'Premium',
+                    },
+                    {
+                      display_name: 'Scholar UID',
+                      variable_name: 'scholar_uid',
+                      value: userId || 'unknown',
+                    },
+                  ],
                 },
               }),
             });
@@ -282,6 +331,7 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
           return res.json({
             success: true,
             reference: d.reference || reference,
+            checkoutReference: checkoutUrl ? checkoutRef : undefined,
             accountNumber,
             accountName: d.account_name || 'PAYSTACK CHECKOUT',
             bankName,
@@ -300,7 +350,7 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
       console.warn('[Paystack Charge Transfer] Direct charge error:', chargeErr);
     }
 
-    // Fallback: Initialize transaction with bank_transfer channel
+    // Fallback: Initialize transaction with all Paystack checkout channels
     const baseUrl = getPaystackBaseUrl();
     const initResult = await safePaystackFetch(`${baseUrl}/transaction/initialize`, {
       method: 'POST',
@@ -313,7 +363,8 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
         amount: amountInKobo,
         reference,
         currency: 'NGN',
-        channels: ['bank_transfer', 'card', 'bank', 'ussd'],
+        callback_url: resolvedFallbackCallback || undefined,
+        channels: ['bank_transfer', 'card', 'bank', 'ussd', 'qr', 'mobile_money'],
         metadata: {
           userId: userId || 'scholar',
           scholar_uid: userId || 'scholar',
@@ -322,6 +373,8 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
           planId: planId || 'premium_1m',
           planName: planName || 'Premium',
           amountNaira: Number(amountNaira),
+          durationValue: durationValue !== undefined ? durationValue : undefined,
+          durationUnit: durationUnit || undefined,
           platform: 'grobax_web',
           timestamp: Date.now(),
         },
@@ -333,6 +386,7 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
       return res.json({
         success: true,
         reference,
+        checkoutReference: reference,
         authorization_url: initData.data.authorization_url,
         access_code: initData.data.access_code,
         amountNaira: Number(amountNaira),
@@ -357,6 +411,7 @@ paystackRouter.post('/charge-transfer', async (req, res) => {
 const handlePaystackVerify = async (req: express.Request, res: express.Response) => {
   try {
     const rawRef = ((req.params.reference || (req.query.reference as string) || '') as string).trim();
+    const extraRefs = (req.query.references as string) || '';
     if (!rawRef || rawRef === 'undefined' || rawRef === 'null') {
       return res.status(400).json({
         success: false,
@@ -371,31 +426,25 @@ const handlePaystackVerify = async (req: express.Request, res: express.Response)
 
     if (secretKey && (secretKey.startsWith('sk_live_') || secretKey.startsWith('sk_test_'))) {
       try {
-        const baseUrl = getPaystackBaseUrl();
-        const { ok, status, data, rawText, isJson } = await safePaystackFetch(
-          `${baseUrl}/transaction/verify/${encodeURIComponent(reference)}`,
-          {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${secretKey}`,
-            },
-          }
-        );
+        const outcome = await verifyPaystackCandidates({
+          reference,
+          extraRefs,
+          secretKey,
+        });
 
-        if (!isJson) {
-          console.warn(`[Paystack Verify] Paystack returned non-JSON response (HTTP ${status}) for reference ${reference}:`, rawText.slice(0, 120));
+        if (outcome.kind === 'network_error') {
           return res.json({
             success: false,
             verified: false,
             status: 'failed',
-            error: `Paystack API returned an unexpected response (HTTP ${status}). Please retry in a few moments.`,
+            error: outcome.error || 'Paystack API returned an unexpected response.',
           });
         }
 
-        if (data && data.status && data.data) {
-          const tx = data.data;
-          const isSuccessful = tx.status === 'success';
-          const isPending = tx.status === 'ongoing' || tx.status === 'pending_bank_transfer' || tx.status === 'pending';
+        if (outcome.tx) {
+          const tx = outcome.tx;
+          const isSuccessful = outcome.kind === 'success';
+          const isPending = outcome.kind === 'pending';
 
           let activationResult: any = null;
           if (isSuccessful) {
@@ -403,7 +452,7 @@ const handlePaystackVerify = async (req: express.Request, res: express.Response)
               activationResult = await safeActivateSubscription({
                 reference: tx.reference,
                 userId: tx.metadata?.userId || tx.metadata?.scholar_uid || '',
-                userEmail: tx.customer?.email || '',
+                userEmail: tx.customer?.email || tx.metadata?.userEmail || '',
                 userName: tx.metadata?.userName || '',
                 planId: tx.metadata?.planId,
                 planName: tx.metadata?.planName,
@@ -424,11 +473,14 @@ const handlePaystackVerify = async (req: express.Request, res: express.Response)
             status: tx.status,
             amountNaira: tx.amount ? tx.amount / 100 : 0,
             reference: tx.reference,
+            originalReference: reference,
             channel: tx.channel,
             paidAt: tx.paid_at || (isSuccessful ? new Date().toISOString() : null),
             metadata: tx.metadata || {},
             planId: tx.metadata?.planId,
             planName: tx.metadata?.planName,
+            durationValue: tx.metadata?.durationValue,
+            durationUnit: tx.metadata?.durationUnit,
             customer: tx.customer,
             gatewayResponse: tx.gateway_response,
             isPending,
@@ -439,7 +491,7 @@ const handlePaystackVerify = async (req: express.Request, res: express.Response)
             success: false,
             verified: false,
             status: 'failed',
-            error: data?.message || 'Transaction could not be verified by Paystack.',
+            error: outcome.error || 'Transaction could not be verified by Paystack.',
           });
         }
       } catch (err: any) {
@@ -485,37 +537,34 @@ paystackRouter.post('/activate', async (req, res) => {
     }
 
     const secretKey = getSecretKey();
+    let effectiveRef = reference;
     let channel = 'paystack';
     let verifiedAmount = Number(amountNaira || 0);
     let resolvedDurationValue = durationValue;
     let resolvedDurationUnit = durationUnit;
 
-    // If secret key available, verify transaction with Paystack first
+    // If secret key available, verify transaction (and companion _CHK ref) with Paystack first
     if (secretKey && (secretKey.startsWith('sk_live_') || secretKey.startsWith('sk_test_'))) {
       try {
-        const baseUrl = getPaystackBaseUrl();
-        const verifyResult = await safePaystackFetch(
-          `${baseUrl}/transaction/verify/${encodeURIComponent(reference)}`,
-          {
-            method: 'GET',
-            headers: { Authorization: `Bearer ${secretKey}` },
-          }
-        );
-        const verifyData = verifyResult.data;
-        if (verifyData && verifyData.data) {
-          if (verifyData.data.status !== 'success') {
+        const outcome = await verifyPaystackCandidates({
+          reference,
+          secretKey,
+        });
+        if (outcome.tx) {
+          if (outcome.kind !== 'success') {
             return res.status(400).json({
               success: false,
-              error: `Transaction status is ${verifyData.data.status}, not success.`,
+              error: `Transaction status is ${outcome.tx.status}, not success.`,
             });
           }
-          channel = verifyData.data.channel || 'paystack';
-          verifiedAmount = verifyData.data.amount ? verifyData.data.amount / 100 : verifiedAmount;
-          if (resolvedDurationValue === undefined && verifyData.data.metadata?.durationValue !== undefined) {
-            resolvedDurationValue = verifyData.data.metadata.durationValue;
+          effectiveRef = outcome.tx.reference || reference;
+          channel = outcome.tx.channel || 'paystack';
+          verifiedAmount = outcome.tx.amount ? outcome.tx.amount / 100 : verifiedAmount;
+          if (resolvedDurationValue === undefined && outcome.tx.metadata?.durationValue !== undefined) {
+            resolvedDurationValue = outcome.tx.metadata.durationValue;
           }
-          if (!resolvedDurationUnit && verifyData.data.metadata?.durationUnit) {
-            resolvedDurationUnit = verifyData.data.metadata.durationUnit;
+          if (!resolvedDurationUnit && outcome.tx.metadata?.durationUnit) {
+            resolvedDurationUnit = outcome.tx.metadata.durationUnit;
           }
         }
       } catch (vfErr) {
@@ -524,7 +573,7 @@ paystackRouter.post('/activate', async (req, res) => {
     }
 
     const result = await safeActivateSubscription({
-      reference,
+      reference: effectiveRef,
       userId: userId || '',
       userEmail: userEmail || '',
       userName: userName || '',
@@ -624,6 +673,7 @@ paystackRouter.post('/webhook', async (req, res) => {
 paystackRouter.get('/sensor-status', async (req, res) => {
   try {
     const reference = ((req.query.reference as string) || '').trim();
+    const extraRefs = (req.query.references as string) || '';
     const email = ((req.query.email as string) || '').trim();
     const userId = ((req.query.userId as string) || '').trim();
 
@@ -631,19 +681,14 @@ paystackRouter.get('/sensor-status', async (req, res) => {
       const secretKey = getSecretKey();
       if (secretKey && (secretKey.startsWith('sk_live_') || secretKey.startsWith('sk_test_'))) {
         try {
-          const baseUrl = getPaystackBaseUrl();
-          const resp = await safePaystackFetch(
-            `${baseUrl}/transaction/verify/${encodeURIComponent(reference)}`,
-            {
-              headers: {
-                Authorization: `Bearer ${secretKey}`,
-              },
-            }
-          );
-          const json = resp.data;
-          if (json && json.status && json.data) {
-            const tx = json.data;
-            const isSuccess = tx.status === 'success';
+          const outcome = await verifyPaystackCandidates({
+            reference,
+            extraRefs,
+            secretKey,
+          });
+          if (outcome.tx) {
+            const tx = outcome.tx;
+            const isSuccess = outcome.kind === 'success';
             let activationResult = null;
             if (isSuccess) {
               if (
@@ -656,10 +701,12 @@ paystackRouter.get('/sensor-status', async (req, res) => {
                   activationResult = await safeActivateSubscription({
                     reference: tx.reference,
                     userId: tx.metadata?.userId || tx.metadata?.scholar_uid || userId || '',
-                    userEmail: tx.customer?.email || email || '',
+                    userEmail: tx.customer?.email || tx.metadata?.userEmail || email || '',
                     userName: tx.metadata?.userName || '',
                     planId: tx.metadata?.planId,
                     planName: tx.metadata?.planName,
+                    durationValue: tx.metadata?.durationValue,
+                    durationUnit: tx.metadata?.durationUnit,
                     amountNaira: tx.amount ? tx.amount / 100 : 0,
                     channel: tx.channel || 'paystack',
                   });
@@ -673,9 +720,13 @@ paystackRouter.get('/sensor-status', async (req, res) => {
               verified: isSuccess,
               status: tx.status,
               reference: tx.reference,
+              originalReference: reference,
               amountNaira: tx.amount ? tx.amount / 100 : 0,
+              metadata: tx.metadata || {},
               planId: tx.metadata?.planId,
               planName: tx.metadata?.planName,
+              durationValue: tx.metadata?.durationValue,
+              durationUnit: tx.metadata?.durationUnit,
               customer: tx.customer,
               activation: activationResult,
             });

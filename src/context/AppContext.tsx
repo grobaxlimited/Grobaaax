@@ -275,6 +275,7 @@ interface AppContextType {
   ) => Promise<{ success: boolean; message: string }>;
   registerPendingPayment: (data: {
     reference: string;
+    extraReferences?: string[];
     plan: SubscriptionPlan;
     userId?: string;
     userName?: string;
@@ -6289,7 +6290,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : `GRBX_PAY_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
 
       if (finalReference) {
-        const dedupeKey = `grobax_sub_processed_${finalReference}`;
+        const baseRef = finalReference.endsWith('_CHK') ? finalReference.slice(0, -4) : finalReference;
+        const dedupeKey = `grobax_sub_processed_${baseRef}`;
         if (typeof window !== 'undefined' && sessionStorage.getItem(dedupeKey)) {
           console.log(`[Subscription] Reference ${finalReference} already processed. Skipping duplicate execution.`);
           return {
@@ -6526,6 +6528,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Register a pending Paystack payment for continuous background sensor monitoring
   const registerPendingPayment = useCallback((data: {
     reference: string;
+    extraReferences?: string[];
     plan: SubscriptionPlan;
     userId?: string;
     userName?: string;
@@ -6535,8 +6538,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!data.reference) return;
     try {
       const curUser = currentUserRef.current;
+      const allProvidedRefs = Array.from(
+        new Set(
+          [data.reference, ...(data.extraReferences || [])]
+            .map((r) => (r || '').trim())
+            .filter((r) => r && r !== 'undefined' && r !== 'null')
+        )
+      );
+      if (data.reference.startsWith('GRBX_TRF_') && !data.reference.endsWith('_CHK')) {
+        const chk = `${data.reference}_CHK`;
+        if (!allProvidedRefs.includes(chk)) allProvidedRefs.push(chk);
+      }
+
       const payload = {
         reference: data.reference,
+        extraReferences: allProvidedRefs,
         plan: data.plan,
         userId: data.userId || curUser.id || 'scholar',
         userName: data.userName || curUser.name || 'Scholar',
@@ -6548,10 +6564,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const rawRefs = localStorage.getItem('grobax_pending_references');
       const refs: string[] = rawRefs ? JSON.parse(rawRefs) : [];
-      if (!refs.includes(data.reference)) {
-        refs.push(data.reference);
-        localStorage.setItem('grobax_pending_references', JSON.stringify(refs.slice(-6)));
+      for (const r of allProvidedRefs) {
+        if (!refs.includes(r)) {
+          refs.push(r);
+        }
       }
+      localStorage.setItem('grobax_pending_references', JSON.stringify(refs.slice(-12)));
 
       setActivePaymentSensor(prev => {
         if (prev.isMonitoring && prev.pendingReference === data.reference && prev.planName === data.plan.name) {
@@ -6564,7 +6582,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           lastCheckedAt: Date.now(),
         };
       });
-      console.log(`[Sensor] Registered pending payment reference: ${data.reference} (${data.plan.name})`);
+      console.log(`[Sensor] Registered pending payment references: ${allProvidedRefs.join(', ')} (${data.plan.name})`);
     } catch (err) {
       console.warn('Error registering pending payment in sensor:', err);
     }
@@ -6608,13 +6626,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (rawRefs) recentRefs = JSON.parse(rawRefs);
       } catch {}
 
-      const refsToTest = Array.from(
-        new Set(
-          [urlRef, pendingData?.reference, ...recentRefs]
-            .filter((r): r is string => Boolean(r) && typeof r === 'string' && r.trim().length > 0 && r !== 'undefined' && r !== 'null')
-            .map(r => r.trim())
-        )
-      );
+      const pendingExtraRefs: string[] = Array.isArray(pendingData?.extraReferences)
+        ? pendingData.extraReferences
+        : [];
+      const baseList = [urlRef, pendingData?.reference, ...pendingExtraRefs, ...recentRefs]
+        .filter((r): r is string => Boolean(r) && typeof r === 'string' && r.trim().length > 0 && r !== 'undefined' && r !== 'null')
+        .map(r => r.trim());
+      const expandedRefs: string[] = [];
+      for (const r of baseList) {
+        if (!expandedRefs.includes(r)) expandedRefs.push(r);
+        if (r.startsWith('GRBX_TRF_') && !r.endsWith('_CHK') && !expandedRefs.includes(`${r}_CHK`)) {
+          expandedRefs.push(`${r}_CHK`);
+        }
+      }
+      const refsToTest = expandedRefs;
 
       if (refsToTest.length === 0) {
         setActivePaymentSensor(prev => {
@@ -6646,9 +6671,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       for (const ref of refsToTest) {
         try {
-          const verifyRes = await verifyPaystackTransaction(ref);
+          const verifyRes = await verifyPaystackTransaction(ref, refsToTest);
           if (verifyRes && (verifyRes.verified || verifyRes.status === 'success')) {
-            console.log(`[Active Payment Sensor] Verified payment for ref ${ref}:`, verifyRes);
+            const confirmedRef = verifyRes.reference || ref;
+            console.log(`[Active Payment Sensor] Verified payment for ref ${confirmedRef}:`, verifyRes);
 
             // Match plan
             const matchedPlanId = verifyRes.planId || urlPlanId || pendingData?.plan?.planId || pendingData?.plan?.id;
@@ -6678,8 +6704,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 shortDescription: 'Upgraded Academic Scholar Membership',
                 priceNaira: verifyRes.amountNaira || 100,
                 currency: 'NGN',
-                durationValue: 1,
-                durationUnit: 'Months',
+                durationValue: verifyRes.durationValue || verifyRes.metadata?.durationValue || 1,
+                durationUnit: verifyRes.durationUnit || verifyRes.metadata?.durationUnit || 'Months',
                 featured: true,
                 benefits: ['Unlimited Quiz Access', 'Priority Support', 'Full Verification'],
                 features: ['Active Scholar Pro', 'Ad-Free Experience'],
@@ -6687,21 +6713,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
 
             // Immediately activate the subscription in state and Firestore
-            await subscribeToPlanRef.current(matchedPlan, 'CARD', ref);
+            await subscribeToPlanRef.current(matchedPlan, 'CARD', confirmedRef);
 
             // Dispatch global event for instant UI celebration and modal state transition
             if (typeof window !== 'undefined') {
               window.dispatchEvent(
                 new CustomEvent('paystack_subscription_activated', {
-                  detail: { plan: matchedPlan, reference: ref, amountNaira: verifyRes.amountNaira },
+                  detail: { plan: matchedPlan, reference: confirmedRef, amountNaira: verifyRes.amountNaira },
                 })
               );
             }
 
-            // Clean up verified reference
+            // Clean up verified reference and its companions
             try {
               localStorage.removeItem('grobax_pending_paystack_sub');
-              const remainingRefs = recentRefs.filter(r => r !== ref);
+              const baseRef = confirmedRef.endsWith('_CHK') ? confirmedRef.slice(0, -4) : confirmedRef;
+              const remainingRefs = recentRefs.filter(
+                r => r !== ref && r !== confirmedRef && r !== baseRef && r !== `${baseRef}_CHK`
+              );
               localStorage.setItem('grobax_pending_references', JSON.stringify(remainingRefs));
               if (urlRef && window.history && window.history.replaceState) {
                 const cleanUrl = window.location.pathname + window.location.hash;

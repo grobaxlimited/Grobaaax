@@ -55,8 +55,10 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
   const [activeChannel, setActiveChannel] = useState<'transfer' | 'card' | 'ussd'>('transfer');
   const [email, setEmail] = useState(userEmail || 'scholar@grobaax.org');
   const [reference, setReference] = useState('');
+  const [checkoutRef, setCheckoutRef] = useState('');
   const [cardRef, setCardRef] = useState('');
   const [authUrl, setAuthUrl] = useState('');
+  const [cardAuthUrl, setCardAuthUrl] = useState('');
   const [publicKey, setPublicKey] = useState(DEFAULT_PAYSTACK_PUBLIC_KEY);
 
   // Keep email in sync with user's registered account email
@@ -124,6 +126,8 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isGeneratingAccountRef = useRef(false);
   const initializedPlanRef = useRef<string | null>(null);
+  const hasTriggeredSuccessRef = useRef(false);
+  const knownRefsRef = useRef<Set<string>>(new Set());
 
   const emailRef = useRef(email);
   emailRef.current = email;
@@ -142,6 +146,96 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
       pollTimerRef.current = null;
     }
   }, []);
+
+  // Collect every candidate Paystack reference (bank transfer + _CHK web checkout + card init)
+  const collectCandidateRefs = useCallback((extra: Array<string | undefined | null> = []): string[] => {
+    const base = [
+      ...extra,
+      reference,
+      checkoutRef,
+      cardRef,
+      transferAccount?.reference,
+      transferAccount?.checkoutReference,
+      ...Array.from(knownRefsRef.current),
+    ]
+      .filter((r): r is string => Boolean(r) && typeof r === 'string' && r.trim().length > 0 && r !== 'undefined' && r !== 'null')
+      .map((r) => r.trim());
+
+    const expanded: string[] = [];
+    for (const r of base) {
+      if (!expanded.includes(r)) expanded.push(r);
+      if (r.startsWith('GRBX_TRF_') && !r.endsWith('_CHK')) {
+        const chk = `${r}_CHK`;
+        if (!expanded.includes(chk)) expanded.push(chk);
+      }
+    }
+    return expanded;
+  }, [reference, checkoutRef, cardRef, transferAccount?.reference, transferAccount?.checkoutReference]);
+
+  // Register one or more refs cleanly in global sensor & localStorage
+  const trackPendingRefs = useCallback((primaryRef: string, extras: Array<string | undefined | null>, channel: string) => {
+    const cleanPrimary = (primaryRef || '').trim();
+    if (!cleanPrimary) return;
+
+    knownRefsRef.current.add(cleanPrimary);
+    if (cleanPrimary.startsWith('GRBX_TRF_') && !cleanPrimary.endsWith('_CHK')) {
+      knownRefsRef.current.add(`${cleanPrimary}_CHK`);
+    }
+    for (const e of extras) {
+      const cleanExtra = (e || '').trim();
+      if (cleanExtra) {
+        knownRefsRef.current.add(cleanExtra);
+        if (cleanExtra.startsWith('GRBX_TRF_') && !cleanExtra.endsWith('_CHK')) {
+          knownRefsRef.current.add(`${cleanExtra}_CHK`);
+        }
+      }
+    }
+
+    const activeEmail = emailRef.current && emailRef.current.includes('@') ? emailRef.current.trim() : 'scholar@grobaax.org';
+    const activeUserId = userIdRef.current || 'scholar';
+    const activeUserName = userNameRef.current || 'Scholar';
+
+    registerPendingPaymentRef.current({
+      reference: cleanPrimary,
+      extraReferences: Array.from(knownRefsRef.current),
+      plan,
+      userId: activeUserId,
+      userName: activeUserName,
+      userEmail: activeEmail,
+      channel,
+    });
+  }, [plan]);
+
+  // Single idempotent completion transition when Paystack confirms payment
+  const completeVerifiedPayment = useCallback(async (verifiedRef: string) => {
+    if (hasTriggeredSuccessRef.current) return;
+    hasTriggeredSuccessRef.current = true;
+    stopPolling();
+    setPaymentStep('success');
+    if (verifiedRef) {
+      setReference(verifiedRef);
+    }
+    try {
+      localStorage.removeItem('grobax_pending_paystack_sub');
+      const rawRefs = localStorage.getItem('grobax_pending_references');
+      if (rawRefs) {
+        const parsed = JSON.parse(rawRefs);
+        if (Array.isArray(parsed)) {
+          const allKnown = new Set(knownRefsRef.current);
+          if (verifiedRef) allKnown.add(verifiedRef);
+          localStorage.setItem(
+            'grobax_pending_references',
+            JSON.stringify(parsed.filter((r: string) => !allKnown.has(r)))
+          );
+        }
+      }
+    } catch {}
+    try {
+      await onSuccess(verifiedRef);
+    } catch (onErr) {
+      console.warn('onSuccess activation notice:', onErr);
+    }
+  }, [onSuccess, stopPolling]);
 
   // Fetch real Paystack transfer account
   const fetchLiveTransferAccount = useCallback(async () => {
@@ -166,53 +260,38 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
         durationUnit: plan.durationUnit,
       });
 
+      const resolvedTrfRef = res.reference || '';
+      const resolvedChkRef =
+        res.checkoutReference ||
+        (resolvedTrfRef && resolvedTrfRef.startsWith('GRBX_TRF_') && !resolvedTrfRef.endsWith('_CHK')
+          ? `${resolvedTrfRef}_CHK`
+          : resolvedTrfRef);
+
       if (res.success && res.accountNumber) {
-        setTransferAccount(res);
-        if (res.reference) {
-          setReference(res.reference);
-          registerPendingPaymentRef.current({
-            reference: res.reference,
-            plan,
-            userId: activeUserId,
-            userName: activeUserName,
-            userEmail: activeEmail,
-            channel: 'bank_transfer',
-          });
-          try {
-            localStorage.setItem('grobax_pending_paystack_sub', JSON.stringify({
-              reference: res.reference,
-              plan,
-              userId: activeUserId,
-              userName: activeUserName,
-              timestamp: Date.now(),
-            }));
-          } catch {}
+        setTransferAccount({ ...res, checkoutReference: resolvedChkRef });
+        if (resolvedTrfRef) {
+          setReference(resolvedTrfRef);
+        }
+        if (resolvedChkRef) {
+          setCheckoutRef(resolvedChkRef);
         }
         if (res.authorization_url) {
           setAuthUrl(res.authorization_url);
         }
+        if (resolvedTrfRef || resolvedChkRef) {
+          trackPendingRefs(resolvedTrfRef || resolvedChkRef, [resolvedChkRef, resolvedTrfRef], 'bank_transfer');
+        }
       } else if (res.authorization_url) {
         // Fallback checkout URL
         setAuthUrl(res.authorization_url);
-        if (res.reference) {
-          setReference(res.reference);
-          registerPendingPaymentRef.current({
-            reference: res.reference,
-            plan,
-            userId: activeUserId,
-            userName: activeUserName,
-            userEmail: activeEmail,
-            channel: 'bank_transfer_url',
-          });
-          try {
-            localStorage.setItem('grobax_pending_paystack_sub', JSON.stringify({
-              reference: res.reference,
-              plan,
-              userId: activeUserId,
-              userName: activeUserName,
-              timestamp: Date.now(),
-            }));
-          } catch {}
+        if (resolvedTrfRef) {
+          setReference(resolvedTrfRef);
+        }
+        if (resolvedChkRef) {
+          setCheckoutRef(resolvedChkRef);
+        }
+        if (resolvedTrfRef || resolvedChkRef) {
+          trackPendingRefs(resolvedChkRef || resolvedTrfRef, [resolvedTrfRef, resolvedChkRef], 'bank_transfer_url');
         }
       } else {
         setErrorMsg(res.error || 'Could not retrieve transfer account from Paystack. Please try again.');
@@ -223,7 +302,7 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
       setIsGeneratingAccount(false);
       isGeneratingAccountRef.current = false;
     }
-  }, [plan]);
+  }, [plan, trackPendingRefs]);
 
   // Initialize transaction and load Paystack script on mount
   useEffect(() => {
@@ -232,6 +311,7 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
 
     let isMounted = true;
     isPollingRef.current = true;
+    hasTriggeredSuccessRef.current = false;
 
     // Trigger instant generation of live dedicated Paystack bank transfer account immediately!
     fetchLiveTransferAccount();
@@ -261,30 +341,16 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
 
         if (isMounted) {
           if (initRes.success && initRes.reference) {
-            setReference(initRes.reference);
             setCardRef(initRes.reference);
+            setReference((prev) => prev || initRes.reference || '');
             if (initRes.authorization_url) {
-              setAuthUrl(initRes.authorization_url);
+              setCardAuthUrl(initRes.authorization_url);
+              setAuthUrl((prev) => prev || initRes.authorization_url || '');
             }
             if (initRes.publicKey) {
               setPublicKey(initRes.publicKey);
             }
-            registerPendingPaymentRef.current({
-              reference: initRes.reference,
-              plan,
-              userId: activeUserId,
-              userName: activeUserName,
-              userEmail: activeEmail,
-              channel: 'init',
-            });
-            try {
-              localStorage.setItem('grobax_pending_paystack_sub', JSON.stringify({
-                reference: initRes.reference,
-                plan,
-                userId: activeUserId,
-                timestamp: Date.now(),
-              }));
-            } catch {}
+            trackPendingRefs(initRes.reference, [initRes.reference], 'init');
           }
         }
       } catch (err) {
@@ -329,28 +395,17 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
 
   // Background Verification Polling: automatically checks every 2.5s and on window focus/visibility
   useEffect(() => {
-    const targetRefs = Array.from(
-      new Set([reference, cardRef, transferAccount?.reference].filter(Boolean) as string[])
-    );
+    const targetRefs = collectCandidateRefs();
     if (targetRefs.length === 0 || paymentStep === 'success') return;
 
     const checkAllRefs = async () => {
-      if (!isPollingRef.current) return;
-      for (const curRef of targetRefs) {
+      if (!isPollingRef.current || hasTriggeredSuccessRef.current) return;
+      const allRefs = collectCandidateRefs();
+      for (const curRef of allRefs) {
         try {
-          const verifyRes = await verifyPaystackTransaction(curRef);
+          const verifyRes = await verifyPaystackTransaction(curRef, allRefs);
           if (verifyRes && (verifyRes.verified || verifyRes.status === 'success')) {
-            stopPolling();
-            setPaymentStep('success');
-            setReference(curRef);
-            try {
-              localStorage.removeItem('grobax_pending_paystack_sub');
-            } catch {}
-            try {
-              await onSuccess(curRef);
-            } catch (onErr) {
-              console.warn('onSuccess activation notice:', onErr);
-            }
+            await completeVerifiedPayment(verifyRes.reference || curRef);
             break;
           }
         } catch {
@@ -363,7 +418,7 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
     const interval = setInterval(checkAllRefs, 2500);
     pollTimerRef.current = interval;
 
-    // Instant verification when user returns from Paystack browser window
+    // Instant verification when user returns from Paystack browser window / Custom Tab
     const handleFocus = () => {
       checkAllRefs();
     };
@@ -381,7 +436,7 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [reference, cardRef, transferAccount?.reference, paymentStep, onSuccess, stopPolling]);
+  }, [collectCandidateRefs, completeVerifiedPayment, paymentStep]);
 
   // Countdown timer
   useEffect(() => {
@@ -398,11 +453,27 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
     return () => clearInterval(timer);
   }, [paymentStep]);
 
+  // Open Paystack Web Checkout while guaranteeing tracking of its exact checkout reference (_CHK / init)
+  const handleOpenWebCheckout = useCallback((targetUrl: string, activeRef?: string, channel: string = 'web_checkout') => {
+    if (!targetUrl || !targetUrl.startsWith('http')) return;
+    const primary =
+      activeRef ||
+      checkoutRef ||
+      transferAccount?.checkoutReference ||
+      (transferAccount?.reference ? `${transferAccount.reference}_CHK` : '') ||
+      cardRef ||
+      reference;
+    if (primary) {
+      trackPendingRefs(primary, collectCandidateRefs([primary]), channel);
+    }
+    setHasLaunchedCheckout(true);
+    setErrorMsg('');
+    openPaystackCheckoutWindow(targetUrl);
+  }, [checkoutRef, transferAccount?.checkoutReference, transferAccount?.reference, cardRef, reference, trackPendingRefs, collectCandidateRefs]);
+
   // Manual check payment status
   const handleManualVerify = async () => {
-    const targetRefs = Array.from(
-      new Set([reference, cardRef, transferAccount?.reference].filter(Boolean) as string[])
-    );
+    const targetRefs = collectCandidateRefs();
     if (targetRefs.length === 0) return;
     setIsVerifying(true);
     setErrorMsg('');
@@ -412,30 +483,25 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
       triggerSubscriptionSensorCheck().catch(() => {});
 
       let foundSuccess = false;
+      let sawPending = false;
       for (const ref of targetRefs) {
-        const verifyRes = await verifyPaystackTransaction(ref);
+        const verifyRes = await verifyPaystackTransaction(ref, targetRefs);
 
         if (verifyRes && (verifyRes.verified || verifyRes.status === 'success')) {
           foundSuccess = true;
-          stopPolling();
-          setPaymentStep('success');
-          setReference(ref);
-          try {
-            localStorage.removeItem('grobax_pending_paystack_sub');
-          } catch {}
-          try {
-            await onSuccess(ref);
-          } catch (onErr) {
-            console.warn('onSuccess activation notice:', onErr);
-          }
+          await completeVerifiedPayment(verifyRes.reference || ref);
           break;
-        } else if (verifyRes && (verifyRes.isPending || verifyRes.status === 'ongoing' || verifyRes.status === 'pending_bank_transfer')) {
-          setErrorMsg('We are still waiting to receive the deposit from your bank. Bank transfers typically reflect in 10–60 seconds. We are continuing to check automatically in the background.');
+        } else if (verifyRes && (verifyRes.isPending || verifyRes.status === 'ongoing' || verifyRes.status === 'pending_bank_transfer' || verifyRes.status === 'pending')) {
+          sawPending = true;
         }
       }
 
-      if (!foundSuccess && !errorMsg) {
-        setErrorMsg('Transfer could not be confirmed yet. Please ensure you sent the exact amount to the account displayed, or allow a few moments for inter-bank clearing.');
+      if (!foundSuccess && !hasTriggeredSuccessRef.current) {
+        if (sawPending) {
+          setErrorMsg('We are still waiting to confirm the payment from Paystack. If you completed OPay or bank transfer, it typically reflects within 10–60 seconds — we are continuing to check automatically.');
+        } else {
+          setErrorMsg('Payment could not be confirmed yet. Please ensure payment was completed on Paystack, or allow a few moments and tap Verify Now again.');
+        }
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Verification connection check failed. Please check your internet connection.');
@@ -450,8 +516,8 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
     setErrorMsg('');
 
     try {
-      let targetUrl = authUrl;
-      let currentRef = cardRef || reference;
+      let targetUrl = cardAuthUrl || authUrl;
+      let currentRef = cardRef || checkoutRef || reference;
 
       // 1. Ensure we have an active transaction session
       if (!targetUrl || !currentRef) {
@@ -462,46 +528,29 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
           email: email && email.includes('@') ? email.trim() : 'scholar@grobaax.org',
           userId: userId || 'scholar',
           userName: userName || 'Scholar',
+          durationValue: plan.durationValue,
+          durationUnit: plan.durationUnit,
         });
 
         if (initRes.authorization_url) {
           targetUrl = initRes.authorization_url;
+          setCardAuthUrl(targetUrl);
           setAuthUrl(targetUrl);
         }
         if (initRes.reference) {
           currentRef = initRes.reference;
           setCardRef(currentRef);
-          setReference(currentRef);
+          setReference((prev) => prev || currentRef);
         }
       }
 
       if (!currentRef) {
         currentRef = `GRBX_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
         setCardRef(currentRef);
-        setReference(currentRef);
+        setReference((prev) => prev || currentRef);
       }
 
-      registerPendingPayment({
-        reference: currentRef,
-        plan,
-        userId,
-        userName,
-        userEmail: email,
-        channel: 'card',
-      });
-
-      try {
-        localStorage.setItem(
-          'grobax_pending_paystack_sub',
-          JSON.stringify({
-            reference: currentRef,
-            plan,
-            userId,
-            userName,
-            timestamp: Date.now(),
-          })
-        );
-      } catch {}
+      trackPendingRefs(currentRef, [currentRef], 'card');
 
       // 2. Primary Checkout Method: Paystack Official Checkout in clean tab/window
       // This is 100% immune to iframe blank surfaces, cross-origin blocks, and COOP restrictions
@@ -524,28 +573,20 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
             amount: Math.round(plan.priceNaira * 100),
             currency: 'NGN',
             ref: currentRef,
-            channels: ['card', 'bank', 'bank_transfer', 'ussd', 'qr'],
+            channels: ['card', 'bank', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],
             metadata: {
               planId: plan.planId,
               planName: plan.name,
               amountNaira: plan.priceNaira,
+              durationValue: plan.durationValue,
+              durationUnit: plan.durationUnit,
               userId,
               userName,
             },
             callback: async (response: any) => {
               const finalRef = response?.reference || response?.trxref || currentRef;
-              stopPolling();
-              setPaymentStep('success');
-              setIsVerifying(false);
-              try {
-                localStorage.removeItem('grobax_pending_paystack_sub');
-              } catch {}
-              try {
-                await onSuccess(finalRef);
-              } catch (actErr) {
-                console.warn('Subscription activation notice:', actErr);
-              }
-              verifyPaystackTransaction(finalRef).catch(() => {});
+              await completeVerifiedPayment(finalRef);
+              verifyPaystackTransaction(finalRef, collectCandidateRefs([finalRef])).catch(() => {});
             },
             onClose: () => {
               setIsLaunchingPopup(false);
@@ -864,6 +905,24 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
                     </p>
                   </div>
 
+                  {/* Web Checkout Live Detector Notice */}
+                  {hasLaunchedCheckout && (
+                    <div className="p-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-between gap-2 animate-in fade-in">
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2 shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                          Web Checkout Active — Auto-verifying on return (OPay / Card / Bank)
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
+                        Live
+                      </span>
+                    </div>
+                  )}
+
                   {/* Action Buttons */}
                   <div className="space-y-2 pt-1">
                     <button
@@ -885,10 +944,16 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
                       )}
                     </button>
 
-                    {authUrl && (
+                    {(transferAccount?.authorization_url || authUrl) && (
                       <button
                         type="button"
-                        onClick={() => openPaystackCheckoutWindow(authUrl)}
+                        onClick={() => {
+                          const targetUrl = transferAccount?.authorization_url || authUrl;
+                          const targetRef = transferAccount?.authorization_url
+                            ? (transferAccount.checkoutReference || (transferAccount.reference ? `${transferAccount.reference}_CHK` : checkoutRef))
+                            : (cardRef || checkoutRef || reference);
+                          handleOpenWebCheckout(targetUrl, targetRef, 'web_checkout_from_transfer');
+                        }}
                         className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -915,8 +980,13 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
                     <button
                       type="button"
                       onClick={async () => {
-                        if (authUrl && authUrl.startsWith('http')) {
-                          openPaystackCheckoutWindow(authUrl);
+                        const existingUrl = transferAccount?.authorization_url || cardAuthUrl || authUrl;
+                        if (existingUrl && existingUrl.startsWith('http')) {
+                          handleOpenWebCheckout(
+                            existingUrl,
+                            transferAccount?.checkoutReference || checkoutRef || cardRef || reference,
+                            'bank_transfer_fallback_url'
+                          );
                           return;
                         }
                         setIsLaunchingPopup(true);
@@ -928,10 +998,14 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
                             email: email && email.includes('@') ? email.trim() : 'scholar@grobaax.org',
                             userId: userIdRef.current || 'scholar',
                             userName: userNameRef.current || 'Scholar',
+                            durationValue: plan.durationValue,
+                            durationUnit: plan.durationUnit,
                           });
                           if (res.success && res.authorization_url) {
+                            setCardAuthUrl(res.authorization_url);
                             setAuthUrl(res.authorization_url);
-                            openPaystackCheckoutWindow(res.authorization_url);
+                            if (res.reference) setCardRef(res.reference);
+                            handleOpenWebCheckout(res.authorization_url, res.reference, 'bank_transfer_fallback_init');
                           } else {
                             handleLaunchCardCheckout();
                           }
@@ -1079,13 +1153,14 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
               )}
 
               {/* Fallback Hosted Link */}
-              {authUrl && !hasLaunchedCheckout && (
+              {(cardAuthUrl || authUrl) && !hasLaunchedCheckout && (
                 <div className="text-center">
                   <button
                     type="button"
                     onClick={() => {
-                      setHasLaunchedCheckout(true);
-                      openPaystackCheckoutWindow(authUrl);
+                      const targetUrl = cardAuthUrl || authUrl;
+                      const targetRef = cardAuthUrl ? cardRef : (checkoutRef || reference);
+                      handleOpenWebCheckout(targetUrl, targetRef, 'card_hosted_link');
                     }}
                     className="text-xs text-slate-500 dark:text-slate-400 hover:text-[#00C3F7] inline-flex items-center gap-1 transition cursor-pointer"
                   >
@@ -1161,10 +1236,16 @@ const PaystackGatewayModalInner: React.FC<PaystackGatewayModalProps> = ({
                   <span>I Have Completed the USSD Transfer</span>
                 </button>
 
-                {authUrl && (
+                {(transferAccount?.authorization_url || authUrl) && (
                   <button
                     type="button"
-                    onClick={() => openPaystackCheckoutWindow(authUrl)}
+                    onClick={() => {
+                      const targetUrl = transferAccount?.authorization_url || authUrl;
+                      const targetRef = transferAccount?.authorization_url
+                        ? (transferAccount.checkoutReference || checkoutRef)
+                        : (cardRef || reference);
+                      handleOpenWebCheckout(targetUrl, targetRef, 'ussd_web_checkout');
+                    }}
                     className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-1.5 transition cursor-pointer"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />

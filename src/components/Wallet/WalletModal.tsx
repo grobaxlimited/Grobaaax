@@ -3384,7 +3384,19 @@ export const WalletModal: React.FC = () => {
               }, 2500);
             }
           }}
-          onClose={() => setIsPaystackOpen(false)}
+          onClose={() => {
+            setIsPaystackOpen(false);
+            if (
+              selectedPlanForUpgrade &&
+              (currentUser.activePlanId === selectedPlanForUpgrade.planId ||
+                currentUser.activePlanId === selectedPlanForUpgrade.id ||
+                (currentUser.membershipTier &&
+                  selectedPlanForUpgrade.name &&
+                  currentUser.membershipTier.toLowerCase() === selectedPlanForUpgrade.name.toLowerCase()))
+            ) {
+              setSelectedPlanForUpgrade(null);
+            }
+          }}
         />
       )}
 
