@@ -297,6 +297,20 @@ export const AuthLandingScreen: React.FC = () => {
         </div>
       </main>
 
+      {/* Company Promotion CTA positioned cleanly above footer copyright & links */}
+      <div className="w-full max-w-7xl mx-auto px-6 pb-4 flex items-center justify-center relative z-10">
+        <a
+          id="landing-company-promotion-link"
+          href={getBrandPromotionPortalHref()}
+          className="inline-flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 font-bold transition-colors cursor-pointer"
+        >
+          <span className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Megaphone className="w-3.5 h-3.5" />
+          </span>
+          <span>Company Promotion</span>
+        </a>
+      </div>
+
       {/* Footer info matching screenshot */}
       <footer className="w-full max-w-7xl mx-auto px-6 py-6 border-t border-slate-200/60 dark:border-slate-800 flex flex-col items-center justify-center gap-2.5 text-xs text-slate-400 relative z-10">
         <div>©2023 Grobaaxylimited • Inter-Institutional Arena</div>
@@ -313,16 +327,6 @@ export const AuthLandingScreen: React.FC = () => {
             View Tour
           </button>
         </div>
-        <a
-          id="landing-company-promotion-link"
-          href={getBrandPromotionPortalHref()}
-          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 font-bold transition-colors cursor-pointer pt-1"
-        >
-          <span className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-            <Megaphone className="w-3.5 h-3.5" />
-          </span>
-          <span>Company Promotion</span>
-        </a>
       </footer>
 
       {/* Auth Modal overlay */}
