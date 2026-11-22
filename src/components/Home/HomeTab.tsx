@@ -21,6 +21,7 @@ import {
   Play,
   Zap,
   Newspaper,
+  Compass,
 } from 'lucide-react';
 
 export const HomeTab: React.FC = () => {
@@ -121,7 +122,7 @@ export const HomeTab: React.FC = () => {
               Represent your school, showcase your knowledge and earn GP rewards!
             </p>
 
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => setActiveTab('school_dome')}
@@ -130,6 +131,20 @@ export const HomeTab: React.FC = () => {
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>Explore Competitions</span>
                 <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              </button>
+
+              <button
+                type="button"
+                id="btn-home-tutor-guide"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('open_grobaax_tutor_guide'));
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 sm:py-2.5 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 border border-white/30 text-white font-extrabold text-xs sm:text-sm backdrop-blur-sm shadow-sm transition-all cursor-pointer"
+              >
+                <Compass className="w-4 h-4 text-[#ffbe1a]" />
+                <span>Tutor Guide</span>
               </button>
             </div>
           </div>

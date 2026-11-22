@@ -10,3 +10,8 @@ coverage/
 bun.lock
 .env*
 !.env.example
+.aistudio/
+*.mp4
+public/assets/aistudio/Screen_Recording_*
+public/assets/aistudio/Screenshot_*
+public/assets/aistudio/file_*

@@ -23,6 +23,7 @@ import {
   Shield,
   Lightbulb,
   Newspaper,
+  Compass,
 } from 'lucide-react';
 
 interface TopNavigationProps {
@@ -251,6 +252,25 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenAdminPanel }
                 )}
               </button>
             </div>
+
+            {/* Interactive Tutor Guide Replay Button */}
+            <button
+              type="button"
+              id="btn-header-tutor-guide"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('open_grobaax_tutor_guide'));
+                }
+              }}
+              title="Open Tutor Guide Walkthrough"
+              aria-label="Open Tutor Guide"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-600 dark:text-amber-300 border border-amber-400/30 transition cursor-pointer flex items-center gap-1 shrink-0"
+            >
+              <Compass className="w-4 h-4 shrink-0" />
+              <span className="hidden lg:inline text-[11px] font-black whitespace-nowrap">
+                Tutor Guide
+              </span>
+            </button>
 
             <WalletButton className="shrink-0" />
           </div>

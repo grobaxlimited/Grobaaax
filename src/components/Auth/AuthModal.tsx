@@ -340,11 +340,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         });
       }
 
-      // Initialize scholar registration timestamp and clean initial notifications
+      // Initialize scholar registration timestamp, pending tutor guide, and clean initial notifications
       const nowMs = Date.now();
       try {
         localStorage.setItem(`grobax_user_joined_at_${uid}`, String(nowMs));
         localStorage.setItem(`grobax_saved_notifications_${uid}`, JSON.stringify([]));
+        localStorage.setItem(`grobax_tutor_guide_pending_${uid}`, 'true');
       } catch {}
 
       // Dispatch newly created scholar's own personalized welcome notification

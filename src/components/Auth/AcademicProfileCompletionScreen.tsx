@@ -254,6 +254,9 @@ export const AcademicProfileCompletionScreen: React.FC = () => {
       try {
         localStorage.setItem(`grobax_academic_completed_${firebaseUser.uid}`, 'true');
         localStorage.setItem(`grobax_user_profile_${firebaseUser.uid}`, JSON.stringify(updatedProfile));
+        if (localStorage.getItem(`grobax_tutor_guide_seen_${firebaseUser.uid}`) !== 'true') {
+          localStorage.setItem(`grobax_tutor_guide_pending_${firebaseUser.uid}`, 'true');
+        }
       } catch (_) {}
 
       login(updatedProfile);

@@ -22,6 +22,7 @@ import { OfflineIndicator } from './components/PWA/OfflineIndicator';
 import { MobilePackagingModal } from './components/PWA/MobilePackagingModal';
 import { AuthCallbackReturn } from './components/Auth/AuthCallbackReturn';
 import { CorporateAdvertisingPortal } from './components/Corporate/CorporateAdvertisingPortal';
+import { TutorGuideModal } from './components/Onboarding/TutorGuideModal';
 import { useDevicePlatform } from './hooks/useDevicePlatform';
 import { isCorporateAdvertisingDomain } from './utils/domainPortal';
 
@@ -103,6 +104,8 @@ function MainLayout() {
     setViewMode,
   } = useApp();
 
+  const [isTutorGuideOpen, setIsTutorGuideOpen] = useState(false);
+
   const { isIOS } = useDevicePlatform();
 
   const isAuthenticated = Boolean(firebaseUser);
@@ -144,6 +147,48 @@ function MainLayout() {
       if (timerId) clearTimeout(timerId);
     };
   }, [isAuthenticated, isProfileLoaded, isAcademicProfileComplete, viewMode, activeTab]);
+
+  // Listen for manual Tutor Guide open requests and auto-open right after brand-new registration / setup
+  useEffect(() => {
+    const handleOpenTutorGuide = () => {
+      setIsTutorGuideOpen(true);
+    };
+    window.addEventListener('open_grobaax_tutor_guide', handleOpenTutorGuide);
+    return () => window.removeEventListener('open_grobaax_tutor_guide', handleOpenTutorGuide);
+  }, []);
+
+  useEffect(() => {
+    const uid = firebaseUser?.uid;
+    if (!uid || !isAuthenticated || !isProfileLoaded || !isAcademicProfileComplete || viewMode !== 'app') {
+      return;
+    }
+
+    try {
+      const seen = localStorage.getItem(`grobax_tutor_guide_seen_${uid}`) === 'true';
+      const pending = localStorage.getItem(`grobax_tutor_guide_pending_${uid}`) === 'true';
+      const joinedAtRaw = localStorage.getItem(`grobax_user_joined_at_${uid}`);
+      const isRecentlyJoined =
+        joinedAtRaw !== null && Date.now() - Number(joinedAtRaw) < 24 * 60 * 60 * 1000;
+
+      if (!seen && (pending || isRecentlyJoined)) {
+        const timer = setTimeout(() => {
+          setIsTutorGuideOpen(true);
+        }, 350);
+        return () => clearTimeout(timer);
+      }
+    } catch (_) {}
+  }, [firebaseUser?.uid, isAuthenticated, isProfileLoaded, isAcademicProfileComplete, viewMode]);
+
+  const handleCloseTutorGuide = () => {
+    setIsTutorGuideOpen(false);
+    const uid = firebaseUser?.uid;
+    if (uid) {
+      try {
+        localStorage.setItem(`grobax_tutor_guide_seen_${uid}`, 'true');
+        localStorage.removeItem(`grobax_tutor_guide_pending_${uid}`);
+      } catch (_) {}
+    }
+  };
 
   // If this window is the OAuth callback path, render the clean return screen that closes this tab
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/callback')) {
@@ -253,6 +298,12 @@ function MainLayout() {
 
       {/* Wallet & Profile Modal */}
       <WalletModal />
+
+      {/* Interactive Animated Tutor Guide Walkthrough */}
+      <TutorGuideModal
+        isOpen={isTutorGuideOpen}
+        onClose={handleCloseTutorGuide}
+      />
 
       {/* Free User Upgrade Promo Pop-up (10-Minute Recurrence) */}
       <UpgradePromoPopup />
