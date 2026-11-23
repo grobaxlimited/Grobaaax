@@ -218,6 +218,13 @@ notificationsRouter.get('/live-summary', async (req: Request, res: Response) => 
       String(req.query?.isAdmin || '').toLowerCase() === 'true' ||
       isAdminRole(String(req.query?.role || ''));
 
+    if (!isAdminFlag) {
+      return res.json({
+        success: true,
+        schoolBlogArticles: [],
+      });
+    }
+
     const { data: publishedArticles } = await supabaseAdmin
       .from('school_blog_articles')
       .select('id, author_user_id, blog_institution_id, institution_name, published_at, updated_at, created_at')
@@ -234,13 +241,6 @@ notificationsRouter.get('/live-summary', async (req: Request, res: Response) => 
       createdAt: a.created_at,
       updatedAt: a.updated_at,
     }));
-
-    if (!isAdminFlag) {
-      return res.json({
-        success: true,
-        schoolBlogArticles,
-      });
-    }
 
     const [
       pendingCompaniesRes,

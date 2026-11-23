@@ -2789,14 +2789,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 }
               }
 
-              // Broadcast for all users or role targets (platform announcements, school blog, admin portal alerts, league alerts, arena matches, system notices)
+              // Do not show general user broadcasts for newly published blog posts
+              if (
+                String(notif.id || '').startsWith('notif_blog_feed_') ||
+                ((notif.type as string) === 'school_blog' && notif.targetRole !== 'admin')
+              ) {
+                return false;
+              }
+
+              // Broadcast for all users or role targets (platform announcements, admin portal alerts, league alerts, arena matches, system notices)
               const isBroadcast =
                 notif.type === 'announcement' ||
                 notif.type === 'dome' ||
                 notif.type === 'league' ||
                 notif.type === 'gus' ||
                 notif.type === 'system' ||
-                (notif.type as string) === 'school_blog' ||
+                ((notif.type as string) === 'school_blog' && notif.targetRole === 'admin') ||
                 (notif.type as string) === 'corporate_ads';
 
               if (!isBroadcast) return false;
@@ -2829,11 +2837,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 const parsed = JSON.parse(cached);
                 if (Array.isArray(parsed)) {
                   const readSet = getReadNotifSet(currentUid, currentUser.id, firebaseUser?.uid);
-                  const cleaned = parsed.map((notif: any) => ({
-                    ...notif,
-                    isRead: isNotificationRead(notif, readSet),
-                    createdAtMs: getNotificationTimestampMs(notif),
-                  }));
+                  const cleaned = parsed
+                    .filter((notif: any) => !String(notif?.id || '').startsWith('notif_blog_feed_'))
+                    .map((notif: any) => ({
+                      ...notif,
+                      isRead: isNotificationRead(notif, readSet),
+                      createdAtMs: getNotificationTimestampMs(notif),
+                    }));
                   setNotifications(sortNotificationsNewestFirst(cleaned));
                   return;
                 }
@@ -2850,11 +2860,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               const parsed = JSON.parse(cached);
               if (Array.isArray(parsed)) {
                 const readSet = getReadNotifSet(currentUid, currentUser.id, firebaseUser?.uid);
-                const cleaned = parsed.map((notif: any) => ({
-                  ...notif,
-                  isRead: isNotificationRead(notif, readSet),
-                  createdAtMs: getNotificationTimestampMs(notif),
-                }));
+                const cleaned = parsed
+                  .filter((notif: any) => !String(notif?.id || '').startsWith('notif_blog_feed_'))
+                  .map((notif: any) => ({
+                    ...notif,
+                    isRead: isNotificationRead(notif, readSet),
+                    createdAtMs: getNotificationTimestampMs(notif),
+                  }));
                 setNotifications(sortNotificationsNewestFirst(cleaned));
                 return;
               }

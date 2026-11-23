@@ -534,19 +534,8 @@ class GrobaaxNotificationService {
       hintsCount = Math.max(hintsCount, unreadHints);
     }
 
-    // 12. School Blog Published Articles (Unread updates since user last visited School Blog or joined)
-    const blogReadTime = lastRead['school_blog'] ?? ds.userJoinedAtMs ?? 0;
-    let schoolBlogCount = this.eventCounts['school_blog'] || 0;
-    if (ds.schoolBlogArticles && ds.schoolBlogArticles.length > 0) {
-      const unreadArticles = ds.schoolBlogArticles.filter((a) => {
-        if (a.authorUserId && (a.authorUserId === uid || a.authorUserId === `@${uid}`)) {
-          return false;
-        }
-        const time = this.parseTimestamp(a.publishedAt || a.updatedAt || a.createdAt);
-        return time > blogReadTime;
-      }).length;
-      schoolBlogCount += unreadArticles;
-    }
+    // 12. School Blog Published Articles: Do not notify/badge users whenever someone publishes a blog post
+    const schoolBlogCount = 0;
 
     this.userCounts = {
       home: homeCount,
