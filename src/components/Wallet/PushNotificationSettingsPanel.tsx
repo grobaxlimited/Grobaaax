@@ -202,6 +202,29 @@ export const PushNotificationSettingsPanel: React.FC = () => {
         setPushEnabled(saved.pushEnabled);
         setCategories(saved.categories);
       }
+
+      if (
+        enabled &&
+        capability?.supported &&
+        capability.status !== 'denied' &&
+        capability.status !== 'iframe_restricted' &&
+        capability.status !== 'missing_vapid' &&
+        !devices.some((d) => d.isCurrentDevice)
+      ) {
+        const regRes = await requestPermissionAndRegisterDevice();
+        const updatedCap = await getBrowserPushCapability(pushConfig);
+        setCapability(updatedCap);
+        if (regRes.success) {
+          const devRes = await fetchPushDevices();
+          setDevices(devRes.devices || []);
+          setFeedback({
+            type: 'success',
+            text: 'External push notifications enabled and this device is registered.',
+          });
+          return;
+        }
+      }
+
       setFeedback({
         type: 'info',
         text: enabled
@@ -290,12 +313,6 @@ export const PushNotificationSettingsPanel: React.FC = () => {
   };
 
   const currentDeviceRegistered = devices.some((d) => d.isCurrentDevice);
-  const isAdminUser = Boolean(
-    currentUser?.role === 'admin' ||
-      currentUser?.role === 'super_admin' ||
-      (currentUser as any)?.isAdmin ||
-      (currentUser as any)?.isSuperAdmin
-  );
 
   return (
     <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-4">
@@ -341,116 +358,7 @@ export const PushNotificationSettingsPanel: React.FC = () => {
         </div>
       )}
 
-      {/* 1. Browser Permission & Mobile Compatibility Status (distinct from Grobaax account preferences) */}
-      <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>This Browser & Device Permission</span>
-              <span
-                className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                  capability?.status === 'granted'
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                    : capability?.status === 'denied'
-                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                }`}
-              >
-                {capability?.status === 'granted'
-                  ? 'Browser Allowed'
-                  : capability?.status === 'denied'
-                  ? 'Blocked in Browser'
-                  : capability?.status === 'iframe_restricted'
-                  ? 'Open Dedicated Tab'
-                  : capability?.status === 'ios_install_required'
-                  ? 'Add to Home Screen Required'
-                  : capability?.status === 'missing_vapid'
-                  ? 'Unavailable Here'
-                  : capability?.supported
-                  ? 'Permission Not Enabled'
-                  : 'Unsupported Here'}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-              {capability?.guidance || 'Checking push notification support for this browser...'}
-            </p>
-          </div>
-        </div>
-
-        {isAdminUser &&
-          pushConfig &&
-          !pushConfig.pushFullyConfigured &&
-          (pushConfig.missingKeys.length > 0 || pushConfig.credentialError) && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300 space-y-1">
-              <div className="font-extrabold">Admin Setup Diagnostics</div>
-              {pushConfig.missingKeys.length > 0 && (
-                <div>Missing on this deployment: {pushConfig.missingKeys.join(', ')}</div>
-              )}
-              {pushConfig.credentialError && (
-                <div className="font-semibold">{pushConfig.credentialError}</div>
-              )}
-            </div>
-          )}
-
-        {/* Dedicated iPhone/iPad (iOS 16.4+) Home Screen Guidance */}
-        {capability?.status === 'ios_install_required' && (
-          <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-slate-700 dark:text-slate-200 space-y-1.5">
-            <div className="font-extrabold text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>How to enable push notifications on iPhone & iPad (iOS 16.4+)</span>
-            </div>
-            <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300">
-              <li className="flex items-center gap-1.5">
-                <Share className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                <span>Open Grobaax in Safari and tap the <strong>Share</strong> button.</span>
-              </li>
-              <li className="flex items-center gap-1.5">
-                <PlusSquare className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                <span>Select <strong>Add to Home Screen</strong>.</span>
-              </li>
-              <li>Launch Grobaax from your Home Screen icon, then return here to enable push notifications.</li>
-            </ol>
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-          {capability?.supported &&
-            capability.status !== 'denied' &&
-            capability.status !== 'iframe_restricted' &&
-            capability.status !== 'missing_vapid' &&
-            (!currentDeviceRegistered || capability.status !== 'granted') && (
-              <button
-                type="button"
-                onClick={handleEnableThisDevice}
-                disabled={isEnablingDevice}
-                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition disabled:opacity-50"
-              >
-                <Bell className="w-3.5 h-3.5" />
-                <span>
-                  {isEnablingDevice
-                    ? 'Registering Device...'
-                    : capability.status === 'granted'
-                    ? 'Register This Device for Push'
-                    : 'Enable Push on This Device'}
-                </span>
-              </button>
-            )}
-
-          {devices.length > 0 && (
-            <button
-              type="button"
-              onClick={handleSendTestPush}
-              disabled={isSendingTest || !pushEnabled}
-              className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition disabled:opacity-50"
-            >
-              <Send className="w-3.5 h-3.5 text-blue-500" />
-              <span>{isSendingTest ? 'Sending Test...' : 'Send Test Push'}</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 2. Grobaax Account Notification Preferences (Master + Categories) */}
+      {/* 1. Grobaax Account Notification Preferences (Master + Categories) */}
       <div className="space-y-2 pt-1">
         <div className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
           <div className="flex items-start gap-2.5 pr-3">
@@ -499,14 +407,66 @@ export const PushNotificationSettingsPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Registered Devices List */}
+      {/* 2. Registered Devices List */}
       <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs font-extrabold text-slate-900 dark:text-white">
             Registered Push Devices ({devices.length})
           </div>
-          <span className="text-[11px] text-slate-400">Multiple devices supported</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {capability?.supported &&
+              capability.status !== 'denied' &&
+              capability.status !== 'iframe_restricted' &&
+              capability.status !== 'missing_vapid' &&
+              (!currentDeviceRegistered || capability.status !== 'granted') && (
+                <button
+                  type="button"
+                  onClick={handleEnableThisDevice}
+                  disabled={isEnablingDevice}
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>
+                    {isEnablingDevice
+                      ? 'Registering...'
+                      : capability.status === 'granted'
+                      ? 'Register This Device'
+                      : 'Enable on This Device'}
+                  </span>
+                </button>
+              )}
+
+            {devices.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSendTestPush}
+                disabled={isSendingTest || !pushEnabled}
+                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+              >
+                <Send className="w-3.5 h-3.5 text-blue-500" />
+                <span>{isSendingTest ? 'Sending...' : 'Send Test Push'}</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {capability?.status === 'ios_install_required' && (
+          <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-slate-700 dark:text-slate-200 space-y-1.5">
+            <div className="font-extrabold text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>iPhone & iPad (iOS 16.4+)</span>
+            </div>
+            <p className="text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-1">
+              <span>Tap</span>
+              <Share className="w-3.5 h-3.5 text-blue-500 inline" />
+              <strong>Share</strong>
+              <span>→</span>
+              <PlusSquare className="w-3.5 h-3.5 text-blue-500 inline" />
+              <strong>Add to Home Screen</strong>
+              <span>and open Grobaax from your Home Screen icon to enable web push notifications.</span>
+            </p>
+          </div>
+        )}
 
         {devices.length === 0 ? (
           <p className="text-[11px] text-slate-500 dark:text-slate-400 py-1">
