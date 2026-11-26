@@ -9,6 +9,7 @@ import {
   type MessagePayload,
 } from 'firebase/messaging';
 import { supabase } from './supabase';
+import bundledAppletConfig from '../../firebase-applet-config.json';
 
 export type PushCategoryKey =
   | 'connections'
@@ -121,21 +122,77 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
+function getLocalFallbackPushConfig(): PublicPushConfigResponse {
+  const env = (import.meta as any).env || {};
+  const fallbackCfg = (bundledAppletConfig || {}) as Record<string, string>;
+  const firebaseConfig = {
+    apiKey: env.VITE_FIREBASE_API_KEY || fallbackCfg.apiKey || '',
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || fallbackCfg.authDomain || '',
+    projectId: env.VITE_FIREBASE_PROJECT_ID || fallbackCfg.projectId || '',
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || fallbackCfg.storageBucket || '',
+    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || fallbackCfg.messagingSenderId || '',
+    appId: env.VITE_FIREBASE_APP_ID || fallbackCfg.appId || '',
+    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || fallbackCfg.measurementId || '',
+  };
+  const vapidPublicKey = String(env.VITE_FIREBASE_VAPID_KEY || '').trim();
+  const firebaseConfigReady = Boolean(
+    firebaseConfig.apiKey &&
+      firebaseConfig.projectId &&
+      firebaseConfig.messagingSenderId &&
+      firebaseConfig.appId
+  );
+  return {
+    success: true,
+    firebaseConfig,
+    vapidPublicKey,
+    firebaseConfigReady,
+    vapidConfigured: Boolean(vapidPublicKey),
+    serverDeliveryConfigured: false,
+    pushFullyConfigured: false,
+    missingKeys: [],
+  };
+}
+
 export async function fetchPublicPushConfig(forceRefresh = false): Promise<PublicPushConfigResponse | null> {
   if (!forceRefresh && cachedPushConfig && Date.now() - cachedPushConfigAt < 60_000) {
     return cachedPushConfig;
   }
+  const localFallback = getLocalFallbackPushConfig();
   try {
     const res = await fetch('/api/notifications/push-config');
-    if (!res.ok) return cachedPushConfig;
-    const data = (await res.json()) as PublicPushConfigResponse;
-    if (data && data.success) {
-      cachedPushConfig = data;
-      cachedPushConfigAt = Date.now();
-      return data;
+    if (res.ok) {
+      const data = (await res.json()) as PublicPushConfigResponse;
+      if (data && data.success) {
+        const mergedFirebaseConfig = {
+          apiKey: data.firebaseConfig?.apiKey || localFallback.firebaseConfig.apiKey,
+          authDomain: data.firebaseConfig?.authDomain || localFallback.firebaseConfig.authDomain,
+          projectId: data.firebaseConfig?.projectId || localFallback.firebaseConfig.projectId,
+          storageBucket: data.firebaseConfig?.storageBucket || localFallback.firebaseConfig.storageBucket,
+          messagingSenderId:
+            data.firebaseConfig?.messagingSenderId || localFallback.firebaseConfig.messagingSenderId,
+          appId: data.firebaseConfig?.appId || localFallback.firebaseConfig.appId,
+          measurementId: data.firebaseConfig?.measurementId || localFallback.firebaseConfig.measurementId,
+        };
+        const vapidPublicKey = data.vapidPublicKey || localFallback.vapidPublicKey;
+        const firebaseConfigReady = Boolean(
+          mergedFirebaseConfig.apiKey &&
+            mergedFirebaseConfig.projectId &&
+            mergedFirebaseConfig.messagingSenderId &&
+            mergedFirebaseConfig.appId
+        );
+        cachedPushConfig = {
+          ...data,
+          firebaseConfig: mergedFirebaseConfig,
+          vapidPublicKey,
+          firebaseConfigReady,
+          vapidConfigured: Boolean(vapidPublicKey),
+        };
+        cachedPushConfigAt = Date.now();
+        return cachedPushConfig;
+      }
     }
   } catch {}
-  return cachedPushConfig;
+  return cachedPushConfig || localFallback;
 }
 
 export function detectIosVersion(ua: string): number | null {
@@ -344,14 +401,60 @@ function getOrInitMessagingInstance(
   }
 }
 
+async function waitForServiceWorkerActive(
+  registration: ServiceWorkerRegistration,
+  timeoutMs = 8000
+): Promise<ServiceWorkerRegistration> {
+  if (registration.active) {
+    return registration;
+  }
+  const pending = registration.installing || registration.waiting;
+  if (!pending) {
+    return registration;
+  }
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+    const timer = setTimeout(done, timeoutMs);
+    pending.addEventListener('statechange', () => {
+      if (pending.state === 'activated' || pending.state === 'redundant' || registration.active) {
+        clearTimeout(timer);
+        done();
+      }
+    });
+  });
+  return registration;
+}
+
 async function getPushServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
   try {
+    // In production/installed PWAs, prefer the active root PWA SW (/sw.js with /grobaax-push-sw.js)
+    // which is required for reliable push delivery on Android WebAPK and iOS 16.4+ Home Screen PWAs.
+    const rootReg = await navigator.serviceWorker.getRegistration('/');
+    if (rootReg) {
+      await waitForServiceWorkerActive(rootReg);
+      if (rootReg.active) {
+        return rootReg;
+      }
+    }
+
     const existing = await navigator.serviceWorker.getRegistration(FCM_SW_SCOPE);
-    if (existing) return existing;
-    return await navigator.serviceWorker.register(FCM_SW_URL, {
+    if (existing) {
+      await waitForServiceWorkerActive(existing);
+      return existing;
+    }
+
+    const registered = await navigator.serviceWorker.register(FCM_SW_URL, {
       scope: FCM_SW_SCOPE,
     });
+    await waitForServiceWorkerActive(registered);
+    return registered;
   } catch (err) {
     console.warn('[Push] SW registration notice:', err);
     return null;

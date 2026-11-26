@@ -4,6 +4,7 @@ import { initializeApp, getApps, cert, type App, type ServiceAccount } from 'fir
 import { getMessaging, type Messaging } from 'firebase-admin/messaging';
 import { supabaseAdmin, isSuperAdmin } from '../src/lib/supabase';
 import { isPrimarySuperAdmin } from '../src/lib/adminPermissions';
+import bundledAppletConfig from '../firebase-applet-config.json';
 
 export type PushCategory =
   | 'connections'
@@ -101,6 +102,10 @@ function readAppletConfigFile(): Record<string, string> {
     }
   } catch (err: any) {
     console.warn('[PushService] Could not parse firebase-applet-config.json:', err?.message || err);
+  }
+  if (bundledAppletConfig && typeof bundledAppletConfig === 'object') {
+    cachedAppletConfig = bundledAppletConfig as unknown as Record<string, string>;
+    return cachedAppletConfig;
   }
   cachedAppletConfig = {};
   return cachedAppletConfig;

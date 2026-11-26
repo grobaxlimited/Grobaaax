@@ -290,6 +290,12 @@ export const PushNotificationSettingsPanel: React.FC = () => {
   };
 
   const currentDeviceRegistered = devices.some((d) => d.isCurrentDevice);
+  const isAdminUser = Boolean(
+    currentUser?.role === 'admin' ||
+      currentUser?.role === 'super_admin' ||
+      (currentUser as any)?.isAdmin ||
+      (currentUser as any)?.isSuperAdmin
+  );
 
   return (
     <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-4">
@@ -370,6 +376,21 @@ export const PushNotificationSettingsPanel: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {isAdminUser &&
+          pushConfig &&
+          !pushConfig.pushFullyConfigured &&
+          (pushConfig.missingKeys.length > 0 || pushConfig.credentialError) && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300 space-y-1">
+              <div className="font-extrabold">Admin Setup Diagnostics</div>
+              {pushConfig.missingKeys.length > 0 && (
+                <div>Missing on this deployment: {pushConfig.missingKeys.join(', ')}</div>
+              )}
+              {pushConfig.credentialError && (
+                <div className="font-semibold">{pushConfig.credentialError}</div>
+              )}
+            </div>
+          )}
 
         {/* Dedicated iPhone/iPad (iOS 16.4+) Home Screen Guidance */}
         {capability?.status === 'ios_install_required' && (

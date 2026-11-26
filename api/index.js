@@ -857,6 +857,23 @@ var init_supabase = __esm({
   }
 });
 
+// src/types.ts
+var PRIMARY_SUPER_ADMIN_UID2, OFFICIAL_EVENT_HOST, PLATFORM_EVENT_CATEGORIES;
+var init_types = __esm({
+  "src/types.ts"() {
+    PRIMARY_SUPER_ADMIN_UID2 = "4403bd2b-e385-479b-af16-058582fa4ee3";
+    OFFICIAL_EVENT_HOST = "Global Academic Directorate";
+    PLATFORM_EVENT_CATEGORIES = [
+      { id: "school_dome", label: "School Dome Arena", shortLabel: "School Dome", tabKey: "school_dome", channelName: "School Dome Arena" },
+      { id: "gus", label: "GUS Championship Event", shortLabel: "GUS Tournament", tabKey: "school_dome", channelName: "School Dome Arena" },
+      { id: "academic_olympiad", label: "Academic Olympiad Event", shortLabel: "Academic Olympiad", tabKey: "school_dome", channelName: "School Dome Arena" },
+      { id: "chatroom_live", label: "Chatroom Live Event", shortLabel: "Chatroom Live", tabKey: "community", subTab: "campus", channelName: "Campus Network" },
+      { id: "campus_hackathon", label: "Campus Hackathon & Quiz", shortLabel: "Campus Hackathon", tabKey: "community", subTab: "campus", channelName: "Campus Network" },
+      { id: "others", label: "General Student Event", shortLabel: "Campus Event", tabKey: "community", subTab: "campus", channelName: "Campus Network" }
+    ];
+  }
+});
+
 // src/lib/googleAuthHelper.ts
 var GOOGLE_CLIENT_ID, promptGoogleOneTap;
 var init_googleAuthHelper = __esm({
@@ -1918,37 +1935,6 @@ var init_imageCompressor = __esm({
   }
 });
 
-// src/types.ts
-var PRIMARY_SUPER_ADMIN_UID2, OFFICIAL_EVENT_HOST, PLATFORM_EVENT_CATEGORIES;
-var init_types = __esm({
-  "src/types.ts"() {
-    PRIMARY_SUPER_ADMIN_UID2 = "4403bd2b-e385-479b-af16-058582fa4ee3";
-    OFFICIAL_EVENT_HOST = "Global Academic Directorate";
-    PLATFORM_EVENT_CATEGORIES = [
-      { id: "school_dome", label: "School Dome Arena", shortLabel: "School Dome", tabKey: "school_dome", channelName: "School Dome Arena" },
-      { id: "gus", label: "GUS Championship Event", shortLabel: "GUS Tournament", tabKey: "school_dome", channelName: "School Dome Arena" },
-      { id: "academic_olympiad", label: "Academic Olympiad Event", shortLabel: "Academic Olympiad", tabKey: "school_dome", channelName: "School Dome Arena" },
-      { id: "chatroom_live", label: "Chatroom Live Event", shortLabel: "Chatroom Live", tabKey: "community", subTab: "campus", channelName: "Campus Network" },
-      { id: "campus_hackathon", label: "Campus Hackathon & Quiz", shortLabel: "Campus Hackathon", tabKey: "community", subTab: "campus", channelName: "Campus Network" },
-      { id: "others", label: "General Student Event", shortLabel: "Campus Event", tabKey: "community", subTab: "campus", channelName: "Campus Network" }
-    ];
-  }
-});
-
-// src/lib/adminPermissions.ts
-function isPrimarySuperAdmin(uid, email) {
-  if (!uid && !email) return false;
-  const cleanUid = (uid || "").trim();
-  const cleanEmail = (email || "").toLowerCase().trim();
-  return cleanUid === "4403bd2b-e385-479b-af16-058582fa4ee3" || cleanUid === PRIMARY_SUPER_ADMIN_UID2 || cleanEmail === "grobaxycompany@gmail.com" || cleanUid.toLowerCase() === "grobaxycompany@gmail.com" || cleanEmail === "grobaxlimited@gmail.com" || cleanUid.toLowerCase() === "grobaxlimited@gmail.com" || cleanUid === "iH02BTcB4B0BV2YLA60WwFAi50CJ3" || cleanUid === "aGZBTsB4BBNvlY1A69hwfAb5DCJ3" || cleanEmail === "basmock@gmail.com" || cleanUid.toLowerCase() === "basmock@gmail.com";
-}
-var init_adminPermissions = __esm({
-  "src/lib/adminPermissions.ts"() {
-    init_types();
-    init_firebase();
-  }
-});
-
 // src/data/mockData.ts
 var MOCK_USERS, MOCK_SEASONS, MOCK_MASTER_INSTITUTIONS, MOCK_QUALIFICATION_COMPETITIONS, MOCK_DOME_SESSIONS;
 var init_mockData = __esm({
@@ -2452,6 +2438,661 @@ var init_mockChatroomData = __esm({
   }
 });
 
+// firebase-applet-config.json
+var firebase_applet_config_default;
+var init_firebase_applet_config = __esm({
+  "firebase-applet-config.json"() {
+    firebase_applet_config_default = {
+      projectId: "gen-lang-client-0808281932",
+      appId: "1:986497972548:web:679442043004ae5def7f11",
+      apiKey: "AIzaSyAty5eyuTSAy4fUXHwSLX7umFzOTdlLwrE",
+      authDomain: "gen-lang-client-0808281932.firebaseapp.com",
+      firestoreDatabaseId: "ai-studio-grbxbox-f5f6e3af-7b8c-4cb3-b0be-448c38423a10",
+      storageBucket: "gen-lang-client-0808281932.firebasestorage.app",
+      messagingSenderId: "986497972548",
+      measurementId: "",
+      oAuthClientId: "986497972548-kif6fkh7q1mgfvhqqrk055if4jk4e530.apps.googleusercontent.com",
+      recaptchaSiteKey: ""
+    };
+  }
+});
+
+// src/lib/pushNotifications.ts
+var pushNotifications_exports = {};
+__export(pushNotifications_exports, {
+  FCM_TOKEN_STORAGE_KEY: () => FCM_TOKEN_STORAGE_KEY,
+  FCM_TOKEN_USER_STORAGE_KEY: () => FCM_TOKEN_USER_STORAGE_KEY,
+  PENDING_PUSH_DEST_KEY: () => PENDING_PUSH_DEST_KEY,
+  capturePendingPushDestinationFromUrl: () => capturePendingPushDestinationFromUrl,
+  consumePendingPushDestination: () => consumePendingPushDestination,
+  deletePushDevice: () => deletePushDevice,
+  detectBrowserAndDeviceLabel: () => detectBrowserAndDeviceLabel,
+  detectIosVersion: () => detectIosVersion,
+  fetchPublicPushConfig: () => fetchPublicPushConfig,
+  fetchPushDevices: () => fetchPushDevices,
+  fetchPushPreferences: () => fetchPushPreferences,
+  getBrowserPushCapability: () => getBrowserPushCapability,
+  getStoredFcmToken: () => getStoredFcmToken,
+  getSupabaseAccessToken: () => getSupabaseAccessToken,
+  requestPermissionAndRegisterDevice: () => requestPermissionAndRegisterDevice,
+  savePushPreferences: () => savePushPreferences,
+  sendSelfTestPush: () => sendSelfTestPush,
+  setPendingPushDestination: () => setPendingPushDestination,
+  subscribeForegroundFcmMessages: () => subscribeForegroundFcmMessages,
+  syncPushDeviceSilentlyIfGranted: () => syncPushDeviceSilentlyIfGranted,
+  triggerVerifiedPushEvent: () => triggerVerifiedPushEvent,
+  unregisterCurrentDeviceToken: () => unregisterCurrentDeviceToken
+});
+import { initializeApp, getApps } from "firebase/app";
+import {
+  getMessaging,
+  getToken,
+  deleteToken,
+  onMessage,
+  isSupported
+} from "firebase/messaging";
+function getStoredFcmToken() {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(FCM_TOKEN_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+async function getSupabaseAccessToken() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token || "";
+  } catch {
+    return "";
+  }
+}
+async function getAuthHeaders() {
+  const token = await getSupabaseAccessToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+function getLocalFallbackPushConfig() {
+  const env = import.meta.env || {};
+  const fallbackCfg = firebase_applet_config_default || {};
+  const firebaseConfig2 = {
+    apiKey: env.VITE_FIREBASE_API_KEY || fallbackCfg.apiKey || "",
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || fallbackCfg.authDomain || "",
+    projectId: env.VITE_FIREBASE_PROJECT_ID || fallbackCfg.projectId || "",
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || fallbackCfg.storageBucket || "",
+    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || fallbackCfg.messagingSenderId || "",
+    appId: env.VITE_FIREBASE_APP_ID || fallbackCfg.appId || "",
+    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || fallbackCfg.measurementId || ""
+  };
+  const vapidPublicKey = String(env.VITE_FIREBASE_VAPID_KEY || "").trim();
+  const firebaseConfigReady = Boolean(
+    firebaseConfig2.apiKey && firebaseConfig2.projectId && firebaseConfig2.messagingSenderId && firebaseConfig2.appId
+  );
+  return {
+    success: true,
+    firebaseConfig: firebaseConfig2,
+    vapidPublicKey,
+    firebaseConfigReady,
+    vapidConfigured: Boolean(vapidPublicKey),
+    serverDeliveryConfigured: false,
+    pushFullyConfigured: false,
+    missingKeys: []
+  };
+}
+async function fetchPublicPushConfig(forceRefresh = false) {
+  if (!forceRefresh && cachedPushConfig && Date.now() - cachedPushConfigAt < 6e4) {
+    return cachedPushConfig;
+  }
+  const localFallback = getLocalFallbackPushConfig();
+  try {
+    const res = await fetch("/api/notifications/push-config");
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success) {
+        const mergedFirebaseConfig = {
+          apiKey: data.firebaseConfig?.apiKey || localFallback.firebaseConfig.apiKey,
+          authDomain: data.firebaseConfig?.authDomain || localFallback.firebaseConfig.authDomain,
+          projectId: data.firebaseConfig?.projectId || localFallback.firebaseConfig.projectId,
+          storageBucket: data.firebaseConfig?.storageBucket || localFallback.firebaseConfig.storageBucket,
+          messagingSenderId: data.firebaseConfig?.messagingSenderId || localFallback.firebaseConfig.messagingSenderId,
+          appId: data.firebaseConfig?.appId || localFallback.firebaseConfig.appId,
+          measurementId: data.firebaseConfig?.measurementId || localFallback.firebaseConfig.measurementId
+        };
+        const vapidPublicKey = data.vapidPublicKey || localFallback.vapidPublicKey;
+        const firebaseConfigReady = Boolean(
+          mergedFirebaseConfig.apiKey && mergedFirebaseConfig.projectId && mergedFirebaseConfig.messagingSenderId && mergedFirebaseConfig.appId
+        );
+        cachedPushConfig = {
+          ...data,
+          firebaseConfig: mergedFirebaseConfig,
+          vapidPublicKey,
+          firebaseConfigReady,
+          vapidConfigured: Boolean(vapidPublicKey)
+        };
+        cachedPushConfigAt = Date.now();
+        return cachedPushConfig;
+      }
+    }
+  } catch {
+  }
+  return cachedPushConfig || localFallback;
+}
+function detectIosVersion(ua) {
+  const match = ua.match(/OS (\d+)[_.](\d+)/i);
+  if (!match) return null;
+  const major = Number(match[1]);
+  const minor = Number(match[2] || 0);
+  if (Number.isNaN(major)) return null;
+  return major + minor / 10;
+}
+function detectBrowserAndDeviceLabel() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return {
+      isIOS: false,
+      isAndroid: false,
+      isStandalone: false,
+      iosVersion: null,
+      browserLabel: "Web Browser",
+      platformType: "web_desktop",
+      deviceLabel: "Web Device"
+    };
+  }
+  const ua = navigator.userAgent || "";
+  const platform = navigator.platform || "";
+  const maxTouchPoints = navigator.maxTouchPoints || 0;
+  const isIOS = /iPad|iPhone|iPod/i.test(ua) || platform === "MacIntel" && maxTouchPoints > 1;
+  const isAndroid = /Android/i.test(ua);
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || Boolean(navigator.standalone);
+  const iosVersion = isIOS ? detectIosVersion(ua) : null;
+  let browserLabel = "Browser";
+  if (/Edg\//i.test(ua)) browserLabel = "Edge";
+  else if (/OPR\/|Opera/i.test(ua)) browserLabel = "Opera";
+  else if (/CriOS/i.test(ua)) browserLabel = "Chrome on iOS";
+  else if (/FxiOS/i.test(ua)) browserLabel = "Firefox on iOS";
+  else if (/Chrome|Chromium/i.test(ua) && !/Edg/i.test(ua)) browserLabel = "Chrome";
+  else if (/Firefox/i.test(ua)) browserLabel = "Firefox";
+  else if (/Safari/i.test(ua) && !/Chrome|Chromium/i.test(ua)) browserLabel = "Safari";
+  const platformType = isIOS ? "web_ios" : isAndroid ? "web_android" : "web_desktop";
+  const osName = isIOS ? "iPhone / iPad" : isAndroid ? "Android" : "Desktop";
+  const deviceLabel = isStandalone ? `${osName} Home App (${browserLabel})` : `${osName} (${browserLabel})`;
+  return {
+    isIOS,
+    isAndroid,
+    isStandalone,
+    iosVersion,
+    browserLabel,
+    platformType,
+    deviceLabel
+  };
+}
+async function getBrowserPushCapability(config) {
+  const info = detectBrowserAndDeviceLabel();
+  const hasBaseApis = typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator;
+  if (info.isIOS) {
+    if (info.iosVersion !== null && info.iosVersion < 16.4) {
+      return {
+        ...info,
+        supported: false,
+        status: "ios_version_unsupported",
+        permission: hasBaseApis ? Notification.permission : "unsupported",
+        guidance: "Web push notifications on iPhone and iPad require iOS/iPadOS 16.4 or later and adding Grobaax to your Home Screen."
+      };
+    }
+    if (!info.isStandalone) {
+      return {
+        ...info,
+        supported: false,
+        status: "ios_install_required",
+        permission: hasBaseApis ? Notification.permission : "unsupported",
+        guidance: 'On iPhone and iPad (iOS 16.4+), tap Share in Safari and choose "Add to Home Screen", then open Grobaax from your Home Screen icon before enabling web push notifications.'
+      };
+    }
+  }
+  let messagingSupported = false;
+  try {
+    messagingSupported = hasBaseApis && "PushManager" in window && await isSupported();
+  } catch {
+    messagingSupported = false;
+  }
+  if (!messagingSupported) {
+    return {
+      ...info,
+      supported: false,
+      status: "unsupported",
+      permission: hasBaseApis ? Notification.permission : "unsupported",
+      guidance: "This browser environment does not support background Web Push notifications. Use Android Chrome, supported desktop browsers, or Grobaax installed on an iOS 16.4+ Home Screen."
+    };
+  }
+  const permission = Notification.permission;
+  let inIframe = false;
+  try {
+    inIframe = typeof window !== "undefined" && window.self !== window.top;
+  } catch {
+    inIframe = true;
+  }
+  const resolvedConfig = config !== void 0 ? config : await fetchPublicPushConfig();
+  const hasVapid = Boolean(
+    resolvedConfig?.vapidPublicKey || import.meta.env?.VITE_FIREBASE_VAPID_KEY
+  );
+  if (inIframe && permission !== "granted") {
+    return {
+      ...info,
+      supported: true,
+      status: "iframe_restricted",
+      permission,
+      guidance: "Push notifications cannot be enabled inside an embedded preview frame. Open Grobaax directly in its own browser tab or installed web app to enable device alerts."
+    };
+  }
+  if (permission === "denied") {
+    return {
+      ...info,
+      supported: true,
+      status: "denied",
+      permission,
+      guidance: "Browser notification permission is currently blocked for Grobaax. To re-enable alerts on this device, allow notifications in your browser or system site settings."
+    };
+  }
+  if (!hasVapid || resolvedConfig && !resolvedConfig.firebaseConfigReady) {
+    return {
+      ...info,
+      supported: true,
+      status: "missing_vapid",
+      permission,
+      guidance: "External push delivery is not yet active on this deployment. Your Grobaax in-app notifications continue working normally."
+    };
+  }
+  if (permission === "granted") {
+    return {
+      ...info,
+      supported: true,
+      status: "granted",
+      permission,
+      guidance: "Browser notifications are allowed on this device. You can manage your Grobaax notification categories and registered devices below."
+    };
+  }
+  return {
+    ...info,
+    supported: true,
+    status: "ready",
+    permission,
+    guidance: "Enable push notifications to receive Grobaax alerts on your phone lock screen and notification panel, even when the tab is closed."
+  };
+}
+function getOrInitMessagingInstance(firebaseConfig2) {
+  try {
+    if (!firebaseConfig2?.apiKey || !firebaseConfig2?.projectId || !firebaseConfig2?.appId) {
+      return null;
+    }
+    const existing = getApps().find((a) => a.name === FCM_APP_NAME);
+    const app = existing || initializeApp(firebaseConfig2, FCM_APP_NAME);
+    const messaging = getMessaging(app);
+    return { app, messaging };
+  } catch (err) {
+    console.warn("[Push] Messaging init notice:", err);
+    return null;
+  }
+}
+async function waitForServiceWorkerActive(registration, timeoutMs = 8e3) {
+  if (registration.active) {
+    return registration;
+  }
+  const pending = registration.installing || registration.waiting;
+  if (!pending) {
+    return registration;
+  }
+  await new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+    const timer = setTimeout(done, timeoutMs);
+    pending.addEventListener("statechange", () => {
+      if (pending.state === "activated" || pending.state === "redundant" || registration.active) {
+        clearTimeout(timer);
+        done();
+      }
+    });
+  });
+  return registration;
+}
+async function getPushServiceWorkerRegistration() {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return null;
+  try {
+    const rootReg = await navigator.serviceWorker.getRegistration("/");
+    if (rootReg) {
+      await waitForServiceWorkerActive(rootReg);
+      if (rootReg.active) {
+        return rootReg;
+      }
+    }
+    const existing = await navigator.serviceWorker.getRegistration(FCM_SW_SCOPE);
+    if (existing) {
+      await waitForServiceWorkerActive(existing);
+      return existing;
+    }
+    const registered = await navigator.serviceWorker.register(FCM_SW_URL, {
+      scope: FCM_SW_SCOPE
+    });
+    await waitForServiceWorkerActive(registered);
+    return registered;
+  } catch (err) {
+    console.warn("[Push] SW registration notice:", err);
+    return null;
+  }
+}
+async function saveTokenToBackend(token) {
+  const headers = await getAuthHeaders();
+  if (!headers["Authorization"]) {
+    return { success: false, error: "Sign in required before registering device push token." };
+  }
+  const info = detectBrowserAndDeviceLabel();
+  const res = await fetch("/api/notifications/devices/register", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      token,
+      platform: info.platformType,
+      browser: info.browserLabel,
+      deviceLabel: info.deviceLabel,
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+      isStandalone: info.isStandalone
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.success) {
+    return { success: false, error: data?.error || "Could not save device token." };
+  }
+  try {
+    localStorage.setItem(FCM_TOKEN_STORAGE_KEY, token);
+  } catch {
+  }
+  return { success: true, device: data.device };
+}
+async function requestPermissionAndRegisterDevice() {
+  const cfg = await fetchPublicPushConfig(true);
+  const capability = await getBrowserPushCapability(cfg);
+  if (!capability.supported) {
+    return {
+      success: false,
+      permission: capability.permission,
+      error: capability.guidance
+    };
+  }
+  if (capability.status === "missing_vapid" || !cfg?.vapidPublicKey) {
+    return {
+      success: false,
+      permission: capability.permission,
+      error: "Missing Firebase VAPID key (VITE_FIREBASE_VAPID_KEY). Configure VAPID and service-account keys to activate device token registration."
+    };
+  }
+  let permission = Notification.permission;
+  if (permission === "default") {
+    permission = await Notification.requestPermission();
+  }
+  if (permission !== "granted") {
+    return {
+      success: false,
+      permission,
+      error: permission === "denied" ? "Notification permission was denied in your browser. Grobaax will not ask again automatically." : "Notification permission was dismissed."
+    };
+  }
+  const registration = await getPushServiceWorkerRegistration();
+  if (!registration) {
+    return {
+      success: false,
+      permission,
+      error: "Unable to register the background push service worker."
+    };
+  }
+  const instance = getOrInitMessagingInstance(cfg.firebaseConfig);
+  if (!instance) {
+    return {
+      success: false,
+      permission,
+      error: "Firebase Messaging configuration is incomplete."
+    };
+  }
+  try {
+    const token = await getToken(instance.messaging, {
+      vapidKey: cfg.vapidPublicKey,
+      serviceWorkerRegistration: registration
+    });
+    if (!token) {
+      return {
+        success: false,
+        permission,
+        error: "FCM did not return a registration token for this browser."
+      };
+    }
+    const saved = await saveTokenToBackend(token);
+    if (!saved.success) {
+      return { success: false, permission, error: saved.error };
+    }
+    return {
+      success: true,
+      token,
+      device: saved.device,
+      permission
+    };
+  } catch (err) {
+    return {
+      success: false,
+      permission,
+      error: err?.message || "Failed to obtain FCM registration token."
+    };
+  }
+}
+async function syncPushDeviceSilentlyIfGranted(userId) {
+  if (!userId || userId === "guest" || typeof window === "undefined") return;
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    const cfg = await fetchPublicPushConfig();
+    if (!cfg?.vapidPublicKey || !cfg.firebaseConfigReady) return;
+    if (!await isSupported()) return;
+    const registration = await getPushServiceWorkerRegistration();
+    if (!registration) return;
+    const instance = getOrInitMessagingInstance(cfg.firebaseConfig);
+    if (!instance) return;
+    const token = await getToken(instance.messaging, {
+      vapidKey: cfg.vapidPublicKey,
+      serviceWorkerRegistration: registration
+    });
+    if (!token) return;
+    const prevToken = localStorage.getItem(FCM_TOKEN_STORAGE_KEY) || "";
+    const prevUid = localStorage.getItem(FCM_TOKEN_USER_STORAGE_KEY) || "";
+    if (prevToken === token && prevUid === userId) {
+      return;
+    }
+    const saved = await saveTokenToBackend(token);
+    if (saved.success) {
+      localStorage.setItem(FCM_TOKEN_USER_STORAGE_KEY, userId);
+    }
+  } catch {
+  }
+}
+async function unregisterCurrentDeviceToken() {
+  const token = getStoredFcmToken();
+  try {
+    if (token) {
+      const headers = await getAuthHeaders();
+      if (headers["Authorization"]) {
+        await fetch("/api/notifications/devices/unregister", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ token })
+        });
+      }
+    }
+  } catch {
+  }
+  try {
+    const cfg = await fetchPublicPushConfig();
+    if (cfg?.firebaseConfigReady && await isSupported()) {
+      const instance = getOrInitMessagingInstance(cfg.firebaseConfig);
+      if (instance) {
+        await deleteToken(instance.messaging).catch(() => {
+        });
+      }
+    }
+  } catch {
+  }
+  try {
+    localStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(FCM_TOKEN_USER_STORAGE_KEY);
+  } catch {
+  }
+  return true;
+}
+async function fetchPushDevices() {
+  const headers = await getAuthHeaders();
+  if (!headers["Authorization"]) return { devices: [] };
+  const currentToken = getStoredFcmToken();
+  const qs = currentToken ? `?currentToken=${encodeURIComponent(currentToken)}` : "";
+  const res = await fetch(`/api/notifications/devices${qs}`, { headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.success) return { devices: [] };
+  return {
+    devices: Array.isArray(data.devices) ? data.devices : [],
+    pushStatus: data.pushStatus
+  };
+}
+async function deletePushDevice(deviceId) {
+  const headers = await getAuthHeaders();
+  if (!headers["Authorization"] || !deviceId) return false;
+  const res = await fetch(`/api/notifications/devices/${encodeURIComponent(deviceId)}`, {
+    method: "DELETE",
+    headers
+  });
+  const data = await res.json().catch(() => ({}));
+  return Boolean(res.ok && data?.success);
+}
+async function fetchPushPreferences() {
+  const headers = await getAuthHeaders();
+  if (!headers["Authorization"]) return null;
+  const res = await fetch("/api/notifications/preferences", { headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.success) return null;
+  return data.preferences || null;
+}
+async function savePushPreferences(patch) {
+  const headers = await getAuthHeaders();
+  if (!headers["Authorization"]) return null;
+  const res = await fetch("/api/notifications/preferences", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(patch)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.success) return null;
+  return data.preferences || null;
+}
+async function sendSelfTestPush() {
+  const headers = await getAuthHeaders();
+  if (!headers["Authorization"]) {
+    return { success: false, error: "Authentication required." };
+  }
+  const res = await fetch("/api/notifications/test-self", {
+    method: "POST",
+    headers
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.success) {
+    return { success: false, error: data?.error || "Failed to send test push notification." };
+  }
+  return {
+    success: true,
+    status: data.pushResult?.status,
+    sentCount: Number(data.pushResult?.sentCount || 0),
+    reason: data.pushResult?.reason
+  };
+}
+async function triggerVerifiedPushEvent(payload) {
+  try {
+    const headers = await getAuthHeaders();
+    if (!headers["Authorization"]) return;
+    await fetch("/api/notifications/trigger-event", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload)
+    });
+  } catch {
+  }
+}
+async function subscribeForegroundFcmMessages(onReceive) {
+  if (typeof window === "undefined") return () => {
+  };
+  try {
+    if (!await isSupported()) return () => {
+    };
+    const cfg = await fetchPublicPushConfig();
+    if (!cfg?.firebaseConfigReady) return () => {
+    };
+    const instance = getOrInitMessagingInstance(cfg.firebaseConfig);
+    if (!instance) return () => {
+    };
+    return onMessage(instance.messaging, onReceive);
+  } catch {
+    return () => {
+    };
+  }
+}
+function setPendingPushDestination(dest) {
+  if (typeof window === "undefined" || !dest) return;
+  try {
+    sessionStorage.setItem(PENDING_PUSH_DEST_KEY, dest);
+  } catch {
+  }
+}
+function capturePendingPushDestinationFromUrl() {
+  if (typeof window === "undefined") return null;
+  try {
+    const url = new URL(window.location.href);
+    const dest = url.searchParams.get("push_dest");
+    if (dest) {
+      sessionStorage.setItem(PENDING_PUSH_DEST_KEY, dest);
+      url.searchParams.delete("push_dest");
+      const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+      window.history.replaceState({}, "", nextUrl || "/");
+      return dest;
+    }
+  } catch {
+  }
+  return null;
+}
+function consumePendingPushDestination() {
+  if (typeof window === "undefined") return null;
+  try {
+    const val = sessionStorage.getItem(PENDING_PUSH_DEST_KEY);
+    if (val) {
+      sessionStorage.removeItem(PENDING_PUSH_DEST_KEY);
+      return val;
+    }
+  } catch {
+  }
+  return null;
+}
+var FCM_TOKEN_STORAGE_KEY, FCM_TOKEN_USER_STORAGE_KEY, PENDING_PUSH_DEST_KEY, FCM_SW_URL, FCM_SW_SCOPE, FCM_APP_NAME, cachedPushConfig, cachedPushConfigAt;
+var init_pushNotifications = __esm({
+  "src/lib/pushNotifications.ts"() {
+    init_supabase();
+    init_firebase_applet_config();
+    FCM_TOKEN_STORAGE_KEY = "grobaax_fcm_token";
+    FCM_TOKEN_USER_STORAGE_KEY = "grobaax_fcm_user_id";
+    PENDING_PUSH_DEST_KEY = "grobaax_pending_push_dest";
+    FCM_SW_URL = "/firebase-messaging-sw.js";
+    FCM_SW_SCOPE = "/firebase-cloud-messaging-push-scope";
+    FCM_APP_NAME = "grobaax-fcm";
+    cachedPushConfig = null;
+    cachedPushConfigAt = 0;
+  }
+});
+
 // src/lib/firebase.ts
 var firebase_exports = {};
 __export(firebase_exports, {
@@ -2687,7 +3328,7 @@ __export(firebase_exports, {
   where: () => where,
   writeBatch: () => writeBatch
 });
-function handleFirestoreError(error, operationType, path6) {
+function handleFirestoreError(error, operationType, path7) {
   const errInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -2697,7 +3338,7 @@ function handleFirestoreError(error, operationType, path6) {
       isAnonymous: auth.currentUser?.isAnonymous
     },
     operationType,
-    path: path6
+    path: path7
   };
   console.warn("Firestore Operation Notice: ", JSON.stringify(errInfo));
 }
@@ -2734,9 +3375,9 @@ function cleanFirestoreData(data) {
 }
 async function uploadEventCatalogImage(file, eventId) {
   const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path6 = `eventCatalog/${eventId}/${Date.now()}_${cleanFileName}`;
+  const path7 = `eventCatalog/${eventId}/${Date.now()}_${cleanFileName}`;
   try {
-    const fileRef = storageRef(storage, path6);
+    const fileRef = storageRef(storage, path7);
     const snapshot = await uploadBytes(fileRef, file, {
       contentType: file.type,
       customMetadata: {
@@ -2745,19 +3386,19 @@ async function uploadEventCatalogImage(file, eventId) {
       }
     });
     const downloadUrl = await getDownloadURL(snapshot.ref);
-    return { downloadUrl, storagePath: path6 };
+    return { downloadUrl, storagePath: path7 };
   } catch (storageErr) {
     console.warn("Firebase Storage upload notice, falling back to data URL encoding:", storageErr);
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result || "";
-        resolve({ downloadUrl: dataUrl, storagePath: path6 });
+        resolve({ downloadUrl: dataUrl, storagePath: path7 });
       };
       reader.onerror = () => {
         resolve({
           downloadUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80",
-          storagePath: path6
+          storagePath: path7
         });
       };
       reader.readAsDataURL(file);
@@ -4112,7 +4753,7 @@ var init_firebase = __esm({
     };
     uploadUserProfilePicture = async (file, uid) => {
       const fileName = file.name ? file.name.replace(/[^a-zA-Z0-9._-]/g, "_") : "avatar.jpg";
-      const path6 = `userAvatars/${uid}/${Date.now()}_${fileName}`;
+      const path7 = `userAvatars/${uid}/${Date.now()}_${fileName}`;
       let compressedBlob = file;
       let compressedDataUrl = "";
       try {
@@ -4123,7 +4764,7 @@ var init_firebase = __esm({
         console.warn("Image pre-compression warning:", compErr);
       }
       try {
-        const fileRef = storageRef(storage, path6);
+        const fileRef = storageRef(storage, path7);
         const uploadPromise = uploadBytes(fileRef, compressedBlob, {
           contentType: "image/jpeg",
           customMetadata: {
@@ -4141,7 +4782,7 @@ var init_firebase = __esm({
             localStorage.setItem(`grobax_avatar_${uid}`, downloadUrl);
           } catch (e) {
           }
-          return { downloadUrl, storagePath: path6 };
+          return { downloadUrl, storagePath: path7 };
         }
       } catch (err) {
         console.warn("Firebase Storage upload note, using resilient compressed Data URL fallback:", err);
@@ -4151,7 +4792,7 @@ var init_firebase = __esm({
         localStorage.setItem(`grobax_avatar_${uid}`, finalFallbackUrl);
       } catch (e) {
       }
-      return { downloadUrl: finalFallbackUrl, storagePath: path6 };
+      return { downloadUrl: finalFallbackUrl, storagePath: path7 };
     };
     updateUserProfileInFirestore = async (uid, updates) => {
       const userDocRef = doc(db, "users", uid);
@@ -6556,6 +7197,24 @@ var init_firebase = __esm({
           await logAdminAuditAction(adminUid, adminName || "Admin", "DISPATCH_BROADCAST_NOTIFICATION", docRef.id, {
             title: notifData.title,
             type: notifData.type
+          });
+        }
+        const isBlogPublishBroadcast = String(docRef.id || "").startsWith("notif_blog_feed_") || notifData.type === "school_blog" && notifData.targetRole !== "admin";
+        if (typeof window !== "undefined" && !isBlogPublishBroadcast) {
+          void Promise.resolve().then(() => (init_pushNotifications(), pushNotifications_exports)).then(
+            ({ triggerVerifiedPushEvent: triggerVerifiedPushEvent2 }) => triggerVerifiedPushEvent2({
+              eventType: notifData.type || "announcement",
+              title: notifData.title,
+              message: notifData.message,
+              type: notifData.type,
+              actionUrl: notifData.actionUrl,
+              notificationId: docRef.id,
+              dedupeKey: `notif_${docRef.id}`,
+              recipientUserId: targetUid || void 0,
+              targetRole: targetUid ? void 0 : notifData.targetRole || "ALL",
+              excludeUserId: notifData.excludeUserId || void 0
+            })
+          ).catch(() => {
           });
         }
         return docRef.id;
@@ -10098,8 +10757,22 @@ var init_firebase = __esm({
   }
 });
 
+// src/lib/adminPermissions.ts
+function isPrimarySuperAdmin(uid, email) {
+  if (!uid && !email) return false;
+  const cleanUid = (uid || "").trim();
+  const cleanEmail = (email || "").toLowerCase().trim();
+  return cleanUid === "4403bd2b-e385-479b-af16-058582fa4ee3" || cleanUid === PRIMARY_SUPER_ADMIN_UID2 || cleanEmail === "grobaxycompany@gmail.com" || cleanUid.toLowerCase() === "grobaxycompany@gmail.com" || cleanEmail === "grobaxlimited@gmail.com" || cleanUid.toLowerCase() === "grobaxlimited@gmail.com" || cleanUid === "iH02BTcB4B0BV2YLA60WwFAi50CJ3" || cleanUid === "aGZBTsB4BBNvlY1A69hwfAb5DCJ3" || cleanEmail === "basmock@gmail.com" || cleanUid.toLowerCase() === "basmock@gmail.com";
+}
+var init_adminPermissions = __esm({
+  "src/lib/adminPermissions.ts"() {
+    init_types();
+    init_firebase();
+  }
+});
+
 // server/apiApp.ts
-import express3 from "express";
+import express4 from "express";
 import { GoogleGenAI as GoogleGenAI2 } from "@google/genai";
 import dotenv2 from "dotenv";
 
@@ -13477,7 +14150,7 @@ minimartRouter.post("/admin/moderate-product", (req, res) => {
 
 // server/paystackRouter.ts
 import express from "express";
-import crypto from "crypto";
+import crypto3 from "crypto";
 
 // server/paystackCore.ts
 function getPaystackBaseUrl() {
@@ -13547,6 +14220,4279 @@ async function safePaystackFetch(url, options = {}) {
     };
   }
 }
+function buildPaystackCallbackUrl(baseCallbackUrl, reference, planId) {
+  if (!baseCallbackUrl || !baseCallbackUrl.trim()) return void 0;
+  try {
+    const url = new URL(baseCallbackUrl.trim());
+    if (reference && !url.searchParams.get("reference")) {
+      url.searchParams.set("reference", reference);
+    }
+    if (planId && !url.searchParams.get("planId")) {
+      url.searchParams.set("planId", planId);
+    }
+    return url.toString();
+  } catch {
+    const sep = baseCallbackUrl.includes("?") ? "&" : "?";
+    const params = [];
+    if (reference && !baseCallbackUrl.includes("reference=")) {
+      params.push(`reference=${encodeURIComponent(reference)}`);
+    }
+    if (planId && !baseCallbackUrl.includes("planId=")) {
+      params.push(`planId=${encodeURIComponent(planId)}`);
+    }
+    return params.length > 0 ? `${baseCallbackUrl}${sep}${params.join("&")}` : baseCallbackUrl;
+  }
+}
+function getPaystackCandidateRefs(rawRef, extraRefs) {
+  const candidates = [];
+  const pushRef = (val) => {
+    const clean = (val || "").trim();
+    if (!clean || clean === "undefined" || clean === "null") return;
+    if (!candidates.includes(clean)) {
+      candidates.push(clean);
+    }
+  };
+  const primary = (rawRef || "").trim();
+  pushRef(primary);
+  if (primary.startsWith("GRBX_TRF_") && !primary.endsWith("_CHK")) {
+    pushRef(`${primary}_CHK`);
+  } else if (primary.startsWith("GRBX_TRF_") && primary.endsWith("_CHK")) {
+    pushRef(primary.slice(0, -4));
+  }
+  if (Array.isArray(extraRefs)) {
+    extraRefs.forEach((item) => pushRef(item));
+  } else if (typeof extraRefs === "string" && extraRefs.trim()) {
+    extraRefs.split(",").forEach((item) => pushRef(item));
+  }
+  for (const existing of [...candidates]) {
+    if (existing.startsWith("GRBX_TRF_") && !existing.endsWith("_CHK")) {
+      pushRef(`${existing}_CHK`);
+    }
+  }
+  return candidates;
+}
+async function verifyPaystackCandidates(params) {
+  const { reference, extraRefs, secretKey } = params;
+  const candidates = getPaystackCandidateRefs(reference, extraRefs);
+  const baseUrl = getPaystackBaseUrl();
+  let pendingMatch = null;
+  let fallbackTxMatch = null;
+  let firstError = "";
+  let nonJsonStatus = 0;
+  for (const candRef of candidates) {
+    try {
+      const { status, data, rawText, isJson } = await safePaystackFetch(
+        `${baseUrl}/transaction/verify/${encodeURIComponent(candRef)}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${secretKey}`
+          }
+        }
+      );
+      if (!isJson) {
+        console.warn(`[Paystack Verify] Non-JSON response (HTTP ${status}) for ${candRef}:`, rawText.slice(0, 120));
+        if (!nonJsonStatus) nonJsonStatus = status;
+        continue;
+      }
+      if (data && data.status && data.data) {
+        const tx = data.data;
+        if (tx.status === "success") {
+          return {
+            kind: "success",
+            tx,
+            checkedRef: candRef
+          };
+        }
+        const isPending = tx.status === "ongoing" || tx.status === "pending_bank_transfer" || tx.status === "pending";
+        if (isPending && !pendingMatch) {
+          pendingMatch = { tx, checkedRef: candRef };
+        } else if (!fallbackTxMatch) {
+          fallbackTxMatch = { tx, checkedRef: candRef };
+        }
+      } else if (data?.message && !firstError) {
+        firstError = data.message;
+      }
+    } catch (err) {
+      if (!firstError) firstError = err?.message || "Verification connection error";
+    }
+  }
+  if (pendingMatch) {
+    return {
+      kind: "pending",
+      tx: pendingMatch.tx,
+      checkedRef: pendingMatch.checkedRef
+    };
+  }
+  if (fallbackTxMatch) {
+    return {
+      kind: "failed",
+      tx: fallbackTxMatch.tx,
+      checkedRef: fallbackTxMatch.checkedRef
+    };
+  }
+  if (nonJsonStatus) {
+    return {
+      kind: "network_error",
+      httpStatus: nonJsonStatus,
+      error: `Paystack API returned an unexpected response (HTTP ${nonJsonStatus}). Please retry in a few moments.`
+    };
+  }
+  return {
+    kind: "failed",
+    error: firstError || "Transaction verification could not be confirmed."
+  };
+}
+
+// server/corporateAdsRouter.ts
+init_supabase();
+import { Router as Router3 } from "express";
+import crypto2 from "crypto";
+import { createClient as createClient2 } from "@supabase/supabase-js";
+
+// server/utils/authMiddleware.ts
+init_supabase();
+init_adminPermissions();
+import crypto from "crypto";
+
+// src/data/nigerianInstitutions.ts
+var NIGERIAN_INSTITUTIONS = [
+  // =========================================================================
+  // 1. FEDERAL UNIVERSITIES (NIGERIA)
+  // =========================================================================
+  { id: "inst_ui", name: "University of Ibadan", shortName: "UI", category: "University", state: "Oyo", logo: "\u{1F3DB}\uFE0F", type: "Federal" },
+  { id: "inst_unilag", name: "University of Lagos", shortName: "UNILAG", category: "University", state: "Lagos", logo: "\u{1F3EB}", type: "Federal" },
+  { id: "inst_oau", name: "Obafemi Awolowo University", shortName: "OAU", category: "University", state: "Osun", logo: "\u{1F985}", type: "Federal" },
+  { id: "inst_abu", name: "Ahmadu Bello University", shortName: "ABU", category: "University", state: "Kaduna", logo: "\u{1F54C}", type: "Federal" },
+  { id: "inst_unn", name: "University of Nigeria, Nsukka", shortName: "UNN", category: "University", state: "Enugu", logo: "\u{1F981}", type: "Federal" },
+  { id: "inst_unilorin", name: "University of Ilorin", shortName: "UNILORIN", category: "University", state: "Kwara", logo: "\u{1F393}", type: "Federal" },
+  { id: "inst_uniben", name: "University of Benin", shortName: "UNIBEN", category: "University", state: "Edo", logo: "\u{1F3DB}\uFE0F", type: "Federal" },
+  { id: "inst_uniport", name: "University of Port Harcourt", shortName: "UNIPORT", category: "University", state: "Rivers", logo: "\u{1F30A}", type: "Federal" },
+  { id: "inst_unical", name: "University of Calabar", shortName: "UNICAL", category: "University", state: "Cross River", logo: "\u{1F334}", type: "Federal" },
+  { id: "inst_unijos", name: "University of Jos", shortName: "UNIJOS", category: "University", state: "Plateau", logo: "\u26F0\uFE0F", type: "Federal" },
+  { id: "inst_uniabuja", name: "University of Abuja", shortName: "UNIABUJA", category: "University", state: "Abuja (FCT)", logo: "\u{1F3DB}\uFE0F", type: "Federal" },
+  { id: "inst_unimaid", name: "University of Maiduguri", shortName: "UNIMAID", category: "University", state: "Borno", logo: "\u2600\uFE0F", type: "Federal" },
+  { id: "inst_buk", name: "Bayero University Kano", shortName: "BUK", category: "University", state: "Kano", logo: "\u{1F54C}", type: "Federal" },
+  { id: "inst_udus", name: "Usmanu Danfodiyo University Sokoto", shortName: "UDUS", category: "University", state: "Sokoto", logo: "\u{1F4DC}", type: "Federal" },
+  { id: "inst_futa", name: "Federal University of Technology, Akure", shortName: "FUTA", category: "University", state: "Ondo", logo: "\u26A1", type: "Federal" },
+  { id: "inst_futo", name: "Federal University of Technology, Owerri", shortName: "FUTO", category: "University", state: "Imo", logo: "\u2699\uFE0F", type: "Federal" },
+  { id: "inst_futminna", name: "Federal University of Technology, Minna", shortName: "FUTMINNA", category: "University", state: "Niger", logo: "\u{1F52C}", type: "Federal" },
+  { id: "inst_funaab", name: "Federal University of Agriculture, Abeokuta", shortName: "FUNAAB", category: "University", state: "Ogun", logo: "\u{1F331}", type: "Federal" },
+  { id: "inst_fuam", name: "Federal University of Agriculture, Makurdi (JOSTUM)", shortName: "JOSTUM", category: "University", state: "Benue", logo: "\u{1F33E}", type: "Federal" },
+  { id: "inst_atbu", name: "Abubakar Tafawa Balewa University, Bauchi", shortName: "ATBU", category: "University", state: "Bauchi", logo: "\u{1F52C}", type: "Federal" },
+  { id: "inst_mau", name: "Modibbo Adama University, Yola", shortName: "MAU", category: "University", state: "Adamawa", logo: "\u{1F4A1}", type: "Federal" },
+  { id: "inst_fupre", name: "Federal University of Petroleum Resources, Effurun", shortName: "FUPRE", category: "University", state: "Delta", logo: "\u26FD", type: "Federal" },
+  { id: "inst_fuoye", name: "Federal University, Oye-Ekiti", shortName: "FUOYE", category: "University", state: "Ekiti", logo: "\u{1F393}", type: "Federal" },
+  { id: "inst_fulafia", name: "Federal University, Lafia", shortName: "FULAFIA", category: "University", state: "Nasarawa", logo: "\u{1F4DA}", type: "Federal" },
+  { id: "inst_fulokoja", name: "Federal University, Lokoja", shortName: "FULOKOJA", category: "University", state: "Kogi", logo: "\u{1F30A}", type: "Federal" },
+  { id: "inst_fudutse", name: "Federal University, Dutse", shortName: "FUD", category: "University", state: "Jigawa", logo: "\u{1F3DB}\uFE0F", type: "Federal" },
+  { id: "inst_fudma", name: "Federal University, Dutsin-Ma", shortName: "FUDMA", category: "University", state: "Katsina", logo: "\u{1F4D6}", type: "Federal" },
+  { id: "inst_fukashere", name: "Federal University, Kashere", shortName: "FUKASHERE", category: "University", state: "Gombe", logo: "\u{1F985}", type: "Federal" },
+  { id: "inst_fuotuoke", name: "Federal University, Otuoke", shortName: "FUOTUOKE", category: "University", state: "Bayelsa", logo: "\u{1F33F}", type: "Federal" },
+  { id: "inst_fuwukari", name: "Federal University, Wukari", shortName: "FUWUKARI", category: "University", state: "Taraba", logo: "\u{1F332}", type: "Federal" },
+  { id: "inst_funai", name: "Alex Ekwueme Federal University, Ndufu-Alike", shortName: "AE-FUNAI", category: "University", state: "Ebonyi", logo: "\u26A1", type: "Federal" },
+  { id: "inst_fubk", name: "Federal University, Birnin Kebbi", shortName: "FUBK", category: "University", state: "Kebbi", logo: "\u{1F3DB}\uFE0F", type: "Federal" },
+  { id: "inst_fugusau", name: "Federal University, Gusau", shortName: "FUGUSAU", category: "University", state: "Zamfara", logo: "\u{1F4DA}", type: "Federal" },
+  { id: "inst_fugashua", name: "Federal University, Gashua", shortName: "FUGASHUA", category: "University", state: "Yobe", logo: "\u{1F33E}", type: "Federal" },
+  { id: "inst_fuhso", name: "Federal University of Health Sciences, Otukpo", shortName: "FUHSO", category: "University", state: "Benue", logo: "\u{1FA7A}", type: "Federal" },
+  { id: "inst_fuhsi", name: "Federal University of Health Sciences, Ila-Orangun", shortName: "FUHSI", category: "University", state: "Osun", logo: "\u{1F9EC}", type: "Federal" },
+  { id: "inst_fuhsa", name: "Federal University of Health Sciences, Azare", shortName: "FUHSA", category: "University", state: "Bauchi", logo: "\u{1F3E5}", type: "Federal" },
+  { id: "inst_fut_babura", name: "Federal University of Technology, Babura", shortName: "FUTB", category: "University", state: "Jigawa", logo: "\u2699\uFE0F", type: "Federal" },
+  { id: "inst_fut_ikot", name: "Federal University of Technology, Ikot Abasi", shortName: "FUTIA", category: "University", state: "Akwa Ibom", logo: "\u{1F4A1}", type: "Federal" },
+  { id: "inst_fuaz", name: "Federal University of Agriculture, Zuru", shortName: "FUAZ", category: "University", state: "Kebbi", logo: "\u{1F331}", type: "Federal" },
+  { id: "inst_nmu", name: "Nigeria Maritime University, Okerenkoko", shortName: "NMU", category: "University", state: "Delta", logo: "\u2693", type: "Federal" },
+  { id: "inst_naub", name: "Nigerian Army University, Biu", shortName: "NAUB", category: "University", state: "Borno", logo: "\u{1F6E1}\uFE0F", type: "Federal" },
+  { id: "inst_afit", name: "Air Force Institute of Technology, Kaduna", shortName: "AFIT", category: "University", state: "Kaduna", logo: "\u2708\uFE0F", type: "Federal" },
+  { id: "inst_polac", name: "Nigeria Police Academy, Wudil", shortName: "POLAC", category: "University", state: "Kano", logo: "\u{1F46E}", type: "Federal" },
+  { id: "inst_noun", name: "National Open University of Nigeria", shortName: "NOUN", category: "University", state: "Abuja (FCT)", logo: "\u{1F310}", type: "Federal" },
+  { id: "inst_nda", name: "Nigerian Defence Academy, Kaduna", shortName: "NDA", category: "University", state: "Kaduna", logo: "\u{1F396}\uFE0F", type: "Federal" },
+  // =========================================================================
+  // 2. STATE UNIVERSITIES (NIGERIA)
+  // =========================================================================
+  { id: "inst_lasu", name: "Lagos State University, Ojo", shortName: "LASU", category: "University", state: "Lagos", logo: "\u{1F3E2}", type: "State" },
+  { id: "inst_lasustech", name: "Lagos State University of Science and Technology, Ikorodu", shortName: "LASUSTECH", category: "University", state: "Lagos", logo: "\u2699\uFE0F", type: "State" },
+  { id: "inst_lasued", name: "Lagos State University of Education, Ijanikin", shortName: "LASUED", category: "University", state: "Lagos", logo: "\u{1F4D6}", type: "State" },
+  { id: "inst_oou", name: "Olabisi Onabanjo University, Ago-Iwoye", shortName: "OOU", category: "University", state: "Ogun", logo: "\u{1F4DA}", type: "State" },
+  { id: "inst_tasued", name: "Tai Solarin University of Education, Ijagun", shortName: "TASUED", category: "University", state: "Ogun", logo: "\u{1F393}", type: "State" },
+  { id: "inst_eksu", name: "Ekiti State University, Ado-Ekiti", shortName: "EKSU", category: "University", state: "Ekiti", logo: "\u{1F393}", type: "State" },
+  { id: "inst_bouesti", name: "Bamidele Olumilua University of Education, Science & Tech, Ikere", shortName: "BOUESTI", category: "University", state: "Ekiti", logo: "\u{1F31F}", type: "State" },
+  { id: "inst_lautech", name: "Ladoke Akintola University of Technology, Ogbomoso", shortName: "LAUTECH", category: "University", state: "Oyo", logo: "\u{1F52C}", type: "State" },
+  { id: "inst_tech_u", name: "First Technical University, Ibadan", shortName: "TECH-U", category: "University", state: "Oyo", logo: "\u26A1", type: "State" },
+  { id: "inst_uniosun", name: "Osun State University, Osogbo", shortName: "UNIOSUN", category: "University", state: "Osun", logo: "\u{1F305}", type: "State" },
+  { id: "inst_aaua", name: "Adekunle Ajasin University, Akungba-Akoko", shortName: "AAUA", category: "University", state: "Ondo", logo: "\u{1F4DA}", type: "State" },
+  { id: "inst_oaustech", name: "Olusegun Agagu University of Science & Technology, Okitipupa", shortName: "OAUSTECH", category: "University", state: "Ondo", logo: "\u{1F52C}", type: "State" },
+  { id: "inst_unimed", name: "University of Medical Sciences, Ondo (UNIMED)", shortName: "UNIMED", category: "University", state: "Ondo", logo: "\u{1FA7A}", type: "State" },
+  { id: "inst_kwasu", name: "Kwara State University, Malete", shortName: "KWASU", category: "University", state: "Kwara", logo: "\u{1F985}", type: "State" },
+  { id: "inst_aaue", name: "Ambrose Alli University, Ekpoma", shortName: "AAU", category: "University", state: "Edo", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_edsu", name: "Edo State University, Uzairue", shortName: "EDSU", category: "University", state: "Edo", logo: "\u{1F31F}", type: "State" },
+  { id: "inst_delsu", name: "Delta State University, Abraka", shortName: "DELSU", category: "University", state: "Delta", logo: "\u{1F30A}", type: "State" },
+  { id: "inst_dsust", name: "Delta State University of Science and Technology, Ozoro", shortName: "DSUST", category: "University", state: "Delta", logo: "\u2699\uFE0F", type: "State" },
+  { id: "inst_unidel", name: "University of Delta, Agbor", shortName: "UNIDEL", category: "University", state: "Delta", logo: "\u{1F4D6}", type: "State" },
+  { id: "inst_dou", name: "Dennis Osadebay University, Asaba", shortName: "DOU", category: "University", state: "Delta", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_rsu", name: "Rivers State University, Nkpolu-Oroworukwo", shortName: "RSU", category: "University", state: "Rivers", logo: "\u2693", type: "State" },
+  { id: "inst_iaue", name: "Ignatius Ajuru University of Education, Port Harcourt", shortName: "IAUE", category: "University", state: "Rivers", logo: "\u{1F4DA}", type: "State" },
+  { id: "inst_ndu", name: "Niger Delta University, Wilberforce Island", shortName: "NDU", category: "University", state: "Bayelsa", logo: "\u{1F33F}", type: "State" },
+  { id: "inst_byumsa", name: "Bayelsa Medical University, Yenagoa", shortName: "BMU", category: "University", state: "Bayelsa", logo: "\u{1FA7A}", type: "State" },
+  { id: "inst_aksu", name: "Akwa Ibom State University, Ikot Akpaden", shortName: "AKSU", category: "University", state: "Akwa Ibom", logo: "\u{1F4A1}", type: "State" },
+  { id: "inst_crutech", name: "University of Cross River State (UNICROSS / CRUTECH)", shortName: "UNICROSS", category: "University", state: "Cross River", logo: "\u{1F334}", type: "State" },
+  { id: "inst_absu", name: "Abia State University, Uturu", shortName: "ABSU", category: "University", state: "Abia", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_imsu", name: "Imo State University, Owerri", shortName: "IMSU", category: "University", state: "Imo", logo: "\u{1F981}", type: "State" },
+  { id: "inst_komu", name: "Kingsley Ozumba Mbadiwe University, Ogboko", shortName: "KOMU", category: "University", state: "Imo", logo: "\u{1F31F}", type: "State" },
+  { id: "inst_ebsu", name: "Ebonyi State University, Abakaliki", shortName: "EBSU", category: "University", state: "Ebonyi", logo: "\u26A1", type: "State" },
+  { id: "inst_esut", name: "Enugu State University of Science and Technology", shortName: "ESUT", category: "University", state: "Enugu", logo: "\u{1F52C}", type: "State" },
+  { id: "inst_sumas", name: "State University of Medical & Applied Sciences, Igbo-Eno", shortName: "SUMAS", category: "University", state: "Enugu", logo: "\u{1F9EC}", type: "State" },
+  { id: "inst_coou", name: "Chukwuemeka Odumegwu Ojukwu University, Uli", shortName: "COOU", category: "University", state: "Anambra", logo: "\u{1F393}", type: "State" },
+  { id: "inst_paau", name: "Prince Abubakar Audu University (Kogi State University)", shortName: "PAAU", category: "University", state: "Kogi", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_custech", name: "Confluence University of Science and Technology, Osara", shortName: "CUSTECH", category: "University", state: "Kogi", logo: "\u26A1", type: "State" },
+  { id: "inst_bsum", name: "Benue State University, Makurdi", shortName: "BSUM", category: "University", state: "Benue", logo: "\u{1F33E}", type: "State" },
+  { id: "inst_nsuk", name: "Nasarawa State University, Keffi", shortName: "NSUK", category: "University", state: "Nasarawa", logo: "\u{1F4D6}", type: "State" },
+  { id: "inst_plasu", name: "Plateau State University, Bokkos", shortName: "PLASU", category: "University", state: "Plateau", logo: "\u26F0\uFE0F", type: "State" },
+  { id: "inst_kasu", name: "Kaduna State University, Kaduna", shortName: "KASU", category: "University", state: "Kaduna", logo: "\u{1F54C}", type: "State" },
+  { id: "inst_kust", name: "Aliko Dangote University of Science & Tech, Wudil (KUST)", shortName: "ADUSTECH", category: "University", state: "Kano", logo: "\u{1F52C}", type: "State" },
+  { id: "inst_yumsuk", name: "Yusuf Maitama Sule University, Kano", shortName: "YUMSUK", category: "University", state: "Kano", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_ibbu", name: "Ibrahim Badamasi Babangida University, Lapai", shortName: "IBBU", category: "University", state: "Niger", logo: "\u{1F4DC}", type: "State" },
+  { id: "inst_umyu", name: "Umaru Musa Yar'adua University, Katsina", shortName: "UMYU", category: "University", state: "Katsina", logo: "\u{1F4DA}", type: "State" },
+  { id: "inst_basug", name: "Bauchi State University, Gadau (Sa'adu Zungur University)", shortName: "BASUG", category: "University", state: "Bauchi", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_gsu", name: "Gombe State University, Tudun Wada", shortName: "GSU", category: "University", state: "Gombe", logo: "\u{1F31F}", type: "State" },
+  { id: "inst_adsu", name: "Adamawa State University, Mubi", shortName: "ADSU", category: "University", state: "Adamawa", logo: "\u{1F332}", type: "State" },
+  { id: "inst_tsu", name: "Taraba State University, Jalingo", shortName: "TSU", category: "University", state: "Taraba", logo: "\u{1F343}", type: "State" },
+  { id: "inst_ysu", name: "Yobe State University, Damaturu", shortName: "YSU", category: "University", state: "Yobe", logo: "\u2600\uFE0F", type: "State" },
+  { id: "inst_bosu", name: "Borno State University, Maiduguri", shortName: "BOSU", category: "University", state: "Borno", logo: "\u2600\uFE0F", type: "State" },
+  { id: "inst_ksusta", name: "Kebbi State University of Science and Technology, Aliero", shortName: "KSUSTA", category: "University", state: "Kebbi", logo: "\u{1F52C}", type: "State" },
+  { id: "inst_ssu", name: "Sokoto State University, Sokoto", shortName: "SSU", category: "University", state: "Sokoto", logo: "\u{1F4DC}", type: "State" },
+  { id: "inst_zus", name: "Zamfara State University, Talata Mafara", shortName: "ZAMSUT", category: "University", state: "Zamfara", logo: "\u{1F4DA}", type: "State" },
+  { id: "inst_sule_lamido", name: "Sule Lamido University, Kafin Hausa", shortName: "SLU", category: "University", state: "Jigawa", logo: "\u{1F31F}", type: "State" },
+  // =========================================================================
+  // 3. ACCREDITED PRIVATE UNIVERSITIES (NIGERIA)
+  // =========================================================================
+  { id: "inst_covenant", name: "Covenant University, Ota", shortName: "CU", category: "University", state: "Ogun", logo: "\u2728", type: "Private" },
+  { id: "inst_babcock", name: "Babcock University, Ilishan-Remo", shortName: "BU", category: "University", state: "Ogun", logo: "\u{1F54A}\uFE0F", type: "Private" },
+  { id: "inst_abuad", name: "Afe Babalola University, Ado-Ekiti", shortName: "ABUAD", category: "University", state: "Ekiti", logo: "\u2696\uFE0F", type: "Private" },
+  { id: "inst_bowen", name: "Bowen University, Iwo", shortName: "Bowen", category: "University", state: "Osun", logo: "\u{1F4D6}", type: "Private" },
+  { id: "inst_pau", name: "Pan-Atlantic University, Lekki", shortName: "PAU", category: "University", state: "Lagos", logo: "\u{1F4BC}", type: "Private" },
+  { id: "inst_run", name: "Redeemer's University, Ede", shortName: "RUN", category: "University", state: "Osun", logo: "\u{1F31F}", type: "Private" },
+  { id: "inst_landmark", name: "Landmark University, Omu-Aran", shortName: "LMU", category: "University", state: "Kwara", logo: "\u{1F33E}", type: "Private" },
+  { id: "inst_bells", name: "Bells University of Technology, Ota", shortName: "BELLSTECH", category: "University", state: "Ogun", logo: "\u{1F514}", type: "Private" },
+  { id: "inst_nile", name: "Nile University of Nigeria, Abuja", shortName: "NILE", category: "University", state: "Abuja (FCT)", logo: "\u{1F3DB}\uFE0F", type: "Private" },
+  { id: "inst_baze", name: "Baze University, Abuja", shortName: "BAZE", category: "University", state: "Abuja (FCT)", logo: "\u{1F31F}", type: "Private" },
+  { id: "inst_aun", name: "American University of Nigeria, Yola", shortName: "AUN", category: "University", state: "Adamawa", logo: "\u{1F985}", type: "Private" },
+  { id: "inst_veritas", name: "Veritas University, Abuja", shortName: "VERITAS", category: "University", state: "Abuja (FCT)", logo: "\u271D\uFE0F", type: "Private" },
+  { id: "inst_iuo", name: "Igbinedion University, Okada", shortName: "IUO", category: "University", state: "Edo", logo: "\u{1F3DB}\uFE0F", type: "Private" },
+  { id: "inst_madonna", name: "Madonna University, Elele", shortName: "MADONNA", category: "University", state: "Rivers", logo: "\u{1F54A}\uFE0F", type: "Private" },
+  { id: "inst_biu", name: "Benson Idahosa University, Benin City", shortName: "BIU", category: "University", state: "Edo", logo: "\u2728", type: "Private" },
+  { id: "inst_leadcity", name: "Lead City University, Ibadan", shortName: "LCU", category: "University", state: "Oyo", logo: "\u{1F3D9}\uFE0F", type: "Private" },
+  { id: "inst_adeleke", name: "Adeleke University, Ede", shortName: "AUE", category: "University", state: "Osun", logo: "\u{1F451}", type: "Private" },
+  { id: "inst_crawford", name: "Crawford University, Igbesa", shortName: "CRAWFORD", category: "University", state: "Ogun", logo: "\u{1F4D6}", type: "Private" },
+  { id: "inst_crescent", name: "Crescent University, Abeokuta", shortName: "CUAB", category: "University", state: "Ogun", logo: "\u{1F319}", type: "Private" },
+  { id: "inst_caleb", name: "Caleb University, Imota", shortName: "CALEB", category: "University", state: "Lagos", logo: "\u{1F54A}\uFE0F", type: "Private" },
+  { id: "inst_achievers", name: "Achievers University, Owo", shortName: "AUO", category: "University", state: "Ondo", logo: "\u{1F3C6}", type: "Private" },
+  { id: "inst_jabu", name: "Joseph Ayo Babalola University, Ikeji-Arakeji", shortName: "JABU", category: "University", state: "Osun", logo: "\u{1F54A}\uFE0F", type: "Private" },
+  { id: "inst_elizade", name: "Elizade University, Ilara-Mokin", shortName: "EU", category: "University", state: "Ondo", logo: "\u{1F697}", type: "Private" },
+  { id: "inst_alhikmah", name: "Al-Hikmah University, Ilorin", shortName: "HIKMAH", category: "University", state: "Kwara", logo: "\u{1F54C}", type: "Private" },
+  { id: "inst_bingham", name: "Bingham University, Karu", shortName: "BINGHAM", category: "University", state: "Nasarawa", logo: "\u{1F3E5}", type: "Private" },
+  { id: "inst_acu", name: "Ajayi Crowther University, Oyo", shortName: "ACU", category: "University", state: "Oyo", logo: "\u{1F4DA}", type: "Private" },
+  { id: "inst_fountain", name: "Fountain University, Osogbo", shortName: "FUO", category: "University", state: "Osun", logo: "\u26F2", type: "Private" },
+  { id: "inst_mtu", name: "Mountain Top University, Makogi Oba", shortName: "MTU", category: "University", state: "Ogun", logo: "\u26F0\uFE0F", type: "Private" },
+  { id: "inst_augustine", name: "Augustine University, Ilara", shortName: "AUI", category: "University", state: "Lagos", logo: "\u271D\uFE0F", type: "Private" },
+  { id: "inst_anchor", name: "Anchor University, Ayobo", shortName: "AUL", category: "University", state: "Lagos", logo: "\u2693", type: "Private" },
+  { id: "inst_chrisland", name: "Chrisland University, Abeokuta", shortName: "CHRISLAND", category: "University", state: "Ogun", logo: "\u{1F31F}", type: "Private" },
+  { id: "inst_dominion", name: "Dominion University, Ibadan", shortName: "DOMINION", category: "University", state: "Oyo", logo: "\u{1F451}", type: "Private" },
+  { id: "inst_topfaith", name: "Topfaith University, Mkpat Enin", shortName: "TOPFAITH", category: "University", state: "Akwa Ibom", logo: "\u{1F3C6}", type: "Private" },
+  { id: "inst_wigwe", name: "Wigwe University, Isiokpo", shortName: "WIGWE", category: "University", state: "Rivers", logo: "\u{1F31F}", type: "Private" },
+  { id: "inst_godfrey", name: "Godfrey Okoye University, Ugwuomu-Nike", shortName: "GOUNI", category: "University", state: "Enugu", logo: "\u{1F54A}\uFE0F", type: "Private" },
+  { id: "inst_coalcity", name: "Coal City University, Enugu", shortName: "CCU", category: "University", state: "Enugu", logo: "\u26A1", type: "Private" },
+  { id: "inst_paul", name: "Paul University, Awka", shortName: "PUA", category: "University", state: "Anambra", logo: "\u{1F4D6}", type: "Private" },
+  { id: "inst_tansian", name: "Tansian University, Umunya", shortName: "TANSIAN", category: "University", state: "Anambra", logo: "\u271D\uFE0F", type: "Private" },
+  { id: "inst_caritas", name: "Caritas University, Amorji-Nike", shortName: "CARITAS", category: "University", state: "Enugu", logo: "\u{1F54A}\uFE0F", type: "Private" },
+  { id: "inst_renaissance", name: "Renaissance University, Ugbawka", shortName: "RNU", category: "University", state: "Enugu", logo: "\u{1F31F}", type: "Private" },
+  { id: "inst_novena", name: "Novena University, Ogume", shortName: "NOVENA", category: "University", state: "Delta", logo: "\u{1F4D6}", type: "Private" },
+  { id: "inst_wdu", name: "Western Delta University, Oghara", shortName: "WDU", category: "University", state: "Delta", logo: "\u{1F30A}", type: "Private" },
+  { id: "inst_wellspring", name: "Wellspring University, Benin City", shortName: "WELLSPRING", category: "University", state: "Edo", logo: "\u{1F4A7}", type: "Private" },
+  { id: "inst_rhema", name: "Rhema University, Aba", shortName: "RHEMA", category: "University", state: "Abia", logo: "\u{1F54A}\uFE0F", type: "Private" },
+  { id: "inst_gregory", name: "Gregory University, Uturu", shortName: "GUU", category: "University", state: "Abia", logo: "\u{1F31F}", type: "Private" },
+  { id: "inst_clifford", name: "Clifford University, Owerrinta", shortName: "CLU", category: "University", state: "Abia", logo: "\u{1F4D6}", type: "Private" },
+  { id: "inst_spiritan", name: "Spiritan University, Nneochi", shortName: "SUN", category: "University", state: "Abia", logo: "\u271D\uFE0F", type: "Private" },
+  { id: "inst_koladaisi", name: "Koladaisi University, Ibadan", shortName: "KDU", category: "University", state: "Oyo", logo: "\u{1F393}", type: "Private" },
+  { id: "inst_pcu", name: "Precious Cornerstone University, Ibadan", shortName: "PCU", category: "University", state: "Oyo", logo: "\u{1F48E}", type: "Private" },
+  { id: "inst_atiba", name: "Atiba University, Oyo", shortName: "ATIBA", category: "University", state: "Oyo", logo: "\u{1F3DB}\uFE0F", type: "Private" },
+  { id: "inst_summit", name: "Summit University, Offa", shortName: "SUNO", category: "University", state: "Kwara", logo: "\u26F0\uFE0F", type: "Private" },
+  { id: "inst_tau", name: "Thomas Adewumi University, Oko", shortName: "TAU", category: "University", state: "Kwara", logo: "\u{1F31F}", type: "Private" },
+  { id: "inst_al_qalam", name: "Al-Qalam University, Katsina", shortName: "AUK", category: "University", state: "Katsina", logo: "\u{1F54C}", type: "Private" },
+  { id: "inst_skyline", name: "Skyline University Nigeria, Kano", shortName: "SUN", category: "University", state: "Kano", logo: "\u{1F3D9}\uFE0F", type: "Private" },
+  { id: "inst_maaun", name: "Maryam Abacha American University of Nigeria, Kano", shortName: "MAAUN", category: "University", state: "Kano", logo: "\u{1F30D}", type: "Private" },
+  { id: "inst_capital", name: "Capital City University, Kano", shortName: "CCUK", category: "University", state: "Kano", logo: "\u{1F3DB}\uFE0F", type: "Private" },
+  { id: "inst_mewar", name: "Mewar International University, Masaka", shortName: "MIU", category: "University", state: "Nasarawa", logo: "\u{1F310}", type: "Private" },
+  { id: "inst_philomath", name: "Philomath University, Kuje", shortName: "PU", category: "University", state: "Abuja (FCT)", logo: "\u{1F4DA}", type: "Private" },
+  { id: "inst_eun", name: "European University of Nigeria, Abuja", shortName: "EUN", category: "University", state: "Abuja (FCT)", logo: "\u{1F1EA}\u{1F1FA}", type: "Private" },
+  { id: "inst_trinity", name: "Trinity University, Yaba", shortName: "TU", category: "University", state: "Lagos", logo: "\u{1F31F}", type: "Private" },
+  { id: "inst_ekounimed", name: "Eko University of Medicine & Health Sciences, Ijanikin", shortName: "EKOUNIMED", category: "University", state: "Lagos", logo: "\u{1FA7A}", type: "Private" },
+  { id: "inst_hallmark", name: "Hallmark University, Ijebu-Itele", shortName: "HALLMARK", category: "University", state: "Ogun", logo: "\u{1F3DB}\uFE0F", type: "Private" },
+  { id: "inst_mcpherson", name: "McPherson University, Seriki Sotayo", shortName: "MCU", category: "University", state: "Ogun", logo: "\u{1F54A}\uFE0F", type: "Private" },
+  { id: "inst_southwestern", name: "Southwestern University, Okun-Owa", shortName: "SWU", category: "University", state: "Ogun", logo: "\u{1F4D6}", type: "Private" },
+  // =========================================================================
+  // 4. POLYTECHNICS (FEDERAL, STATE & ACCREDITED PRIVATE)
+  // =========================================================================
+  { id: "inst_yabatech", name: "Yaba College of Technology, Yaba", shortName: "YABATECH", category: "Polytechnic", state: "Lagos", logo: "\u2699\uFE0F", type: "Federal" },
+  { id: "inst_fpi", name: "Federal Polytechnic, Ilaro", shortName: "FPI", category: "Polytechnic", state: "Ogun", logo: "\u{1F4D0}", type: "Federal" },
+  { id: "inst_kadpoly", name: "Kaduna Polytechnic, Kaduna", shortName: "KADPOLY", category: "Polytechnic", state: "Kaduna", logo: "\u{1F3ED}", type: "Federal" },
+  { id: "inst_auchipoly", name: "Auchi Polytechnic, Auchi", shortName: "AUCHIPOLY", category: "Polytechnic", state: "Edo", logo: "\u{1F3D7}\uFE0F", type: "Federal" },
+  { id: "inst_fpn", name: "Federal Polytechnic, Nekede, Owerri", shortName: "FPNO", category: "Polytechnic", state: "Imo", logo: "\u{1F6E0}\uFE0F", type: "Federal" },
+  { id: "inst_fpede", name: "Federal Polytechnic, Ede", shortName: "FEDPOLEDE", category: "Polytechnic", state: "Osun", logo: "\u{1F52C}", type: "Federal" },
+  { id: "inst_fpo", name: "Federal Polytechnic, Offa", shortName: "FEDPOFFA", category: "Polytechnic", state: "Kwara", logo: "\u{1F4D0}", type: "Federal" },
+  { id: "inst_fedpolyado", name: "Federal Polytechnic, Ado-Ekiti", shortName: "FEDPOLYADO", category: "Polytechnic", state: "Ekiti", logo: "\u2699\uFE0F", type: "Federal" },
+  { id: "inst_fedpolybida", name: "Federal Polytechnic, Bida", shortName: "FEDPOLYBIDA", category: "Polytechnic", state: "Niger", logo: "\u{1F527}", type: "Federal" },
+  { id: "inst_fedpolyoko", name: "Federal Polytechnic, Oko", shortName: "OKOPOLY", category: "Polytechnic", state: "Anambra", logo: "\u{1F52C}", type: "Federal" },
+  { id: "inst_fedpolybauchi", name: "Federal Polytechnic, Bauchi", shortName: "FPTB", category: "Polytechnic", state: "Bauchi", logo: "\u26A1", type: "Federal" },
+  { id: "inst_fedpolydamaturu", name: "Federal Polytechnic, Damaturu", shortName: "FEDPODAM", category: "Polytechnic", state: "Yobe", logo: "\u{1F33E}", type: "Federal" },
+  { id: "inst_fedpolyidumuje", name: "Federal Polytechnic, Idah", shortName: "FEDPOIDA", category: "Polytechnic", state: "Kogi", logo: "\u{1F3DB}\uFE0F", type: "Federal" },
+  { id: "inst_fedpolykaura", name: "Federal Polytechnic, Kaura Namoda", shortName: "FEDPONAM", category: "Polytechnic", state: "Zamfara", logo: "\u{1F527}", type: "Federal" },
+  { id: "inst_fedpolymubi", name: "Federal Polytechnic, Mubi", shortName: "FEDPOMUBI", category: "Polytechnic", state: "Adamawa", logo: "\u{1F332}", type: "Federal" },
+  { id: "inst_fedpolynasarawa", name: "Federal Polytechnic, Nasarawa", shortName: "FEDPONAS", category: "Polytechnic", state: "Nasarawa", logo: "\u{1F4D0}", type: "Federal" },
+  { id: "inst_fedpolyukana", name: "Federal Polytechnic, Ukana", shortName: "FEDPOLYUKANA", category: "Polytechnic", state: "Akwa Ibom", logo: "\u{1F4A1}", type: "Federal" },
+  { id: "inst_fedpolyekowe", name: "Federal Polytechnic, Ekowe", shortName: "FPE", category: "Polytechnic", state: "Bayelsa", logo: "\u{1F33F}", type: "Federal" },
+  { id: "inst_fedpolywamba", name: "Federal Polytechnic, Oil and Gas, Bonny", shortName: "FEDPOLYBONNY", category: "Polytechnic", state: "Rivers", logo: "\u26FD", type: "Federal" },
+  { id: "inst_fedpolydaura", name: "Federal Polytechnic, Daura", shortName: "FEDPOLYDAURA", category: "Polytechnic", state: "Katsina", logo: "\u{1F54C}", type: "Federal" },
+  { id: "inst_fedpolykaltungo", name: "Federal Polytechnic, Kaltungo", shortName: "FEDPOLYKALT", category: "Polytechnic", state: "Gombe", logo: "\u2699\uFE0F", type: "Federal" },
+  { id: "inst_fedpolyileoluji", name: "Federal Polytechnic, Ile-Oluji", shortName: "FEDPOLEL", category: "Polytechnic", state: "Ondo", logo: "\u{1F334}", type: "Federal" },
+  { id: "inst_fedpolyayede", name: "Federal Polytechnic, Ayede, Ogbomoso", shortName: "FEDPOLYAYEDE", category: "Polytechnic", state: "Oyo", logo: "\u{1F52C}", type: "Federal" },
+  { id: "inst_fedpolynyo", name: "Federal Polytechnic, Nyak, Shendam", shortName: "FEDPOLYSHE", category: "Polytechnic", state: "Plateau", logo: "\u26F0\uFE0F", type: "Federal" },
+  { id: "inst_fedpolyumunze", name: "Federal College of Agriculture, Ishiagu", shortName: "FCAI", category: "Polytechnic", state: "Ebonyi", logo: "\u{1F331}", type: "Federal" },
+  { id: "inst_fca_akure", name: "Federal College of Agriculture, Akure", shortName: "FECA", category: "Polytechnic", state: "Ondo", logo: "\u{1F33E}", type: "Federal" },
+  { id: "inst_fca_ibadan", name: "Federal College of Agriculture, Moor Plantation, Ibadan", shortName: "FCAIB", category: "Polytechnic", state: "Oyo", logo: "\u{1F331}", type: "Federal" },
+  { id: "inst_fcahpt_vom", name: "Federal College of Animal Health & Production Tech, Vom", shortName: "FCAHPT VOM", category: "Polytechnic", state: "Plateau", logo: "\u{1F404}", type: "Federal" },
+  { id: "inst_fcahpt_ibadan", name: "Federal College of Animal Health & Production Tech, Ibadan", shortName: "FCAHPT IB", category: "Polytechnic", state: "Oyo", logo: "\u{1F411}", type: "Federal" },
+  { id: "inst_fcff_newbussa", name: "Federal College of Freshwater Fisheries Tech, New Bussa", shortName: "FCFFT", category: "Polytechnic", state: "Niger", logo: "\u{1F41F}", type: "Federal" },
+  { id: "inst_fcomt_lagos", name: "Federal College of Fisheries & Marine Technology, VI, Lagos", shortName: "FCFMT", category: "Polytechnic", state: "Lagos", logo: "\u2693", type: "Federal" },
+  { id: "inst_ncat_zaria", name: "Nigerian College of Aviation Technology, Zaria (NCAT)", shortName: "NCAT", category: "Polytechnic", state: "Kaduna", logo: "\u2708\uFE0F", type: "Federal" },
+  { id: "inst_nitt_zaria", name: "Nigerian Institute of Transport Technology, Zaria (NITT)", shortName: "NITT", category: "Polytechnic", state: "Kaduna", logo: "\u{1F686}", type: "Federal" },
+  { id: "inst_polyibadan", name: "The Polytechnic, Ibadan", shortName: "POLYIBADAN", category: "Polytechnic", state: "Oyo", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_mapoly", name: "Moshood Abiola Polytechnic, Abeokuta", shortName: "MAPOLY", category: "Polytechnic", state: "Ogun", logo: "\u{1F4DC}", type: "State" },
+  { id: "inst_kwarapoly", name: "Kwara State Polytechnic, Ilorin", shortName: "KWARAPOLY", category: "Polytechnic", state: "Kwara", logo: "\u{1F4DA}", type: "State" },
+  { id: "inst_rupoly", name: "Rufus Giwa Polytechnic, Owo", shortName: "RUGIPO", category: "Polytechnic", state: "Ondo", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_osunpoly", name: "Osun State Polytechnic, Iree", shortName: "OSPOLY", category: "Polytechnic", state: "Osun", logo: "\u26A1", type: "State" },
+  { id: "inst_osuntech", name: "Osun State College of Technology, Esa-Oke", shortName: "OSCOTECH", category: "Polytechnic", state: "Osun", logo: "\u2699\uFE0F", type: "State" },
+  { id: "inst_gaposa", name: "Gateway ICT Polytechnic, Saapade", shortName: "GAPOSA", category: "Polytechnic", state: "Ogun", logo: "\u{1F4BB}", type: "State" },
+  { id: "inst_ogwapoly", name: "Abraham Adesanya Polytechnic, Ijebu-Igbo", shortName: "AAPOLY", category: "Polytechnic", state: "Ogun", logo: "\u{1F4D0}", type: "State" },
+  { id: "inst_dspo", name: "Delta State Polytechnic, Otefe-Oghara", shortName: "OGHARAPOLY", category: "Polytechnic", state: "Delta", logo: "\u{1F30A}", type: "State" },
+  { id: "inst_dspogwashi", name: "Delta State Polytechnic, Ogwashi-Uku", shortName: "OGWASHIPOLY", category: "Polytechnic", state: "Delta", logo: "\u{1F6E0}\uFE0F", type: "State" },
+  { id: "inst_ken_poly", name: "Kenule Beeson Saro-Wiwa Polytechnic, Bori", shortName: "KENPOLY", category: "Polytechnic", state: "Rivers", logo: "\u2693", type: "State" },
+  { id: "inst_capoly", name: "Captain Elechi Amadi Polytechnic, Rumuola, Port Harcourt", shortName: "PORTPOLY", category: "Polytechnic", state: "Rivers", logo: "\u{1F3D9}\uFE0F", type: "State" },
+  { id: "inst_akwapoly", name: "Akwa Ibom State Polytechnic, Ikot Osurua", shortName: "AKWAPOLY", category: "Polytechnic", state: "Akwa Ibom", logo: "\u{1F4A1}", type: "State" },
+  { id: "inst_abianpoly", name: "Abia State Polytechnic, Aba", shortName: "ABIAPOLY", category: "Polytechnic", state: "Abia", logo: "\u{1F3ED}", type: "State" },
+  { id: "inst_imopoly", name: "Imo State Polytechnic, Omuma", shortName: "IMOPOLY", category: "Polytechnic", state: "Imo", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_anam_poly", name: "Anambra State Polytechnic, Mgbakwu", shortName: "ANSPOLY", category: "Polytechnic", state: "Anambra", logo: "\u{1F334}", type: "State" },
+  { id: "inst_imt_enugu", name: "Institute of Management and Technology, Enugu (IMT)", shortName: "IMT ENUGU", category: "Polytechnic", state: "Enugu", logo: "\u{1F4BC}", type: "State" },
+  { id: "inst_kanopoly", name: "Kano State Polytechnic, Kano", shortName: "KANOPOLY", category: "Polytechnic", state: "Kano", logo: "\u{1F54C}", type: "State" },
+  { id: "inst_hassan_poly", name: "Hassan Usman Katsina Polytechnic, Katsina", shortName: "HUKPOLY", category: "Polytechnic", state: "Katsina", logo: "\u{1F4DA}", type: "State" },
+  { id: "inst_nuhu_bamalli", name: "Nuhu Bamalli Polytechnic, Zaria", shortName: "NUBAPOLY", category: "Polytechnic", state: "Kaduna", logo: "\u{1F54C}", type: "State" },
+  { id: "inst_abdu_gusau", name: "Abdu Gusau Polytechnic, Talata Mafara", shortName: "AGP", category: "Polytechnic", state: "Zamfara", logo: "\u{1F527}", type: "State" },
+  { id: "inst_waziri_poly", name: "Waziri Umaru Federal Polytechnic, Birnin Kebbi", shortName: "WUFPBK", category: "Polytechnic", state: "Kebbi", logo: "\u26A1", type: "Federal" },
+  { id: "inst_ramat_poly", name: "Ramat Polytechnic, Maiduguri", shortName: "RAMATPOLY", category: "Polytechnic", state: "Borno", logo: "\u2600\uFE0F", type: "State" },
+  { id: "inst_benue_poly", name: "Benue State Polytechnic, Ugbokolo", shortName: "BENPOLY", category: "Polytechnic", state: "Benue", logo: "\u{1F33E}", type: "State" },
+  { id: "inst_plateau_poly", name: "Plateau State Polytechnic, Barkin Ladi", shortName: "PLAPOLY", category: "Polytechnic", state: "Plateau", logo: "\u26F0\uFE0F", type: "State" },
+  { id: "inst_nas_poly", name: "Isa Mustapha Agwai I Polytechnic, Lafia", shortName: "IMAP LAFIA", category: "Polytechnic", state: "Nasarawa", logo: "\u{1F4DC}", type: "State" },
+  { id: "inst_kogi_poly", name: "Kogi State Polytechnic, Lokoja", shortName: "KSP", category: "Polytechnic", state: "Kogi", logo: "\u{1F30A}", type: "State" },
+  { id: "inst_crown_poly", name: "Crown Polytechnic, Ado-Ekiti", shortName: "CROWNPOLY", category: "Polytechnic", state: "Ekiti", logo: "\u{1F451}", type: "Private" },
+  { id: "inst_dorben_poly", name: "Dorben Polytechnic, Bwari, Abuja", shortName: "DORBEN", category: "Polytechnic", state: "Abuja (FCT)", logo: "\u{1F3DB}\uFE0F", type: "Private" },
+  { id: "inst_heritage_poly", name: "Heritage Polytechnic, Ikot Udota, Eket", shortName: "HERITAGE", category: "Polytechnic", state: "Akwa Ibom", logo: "\u{1F3C6}", type: "Private" },
+  { id: "inst_saf_poly", name: "SAF Polytechnic, Iseyin", shortName: "SAFPOLY", category: "Polytechnic", state: "Oyo", logo: "\u{1F31F}", type: "Private" },
+  { id: "inst_prime_poly", name: "Prime Polytechnic, Jida Bassa, Ajaokuta", shortName: "PRIMEPOLY", category: "Polytechnic", state: "Kogi", logo: "\u{1F527}", type: "Private" },
+  { id: "inst_lens_poly", name: "Lens Polytechnic, Offa", shortName: "LENSPOLY", category: "Polytechnic", state: "Kwara", logo: "\u{1F50D}", type: "Private" },
+  { id: "inst_wolex_poly", name: "Wolex Polytechnic, Iwo", shortName: "WOLEX", category: "Polytechnic", state: "Osun", logo: "\u{1F4D0}", type: "Private" },
+  { id: "inst_grace_poly", name: "Grace Polytechnic, Surulere, Lagos", shortName: "GRACEPOLY", category: "Polytechnic", state: "Lagos", logo: "\u{1F54A}\uFE0F", type: "Private" },
+  { id: "inst_lighthouse_poly", name: "Lighthouse Polytechnic, Evbuobanosa", shortName: "LIGHTHOUSE", category: "Polytechnic", state: "Edo", logo: "\u{1F4A1}", type: "Private" },
+  // =========================================================================
+  // 5. COLLEGES OF EDUCATION (FEDERAL, STATE & PRIVATE)
+  // =========================================================================
+  { id: "inst_fce_special", name: "Federal College of Education (Special), Oyo", shortName: "SPED OYO", category: "College of Education", state: "Oyo", logo: "\u267F", type: "Federal" },
+  { id: "inst_ace_ondo", name: "Adeyemi College of Education, Ondo", shortName: "ACE ONDO", category: "College of Education", state: "Ondo", logo: "\u{1F4D6}", type: "Federal" },
+  { id: "inst_fce_akoka", name: "Federal College of Education (Technical), Akoka, Lagos", shortName: "FCET AKOKA", category: "College of Education", state: "Lagos", logo: "\u{1F6E0}\uFE0F", type: "Federal" },
+  { id: "inst_fce_zaria", name: "Federal College of Education, Zaria", shortName: "FCE ZARIA", category: "College of Education", state: "Kaduna", logo: "\u{1F4DA}", type: "Federal" },
+  { id: "inst_fce_kano", name: "Federal College of Education, Kano", shortName: "FCE KANO", category: "College of Education", state: "Kano", logo: "\u{1F54C}", type: "Federal" },
+  { id: "inst_fce_pankshin", name: "Federal College of Education, Pankshin", shortName: "FCE PANKSHIN", category: "College of Education", state: "Plateau", logo: "\u26F0\uFE0F", type: "Federal" },
+  { id: "inst_alvan", name: "Alvan Ikoku Federal College of Education, Owerri", shortName: "ALVAN", category: "College of Education", state: "Imo", logo: "\u{1F393}", type: "Federal" },
+  { id: "inst_fce_asaba", name: "Federal College of Education (Technical), Asaba", shortName: "FCET ASABA", category: "College of Education", state: "Delta", logo: "\u{1F4D0}", type: "Federal" },
+  { id: "inst_fce_gombe", name: "Federal College of Education (Technical), Gombe", shortName: "FCET GOMBE", category: "College of Education", state: "Gombe", logo: "\u{1F52C}", type: "Federal" },
+  { id: "inst_fce_kontagora", name: "Federal College of Education, Kontagora", shortName: "FCE KONTAGORA", category: "College of Education", state: "Niger", logo: "\u{1F331}", type: "Federal" },
+  { id: "inst_fce_katsina", name: "Federal College of Education, Katsina", shortName: "FCE KATSINA", category: "College of Education", state: "Katsina", logo: "\u{1F54C}", type: "Federal" },
+  { id: "inst_fce_abeokuta", name: "Federal College of Education, Osiele, Abeokuta", shortName: "FCE ABEOKUTA", category: "College of Education", state: "Ogun", logo: "\u{1F4DA}", type: "Federal" },
+  { id: "inst_fce_bichi", name: "Federal College of Education (Technical), Bichi", shortName: "FCET BICHI", category: "College of Education", state: "Kano", logo: "\u2699\uFE0F", type: "Federal" },
+  { id: "inst_fce_potiskum", name: "Federal College of Education (Technical), Potiskum", shortName: "FCET POTISKUM", category: "College of Education", state: "Yobe", logo: "\u{1F33E}", type: "Federal" },
+  { id: "inst_fce_omoku", name: "Federal College of Education (Technical), Omoku", shortName: "FCET OMOKU", category: "College of Education", state: "Rivers", logo: "\u26FD", type: "Federal" },
+  { id: "inst_fce_umunze", name: "Federal College of Education (Technical), Umunze", shortName: "FCET UMUNZE", category: "College of Education", state: "Anambra", logo: "\u{1F4A1}", type: "Federal" },
+  { id: "inst_fce_eha_amufu", name: "Federal College of Education, Eha-Amufu", shortName: "FCE EHA-AMUFU", category: "College of Education", state: "Enugu", logo: "\u{1F4D6}", type: "Federal" },
+  { id: "inst_fce_obudu", name: "Federal College of Education, Obudu", shortName: "FCE OBUDU", category: "College of Education", state: "Cross River", logo: "\u26F0\uFE0F", type: "Federal" },
+  { id: "inst_fce_okene", name: "Federal College of Education, Okene", shortName: "FCE OKENE", category: "College of Education", state: "Kogi", logo: "\u{1F3DB}\uFE0F", type: "Federal" },
+  { id: "inst_fce_yola", name: "Federal College of Education, Yola", shortName: "FCE YOLA", category: "College of Education", state: "Adamawa", logo: "\u{1F332}", type: "Federal" },
+  { id: "inst_fce_gusau", name: "Federal College of Education (Technical), Gusau", shortName: "FCET GUSAU", category: "College of Education", state: "Zamfara", logo: "\u{1F6E1}\uFE0F", type: "Federal" },
+  { id: "inst_fce_ilawe", name: "Federal College of Education, Ilawe-Ekiti", shortName: "FCE ILAWE", category: "College of Education", state: "Ekiti", logo: "\u{1F31F}", type: "Federal" },
+  { id: "inst_fce_iwo", name: "Federal College of Education, Iwo", shortName: "FCE IWO", category: "College of Education", state: "Osun", logo: "\u{1F4D6}", type: "Federal" },
+  { id: "inst_fce_idide", name: "Federal College of Education, Ididep, Ibiono Ibom", shortName: "FCE IDIDEP", category: "College of Education", state: "Akwa Ibom", logo: "\u{1F4A1}", type: "Federal" },
+  { id: "inst_fce_ofarama", name: "Federal College of Education, Ofeme, Ohuhu, Umuahia", shortName: "FCE OFEME", category: "College of Education", state: "Abia", logo: "\u{1F334}", type: "Federal" },
+  { id: "inst_fce_jamaare", name: "Federal College of Education, Jama'are", shortName: "FCE JAMA'ARE", category: "College of Education", state: "Bauchi", logo: "\u{1F33E}", type: "Federal" },
+  { id: "inst_fce_gboko", name: "Federal College of Education, Gboko", shortName: "FCE GBOKO", category: "College of Education", state: "Benue", logo: "\u{1F331}", type: "Federal" },
+  { id: "inst_fce_duku", name: "Federal College of Education (Technical), Keana", shortName: "FCET KEANA", category: "College of Education", state: "Nasarawa", logo: "\u{1F4DC}", type: "Federal" },
+  { id: "inst_nti", name: "National Teachers Institute, Kaduna (NTI)", shortName: "NTI", category: "College of Education", state: "Kaduna", logo: "\u{1F310}", type: "Federal" },
+  { id: "inst_eaocoed", name: "Emmanuel Alayande College of Education, Oyo (EAUED)", shortName: "EACOED", category: "College of Education", state: "Oyo", logo: "\u{1F4DC}", type: "State" },
+  { id: "inst_aocoe", name: "Adeniran Ogunsanya College of Education, Otto/Ijanikin", shortName: "AOCOED", category: "College of Education", state: "Lagos", logo: "\u{1F3E2}", type: "State" },
+  { id: "inst_mocoed", name: "Michael Otedola College of Primary Education, Noforija, Epe", shortName: "MOCPED", category: "College of Education", state: "Lagos", logo: "\u{1F393}", type: "State" },
+  { id: "inst_tasce", name: "Tai Solarin College of Education, Omu-Ijebu (TASCE)", shortName: "TASCE", category: "College of Education", state: "Ogun", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_osun_coed_ilesa", name: "Osun State College of Education, Ilesa (UNILESA)", shortName: "OSCOED ILESA", category: "College of Education", state: "Osun", logo: "\u{1F31F}", type: "State" },
+  { id: "inst_osun_coed_ila", name: "Osun State College of Education, Ila-Orangun", shortName: "OSSCE ILA", category: "College of Education", state: "Osun", logo: "\u{1F4DA}", type: "State" },
+  { id: "inst_kwara_coed_ilorin", name: "Kwara State College of Education, Ilorin", shortName: "KWCOED ILORIN", category: "College of Education", state: "Kwara", logo: "\u{1F985}", type: "State" },
+  { id: "inst_kwara_coed_oro", name: "Kwara State College of Education, Oro", shortName: "KWCOED ORO", category: "College of Education", state: "Kwara", logo: "\u{1F4D6}", type: "State" },
+  { id: "inst_kwara_coed_lafiagi", name: "Kwara State College of Education (Technical), Lafiagi", shortName: "KWCOET LAFIAGI", category: "College of Education", state: "Kwara", logo: "\u2699\uFE0F", type: "State" },
+  { id: "inst_coe_ikere", name: "College of Education, Ikere-Ekiti (BOUESTI)", shortName: "COE IKERE", category: "College of Education", state: "Ekiti", logo: "\u{1F393}", type: "State" },
+  { id: "inst_coe_warri", name: "College of Education, Warri", shortName: "COE WARRI", category: "College of Education", state: "Delta", logo: "\u{1F30A}", type: "State" },
+  { id: "inst_coe_mosogar", name: "College of Physical Education, Mosogar", shortName: "COE MOSOGAR", category: "College of Education", state: "Delta", logo: "\u{1F3C3}", type: "State" },
+  { id: "inst_coe_agbor", name: "College of Education, Agbor (UNIDEL)", shortName: "COE AGBOR", category: "College of Education", state: "Delta", logo: "\u{1F4D6}", type: "State" },
+  { id: "inst_coe_igbiam", name: "Edo State College of Education, Igueben", shortName: "EDOCOE", category: "College of Education", state: "Edo", logo: "\u{1F3DB}\uFE0F", type: "State" },
+  { id: "inst_coe_akwanga", name: "College of Education, Akwanga", shortName: "COE AKWANGA", category: "College of Education", state: "Nasarawa", logo: "\u26F0\uFE0F", type: "State" },
+  { id: "inst_coe_minna", name: "Niger State College of Education, Minna", shortName: "COE MINNA", category: "College of Education", state: "Niger", logo: "\u{1F52C}", type: "State" },
+  { id: "inst_coe_katsina_ala", name: "College of Education, Katsina-Ala", shortName: "COE KAT-ALA", category: "College of Education", state: "Benue", logo: "\u{1F33E}", type: "State" },
+  { id: "inst_coe_odo_ere", name: "Kogi State College of Education, Ankpa", shortName: "KSCOED ANKPA", category: "College of Education", state: "Kogi", logo: "\u{1F4DA}", type: "State" },
+  { id: "inst_coe_gindiri", name: "College of Education, Gindiri", shortName: "COE GINDIRI", category: "College of Education", state: "Plateau", logo: "\u26F0\uFE0F", type: "State" },
+  { id: "inst_coe_afaha_nsit", name: "Akwa Ibom State College of Education, Afaha Nsit", shortName: "AKSCOED", category: "College of Education", state: "Akwa Ibom", logo: "\u{1F4A1}", type: "State" },
+  { id: "inst_coe_arochukwu", name: "Abia State College of Education (Technical), Arochukwu", shortName: "ASCETA", category: "College of Education", state: "Abia", logo: "\u{1F334}", type: "State" },
+  { id: "inst_coe_nsugbe", name: "Nwafor Orizu College of Education, Nsugbe", shortName: "NOCEN", category: "College of Education", state: "Anambra", logo: "\u{1F393}", type: "State" },
+  { id: "inst_coe_ikwo", name: "Ebonyi State College of Education, Ikwo", shortName: "EBSCOED", category: "College of Education", state: "Ebonyi", logo: "\u26A1", type: "State" },
+  { id: "inst_coe_kumbotso", name: "Sa'adatu Rimi University of Education, Kumbotso, Kano", shortName: "SRCOE KANO", category: "College of Education", state: "Kano", logo: "\u{1F54C}", type: "State" },
+  { id: "inst_st_augustine_coe", name: "St. Augustine's College of Education, Akoka, Lagos", shortName: "SACOED", category: "College of Education", state: "Lagos", logo: "\u271D\uFE0F", type: "Private" },
+  { id: "inst_muftau_lanval_coe", name: "Muftau Lanihun College of Education, Ibadan", shortName: "MULCOED", category: "College of Education", state: "Oyo", logo: "\u{1F4D6}", type: "Private" },
+  { id: "inst_osun_anwar_coe", name: "Anwar-Ul Islam College of Education, Agege, Lagos", shortName: "ANWARCOED", category: "College of Education", state: "Lagos", logo: "\u{1F319}", type: "Private" },
+  { id: "inst_yewa_coe", name: "Yewa Central College of Education, Ayetoro", shortName: "YECOED", category: "College of Education", state: "Ogun", logo: "\u{1F33F}", type: "Private" }
+];
+
+// server/utils/institutionResolver.ts
+init_supabase();
+function slugifyText(input) {
+  return String(input || "").toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 90);
+}
+function normalizeName(input) {
+  return String(input || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+function toCanonical(inst) {
+  return {
+    institutionId: inst.id,
+    institutionName: inst.name,
+    shortName: inst.shortName || "",
+    category: inst.category || "University",
+    state: inst.state || "",
+    logo: inst.logo || "\u{1F3DB}\uFE0F",
+    slug: slugifyText(inst.name) || inst.id
+  };
+}
+var RESOLVED_INSTITUTION_CACHE_TTL_MS = 5 * 60 * 1e3;
+var BLOG_RECORD_CACHE_TTL_MS = 60 * 1e3;
+var resolvedInstitutionCache = /* @__PURE__ */ new Map();
+var schoolBlogRecordCache = /* @__PURE__ */ new Map();
+function invalidateSchoolBlogRecordCache(institutionId) {
+  if (!institutionId) {
+    schoolBlogRecordCache.clear();
+    return;
+  }
+  const target = institutionId.trim().toLowerCase();
+  for (const [k, v] of schoolBlogRecordCache.entries()) {
+    if (k.toLowerCase() === target || String(v?.value?.institution_id || "").toLowerCase() === target) {
+      schoolBlogRecordCache.delete(k);
+    }
+  }
+}
+function getCachedResolvedInstitution(key) {
+  if (!key) return null;
+  const hit = resolvedInstitutionCache.get(key);
+  if (hit && hit.expiresAt > Date.now()) {
+    return hit.value;
+  }
+  if (hit) resolvedInstitutionCache.delete(key);
+  return null;
+}
+function setCachedResolvedInstitution(keys, value) {
+  if (resolvedInstitutionCache.size > 500) {
+    resolvedInstitutionCache.clear();
+  }
+  const expiresAt = Date.now() + RESOLVED_INSTITUTION_CACHE_TTL_MS;
+  for (const raw of keys) {
+    const k = String(raw || "").trim().toLowerCase();
+    if (k) {
+      resolvedInstitutionCache.set(k, { expiresAt, value });
+    }
+  }
+}
+async function resolveCanonicalInstitution(params) {
+  const rawId = (params.institutionId || "").trim();
+  const rawName = (params.institutionName || "").trim();
+  if (!rawId && !rawName) return null;
+  const cachedHit = getCachedResolvedInstitution(rawId.toLowerCase()) || getCachedResolvedInstitution(rawName.toLowerCase()) || getCachedResolvedInstitution(normalizeName(rawName));
+  if (cachedHit) {
+    return cachedHit;
+  }
+  if (rawId) {
+    const byId = NIGERIAN_INSTITUTIONS.find(
+      (i) => i.id.toLowerCase() === rawId.toLowerCase() || slugifyText(i.name) === rawId.toLowerCase()
+    );
+    if (byId) {
+      const canonical = toCanonical(byId);
+      setCachedResolvedInstitution([rawId, rawName, canonical.institutionId, canonical.slug], canonical);
+      return canonical;
+    }
+  }
+  if (rawName) {
+    const normTarget = normalizeName(rawName);
+    const exactName = NIGERIAN_INSTITUTIONS.find(
+      (i) => i.name.toLowerCase() === rawName.toLowerCase() || normalizeName(i.name) === normTarget || i.shortName && i.shortName.toLowerCase() === rawName.toLowerCase() || slugifyText(i.name) === rawName.toLowerCase()
+    );
+    if (exactName) {
+      const canonical = toCanonical(exactName);
+      setCachedResolvedInstitution([rawId, rawName, normTarget, canonical.institutionId, canonical.slug], canonical);
+      return canonical;
+    }
+    if (normTarget.length >= 6) {
+      const partialMatches = NIGERIAN_INSTITUTIONS.filter((i) => {
+        const n = normalizeName(i.name);
+        return n.includes(normTarget) || normTarget.includes(n);
+      });
+      if (partialMatches.length === 1) {
+        const canonical = toCanonical(partialMatches[0]);
+        setCachedResolvedInstitution([rawId, rawName, normTarget, canonical.institutionId, canonical.slug], canonical);
+        return canonical;
+      }
+    }
+  }
+  try {
+    if (rawId) {
+      const { data } = await supabaseAdmin.from("school_blogs").select("*").or(`institution_id.eq.${rawId},slug.eq.${rawId}`).maybeSingle();
+      if (data) {
+        const canonical = {
+          institutionId: data.institution_id,
+          institutionName: data.institution_name,
+          shortName: data.short_name || "",
+          category: data.category || "University",
+          state: data.state || "",
+          logo: data.logo || "\u{1F3DB}\uFE0F",
+          slug: data.slug
+        };
+        setCachedResolvedInstitution(
+          [rawId, rawName, normalizeName(rawName), canonical.institutionId, canonical.institutionName, canonical.slug],
+          canonical
+        );
+        return canonical;
+      }
+    }
+    if (rawName) {
+      const { data: allBlogs } = await supabaseAdmin.from("school_blogs").select("*").limit(400);
+      const norm = normalizeName(rawName);
+      const found = (allBlogs || []).find(
+        (b) => String(b.institution_name || "").toLowerCase() === rawName.toLowerCase() || normalizeName(b.institution_name || "") === norm || String(b.slug || "") === rawName.toLowerCase()
+      );
+      if (found) {
+        const canonical = {
+          institutionId: found.institution_id,
+          institutionName: found.institution_name,
+          shortName: found.short_name || "",
+          category: found.category || "University",
+          state: found.state || "",
+          logo: found.logo || "\u{1F3DB}\uFE0F",
+          slug: found.slug
+        };
+        setCachedResolvedInstitution(
+          [rawId, rawName, norm, canonical.institutionId, canonical.institutionName, canonical.slug],
+          canonical
+        );
+        return canonical;
+      }
+    }
+  } catch {
+  }
+  try {
+    const [instRes, masterRes] = await Promise.all([
+      supabaseAdmin.from("institutions").select("id, data").limit(300),
+      supabaseAdmin.from("masterInstitutions").select("id, data").limit(300)
+    ]);
+    for (const rows of [instRes.data, masterRes.data]) {
+      for (const r of rows || []) {
+        const d = r.data || {};
+        const name = String(d.name || d.institutionName || "");
+        if (rawId && r.id === rawId || rawName && (name.toLowerCase() === rawName.toLowerCase() || normalizeName(name) === normalizeName(rawName))) {
+          const canonical = {
+            institutionId: r.id,
+            institutionName: name || rawName || r.id,
+            shortName: d.shortName || "",
+            category: d.category || d.type || params.category || "University",
+            state: d.state || "",
+            logo: d.logo || "\u{1F3DB}\uFE0F",
+            slug: slugifyText(name || r.id)
+          };
+          setCachedResolvedInstitution(
+            [rawId, rawName, normalizeName(rawName), canonical.institutionId, canonical.institutionName, canonical.slug],
+            canonical
+          );
+          return canonical;
+        }
+      }
+    }
+  } catch {
+  }
+  if (rawName) {
+    const cleanSlug = slugifyText(rawName);
+    const derivedId = rawId && rawId.trim().length > 0 ? rawId.trim() : `custom_${cleanSlug.replace(/-/g, "_").slice(0, 42)}`;
+    const canonical = {
+      institutionId: derivedId,
+      institutionName: rawName,
+      shortName: rawName.split(/\s+/).filter((w) => w.length > 2 && !["of", "and", "for", "the"].includes(w.toLowerCase())).map((w) => w[0].toUpperCase()).join("").slice(0, 8),
+      category: params.category || "University",
+      state: "",
+      logo: "\u{1F3DB}\uFE0F",
+      slug: cleanSlug || derivedId
+    };
+    setCachedResolvedInstitution(
+      [rawId, rawName, normalizeName(rawName), canonical.institutionId, canonical.slug],
+      canonical
+    );
+    return canonical;
+  }
+  return null;
+}
+async function ensureSchoolBlogRecord(inst) {
+  const cached = schoolBlogRecordCache.get(inst.institutionId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+  const { data: existing } = await supabaseAdmin.from("school_blogs").select("*").eq("institution_id", inst.institutionId).maybeSingle();
+  if (existing) {
+    if (schoolBlogRecordCache.size > 400) schoolBlogRecordCache.clear();
+    schoolBlogRecordCache.set(inst.institutionId, {
+      expiresAt: Date.now() + BLOG_RECORD_CACHE_TTL_MS,
+      value: existing
+    });
+    return existing;
+  }
+  const slugCandidate = inst.slug || slugifyText(inst.institutionName) || inst.institutionId;
+  const { data: bySlug } = await supabaseAdmin.from("school_blogs").select("*").eq("slug", slugCandidate).maybeSingle();
+  if (bySlug) {
+    if (schoolBlogRecordCache.size > 400) schoolBlogRecordCache.clear();
+    schoolBlogRecordCache.set(inst.institutionId, {
+      expiresAt: Date.now() + BLOG_RECORD_CACHE_TTL_MS,
+      value: bySlug
+    });
+    return bySlug;
+  }
+  const defaultDesc = `Official student newsroom, campus announcements, academic updates, and verified events from ${inst.institutionName}.`;
+  const { data: inserted, error } = await supabaseAdmin.from("school_blogs").insert({
+    institution_id: inst.institutionId,
+    institution_name: inst.institutionName,
+    short_name: inst.shortName || "",
+    category: inst.category || "University",
+    state: inst.state || "",
+    logo: inst.logo || "\u{1F3DB}\uFE0F",
+    slug: slugCandidate,
+    description: defaultDesc,
+    status: "active"
+  }).select("*").single();
+  if (error) {
+    const { data: retry } = await supabaseAdmin.from("school_blogs").select("*").eq("institution_id", inst.institutionId).maybeSingle();
+    if (retry) {
+      schoolBlogRecordCache.set(inst.institutionId, {
+        expiresAt: Date.now() + BLOG_RECORD_CACHE_TTL_MS,
+        value: retry
+      });
+      return retry;
+    }
+    throw error;
+  }
+  if (schoolBlogRecordCache.size > 400) schoolBlogRecordCache.clear();
+  schoolBlogRecordCache.set(inst.institutionId, {
+    expiresAt: Date.now() + BLOG_RECORD_CACHE_TTL_MS,
+    value: inserted
+  });
+  return inserted;
+}
+
+// server/utils/authMiddleware.ts
+var TOKEN_AUTH_CACHE_TTL_MS = 20 * 1e3;
+var MANAGER_ASSIGNMENTS_CACHE_TTL_MS = 30 * 1e3;
+var tokenAuthCache = /* @__PURE__ */ new Map();
+var managerAssignmentsCache = null;
+function hashTokenKey(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+function isTimestampExpired(rawExpiry) {
+  if (!rawExpiry || typeof rawExpiry !== "string") return false;
+  if (!rawExpiry.trim()) return false;
+  const ts = new Date(rawExpiry).getTime();
+  return !Number.isNaN(ts) && ts <= Date.now();
+}
+function resolveAuthoritativeSubscription(params) {
+  const { userData, subRows, isStaffOrAdmin } = params;
+  if (isStaffOrAdmin) {
+    return {
+      subscriptionTier: "vip",
+      hasActiveSubscription: true,
+      subscriptionExpired: false,
+      subscriptionExpiry: null
+    };
+  }
+  const user = userData || {};
+  const rawExpiry = user.subscriptionExpiry || user.subscription?.expiryDate || user.subscription?.expiresAt || user.subscription?.subscriptionExpiry || user.expiryDate || user.expiresAt || null;
+  const explicitExpired = Boolean(
+    user.isExpired === true || user.status === "expired" || user.subscriptionStatus === "expired" || user.subscription && ["expired", "inactive", "cancelled"].includes(
+      String(user.subscription.status || "").toLowerCase()
+    ) || isTimestampExpired(rawExpiry)
+  );
+  const sortedSubs = [...subRows || []].sort((a, b) => {
+    const aTime = new Date(a?.updatedAt || a?.createdAt || 0).getTime();
+    const bTime = new Date(b?.updatedAt || b?.createdAt || 0).getTime();
+    return bTime - aTime;
+  });
+  const latestActiveSub = sortedSubs.find((s) => {
+    if (!s) return false;
+    const status = String(s.status || "").toLowerCase();
+    if (["expired", "inactive", "cancelled"].includes(status)) return false;
+    if (isTimestampExpired(s.expiryDate || s.expiresAt)) return false;
+    const combined = `${s.planId || ""} ${s.planNameSnapshot || ""} ${s.targetTier || ""} ${s.tierType || ""}`.toLowerCase();
+    if (combined.includes("free")) return false;
+    return status === "active" || Boolean(s.planId || s.targetTier || s.tierType);
+  });
+  if (explicitExpired && !latestActiveSub) {
+    return {
+      subscriptionTier: "free",
+      hasActiveSubscription: false,
+      subscriptionExpired: true,
+      subscriptionExpiry: typeof rawExpiry === "string" ? rawExpiry : null
+    };
+  }
+  const membership = String(user.membershipTier || "").toLowerCase().trim();
+  const subTier = String(user.subscriptionTier || "").toLowerCase().trim();
+  const plan = String(
+    user.subscriptionPlan || user.planId || user.tier || user.activePlanId || user.plan || ""
+  ).toLowerCase().trim();
+  const planName = String(
+    user.planNameSnapshot || user.subscription?.name || user.subscription?.planId || ""
+  ).toLowerCase().trim();
+  const targetTier = String(user.targetTier || user.tierType || "").toLowerCase().trim();
+  const isExplicitlyFree = membership === "free" || membership === "free scholar" || membership === "scholar (starter)" || membership === "starter scholar" || subTier === "free" || subTier === "free scholar" || plan === "free" || plan === "plan_free" || plan === "free_starter";
+  const isUserDocVip = !explicitExpired && Boolean(
+    user.isVip || targetTier === "vip" || membership.includes("vip") || membership.includes("titan") || subTier.includes("vip") || subTier.includes("titan") || plan.includes("vip") || plan.includes("titan") || planName.includes("vip") || planName.includes("titan") || plan.includes("annual") || planName.includes("annual")
+  );
+  const isUserDocPremium = !explicitExpired && !(user.isSubscribed === false && !user.isPremium) && !(isExplicitlyFree && !user.isPremium && !user.isSubscribed) && !membership.includes("free") && !subTier.includes("free") && !plan.includes("free") && Boolean(
+    user.isPremium || targetTier === "premium" || user.isSubscribed && !isExplicitlyFree || user.subscription && user.subscription.status === "active" || membership.includes("premium") || membership.includes("pro") || membership.includes("champion") || membership.includes("master") || subTier.includes("premium") || subTier.includes("pro") || subTier.includes("champion") || subTier.includes("master") || plan.includes("premium") || plan.includes("pro") || plan.includes("champion") || plan.includes("master") || plan.includes("basic_naira") || planName.includes("premium") || planName.includes("pro") || planName.includes("champion") || planName.includes("master") || planName.includes("basic monthly")
+  );
+  if (isUserDocVip) {
+    return {
+      subscriptionTier: "vip",
+      hasActiveSubscription: true,
+      subscriptionExpired: false,
+      subscriptionExpiry: typeof rawExpiry === "string" ? rawExpiry : null
+    };
+  }
+  if (isUserDocPremium) {
+    return {
+      subscriptionTier: "premium",
+      hasActiveSubscription: true,
+      subscriptionExpired: false,
+      subscriptionExpiry: typeof rawExpiry === "string" ? rawExpiry : null
+    };
+  }
+  if (latestActiveSub) {
+    const subCombined = `${latestActiveSub.planId || ""} ${latestActiveSub.planNameSnapshot || ""} ${latestActiveSub.targetTier || ""} ${latestActiveSub.tierType || ""}`.toLowerCase();
+    const isSubVip = Boolean(latestActiveSub.isVip) || subCombined.includes("vip") || subCombined.includes("titan") || subCombined.includes("annual");
+    return {
+      subscriptionTier: isSubVip ? "vip" : "premium",
+      hasActiveSubscription: true,
+      subscriptionExpired: false,
+      subscriptionExpiry: typeof latestActiveSub.expiryDate === "string" ? latestActiveSub.expiryDate : null
+    };
+  }
+  const anyExpiredSub = sortedSubs.some((s) => {
+    if (!s) return false;
+    const status = String(s.status || "").toLowerCase();
+    return status === "expired" || isTimestampExpired(s.expiryDate || s.expiresAt);
+  });
+  return {
+    subscriptionTier: "free",
+    hasActiveSubscription: false,
+    subscriptionExpired: explicitExpired || anyExpiredSub,
+    subscriptionExpiry: typeof rawExpiry === "string" ? rawExpiry : null
+  };
+}
+async function getCachedManagerAssignments() {
+  if (managerAssignmentsCache && managerAssignmentsCache.expiresAt > Date.now()) {
+    return managerAssignmentsCache.rows;
+  }
+  const { data } = await supabaseAdmin.from("managerAssignments").select("id, data").limit(100);
+  const rows = data || [];
+  managerAssignmentsCache = {
+    expiresAt: Date.now() + MANAGER_ASSIGNMENTS_CACHE_TTL_MS,
+    rows
+  };
+  return rows;
+}
+async function resolveUserContextFromToken(token, allowCache = true) {
+  if (!token) return null;
+  const cacheKey = hashTokenKey(token);
+  if (allowCache) {
+    const cached = tokenAuthCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.user;
+    }
+    if (cached) tokenAuthCache.delete(cacheKey);
+  }
+  const { data: authData, error: authErr } = await supabaseAdmin.auth.getUser(token);
+  if (authErr || !authData?.user) return null;
+  const sbUser = authData.user;
+  const uid = sbUser.id;
+  const email = (sbUser.email || "").trim().toLowerCase();
+  const [userRowRes, membershipRes, managerRows, userSubsRes] = await Promise.all([
+    supabaseAdmin.from("users").select("id, data").eq("id", uid).maybeSingle(),
+    supabaseAdmin.from("campus_memberships").select("id, data").eq("id", uid).maybeSingle(),
+    getCachedManagerAssignments(),
+    supabaseAdmin.from("userSubscriptions").select("id, data").eq("data->>userId", uid).limit(20)
+  ]);
+  const userData = userRowRes.data?.data || {};
+  const membershipData = membershipRes.data?.data || {};
+  const subRows = (userSubsRes.data || []).map((r) => r.data).filter(Boolean);
+  let managerAssignment = null;
+  for (const row of managerRows) {
+    const d = row.data || {};
+    if (d.status === "active" && (d.uid === uid || email && String(d.email || "").toLowerCase() === email)) {
+      managerAssignment = d;
+      break;
+    }
+  }
+  const isSuper = isSuperAdmin(uid, email) || isPrimarySuperAdmin(uid, email) || userData.role === "super_admin" || Boolean(userData.isSuperAdmin) || managerAssignment?.role === "SUPER_ADMIN";
+  const managerRole = isSuper ? "SUPER_ADMIN" : managerAssignment?.role || userData.managerRole || null;
+  const isAdmin = isSuper || userData.role === "admin" || Boolean(userData.isAdmin) || managerRole === "ADMIN" || managerRole === "SUPER_ADMIN" || managerRole === "COMMUNITY_ANNOUNCEMENT_MANAGER";
+  const isStaffOrAdmin = isAdmin || userData.role === "community_manager" || userData.role === "staff";
+  const subscriptionStatus = resolveAuthoritativeSubscription({
+    userData,
+    subRows,
+    isStaffOrAdmin
+  });
+  const rawInstName = membershipData.institution || userData.institution || userData.institutionName || userData.academicProfile?.institutionName || "";
+  const rawInstId = membershipData.institutionId || userData.institutionId || userData.academicProfile?.institutionId || "";
+  const rawInstCategory = membershipData.institutionCategory || userData.institutionCategory || userData.academicProfile?.institutionCategory || "University";
+  const canonical = await resolveCanonicalInstitution({
+    institutionId: rawInstId,
+    institutionName: rawInstName,
+    category: rawInstCategory
+  });
+  const name = userData.name || userData.fullName || sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || email.split("@")[0] || "Grobaax Scholar";
+  const department = membershipData.department || userData.department || userData.departmentName || userData.academicProfile?.departmentName || "";
+  const level = membershipData.level || userData.level || userData.academicProfile?.level || "100 Level";
+  const accountStatus = userData.isDeleted ? "deleted" : String(userData.accountStatus || "active").toLowerCase().trim() || "active";
+  const resolvedUser = {
+    id: uid,
+    email,
+    name,
+    department,
+    level,
+    role: userData.role || "student",
+    accountStatus,
+    managerRole,
+    isAdmin,
+    isSuperAdmin: isSuper,
+    institutionId: canonical?.institutionId || rawInstId,
+    institutionName: canonical?.institutionName || rawInstName,
+    institutionCategory: canonical?.category || rawInstCategory,
+    canonicalInstitution: canonical,
+    subscriptionTier: subscriptionStatus.subscriptionTier,
+    hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
+    subscriptionExpired: subscriptionStatus.subscriptionExpired,
+    subscriptionExpiry: subscriptionStatus.subscriptionExpiry
+  };
+  if (tokenAuthCache.size > 500) {
+    tokenAuthCache.clear();
+  }
+  tokenAuthCache.set(cacheKey, {
+    expiresAt: Date.now() + TOKEN_AUTH_CACHE_TTL_MS,
+    user: resolvedUser
+  });
+  return resolvedUser;
+}
+function extractBearerToken(req) {
+  const header = req.headers.authorization || "";
+  if (header.toLowerCase().startsWith("bearer ")) {
+    return header.slice(7).trim();
+  }
+  return "";
+}
+async function optionalAuth(req, _res, next) {
+  try {
+    const token = extractBearerToken(req);
+    if (token) {
+      const allowCache = req.method === "GET" || req.method === "HEAD";
+      req.authUser = await resolveUserContextFromToken(token, allowCache);
+    } else {
+      req.authUser = null;
+    }
+  } catch {
+    req.authUser = null;
+  }
+  next();
+}
+async function requireAuth(req, res, next) {
+  try {
+    const token = extractBearerToken(req);
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required. Please sign in to continue."
+      });
+    }
+    const allowCache = req.method === "GET" || req.method === "HEAD";
+    const verified = await resolveUserContextFromToken(token, allowCache);
+    if (!verified) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid or expired session token. Please sign in again."
+      });
+    }
+    req.authUser = verified;
+    return next();
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      error: err?.message || "Authentication verification failed."
+    });
+  }
+}
+async function requireAdmin(req, res, next) {
+  return requireAuth(req, res, () => {
+    if (!req.authUser?.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: "Administrator privileges are strictly required for this action."
+      });
+    }
+    return next();
+  });
+}
+
+// server/corporateAdsRouter.ts
+var corporateAdsRouter = Router3();
+var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var ALLOWED_CREATIVE_MIME = /* @__PURE__ */ new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+var ALLOWED_DOC_MIME = /* @__PURE__ */ new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf"
+]);
+var MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+var COMPANY_STATUSES = /* @__PURE__ */ new Set(["Pending", "Approved", "Rejected", "Suspended"]);
+var CAMPAIGN_STATUSES = /* @__PURE__ */ new Set([
+  "Draft",
+  "Pending Review",
+  "Approved",
+  "Rejected",
+  "Active",
+  "Paused",
+  "Expired",
+  "Suspended"
+]);
+var SPONSOR_TICKER_MODES = /* @__PURE__ */ new Set(["none", "included", "required", "optional_upgrade"]);
+var TICKER_EVENT_TYPES = /* @__PURE__ */ new Set(["bar_impression", "bar_click", "detail_view", "website_click"]);
+function createStatelessSupabaseClient() {
+  return createClient2(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  });
+}
+function extractBearerToken2(req) {
+  const header = req.headers.authorization || "";
+  if (header.toLowerCase().startsWith("bearer ")) {
+    return header.slice(7).trim();
+  }
+  return "";
+}
+function sanitizeHttpUrl(rawUrl2) {
+  const trimmed = String(rawUrl2 || "").trim();
+  if (!trimmed) return null;
+  try {
+    const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+function sanitizeHexColor(rawColor) {
+  const cleaned = String(rawColor || "").trim();
+  if (!cleaned) return null;
+  if (/^#[0-9a-fA-F]{6}$/.test(cleaned)) {
+    return cleaned.toUpperCase();
+  }
+  if (/^#[0-9a-fA-F]{3}$/.test(cleaned)) {
+    const r = cleaned[1];
+    const g = cleaned[2];
+    const b = cleaned[3];
+    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+  }
+  return null;
+}
+async function dispatchCorporateAdminNotification(params) {
+  try {
+    const id = `notif_corp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    await supabaseAdmin.from("notifications").upsert(
+      {
+        id,
+        data: {
+          id,
+          title: params.title,
+          message: params.message,
+          type: "system",
+          targetRole: "admin",
+          targetUserId: null,
+          userId: null,
+          actionUrl: params.actionUrl || "/admin?tab=corporate_ads",
+          isRead: false,
+          createdAt: nowIso,
+          timestamp: nowIso
+        },
+        updated_at: nowIso
+      },
+      { onConflict: "id" }
+    );
+  } catch (err) {
+    console.warn("[CorporateAds] Admin notification dispatch notice:", err);
+  }
+}
+function mapCompanyRow(row, extra) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    authUserId: row.auth_user_id,
+    accountType: row.account_type,
+    accountSource: extra?.accountSource || "external_signup",
+    companyName: row.company_name,
+    brandName: row.brand_name,
+    logoUrl: row.logo_url || "",
+    brandHighlightColor: sanitizeHexColor(row.brand_highlight_color) || "#2563EB",
+    industry: row.industry,
+    registrationNumber: row.registration_number || "",
+    website: row.website || "",
+    description: row.description || "",
+    contactName: row.contact_name,
+    officialEmail: row.official_email,
+    phone: row.phone,
+    address: row.address,
+    country: row.country,
+    state: row.state,
+    supportingDocumentUrl: row.supporting_document_url || "",
+    supportingDocumentName: row.supporting_document_name || "",
+    status: row.status,
+    adminFeedback: row.admin_feedback || "",
+    reviewedBy: row.reviewed_by || null,
+    reviewerName: row.reviewer_name || null,
+    reviewedAt: row.reviewed_at || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function mapPlanRow(row) {
+  if (!row) return null;
+  const tickerMode = SPONSOR_TICKER_MODES.has(row.sponsor_ticker_mode) ? row.sponsor_ticker_mode : "none";
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description || "",
+    monthlyPriceNaira: Number(row.monthly_price_naira || 0),
+    currency: row.currency || "NGN",
+    durationDays: Number(row.duration_days || 30),
+    maxActiveCampaigns: Number(row.max_active_campaigns || 1),
+    campaignDurationDays: Number(row.campaign_duration_days || 30),
+    placementEligibility: Array.isArray(row.placement_eligibility) ? row.placement_eligibility : ["school_blog_article_footer"],
+    sponsorTickerMode: tickerMode,
+    maxTickerCampaigns: Number(row.max_ticker_campaigns || 0),
+    tickerCampaignDurationDays: Number(row.ticker_campaign_duration_days || 30),
+    tickerUpgradePriceNaira: Number(row.ticker_upgrade_price_naira || 0),
+    features: Array.isArray(row.features) ? row.features : [],
+    isActive: Boolean(row.is_active),
+    sortOrder: Number(row.sort_order || 1),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function mapSubscriptionRow(row) {
+  if (!row) return null;
+  const tickerMode = SPONSOR_TICKER_MODES.has(row.sponsor_ticker_mode_snapshot) ? row.sponsor_ticker_mode_snapshot : "none";
+  return {
+    id: row.id,
+    companyId: row.company_id,
+    planId: row.plan_id,
+    paymentId: row.payment_id || null,
+    paymentReference: row.payment_reference,
+    planNameSnapshot: row.plan_name_snapshot,
+    monthlyPriceSnapshot: Number(row.monthly_price_snapshot || 0),
+    durationDaysSnapshot: Number(row.duration_days_snapshot || 30),
+    maxActiveCampaignsSnapshot: Number(row.max_active_campaigns_snapshot || 1),
+    campaignDurationDaysSnapshot: Number(row.campaign_duration_days_snapshot || 30),
+    placementEligibilitySnapshot: Array.isArray(row.placement_eligibility_snapshot) ? row.placement_eligibility_snapshot : ["school_blog_article_footer"],
+    sponsorTickerModeSnapshot: tickerMode,
+    maxTickerCampaignsSnapshot: Number(row.max_ticker_campaigns_snapshot || 0),
+    tickerCampaignDurationDaysSnapshot: Number(row.ticker_campaign_duration_days_snapshot || 30),
+    tickerUpgradePriceSnapshot: Number(row.ticker_upgrade_price_snapshot || 0),
+    tickerUpgradeActive: Boolean(row.ticker_upgrade_active),
+    tickerUpgradePaymentId: row.ticker_upgrade_payment_id || null,
+    status: row.status,
+    startDate: row.start_date,
+    expiryDate: row.expiry_date,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function mapPaymentRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    companyId: row.company_id,
+    subscriptionId: row.subscription_id || null,
+    planId: row.plan_id,
+    planNameSnapshot: row.plan_name_snapshot || "",
+    purchaseType: row.purchase_type || "plan_subscription",
+    reference: row.reference,
+    receiptNumber: row.receipt_number || null,
+    amountNaira: Number(row.amount_naira || 0),
+    currency: row.currency || "NGN",
+    status: row.status,
+    channel: row.channel || "paystack",
+    gatewayResponse: row.gateway_response || "",
+    paidAt: row.paid_at || null,
+    verifiedAt: row.verified_at || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function mapCampaignRow(row, company) {
+  if (!row) return null;
+  const impressions = Number(row.impressions_count || 0);
+  const clicks = Number(row.clicks_count || 0);
+  const ctr = impressions > 0 ? Number((clicks / impressions * 100).toFixed(2)) : 0;
+  const resolvedColor = sanitizeHexColor(row.brand_highlight_color) || sanitizeHexColor(company?.brand_highlight_color) || sanitizeHexColor(row.corporate_accounts?.brand_highlight_color) || "#2563EB";
+  return {
+    id: row.id,
+    companyId: row.company_id,
+    companyName: company?.company_name || row.corporate_accounts?.company_name || "",
+    brandName: company?.brand_name || row.corporate_accounts?.brand_name || "",
+    logoUrl: company?.logo_url || row.corporate_accounts?.logo_url || "",
+    brandHighlightColor: resolvedColor,
+    companyStatus: company?.status || row.corporate_accounts?.status || "",
+    subscriptionId: row.subscription_id || null,
+    campaignName: row.campaign_name,
+    headline: row.headline,
+    adText: row.ad_text,
+    creativeImageUrl: row.creative_image_url,
+    destinationUrl: row.destination_url,
+    ctaLabel: row.cta_label || "Learn More",
+    placementType: row.placement_type || "school_blog_article_footer",
+    requestedDurationDays: Number(row.requested_duration_days || 30),
+    status: row.status,
+    adminFeedback: row.admin_feedback || "",
+    rejectionReason: row.rejection_reason || "",
+    reviewedBy: row.reviewed_by || null,
+    reviewerName: row.reviewer_name || null,
+    reviewedAt: row.reviewed_at || null,
+    startDate: row.start_date || null,
+    expiryDate: row.expiry_date || null,
+    impressionsCount: impressions,
+    clicksCount: clicks,
+    ctr,
+    lastServedAt: row.last_served_at || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function mapTickerCampaignRow(row, company) {
+  if (!row) return null;
+  const barImpressions = Number(row.impressions_count ?? row.bar_impressions_count ?? 0);
+  const barClicks = Number(row.bar_clicks_count || 0);
+  const detailViews = Number(row.detail_views_count || 0);
+  const websiteClicks = Number(row.website_clicks_count || 0);
+  const websiteCtr = barImpressions > 0 ? Number((websiteClicks / barImpressions * 100).toFixed(2)) : 0;
+  const resolvedColor = sanitizeHexColor(row.brand_highlight_color) || sanitizeHexColor(company?.brand_highlight_color) || sanitizeHexColor(row.corporate_accounts?.brand_highlight_color) || "#2563EB";
+  return {
+    id: row.id,
+    companyId: row.company_id,
+    companyName: company?.company_name || row.corporate_accounts?.company_name || "",
+    brandName: company?.brand_name || row.corporate_accounts?.brand_name || "",
+    logoUrl: company?.logo_url || row.corporate_accounts?.logo_url || "",
+    brandHighlightColor: resolvedColor,
+    companyStatus: company?.status || row.corporate_accounts?.status || "",
+    subscriptionId: row.subscription_id || null,
+    campaignName: row.campaign_name,
+    shortMessage: row.ticker_message ?? row.short_message ?? "",
+    headline: row.headline,
+    fullDescription: row.full_description,
+    ctaLabel: row.cta_label || "Learn More",
+    destinationUrl: row.destination_url,
+    requestedDurationDays: Number(row.requested_duration_days || 30),
+    status: row.status,
+    adminFeedback: row.admin_feedback || "",
+    rejectionReason: row.rejection_reason || "",
+    reviewedBy: row.reviewed_by || null,
+    reviewerName: row.reviewer_name || null,
+    reviewedAt: row.reviewed_at || null,
+    startDate: row.start_date || null,
+    expiryDate: row.expiry_date || null,
+    barImpressionsCount: barImpressions,
+    barClicksCount: barClicks,
+    detailViewsCount: detailViews,
+    websiteClicksCount: websiteClicks,
+    websiteCtr,
+    lastServedAt: row.last_served_at || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function isSubscriptionTickerEligible(sub) {
+  if (!sub || sub.status !== "active") return false;
+  if (sub.expiry_date && new Date(sub.expiry_date).getTime() <= Date.now()) return false;
+  const mode = sub.sponsor_ticker_mode_snapshot || "none";
+  const maxTickers = Number(sub.max_ticker_campaigns_snapshot || 0);
+  if (maxTickers < 1) return false;
+  if (mode === "included" || mode === "required") return true;
+  if (mode === "optional_upgrade" && Boolean(sub.ticker_upgrade_active)) return true;
+  return false;
+}
+async function expireOverdueRecords(companyId) {
+  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    let subQ = supabaseAdmin.from("corporate_subscriptions").update({ status: "expired", updated_at: nowIso }).eq("status", "active").lte("expiry_date", nowIso);
+    if (companyId) subQ = subQ.eq("company_id", companyId);
+    await subQ;
+    let campQ = supabaseAdmin.from("corporate_ad_campaigns").update({ status: "Expired", updated_at: nowIso }).in("status", ["Active", "Paused", "Approved"]).not("expiry_date", "is", null).lte("expiry_date", nowIso);
+    if (companyId) campQ = campQ.eq("company_id", companyId);
+    await campQ;
+    let tickerQ = supabaseAdmin.from("corporate_ticker_campaigns").update({ status: "Expired", updated_at: nowIso }).in("status", ["Active", "Paused", "Approved"]).not("expiry_date", "is", null).lte("expiry_date", nowIso);
+    if (companyId) tickerQ = tickerQ.eq("company_id", companyId);
+    await tickerQ;
+  } catch (err) {
+    console.warn("[CorporateAds] Expiry sweep notice:", err);
+  }
+}
+async function getActiveSubscriptionForCompany(companyId) {
+  await expireOverdueRecords(companyId);
+  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+  const { data } = await supabaseAdmin.from("corporate_subscriptions").select("*").eq("company_id", companyId).eq("status", "active").gt("expiry_date", nowIso).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  return data || null;
+}
+async function uploadDataUrlToBucket(params) {
+  const { bucket, dataUrl, fileName, folder, allowedMimes } = params;
+  if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) {
+    throw new Error("Invalid file payload.");
+  }
+  const match = dataUrl.match(/^data:([a-zA-Z0-9.+\-\/]+);base64,(.+)$/);
+  if (!match) {
+    throw new Error("Malformed base64 file data URL.");
+  }
+  const mimeType = match[1].toLowerCase();
+  if (!allowedMimes.has(mimeType)) {
+    throw new Error("Unsupported file format.");
+  }
+  const buffer = Buffer.from(match[2], "base64");
+  if (buffer.byteLength === 0 || buffer.byteLength > MAX_UPLOAD_BYTES) {
+    throw new Error("File must be under 5MB.");
+  }
+  const extMap = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "application/pdf": "pdf"
+  };
+  const ext = extMap[mimeType] || "bin";
+  const safeBase = String(fileName || "file").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 48);
+  const storagePath = `${folder}/${Date.now()}_${safeBase}.${ext}`;
+  const { error: uploadErr } = await supabaseAdmin.storage.from(bucket).upload(storagePath, buffer, {
+    contentType: mimeType,
+    upsert: false
+  });
+  if (uploadErr) {
+    throw new Error(`Storage upload failed: ${uploadErr.message}`);
+  }
+  if (bucket === "corporate-ad-media") {
+    const { data: pubData } = supabaseAdmin.storage.from(bucket).getPublicUrl(storagePath);
+    return { path: storagePath, url: pubData.publicUrl };
+  }
+  return { path: storagePath, url: storagePath };
+}
+async function logCorporateAudit(params) {
+  try {
+    await supabaseAdmin.from("corporate_ad_audit_logs").insert({
+      actor_user_id: params.actorUserId,
+      actor_name: params.actorName,
+      actor_role: params.actorRole,
+      action: params.action,
+      target_type: params.targetType,
+      target_id: params.targetId,
+      details: params.details || {}
+    });
+  } catch (err) {
+    console.warn("[CorporateAds] Audit log notice:", err);
+  }
+}
+function buildViewerKey(req, uid) {
+  if (uid) return `u:${uid}`;
+  const forwarded = req.headers["x-forwarded-for"];
+  const ip = (Array.isArray(forwarded) ? forwarded[0] : String(forwarded || "")).split(",")[0].trim() || req.ip || "unknown";
+  const ua = String(req.headers["user-agent"] || "").slice(0, 140);
+  const hash = crypto2.createHash("sha256").update(`${ip}|${ua}|corp_ad_viewer`).digest("hex").slice(0, 24);
+  return `g:${hash}`;
+}
+async function requireCorporateAuth(req, res, next) {
+  try {
+    const token = extractBearerToken2(req);
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: "Corporate authentication required. Please log in to continue."
+      });
+    }
+    const { data: authData, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !authData?.user) {
+      return res.status(401).json({
+        success: false,
+        error: "Session expired or invalid. Please log in again."
+      });
+    }
+    const uid = authData.user.id;
+    const { data: company, error: compErr } = await supabaseAdmin.from("corporate_accounts").select("*").eq("auth_user_id", uid).maybeSingle();
+    if (compErr || !company) {
+      return res.status(403).json({
+        success: false,
+        code: "NOT_CORPORATE_ACCOUNT",
+        error: "This account is not a registered Corporate Advertiser account. Student accounts cannot access the Corporate Portal."
+      });
+    }
+    req.corporateAuthUid = uid;
+    req.corporateCompany = company;
+    return next();
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      error: err?.message || "Corporate authentication failed."
+    });
+  }
+}
+async function requireCorporateAdmin(req, res, next) {
+  return requireAuth(req, res, () => {
+    const u = req.authUser;
+    const allowed = Boolean(
+      u?.isAdmin || u?.isSuperAdmin || u?.managerRole === "SPONSORSHIP_AD_MANAGER"
+    );
+    if (!allowed) {
+      return res.status(403).json({
+        success: false,
+        error: "Administrator or Sponsorship Manager privileges required."
+      });
+    }
+    return next();
+  });
+}
+corporateAdsRouter.get("/plans", async (_req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin.from("corporate_subscription_plans").select("*").eq("is_active", true).order("sort_order", { ascending: true }).order("monthly_price_naira", { ascending: true });
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.json({
+      success: true,
+      plans: (data || []).map(mapPlanRow)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+corporateAdsRouter.get("/serve-ad", async (req, res) => {
+  try {
+    await expireOverdueRecords();
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const { data: candidates, error } = await supabaseAdmin.from("corporate_ad_campaigns").select(
+      "*, corporate_accounts!inner(id, company_name, brand_name, status, logo_url, brand_highlight_color), corporate_subscriptions!inner(id, status, start_date, expiry_date, max_active_campaigns_snapshot, placement_eligibility_snapshot)"
+    ).eq("status", "Active").eq("corporate_accounts.status", "Approved").eq("corporate_subscriptions.status", "active").gt("corporate_subscriptions.expiry_date", nowIso).lte("corporate_subscriptions.start_date", nowIso).order("last_served_at", { ascending: true, nullsFirst: true }).order("created_at", { ascending: true }).limit(20);
+    if (error) {
+      console.warn("[CorporateAds] serve-ad query notice:", error.message);
+      return res.json({ success: true, ad: null });
+    }
+    const articleSeed = String(req.query.articleId || "");
+    const eligible = (candidates || []).filter((c) => {
+      if (c.start_date && new Date(c.start_date).getTime() > Date.now()) return false;
+      if (c.expiry_date && new Date(c.expiry_date).getTime() <= Date.now()) return false;
+      const placements = Array.isArray(c.corporate_subscriptions?.placement_eligibility_snapshot) ? c.corporate_subscriptions.placement_eligibility_snapshot : ["school_blog_article_footer"];
+      if (!placements.includes("school_blog_article_footer") && !placements.includes("all") && !placements.includes(c.placement_type)) {
+        return false;
+      }
+      return true;
+    });
+    if (eligible.length === 0) {
+      return res.json({ success: true, ad: null });
+    }
+    const selected = eligible[0];
+    await supabaseAdmin.from("corporate_ad_campaigns").update({ last_served_at: nowIso }).eq("id", selected.id);
+    const resolvedColor = sanitizeHexColor(selected.brand_highlight_color) || sanitizeHexColor(selected.corporate_accounts?.brand_highlight_color) || "#2563EB";
+    return res.json({
+      success: true,
+      articleId: articleSeed || void 0,
+      ad: {
+        campaignId: selected.id,
+        brandName: selected.corporate_accounts?.brand_name || selected.corporate_accounts?.company_name || "Sponsored Partner",
+        companyName: selected.corporate_accounts?.company_name || "",
+        logoUrl: selected.corporate_accounts?.logo_url || "",
+        brandHighlightColor: resolvedColor,
+        headline: selected.headline,
+        adText: selected.ad_text,
+        creativeImageUrl: selected.creative_image_url,
+        destinationUrl: selected.destination_url,
+        ctaLabel: selected.cta_label || "Learn More",
+        placementType: selected.placement_type || "school_blog_article_footer"
+      }
+    });
+  } catch (err) {
+    console.warn("[CorporateAds] serve-ad error:", err);
+    return res.json({ success: true, ad: null });
+  }
+});
+corporateAdsRouter.post(
+  "/ads/:campaignId/impression",
+  optionalAuth,
+  async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      if (!UUID_RE.test(campaignId || "")) {
+        return res.status(400).json({ success: false, error: "Invalid campaign ID." });
+      }
+      const articleId = String(req.body?.articleId || "general").slice(0, 100);
+      const institutionId = String(req.body?.institutionId || "").slice(0, 100);
+      const { data: camp } = await supabaseAdmin.from("corporate_ad_campaigns").select("id, company_id, status, impressions_count, expiry_date").eq("id", campaignId).maybeSingle();
+      if (!camp || camp.status !== "Active") {
+        return res.json({ success: false, recorded: false });
+      }
+      if (camp.expiry_date && new Date(camp.expiry_date).getTime() <= Date.now()) {
+        return res.json({ success: false, recorded: false });
+      }
+      const viewerKey = buildViewerKey(req, req.authUser?.id);
+      const impressionBucket = `b30m_${Math.floor(Date.now() / (30 * 60 * 1e3))}`;
+      const { error: insertErr } = await supabaseAdmin.from("corporate_ad_impressions").insert({
+        campaign_id: camp.id,
+        company_id: camp.company_id,
+        article_id: articleId,
+        institution_id: institutionId,
+        viewer_key: viewerKey,
+        impression_bucket: impressionBucket
+      });
+      if (insertErr) {
+        return res.json({ success: true, recorded: false, deduplicated: true });
+      }
+      const nextCount = Number(camp.impressions_count || 0) + 1;
+      await supabaseAdmin.from("corporate_ad_campaigns").update({ impressions_count: nextCount }).eq("id", camp.id);
+      return res.json({ success: true, recorded: true });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.post(
+  "/ads/:campaignId/click",
+  optionalAuth,
+  async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      if (!UUID_RE.test(campaignId || "")) {
+        return res.status(400).json({ success: false, error: "Invalid campaign ID." });
+      }
+      const articleId = String(req.body?.articleId || "general").slice(0, 100);
+      const institutionId = String(req.body?.institutionId || "").slice(0, 100);
+      const { data: camp } = await supabaseAdmin.from("corporate_ad_campaigns").select("id, company_id, status, destination_url, clicks_count, expiry_date").eq("id", campaignId).maybeSingle();
+      if (!camp || camp.status !== "Active") {
+        return res.status(404).json({ success: false, error: "Active campaign not found." });
+      }
+      const viewerKey = buildViewerKey(req, req.authUser?.id);
+      const clickBucket = `c5m_${Math.floor(Date.now() / (5 * 60 * 1e3))}`;
+      const { error: insertErr } = await supabaseAdmin.from("corporate_ad_clicks").insert({
+        campaign_id: camp.id,
+        company_id: camp.company_id,
+        article_id: articleId,
+        institution_id: institutionId,
+        viewer_key: viewerKey,
+        click_bucket: clickBucket
+      });
+      if (!insertErr) {
+        const nextCount = Number(camp.clicks_count || 0) + 1;
+        await supabaseAdmin.from("corporate_ad_campaigns").update({ clicks_count: nextCount }).eq("id", camp.id);
+      }
+      return res.json({
+        success: true,
+        recorded: !insertErr,
+        destinationUrl: camp.destination_url
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get("/ticker/active", async (_req, res) => {
+  try {
+    await expireOverdueRecords();
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const { data: candidates, error } = await supabaseAdmin.from("corporate_ticker_campaigns").select(
+      "*, corporate_accounts!inner(id, company_name, brand_name, status, logo_url, brand_highlight_color), corporate_subscriptions!inner(id, status, start_date, expiry_date, sponsor_ticker_mode_snapshot, max_ticker_campaigns_snapshot, ticker_upgrade_active)"
+    ).eq("status", "Active").eq("corporate_accounts.status", "Approved").eq("corporate_subscriptions.status", "active").gt("corporate_subscriptions.expiry_date", nowIso).lte("corporate_subscriptions.start_date", nowIso).order("last_served_at", { ascending: true, nullsFirst: true }).order("created_at", { ascending: true }).limit(60);
+    if (error) {
+      console.warn("[CorporateAds] ticker/active query notice:", error.message);
+      return res.json({ success: true, items: [] });
+    }
+    const nowMs = Date.now();
+    const eligible = (candidates || []).filter((c) => {
+      if (c.start_date && new Date(c.start_date).getTime() > nowMs) return false;
+      if (c.expiry_date && new Date(c.expiry_date).getTime() <= nowMs) return false;
+      return isSubscriptionTickerEligible(c.corporate_subscriptions);
+    });
+    const byCompany = /* @__PURE__ */ new Map();
+    for (const row of eligible) {
+      const list = byCompany.get(row.company_id) || [];
+      list.push(row);
+      byCompany.set(row.company_id, list);
+    }
+    const interleaved = [];
+    const queues = Array.from(byCompany.values());
+    let added = true;
+    while (added && interleaved.length < 30) {
+      added = false;
+      for (const q of queues) {
+        if (q.length > 0 && interleaved.length < 30) {
+          interleaved.push(q.shift());
+          added = true;
+        }
+      }
+    }
+    const items = interleaved.map((c) => ({
+      tickerId: c.id,
+      companyId: c.company_id,
+      brandName: c.corporate_accounts?.brand_name || c.corporate_accounts?.company_name || "Partner",
+      companyName: c.corporate_accounts?.company_name || "",
+      logoUrl: c.corporate_accounts?.logo_url || "",
+      brandHighlightColor: sanitizeHexColor(c.brand_highlight_color) || sanitizeHexColor(c.corporate_accounts?.brand_highlight_color) || "#2563EB",
+      shortMessage: c.ticker_message ?? c.short_message ?? "",
+      headline: c.headline,
+      fullDescription: c.full_description,
+      ctaLabel: c.cta_label || "Learn More",
+      destinationUrl: c.destination_url
+    }));
+    return res.json({ success: true, items });
+  } catch (err) {
+    console.warn("[CorporateAds] ticker/active error:", err);
+    return res.json({ success: true, items: [] });
+  }
+});
+corporateAdsRouter.post(
+  "/ticker/events",
+  optionalAuth,
+  async (req, res) => {
+    try {
+      const { eventType, tickerId, tickerIds } = req.body || {};
+      if (!TICKER_EVENT_TYPES.has(String(eventType))) {
+        return res.status(400).json({ success: false, error: "Unsupported ticker event type." });
+      }
+      const rawIds = Array.isArray(tickerIds) ? tickerIds.map((id) => String(id)) : tickerId ? [String(tickerId)] : [];
+      const uniqueIds = Array.from(new Set(rawIds.filter((id) => UUID_RE.test(id)))).slice(0, 30);
+      if (uniqueIds.length === 0) {
+        return res.json({ success: true, recordedCount: 0 });
+      }
+      const { data: activeRows } = await supabaseAdmin.from("corporate_ticker_campaigns").select(
+        "id, company_id, status, expiry_date, destination_url, impressions_count, bar_clicks_count, detail_views_count, website_clicks_count"
+      ).in("id", uniqueIds).eq("status", "Active");
+      const viewerKey = buildViewerKey(req, req.authUser?.id);
+      const nowMs = Date.now();
+      const nowIso = new Date(nowMs).toISOString();
+      const bucketMap = {
+        bar_impression: `tbi30m_${Math.floor(nowMs / (30 * 60 * 1e3))}`,
+        bar_click: `tbc1m_${Math.floor(nowMs / (60 * 1e3))}`,
+        detail_view: `tdv5m_${Math.floor(nowMs / (5 * 60 * 1e3))}`,
+        website_click: `twc5m_${Math.floor(nowMs / (5 * 60 * 1e3))}`
+      };
+      const eventBucket = bucketMap[String(eventType)];
+      let recordedCount = 0;
+      let destinationUrl = "";
+      for (const row of activeRows || []) {
+        if (row.expiry_date && new Date(row.expiry_date).getTime() <= nowMs) continue;
+        destinationUrl = row.destination_url || destinationUrl;
+        const { error: insertErr } = await supabaseAdmin.from("corporate_ticker_events").insert({
+          campaign_id: row.id,
+          company_id: row.company_id,
+          event_type: String(eventType),
+          viewer_key: viewerKey,
+          event_bucket: eventBucket
+        });
+        if (insertErr) continue;
+        recordedCount += 1;
+        const updates = {};
+        if (eventType === "bar_impression") {
+          updates.impressions_count = Number(row.impressions_count || 0) + 1;
+          updates.last_served_at = nowIso;
+        } else if (eventType === "bar_click") {
+          updates.bar_clicks_count = Number(row.bar_clicks_count || 0) + 1;
+        } else if (eventType === "detail_view") {
+          updates.detail_views_count = Number(row.detail_views_count || 0) + 1;
+        } else if (eventType === "website_click") {
+          updates.website_clicks_count = Number(row.website_clicks_count || 0) + 1;
+        }
+        await supabaseAdmin.from("corporate_ticker_campaigns").update(updates).eq("id", row.id);
+      }
+      return res.json({
+        success: true,
+        recordedCount,
+        destinationUrl: eventType === "website_click" ? destinationUrl : void 0
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.post("/auth/register", async (req, res) => {
+  let createdAuthUserId = null;
+  let wasNewlyCreatedAuthUser = false;
+  try {
+    const {
+      companyName,
+      brandName,
+      industry,
+      registrationNumber = "",
+      website = "",
+      description,
+      contactName,
+      officialEmail,
+      phone,
+      address,
+      country,
+      state: state2,
+      password,
+      supportingDocument,
+      brandHighlightColor,
+      companyLogo
+    } = req.body || {};
+    const requiredFields = [
+      ["Registered company name", companyName],
+      ["Brand / business name", brandName],
+      ["Industry / category", industry],
+      ["Company description", description],
+      ["Contact person's name", contactName],
+      ["Email address", officialEmail],
+      ["Business phone number", phone],
+      ["Business address", address],
+      ["Country", country],
+      ["State", state2]
+    ];
+    for (const [label, val] of requiredFields) {
+      if (!val || String(val).trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          error: `${label} is required.`
+        });
+      }
+    }
+    const cleanEmail = String(officialEmail).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        error: "Please enter a valid email address (personal or business email)."
+      });
+    }
+    if (!password || String(password).length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: "Password must be at least 8 characters long."
+      });
+    }
+    let normalizedWebsite = "";
+    if (website && String(website).trim()) {
+      const checked = sanitizeHttpUrl(website);
+      if (!checked) {
+        return res.status(400).json({
+          success: false,
+          error: "Please enter a valid company website URL (e.g., https://company.com)."
+        });
+      }
+      normalizedWebsite = checked;
+    }
+    const { data: existingCorp } = await supabaseAdmin.from("corporate_accounts").select("id").ilike("official_email", cleanEmail).maybeSingle();
+    if (existingCorp) {
+      return res.status(409).json({
+        success: false,
+        error: "A Corporate Advertising account already exists for this email address. Please sign in at Company Login."
+      });
+    }
+    const { data: createdAuth, error: createAuthErr } = await supabaseAdmin.auth.admin.createUser({
+      email: cleanEmail,
+      password: String(password),
+      email_confirm: true,
+      user_metadata: {
+        account_type: "corporate_advertiser",
+        company_name: String(companyName).trim(),
+        brand_name: String(brandName).trim(),
+        full_name: String(contactName).trim()
+      }
+    });
+    if (createAuthErr || !createdAuth?.user) {
+      const msg = createAuthErr?.message || "Unable to register email address.";
+      const isExists = msg.toLowerCase().includes("already") || msg.toLowerCase().includes("registered");
+      if (!isExists) {
+        return res.status(400).json({ success: false, error: msg });
+      }
+      const anonCheckClient = createStatelessSupabaseClient();
+      const { data: existingSignIn } = await anonCheckClient.auth.signInWithPassword({
+        email: cleanEmail,
+        password: String(password)
+      });
+      if (!existingSignIn?.user) {
+        return res.status(409).json({
+          success: false,
+          error: "This email address is already registered on Grobaax. Enter that account\u2019s current password to apply with this email, or use a different email address."
+        });
+      }
+      const { data: linkedCorp } = await supabaseAdmin.from("corporate_accounts").select("id").eq("auth_user_id", existingSignIn.user.id).maybeSingle();
+      if (linkedCorp) {
+        return res.status(409).json({
+          success: false,
+          error: "A Corporate Advertising account is already linked to this email. Please sign in at Company Login."
+        });
+      }
+      createdAuthUserId = existingSignIn.user.id;
+      wasNewlyCreatedAuthUser = false;
+    } else {
+      createdAuthUserId = createdAuth.user.id;
+      wasNewlyCreatedAuthUser = true;
+    }
+    let supportingDocPath = "";
+    let supportingDocName = "";
+    if (supportingDocument?.dataUrl) {
+      const uploaded = await uploadDataUrlToBucket({
+        bucket: "corporate-verification-docs",
+        dataUrl: supportingDocument.dataUrl,
+        fileName: supportingDocument.fileName || "verification_doc",
+        folder: createdAuthUserId,
+        allowedMimes: ALLOWED_DOC_MIME
+      });
+      supportingDocPath = uploaded.path;
+      supportingDocName = String(supportingDocument.fileName || "Supporting Document").slice(0, 120);
+    }
+    let uploadedLogoUrl = "";
+    if (companyLogo?.dataUrl) {
+      const uploadedLogo = await uploadDataUrlToBucket({
+        bucket: "corporate-ad-media",
+        dataUrl: companyLogo.dataUrl,
+        fileName: companyLogo.fileName || "company_logo",
+        folder: `${createdAuthUserId}/logo`,
+        allowedMimes: ALLOWED_CREATIVE_MIME
+      });
+      uploadedLogoUrl = uploadedLogo.url;
+    }
+    const cleanHighlightColor = sanitizeHexColor(brandHighlightColor) || "#2563EB";
+    const { data: insertedCompany, error: insertErr } = await supabaseAdmin.from("corporate_accounts").insert({
+      auth_user_id: createdAuthUserId,
+      account_type: "corporate_advertiser",
+      company_name: String(companyName).trim(),
+      brand_name: String(brandName).trim(),
+      logo_url: uploadedLogoUrl,
+      brand_highlight_color: cleanHighlightColor,
+      industry: String(industry).trim(),
+      registration_number: String(registrationNumber || "").trim(),
+      website: normalizedWebsite,
+      description: String(description).trim(),
+      contact_name: String(contactName).trim(),
+      official_email: cleanEmail,
+      phone: String(phone).trim(),
+      address: String(address).trim(),
+      country: String(country).trim(),
+      state: String(state2).trim(),
+      supporting_document_url: supportingDocPath,
+      supporting_document_name: supportingDocName,
+      status: "Pending"
+    }).select().single();
+    if (insertErr || !insertedCompany) {
+      if (wasNewlyCreatedAuthUser && createdAuthUserId) {
+        await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId).catch(() => {
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        error: insertErr?.message || "Failed to save corporate application."
+      });
+    }
+    const anonClient = createStatelessSupabaseClient();
+    const { data: signInData } = await anonClient.auth.signInWithPassword({
+      email: cleanEmail,
+      password: String(password)
+    });
+    await logCorporateAudit({
+      actorUserId: insertedCompany.id,
+      actorName: insertedCompany.company_name,
+      actorRole: "corporate_applicant",
+      action: "COMPANY_APPLICATION_SUBMITTED",
+      targetType: "corporate_account",
+      targetId: insertedCompany.id,
+      details: {
+        companyName: insertedCompany.company_name,
+        brandName: insertedCompany.brand_name,
+        industry: insertedCompany.industry
+      }
+    });
+    await dispatchCorporateAdminNotification({
+      title: "New Corporate Advertiser Application",
+      message: `${insertedCompany.brand_name || insertedCompany.company_name} (${insertedCompany.industry}) submitted a Corporate Advertising account application and awaits Admin review.`,
+      actionUrl: "/admin?tab=corporate_ads"
+    });
+    return res.status(201).json({
+      success: true,
+      accessToken: signInData?.session?.access_token || "",
+      refreshToken: signInData?.session?.refresh_token || "",
+      company: mapCompanyRow(insertedCompany)
+    });
+  } catch (err) {
+    if (wasNewlyCreatedAuthUser && createdAuthUserId) {
+      await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId).catch(() => {
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to complete company application."
+    });
+  }
+});
+corporateAdsRouter.post("/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "Email address and password are required."
+      });
+    }
+    const anonClient = createStatelessSupabaseClient();
+    const { data: authData, error: authErr } = await anonClient.auth.signInWithPassword({
+      email: cleanEmail,
+      password: String(password)
+    });
+    if (authErr || !authData?.user || !authData?.session) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid email address or password. Check your spelling or use Forgot Password to reset it."
+      });
+    }
+    const { data: company } = await supabaseAdmin.from("corporate_accounts").select("*").eq("auth_user_id", authData.user.id).maybeSingle();
+    if (!company) {
+      const { data: userRow } = await supabaseAdmin.from("users").select("id, data").eq("id", authData.user.id).maybeSingle();
+      const uData = userRow?.data || {};
+      return res.json({
+        success: true,
+        requiresApplicationCompletion: true,
+        accessToken: authData.session.access_token,
+        refreshToken: authData.session.refresh_token,
+        prefill: {
+          officialEmail: authData.user.email || cleanEmail,
+          contactName: uData.name || uData.fullName || authData.user.user_metadata?.full_name || "",
+          phone: uData.phone || uData.phoneNumber || ""
+        }
+      });
+    }
+    return res.json({
+      success: true,
+      accessToken: authData.session.access_token,
+      refreshToken: authData.session.refresh_token,
+      company: mapCompanyRow(company)
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Company login failed."
+    });
+  }
+});
+corporateAdsRouter.post("/auth/complete-application", async (req, res) => {
+  try {
+    const token = extractBearerToken2(req);
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: "Please sign in first before completing your Corporate Advertising application."
+      });
+    }
+    const { data: authData, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !authData?.user) {
+      return res.status(401).json({
+        success: false,
+        error: "Your session expired. Please sign in again to complete your application."
+      });
+    }
+    const authUid = authData.user.id;
+    const cleanEmail = String(authData.user.email || req.body?.officialEmail || "").trim().toLowerCase();
+    const { data: existingCorp } = await supabaseAdmin.from("corporate_accounts").select("id").eq("auth_user_id", authUid).maybeSingle();
+    if (existingCorp) {
+      return res.status(409).json({
+        success: false,
+        error: "A Corporate Advertising account is already linked to this login."
+      });
+    }
+    const {
+      companyName,
+      brandName,
+      industry,
+      registrationNumber = "",
+      website = "",
+      description,
+      contactName,
+      phone,
+      address,
+      country,
+      state: state2,
+      supportingDocument,
+      brandHighlightColor,
+      companyLogo
+    } = req.body || {};
+    const requiredFields = [
+      ["Registered company name", companyName],
+      ["Brand / business name", brandName],
+      ["Industry / category", industry],
+      ["Company description", description],
+      ["Contact person's name", contactName],
+      ["Business phone number", phone],
+      ["Business address", address],
+      ["Country", country],
+      ["State", state2]
+    ];
+    for (const [label, val] of requiredFields) {
+      if (!val || String(val).trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          error: `${label} is required.`
+        });
+      }
+    }
+    let normalizedWebsite = "";
+    if (website && String(website).trim()) {
+      const checked = sanitizeHttpUrl(website);
+      if (!checked) {
+        return res.status(400).json({
+          success: false,
+          error: "Please enter a valid company website URL (e.g., https://company.com)."
+        });
+      }
+      normalizedWebsite = checked;
+    }
+    let supportingDocPath = "";
+    let supportingDocName = "";
+    if (supportingDocument?.dataUrl) {
+      const uploaded = await uploadDataUrlToBucket({
+        bucket: "corporate-verification-docs",
+        dataUrl: supportingDocument.dataUrl,
+        fileName: supportingDocument.fileName || "verification_doc",
+        folder: authUid,
+        allowedMimes: ALLOWED_DOC_MIME
+      });
+      supportingDocPath = uploaded.path;
+      supportingDocName = String(supportingDocument.fileName || "Supporting Document").slice(0, 120);
+    }
+    let uploadedLogoUrl = "";
+    if (companyLogo?.dataUrl) {
+      const uploadedLogo = await uploadDataUrlToBucket({
+        bucket: "corporate-ad-media",
+        dataUrl: companyLogo.dataUrl,
+        fileName: companyLogo.fileName || "company_logo",
+        folder: `${authUid}/logo`,
+        allowedMimes: ALLOWED_CREATIVE_MIME
+      });
+      uploadedLogoUrl = uploadedLogo.url;
+    }
+    const cleanHighlightColor = sanitizeHexColor(brandHighlightColor) || "#2563EB";
+    const { data: insertedCompany, error: insertErr } = await supabaseAdmin.from("corporate_accounts").insert({
+      auth_user_id: authUid,
+      account_type: "corporate_advertiser",
+      company_name: String(companyName).trim(),
+      brand_name: String(brandName).trim(),
+      logo_url: uploadedLogoUrl,
+      brand_highlight_color: cleanHighlightColor,
+      industry: String(industry).trim(),
+      registration_number: String(registrationNumber || "").trim(),
+      website: normalizedWebsite,
+      description: String(description).trim(),
+      contact_name: String(contactName).trim(),
+      official_email: cleanEmail,
+      phone: String(phone).trim(),
+      address: String(address).trim(),
+      country: String(country).trim(),
+      state: String(state2).trim(),
+      supporting_document_url: supportingDocPath,
+      supporting_document_name: supportingDocName,
+      status: "Pending"
+    }).select().single();
+    if (insertErr || !insertedCompany) {
+      return res.status(500).json({
+        success: false,
+        error: insertErr?.message || "Failed to complete corporate application."
+      });
+    }
+    await logCorporateAudit({
+      actorUserId: insertedCompany.id,
+      actorName: insertedCompany.company_name,
+      actorRole: "corporate_applicant",
+      action: "COMPANY_APPLICATION_COMPLETED_FROM_STUDENT_LOGIN",
+      targetType: "corporate_account",
+      targetId: insertedCompany.id,
+      details: {
+        companyName: insertedCompany.company_name,
+        brandName: insertedCompany.brand_name,
+        industry: insertedCompany.industry,
+        officialEmail: cleanEmail
+      }
+    });
+    await dispatchCorporateAdminNotification({
+      title: "New Corporate Advertiser Application",
+      message: `${insertedCompany.brand_name || insertedCompany.company_name} (${insertedCompany.industry}) completed a Corporate Advertising application and awaits Admin review.`,
+      actionUrl: "/admin?tab=corporate_ads"
+    });
+    return res.status(201).json({
+      success: true,
+      accessToken: token,
+      company: mapCompanyRow(insertedCompany, { accountSource: "grobaax_user" })
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to complete corporate application."
+    });
+  }
+});
+corporateAdsRouter.post("/auth/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        error: "Please enter a valid email address."
+      });
+    }
+    const { data: company } = await supabaseAdmin.from("corporate_accounts").select("id, official_email").ilike("official_email", cleanEmail).maybeSingle();
+    if (company) {
+      const reqHost = String(req.headers["x-forwarded-host"] || req.headers.host || "").toLowerCase();
+      const proto = String(req.headers["x-forwarded-proto"] || "https").split(",")[0].trim() || "https";
+      const redirectTo = reqHost.includes("advertise.grobaax.com") ? `${proto}://${reqHost}/login?reset=1` : "https://advertise.grobaax.com/login?reset=1";
+      const anonClient = createStatelessSupabaseClient();
+      const { error: resetErr } = await anonClient.auth.resetPasswordForEmail(
+        company.official_email || cleanEmail,
+        { redirectTo }
+      );
+      if (resetErr) {
+        return res.status(400).json({
+          success: false,
+          error: resetErr.message || "Unable to send password reset email right now. Please try again in a moment."
+        });
+      }
+    }
+    return res.json({
+      success: true,
+      message: "If an advertiser account is registered with that email address, password reset instructions have been sent to your inbox."
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Unable to process password reset request."
+    });
+  }
+});
+corporateAdsRouter.post("/auth/reset-password", async (req, res) => {
+  try {
+    const token = extractBearerToken2(req);
+    const { newPassword } = req.body || {};
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: "Password reset link is missing or expired. Please request a new reset email."
+      });
+    }
+    if (!newPassword || String(newPassword).length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: "New password must be at least 8 characters long."
+      });
+    }
+    const { data: authData, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !authData?.user) {
+      return res.status(401).json({
+        success: false,
+        error: "Reset session has expired. Please request a fresh password reset email."
+      });
+    }
+    const { data: company } = await supabaseAdmin.from("corporate_accounts").select("*").eq("auth_user_id", authData.user.id).maybeSingle();
+    if (!company) {
+      return res.status(403).json({
+        success: false,
+        error: "No Corporate Advertiser account found for this reset link."
+      });
+    }
+    const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(authData.user.id, {
+      password: String(newPassword)
+    });
+    if (updateErr) {
+      return res.status(400).json({
+        success: false,
+        error: updateErr.message || "Could not update password."
+      });
+    }
+    const anonClient = createStatelessSupabaseClient();
+    const { data: signInData } = await anonClient.auth.signInWithPassword({
+      email: company.official_email,
+      password: String(newPassword)
+    });
+    return res.json({
+      success: true,
+      accessToken: signInData?.session?.access_token || "",
+      refreshToken: signInData?.session?.refresh_token || "",
+      company: mapCompanyRow(company)
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Password reset failed."
+    });
+  }
+});
+corporateAdsRouter.get("/me", requireCorporateAuth, async (req, res) => {
+  try {
+    const company = req.corporateCompany;
+    await expireOverdueRecords(company.id);
+    const { data: latestCompany } = await supabaseAdmin.from("corporate_accounts").select("*").eq("id", company.id).single();
+    const activeSub = await getActiveSubscriptionForCompany(company.id);
+    const { data: latestSub } = await supabaseAdmin.from("corporate_subscriptions").select("*").eq("company_id", company.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: campaigns } = await supabaseAdmin.from("corporate_ad_campaigns").select("id, status, impressions_count, clicks_count").eq("company_id", company.id);
+    const totalImpressions = (campaigns || []).reduce(
+      (s, c) => s + Number(c.impressions_count || 0),
+      0
+    );
+    const totalClicks = (campaigns || []).reduce(
+      (s, c) => s + Number(c.clicks_count || 0),
+      0
+    );
+    const activeCampaignsCount = (campaigns || []).filter(
+      (c) => c.status === "Active"
+    ).length;
+    const ctr = totalImpressions > 0 ? Number((totalClicks / totalImpressions * 100).toFixed(2)) : 0;
+    return res.json({
+      success: true,
+      company: mapCompanyRow(latestCompany || company),
+      activeSubscription: mapSubscriptionRow(activeSub),
+      latestSubscription: mapSubscriptionRow(latestSub),
+      analyticsSummary: {
+        totalCampaigns: (campaigns || []).length,
+        activeCampaignsCount,
+        totalImpressions,
+        totalClicks,
+        ctr
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+corporateAdsRouter.put("/profile", requireCorporateAuth, async (req, res) => {
+  try {
+    const company = req.corporateCompany;
+    const {
+      brandName,
+      website,
+      description,
+      contactName,
+      phone,
+      address,
+      country,
+      state: state2,
+      registrationNumber,
+      brandHighlightColor,
+      logoUrl
+    } = req.body || {};
+    let cleanWebsite = company.website || "";
+    if (website !== void 0) {
+      if (String(website).trim() === "") {
+        cleanWebsite = "";
+      } else {
+        const checked = sanitizeHttpUrl(website);
+        if (!checked) {
+          return res.status(400).json({ success: false, error: "Invalid website URL." });
+        }
+        cleanWebsite = checked;
+      }
+    }
+    let cleanHighlightColor = sanitizeHexColor(company.brand_highlight_color) || "#2563EB";
+    if (brandHighlightColor !== void 0) {
+      if (String(brandHighlightColor).trim() === "") {
+        cleanHighlightColor = "#2563EB";
+      } else {
+        const validHex = sanitizeHexColor(brandHighlightColor);
+        if (!validHex) {
+          return res.status(400).json({
+            success: false,
+            error: "Brand highlight color must be a valid hex color (e.g. #2563EB)."
+          });
+        }
+        cleanHighlightColor = validHex;
+      }
+    }
+    let cleanLogoUrl = company.logo_url || "";
+    if (logoUrl !== void 0) {
+      if (String(logoUrl).trim() === "") {
+        cleanLogoUrl = "";
+      } else {
+        const checkedLogo = sanitizeHttpUrl(logoUrl);
+        if (!checkedLogo) {
+          return res.status(400).json({ success: false, error: "Invalid logo URL." });
+        }
+        cleanLogoUrl = checkedLogo;
+      }
+    }
+    const { data: updated, error } = await supabaseAdmin.from("corporate_accounts").update({
+      brand_name: brandName ? String(brandName).trim() : company.brand_name,
+      website: cleanWebsite,
+      description: description ? String(description).trim() : company.description,
+      contact_name: contactName ? String(contactName).trim() : company.contact_name,
+      phone: phone ? String(phone).trim() : company.phone,
+      address: address ? String(address).trim() : company.address,
+      country: country ? String(country).trim() : company.country,
+      state: state2 ? String(state2).trim() : company.state,
+      registration_number: registrationNumber !== void 0 ? String(registrationNumber).trim() : company.registration_number,
+      brand_highlight_color: cleanHighlightColor,
+      logo_url: cleanLogoUrl,
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    }).eq("id", company.id).select().single();
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.json({ success: true, company: mapCompanyRow(updated) });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+corporateAdsRouter.post(
+  "/upload-media",
+  requireCorporateAuth,
+  async (req, res) => {
+    try {
+      const company = req.corporateCompany;
+      const { kind = "creative", dataUrl, fileName = "upload" } = req.body || {};
+      if (kind === "verification_doc") {
+        const uploaded2 = await uploadDataUrlToBucket({
+          bucket: "corporate-verification-docs",
+          dataUrl,
+          fileName,
+          folder: company.id,
+          allowedMimes: ALLOWED_DOC_MIME
+        });
+        await supabaseAdmin.from("corporate_accounts").update({
+          supporting_document_url: uploaded2.path,
+          supporting_document_name: String(fileName).slice(0, 120),
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        }).eq("id", company.id);
+        return res.json({
+          success: true,
+          path: uploaded2.path,
+          fileName: String(fileName).slice(0, 120)
+        });
+      }
+      if (kind === "logo") {
+        const uploaded2 = await uploadDataUrlToBucket({
+          bucket: "corporate-ad-media",
+          dataUrl,
+          fileName,
+          folder: `${company.id}/logo`,
+          allowedMimes: ALLOWED_CREATIVE_MIME
+        });
+        const { data: updatedCompany, error: updateErr } = await supabaseAdmin.from("corporate_accounts").update({
+          logo_url: uploaded2.url,
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        }).eq("id", company.id).select().single();
+        if (updateErr) {
+          return res.status(500).json({ success: false, error: updateErr.message });
+        }
+        return res.json({
+          success: true,
+          imageUrl: uploaded2.url,
+          path: uploaded2.path,
+          company: mapCompanyRow(updatedCompany)
+        });
+      }
+      const uploaded = await uploadDataUrlToBucket({
+        bucket: "corporate-ad-media",
+        dataUrl,
+        fileName,
+        folder: company.id,
+        allowedMimes: ALLOWED_CREATIVE_MIME
+      });
+      return res.json({
+        success: true,
+        imageUrl: uploaded.url,
+        path: uploaded.path
+      });
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        error: err?.message || "Media upload failed."
+      });
+    }
+  }
+);
+async function verifyAndActivateCorporatePayment(params) {
+  const { payment, gatewayTx } = params;
+  const paidNaira = gatewayTx.amount ? Number(gatewayTx.amount) / 100 : 0;
+  const expectedNaira = Number(payment.amount_naira || 0);
+  const gatewayStatus = String(gatewayTx.status || "").toLowerCase();
+  if (gatewayStatus !== "success" || paidNaira < expectedNaira) {
+    const createdAgeMs = payment.created_at ? Date.now() - new Date(payment.created_at).getTime() : 0;
+    const isTerminalFailure = gatewayStatus === "failed" || gatewayStatus === "reversed" || gatewayStatus === "abandoned" && createdAgeMs > 15 * 60 * 1e3;
+    if (isTerminalFailure) {
+      await supabaseAdmin.from("corporate_payments").update({
+        status: "failed",
+        gateway_response: String(gatewayTx.gateway_response || gatewayTx.status || "Payment failed"),
+        gateway_payload: gatewayTx,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", payment.id).eq("status", "pending");
+    }
+    return {
+      verified: false,
+      isPending: !isTerminalFailure,
+      status: gatewayStatus || "pending"
+    };
+  }
+  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+  const receiptNumber = `GRBX-CORP-${(/* @__PURE__ */ new Date()).getFullYear()}${String(
+    (/* @__PURE__ */ new Date()).getMonth() + 1
+  ).padStart(2, "0")}-${payment.reference.slice(-6)}`;
+  const { data: claimedPayment } = await supabaseAdmin.from("corporate_payments").update({
+    status: "success",
+    channel: gatewayTx.channel || "paystack",
+    gateway_response: String(gatewayTx.gateway_response || "Approved"),
+    gateway_payload: gatewayTx,
+    receipt_number: payment.receipt_number || receiptNumber,
+    paid_at: gatewayTx.paid_at || nowIso,
+    verified_at: nowIso,
+    updated_at: nowIso
+  }).eq("id", payment.id).neq("status", "success").select().maybeSingle();
+  if (!claimedPayment) {
+    const { data: existingPay } = await supabaseAdmin.from("corporate_payments").select("*").eq("id", payment.id).single();
+    const { data: existingSub } = await supabaseAdmin.from("corporate_subscriptions").select("*").eq("payment_reference", payment.reference).maybeSingle();
+    return {
+      verified: true,
+      idempotent: true,
+      payment: mapPaymentRow(existingPay || payment),
+      subscription: mapSubscriptionRow(existingSub)
+    };
+  }
+  if (payment.purchase_type === "ticker_upgrade") {
+    let targetSubId = payment.subscription_id || null;
+    if (!targetSubId) {
+      const { data: activeSub } = await supabaseAdmin.from("corporate_subscriptions").select("id").eq("company_id", payment.company_id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle();
+      targetSubId = activeSub?.id || null;
+    }
+    let updatedSub = null;
+    if (targetSubId) {
+      const { data: subRow } = await supabaseAdmin.from("corporate_subscriptions").update({
+        ticker_upgrade_active: true,
+        ticker_upgrade_payment_id: claimedPayment.id,
+        updated_at: nowIso
+      }).eq("id", targetSubId).select().maybeSingle();
+      updatedSub = subRow || null;
+      await supabaseAdmin.from("corporate_payments").update({ subscription_id: targetSubId, updated_at: nowIso }).eq("id", claimedPayment.id);
+      claimedPayment.subscription_id = targetSubId;
+    }
+    return {
+      verified: true,
+      idempotent: false,
+      payment: mapPaymentRow(claimedPayment),
+      subscription: mapSubscriptionRow(updatedSub)
+    };
+  }
+  const { data: plan } = await supabaseAdmin.from("corporate_subscription_plans").select("*").eq("id", payment.plan_id).single();
+  const durationDays = Number(plan?.duration_days || 30);
+  const startDate = /* @__PURE__ */ new Date();
+  const expiryDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1e3);
+  await supabaseAdmin.from("corporate_subscriptions").update({ status: "superseded", updated_at: nowIso }).eq("company_id", payment.company_id).eq("status", "active");
+  const { data: createdSub, error: subErr } = await supabaseAdmin.from("corporate_subscriptions").insert({
+    company_id: payment.company_id,
+    plan_id: payment.plan_id,
+    payment_id: claimedPayment.id,
+    payment_reference: claimedPayment.reference,
+    plan_name_snapshot: plan?.name || payment.plan_name_snapshot || "Corporate Plan",
+    monthly_price_snapshot: Number(plan?.monthly_price_naira || expectedNaira),
+    duration_days_snapshot: durationDays,
+    max_active_campaigns_snapshot: Number(plan?.max_active_campaigns || 1),
+    campaign_duration_days_snapshot: Number(plan?.campaign_duration_days || durationDays),
+    placement_eligibility_snapshot: plan?.placement_eligibility || ["school_blog_article_footer"],
+    sponsor_ticker_mode_snapshot: plan?.sponsor_ticker_mode || "none",
+    max_ticker_campaigns_snapshot: Number(plan?.max_ticker_campaigns || 0),
+    ticker_campaign_duration_days_snapshot: Number(plan?.ticker_campaign_duration_days || durationDays),
+    ticker_upgrade_price_snapshot: Number(plan?.ticker_upgrade_price_naira || 0),
+    ticker_upgrade_active: false,
+    status: "active",
+    start_date: startDate.toISOString(),
+    expiry_date: expiryDate.toISOString()
+  }).select().single();
+  if (subErr) {
+    console.error("[CorporateAds] Subscription insert error:", subErr);
+  } else if (createdSub) {
+    await supabaseAdmin.from("corporate_payments").update({ subscription_id: createdSub.id, updated_at: nowIso }).eq("id", claimedPayment.id);
+    claimedPayment.subscription_id = createdSub.id;
+  }
+  return {
+    verified: true,
+    idempotent: false,
+    payment: mapPaymentRow(claimedPayment),
+    subscription: mapSubscriptionRow(createdSub)
+  };
+}
+corporateAdsRouter.post(
+  "/payments/initialize",
+  requireCorporateAuth,
+  async (req, res) => {
+    try {
+      const company = req.corporateCompany;
+      if (company.status !== "Approved") {
+        return res.status(403).json({
+          success: false,
+          error: "Only Approved companies can subscribe to Corporate Advertising plans. Your current status is " + company.status + "."
+        });
+      }
+      const {
+        planId,
+        callbackUrl,
+        purchaseType = "plan_subscription"
+      } = req.body || {};
+      const isTickerUpgrade = purchaseType === "ticker_upgrade";
+      let targetPlanId = planId;
+      let activeSub = null;
+      if (isTickerUpgrade) {
+        activeSub = await getActiveSubscriptionForCompany(company.id);
+        if (!activeSub) {
+          return res.status(400).json({
+            success: false,
+            error: "An active Corporate Advertising plan subscription is required before purchasing a Sponsor Ticker upgrade."
+          });
+        }
+        if (activeSub.sponsor_ticker_mode_snapshot !== "optional_upgrade") {
+          return res.status(400).json({
+            success: false,
+            error: "Your active plan does not use an optional Sponsor Ticker upgrade."
+          });
+        }
+        if (activeSub.ticker_upgrade_active) {
+          return res.status(400).json({
+            success: false,
+            error: "Sponsor Ticker upgrade is already active on your current subscription."
+          });
+        }
+        targetPlanId = activeSub.plan_id;
+      }
+      if (!targetPlanId) {
+        return res.status(400).json({ success: false, error: "Subscription plan ID is required." });
+      }
+      const { data: plan } = await supabaseAdmin.from("corporate_subscription_plans").select("*").eq("id", targetPlanId).maybeSingle();
+      if (!plan || !isTickerUpgrade && !plan.is_active) {
+        return res.status(404).json({
+          success: false,
+          error: "Selected corporate subscription plan is unavailable or inactive."
+        });
+      }
+      const secretKey = getSecretKey();
+      const publicKey = getPublicKey();
+      if (!secretKey || !secretKey.startsWith("sk_live_") && !secretKey.startsWith("sk_test_")) {
+        return res.status(503).json({
+          success: false,
+          code: "PAYSTACK_NOT_CONFIGURED",
+          error: "Paystack secret key (PAYSTACK_SECRET_KEY) is not configured on the server. Payment cannot be initialized."
+        });
+      }
+      const amountNaira = isTickerUpgrade ? Number(activeSub?.ticker_upgrade_price_snapshot || plan.ticker_upgrade_price_naira || 0) : Number(plan.monthly_price_naira);
+      if (Number.isNaN(amountNaira) || amountNaira <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: isTickerUpgrade ? "No Sponsor Ticker upgrade price has been configured for your plan." : "Invalid plan price."
+        });
+      }
+      const amountKobo = Math.round(amountNaira * 100);
+      const reference = `GRBX_CORP_${Date.now()}_${crypto2.randomBytes(3).toString("hex").toUpperCase()}`;
+      const planLabel = isTickerUpgrade ? `${activeSub?.plan_name_snapshot || plan.name} \u2014 Sponsor Ticker Upgrade` : plan.name;
+      const { data: pendingPay, error: payInsertErr } = await supabaseAdmin.from("corporate_payments").insert({
+        company_id: company.id,
+        subscription_id: isTickerUpgrade ? activeSub.id : null,
+        plan_id: plan.id,
+        plan_name_snapshot: planLabel,
+        purchase_type: isTickerUpgrade ? "ticker_upgrade" : "plan_subscription",
+        reference,
+        amount_naira: amountNaira,
+        currency: plan.currency || "NGN",
+        status: "pending",
+        channel: "paystack"
+      }).select().single();
+      if (payInsertErr || !pendingPay) {
+        return res.status(500).json({
+          success: false,
+          error: payInsertErr?.message || "Could not create payment record."
+        });
+      }
+      let resolvedCallback = callbackUrl;
+      if (!resolvedCallback) {
+        const origin = req.headers.origin || "https://advertise.grobaax.com";
+        resolvedCallback = `${origin.replace(/\/+$/, "")}/dashboard?tab=billing&reference=${encodeURIComponent(
+          reference
+        )}`;
+      }
+      const psRes = await safePaystackFetch(
+        `${getPaystackBaseUrl()}/transaction/initialize`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${secretKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            email: company.official_email,
+            amount: amountKobo,
+            reference,
+            currency: plan.currency || "NGN",
+            callback_url: resolvedCallback,
+            channels: ["card", "bank", "bank_transfer", "ussd", "qr", "mobile_money"],
+            metadata: {
+              channel_type: "corporate_advertising",
+              purchaseType: isTickerUpgrade ? "ticker_upgrade" : "plan_subscription",
+              companyId: company.id,
+              companyName: company.company_name,
+              planId: plan.id,
+              planName: planLabel,
+              amountNaira
+            }
+          })
+        }
+      );
+      if (!psRes.isJson || !psRes.data?.status || !psRes.data?.data) {
+        await supabaseAdmin.from("corporate_payments").update({
+          status: "failed",
+          gateway_response: psRes.data?.message || `Gateway HTTP ${psRes.status}`,
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        }).eq("id", pendingPay.id);
+        return res.status(502).json({
+          success: false,
+          error: psRes.data?.message || "Failed to initialize transaction with Paystack gateway."
+        });
+      }
+      return res.json({
+        success: true,
+        reference,
+        authorizationUrl: psRes.data.data.authorization_url,
+        accessCode: psRes.data.data.access_code,
+        publicKey,
+        amountNaira,
+        currency: plan.currency || "NGN",
+        plan: mapPlanRow(plan)
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.post(
+  "/payments/verify",
+  requireCorporateAuth,
+  async (req, res) => {
+    try {
+      const company = req.corporateCompany;
+      const reference = String(req.body?.reference || req.query?.reference || "").trim();
+      if (!reference) {
+        return res.status(400).json({ success: false, error: "Payment reference is required." });
+      }
+      const { data: payment } = await supabaseAdmin.from("corporate_payments").select("*").eq("reference", reference).eq("company_id", company.id).maybeSingle();
+      if (!payment) {
+        return res.status(404).json({
+          success: false,
+          error: "Corporate payment reference not found for your company."
+        });
+      }
+      if (payment.status === "success") {
+        const { data: sub } = await supabaseAdmin.from("corporate_subscriptions").select("*").eq("payment_reference", payment.reference).maybeSingle();
+        return res.json({
+          success: true,
+          verified: true,
+          idempotent: true,
+          payment: mapPaymentRow(payment),
+          subscription: mapSubscriptionRow(sub)
+        });
+      }
+      const secretKey = getSecretKey();
+      if (!secretKey) {
+        return res.status(503).json({
+          success: false,
+          verified: false,
+          error: "Paystack secret key is not configured."
+        });
+      }
+      const psVerify = await safePaystackFetch(
+        `${getPaystackBaseUrl()}/transaction/verify/${encodeURIComponent(reference)}`,
+        {
+          method: "GET",
+          headers: { Authorization: `Bearer ${secretKey}` }
+        }
+      );
+      if (!psVerify.isJson || !psVerify.data?.status || !psVerify.data?.data) {
+        const psMsg = String(psVerify.data?.message || "").toLowerCase();
+        const looksInProgress = psVerify.status >= 500 || psVerify.status === 0 || psMsg.includes("not found") || psMsg.includes("pending") || psMsg.includes("try again");
+        return res.json({
+          success: looksInProgress,
+          verified: false,
+          isPending: looksInProgress,
+          status: looksInProgress ? "pending" : "failed",
+          error: psVerify.data?.message || "Unable to verify payment with Paystack."
+        });
+      }
+      const result = await verifyAndActivateCorporatePayment({
+        payment,
+        gatewayTx: psVerify.data.data
+      });
+      return res.json({
+        success: true,
+        ...result
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+async function reconcilePendingPaymentsForCompany(companyId) {
+  const secretKey = getSecretKey();
+  if (!secretKey || !secretKey.startsWith("sk_live_") && !secretKey.startsWith("sk_test_")) {
+    return { verifiedPayments: [], latestSubscription: null };
+  }
+  const cutoffIso = new Date(Date.now() - 72 * 60 * 60 * 1e3).toISOString();
+  const { data: pendingRows } = await supabaseAdmin.from("corporate_payments").select("*").eq("company_id", companyId).eq("status", "pending").gte("created_at", cutoffIso).order("created_at", { ascending: false }).limit(5);
+  const verifiedPayments = [];
+  let latestSubscription = null;
+  if (!pendingRows || pendingRows.length === 0) {
+    return { verifiedPayments, latestSubscription };
+  }
+  await Promise.all(
+    pendingRows.map(async (payRow) => {
+      try {
+        const psVerify = await safePaystackFetch(
+          `${getPaystackBaseUrl()}/transaction/verify/${encodeURIComponent(payRow.reference)}`,
+          {
+            method: "GET",
+            headers: { Authorization: `Bearer ${secretKey}` }
+          }
+        );
+        if (psVerify.isJson && psVerify.data?.status && psVerify.data?.data) {
+          const result = await verifyAndActivateCorporatePayment({
+            payment: payRow,
+            gatewayTx: psVerify.data.data
+          });
+          if (result?.verified && result.payment) {
+            verifiedPayments.push(result.payment);
+            if (result.subscription) {
+              latestSubscription = result.subscription;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[CorporateAds] Pending payment reconcile notice:", err);
+      }
+    })
+  );
+  return { verifiedPayments, latestSubscription };
+}
+corporateAdsRouter.post(
+  "/payments/reconcile-pending",
+  requireCorporateAuth,
+  async (req, res) => {
+    try {
+      const company = req.corporateCompany;
+      const { verifiedPayments, latestSubscription } = await reconcilePendingPaymentsForCompany(company.id);
+      await expireOverdueRecords(company.id);
+      const [activeSub, subsRes, payRes] = await Promise.all([
+        getActiveSubscriptionForCompany(company.id),
+        supabaseAdmin.from("corporate_subscriptions").select("*").eq("company_id", company.id).order("created_at", { ascending: false }),
+        supabaseAdmin.from("corporate_payments").select("*").eq("company_id", company.id).order("created_at", { ascending: false })
+      ]);
+      return res.json({
+        success: true,
+        reconciledCount: verifiedPayments.length,
+        verifiedPayments,
+        latestVerifiedPayment: verifiedPayments[0] || null,
+        activeSubscription: mapSubscriptionRow(activeSub) || latestSubscription,
+        subscriptions: (subsRes.data || []).map(mapSubscriptionRow),
+        payments: (payRes.data || []).map(mapPaymentRow)
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+async function handleCorporatePaystackWebhookEvent(event) {
+  try {
+    const reference = String(event?.data?.reference || "");
+    const isCorporateChannel = reference.startsWith("GRBX_CORP_") || event?.data?.metadata?.channel_type === "corporate_advertising";
+    if (!isCorporateChannel || !reference) return false;
+    const { data: payment } = await supabaseAdmin.from("corporate_payments").select("*").eq("reference", reference).maybeSingle();
+    if (!payment) return true;
+    if (event.event === "charge.success") {
+      await verifyAndActivateCorporatePayment({
+        payment,
+        gatewayTx: event.data
+      });
+    } else if (event.event === "charge.failed" && payment.status === "pending") {
+      await supabaseAdmin.from("corporate_payments").update({
+        status: "failed",
+        gateway_response: String(event.data?.gateway_response || "Payment failed"),
+        gateway_payload: event.data,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", payment.id).eq("status", "pending");
+    }
+    return true;
+  } catch (err) {
+    console.warn("[CorporateAds] Webhook processing notice:", err);
+    return false;
+  }
+}
+corporateAdsRouter.post("/payments/webhook", async (req, res) => {
+  try {
+    const secretKey = getSecretKey();
+    const signature = req.headers["x-paystack-signature"];
+    let event = null;
+    if (typeof req.body === "object" && req.body !== null && !Buffer.isBuffer(req.body)) {
+      event = req.body;
+    } else {
+      const bodyStr = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : String(req.body || "");
+      if (secretKey && signature) {
+        const hash = crypto2.createHmac("sha512", secretKey).update(bodyStr).digest("hex");
+        if (hash !== signature) {
+          return res.status(400).send("Invalid signature");
+        }
+      }
+      event = JSON.parse(bodyStr);
+    }
+    await handleCorporatePaystackWebhookEvent(event);
+    return res.status(200).json({ received: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+corporateAdsRouter.get("/billing", requireCorporateAuth, async (req, res) => {
+  try {
+    const company = req.corporateCompany;
+    await reconcilePendingPaymentsForCompany(company.id);
+    await expireOverdueRecords(company.id);
+    const [activeSub, subsRes, payRes] = await Promise.all([
+      getActiveSubscriptionForCompany(company.id),
+      supabaseAdmin.from("corporate_subscriptions").select("*").eq("company_id", company.id).order("created_at", { ascending: false }),
+      supabaseAdmin.from("corporate_payments").select("*").eq("company_id", company.id).order("created_at", { ascending: false })
+    ]);
+    return res.json({
+      success: true,
+      activeSubscription: mapSubscriptionRow(activeSub),
+      subscriptions: (subsRes.data || []).map(mapSubscriptionRow),
+      payments: (payRes.data || []).map(mapPaymentRow)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+corporateAdsRouter.get("/campaigns", requireCorporateAuth, async (req, res) => {
+  try {
+    const company = req.corporateCompany;
+    await expireOverdueRecords(company.id);
+    const { data, error } = await supabaseAdmin.from("corporate_ad_campaigns").select("*").eq("company_id", company.id).order("created_at", { ascending: false });
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.json({
+      success: true,
+      campaigns: (data || []).map((row) => mapCampaignRow(row, company))
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+corporateAdsRouter.post("/campaigns", requireCorporateAuth, async (req, res) => {
+  try {
+    const company = req.corporateCompany;
+    if (company.status !== "Approved") {
+      return res.status(403).json({
+        success: false,
+        error: "Only Approved companies can create advertising campaigns."
+      });
+    }
+    const activeSub = await getActiveSubscriptionForCompany(company.id);
+    if (!activeSub) {
+      return res.status(403).json({
+        success: false,
+        error: "An active corporate advertising subscription is required before creating or submitting campaigns."
+      });
+    }
+    const {
+      campaignName,
+      headline,
+      adText,
+      creativeImageUrl,
+      destinationUrl,
+      ctaLabel = "Learn More",
+      placementType = "school_blog_article_footer",
+      requestedDurationDays,
+      submitForReview = true,
+      brandHighlightColor,
+      applyColorToBrand = false
+    } = req.body || {};
+    if (!campaignName || String(campaignName).trim().length < 2) {
+      return res.status(400).json({ success: false, error: "Campaign name is required." });
+    }
+    if (!headline || String(headline).trim().length < 4) {
+      return res.status(400).json({ success: false, error: "Advertisement headline is required." });
+    }
+    if (!adText || String(adText).trim().length < 10) {
+      return res.status(400).json({ success: false, error: "Advertisement description text is required." });
+    }
+    if (!creativeImageUrl || String(creativeImageUrl).trim().length < 5) {
+      return res.status(400).json({ success: false, error: "Advertisement creative image is required." });
+    }
+    const cleanDestUrl = sanitizeHttpUrl(destinationUrl);
+    if (!cleanDestUrl) {
+      return res.status(400).json({
+        success: false,
+        error: "A valid destination website URL (https://...) is required."
+      });
+    }
+    const validHighlightColor = brandHighlightColor !== void 0 && String(brandHighlightColor).trim() !== "" ? sanitizeHexColor(brandHighlightColor) : null;
+    if (brandHighlightColor !== void 0 && String(brandHighlightColor).trim() !== "" && !validHighlightColor) {
+      return res.status(400).json({
+        success: false,
+        error: "Brand highlight color must be a valid hex color (e.g. #2563EB)."
+      });
+    }
+    const allowedPlacements = Array.isArray(activeSub.placement_eligibility_snapshot) ? activeSub.placement_eligibility_snapshot : ["school_blog_article_footer"];
+    const targetPlacement = String(placementType || "school_blog_article_footer");
+    if (!allowedPlacements.includes(targetPlacement) && !allowedPlacements.includes("all")) {
+      return res.status(403).json({
+        success: false,
+        error: "Your current subscription plan does not permit the selected placement option."
+      });
+    }
+    const maxDuration = Number(activeSub.campaign_duration_days_snapshot || 30);
+    const parsedDuration = Math.min(
+      Math.max(1, Number(requestedDurationDays) || maxDuration),
+      maxDuration
+    );
+    if (submitForReview) {
+      const { count } = await supabaseAdmin.from("corporate_ad_campaigns").select("id", { count: "exact", head: true }).eq("company_id", company.id).in("status", ["Pending Review", "Approved", "Active"]);
+      if ((count || 0) >= Number(activeSub.max_active_campaigns_snapshot || 1)) {
+        return res.status(403).json({
+          success: false,
+          error: `Your current plan allows a maximum of ${activeSub.max_active_campaigns_snapshot} active or pending campaign(s). Pause an active campaign or upgrade your plan.`
+        });
+      }
+    }
+    let nextCompany = company;
+    if (applyColorToBrand && validHighlightColor) {
+      const { data: updatedCo } = await supabaseAdmin.from("corporate_accounts").update({
+        brand_highlight_color: validHighlightColor,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", company.id).select().single();
+      if (updatedCo) nextCompany = updatedCo;
+    }
+    const initialStatus = submitForReview ? "Pending Review" : "Draft";
+    const { data: created, error } = await supabaseAdmin.from("corporate_ad_campaigns").insert({
+      company_id: company.id,
+      subscription_id: activeSub.id,
+      campaign_name: String(campaignName).trim(),
+      headline: String(headline).trim(),
+      ad_text: String(adText).trim(),
+      creative_image_url: String(creativeImageUrl).trim(),
+      destination_url: cleanDestUrl,
+      cta_label: String(ctaLabel || "Learn More").trim().slice(0, 40),
+      placement_type: targetPlacement,
+      requested_duration_days: parsedDuration,
+      brand_highlight_color: validHighlightColor || "",
+      status: initialStatus
+    }).select().single();
+    if (error || !created) {
+      return res.status(500).json({
+        success: false,
+        error: error?.message || "Failed to save campaign."
+      });
+    }
+    if (initialStatus === "Pending Review") {
+      await dispatchCorporateAdminNotification({
+        title: "Corporate Blog Ad Pending Review",
+        message: `${nextCompany.brand_name || nextCompany.company_name} submitted "${created.campaign_name}" for Admin moderation.`,
+        actionUrl: "/admin?tab=corporate_ads"
+      });
+    }
+    return res.status(201).json({
+      success: true,
+      campaign: mapCampaignRow(created, nextCompany)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+corporateAdsRouter.patch(
+  "/campaigns/:id",
+  requireCorporateAuth,
+  async (req, res) => {
+    try {
+      const company = req.corporateCompany;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || "")) {
+        return res.status(400).json({ success: false, error: "Invalid campaign ID." });
+      }
+      const { data: camp } = await supabaseAdmin.from("corporate_ad_campaigns").select("*").eq("id", id).eq("company_id", company.id).maybeSingle();
+      if (!camp) {
+        return res.status(404).json({ success: false, error: "Campaign not found." });
+      }
+      const { action } = req.body || {};
+      const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+      if (action === "pause") {
+        if (camp.status !== "Active") {
+          return res.status(400).json({ success: false, error: "Only Active campaigns can be paused." });
+        }
+        const { data: updated2 } = await supabaseAdmin.from("corporate_ad_campaigns").update({ status: "Paused", updated_at: nowIso }).eq("id", camp.id).select().single();
+        return res.json({ success: true, campaign: mapCampaignRow(updated2, company) });
+      }
+      if (action === "resume") {
+        if (camp.status !== "Paused" || !camp.reviewed_at) {
+          return res.status(400).json({
+            success: false,
+            error: "Only previously Admin-approved Paused campaigns can be resumed."
+          });
+        }
+        if (company.status !== "Approved") {
+          return res.status(403).json({
+            success: false,
+            error: "Company must be Approved to resume campaigns."
+          });
+        }
+        const activeSub2 = await getActiveSubscriptionForCompany(company.id);
+        if (!activeSub2) {
+          return res.status(403).json({
+            success: false,
+            error: "An active corporate subscription is required to resume campaigns."
+          });
+        }
+        if (camp.expiry_date && new Date(camp.expiry_date).getTime() <= Date.now()) {
+          return res.status(400).json({
+            success: false,
+            error: "Campaign duration has expired. Please renew or create a new campaign."
+          });
+        }
+        const { count } = await supabaseAdmin.from("corporate_ad_campaigns").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("status", "Active");
+        if ((count || 0) >= Number(activeSub2.max_active_campaigns_snapshot || 1)) {
+          return res.status(403).json({
+            success: false,
+            error: `Active campaign limit (${activeSub2.max_active_campaigns_snapshot}) reached on your plan.`
+          });
+        }
+        const { data: updated2 } = await supabaseAdmin.from("corporate_ad_campaigns").update({
+          status: "Active",
+          subscription_id: activeSub2.id,
+          updated_at: nowIso
+        }).eq("id", camp.id).select().single();
+        return res.json({ success: true, campaign: mapCampaignRow(updated2, company) });
+      }
+      if (!["Draft", "Rejected", "Paused", "Pending Review"].includes(camp.status)) {
+        return res.status(400).json({
+          success: false,
+          error: "Pause the campaign before editing, or submit a new campaign."
+        });
+      }
+      const {
+        campaignName,
+        headline,
+        adText,
+        creativeImageUrl,
+        destinationUrl,
+        ctaLabel,
+        requestedDurationDays,
+        submitForReview,
+        brandHighlightColor,
+        applyColorToBrand = false
+      } = req.body || {};
+      let cleanDestUrl = camp.destination_url;
+      if (destinationUrl !== void 0) {
+        const checked = sanitizeHttpUrl(destinationUrl);
+        if (!checked) {
+          return res.status(400).json({ success: false, error: "Invalid destination URL." });
+        }
+        cleanDestUrl = checked;
+      }
+      let nextCampaignColor = camp.brand_highlight_color || "";
+      if (brandHighlightColor !== void 0) {
+        if (String(brandHighlightColor).trim() === "") {
+          nextCampaignColor = "";
+        } else {
+          const validHex = sanitizeHexColor(brandHighlightColor);
+          if (!validHex) {
+            return res.status(400).json({
+              success: false,
+              error: "Brand highlight color must be a valid hex color (e.g. #2563EB)."
+            });
+          }
+          nextCampaignColor = validHex;
+        }
+      }
+      const activeSub = await getActiveSubscriptionForCompany(company.id);
+      if (submitForReview) {
+        if (company.status !== "Approved" || !activeSub) {
+          return res.status(403).json({
+            success: false,
+            error: "Approved company and active subscription required to submit for review."
+          });
+        }
+        const { count } = await supabaseAdmin.from("corporate_ad_campaigns").select("id", { count: "exact", head: true }).eq("company_id", company.id).neq("id", camp.id).in("status", ["Pending Review", "Approved", "Active"]);
+        if ((count || 0) >= Number(activeSub.max_active_campaigns_snapshot || 1)) {
+          return res.status(403).json({
+            success: false,
+            error: `Plan limit of ${activeSub.max_active_campaigns_snapshot} active/pending campaigns reached.`
+          });
+        }
+      }
+      let nextCompany = company;
+      if (applyColorToBrand && nextCampaignColor) {
+        const { data: updatedCo } = await supabaseAdmin.from("corporate_accounts").update({
+          brand_highlight_color: nextCampaignColor,
+          updated_at: nowIso
+        }).eq("id", company.id).select().single();
+        if (updatedCo) nextCompany = updatedCo;
+      }
+      const maxDuration = Number(activeSub?.campaign_duration_days_snapshot || camp.requested_duration_days || 30);
+      const nextDuration = requestedDurationDays !== void 0 ? Math.min(Math.max(1, Number(requestedDurationDays)), maxDuration) : camp.requested_duration_days;
+      const nextStatus = submitForReview ? "Pending Review" : "Draft";
+      const { data: updated, error } = await supabaseAdmin.from("corporate_ad_campaigns").update({
+        campaign_name: campaignName ? String(campaignName).trim() : camp.campaign_name,
+        headline: headline ? String(headline).trim() : camp.headline,
+        ad_text: adText ? String(adText).trim() : camp.ad_text,
+        creative_image_url: creativeImageUrl ? String(creativeImageUrl).trim() : camp.creative_image_url,
+        destination_url: cleanDestUrl,
+        cta_label: ctaLabel ? String(ctaLabel).trim().slice(0, 40) : camp.cta_label,
+        requested_duration_days: nextDuration,
+        brand_highlight_color: nextCampaignColor,
+        status: nextStatus,
+        subscription_id: activeSub?.id || camp.subscription_id,
+        rejection_reason: "",
+        updated_at: nowIso
+      }).eq("id", camp.id).select().single();
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      if (nextStatus === "Pending Review") {
+        await dispatchCorporateAdminNotification({
+          title: "Corporate Blog Ad Submitted for Review",
+          message: `${nextCompany.brand_name || nextCompany.company_name} submitted "${updated.campaign_name}" for Admin moderation.`,
+          actionUrl: "/admin?tab=corporate_ads"
+        });
+      }
+      return res.json({ success: true, campaign: mapCampaignRow(updated, nextCompany) });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.delete(
+  "/campaigns/:id",
+  requireCorporateAuth,
+  async (req, res) => {
+    try {
+      const company = req.corporateCompany;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || "")) {
+        return res.status(400).json({ success: false, error: "Invalid campaign ID." });
+      }
+      const { data: camp } = await supabaseAdmin.from("corporate_ad_campaigns").select("id, status").eq("id", id).eq("company_id", company.id).maybeSingle();
+      if (!camp) {
+        return res.status(404).json({ success: false, error: "Campaign not found." });
+      }
+      if (!["Draft", "Rejected"].includes(camp.status)) {
+        return res.status(400).json({
+          success: false,
+          error: "Only Draft or Rejected campaigns can be deleted."
+        });
+      }
+      await supabaseAdmin.from("corporate_ad_campaigns").delete().eq("id", id);
+      return res.json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get(
+  "/ticker-campaigns",
+  requireCorporateAuth,
+  async (req, res) => {
+    try {
+      const company = req.corporateCompany;
+      await expireOverdueRecords(company.id);
+      const { data, error } = await supabaseAdmin.from("corporate_ticker_campaigns").select("*").eq("company_id", company.id).order("created_at", { ascending: false });
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      return res.json({
+        success: true,
+        tickerCampaigns: (data || []).map((row) => mapTickerCampaignRow(row, company))
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.post(
+  "/ticker-campaigns",
+  requireCorporateAuth,
+  async (req, res) => {
+    try {
+      const company = req.corporateCompany;
+      if (company.status !== "Approved") {
+        return res.status(403).json({
+          success: false,
+          error: "Only Approved companies can create Sponsor Ticker campaigns."
+        });
+      }
+      const activeSub = await getActiveSubscriptionForCompany(company.id);
+      if (!activeSub) {
+        return res.status(403).json({
+          success: false,
+          error: "An active Corporate Advertising subscription is required."
+        });
+      }
+      if (!isSubscriptionTickerEligible(activeSub)) {
+        const mode = activeSub.sponsor_ticker_mode_snapshot || "none";
+        return res.status(403).json({
+          success: false,
+          error: mode === "optional_upgrade" && !activeSub.ticker_upgrade_active ? "Please purchase the optional Sponsor Ticker add-on upgrade under Plans & Billing to unlock Sponsor Ticker campaigns." : "Your current corporate subscription plan does not include Sponsor Ticker placements."
+        });
+      }
+      const {
+        campaignName,
+        shortMessage,
+        headline,
+        fullDescription,
+        destinationUrl,
+        ctaLabel = "Learn More",
+        requestedDurationDays,
+        submitForReview = true,
+        brandHighlightColor,
+        applyColorToBrand = false
+      } = req.body || {};
+      if (!campaignName || String(campaignName).trim().length < 2) {
+        return res.status(400).json({ success: false, error: "Ticker campaign name is required." });
+      }
+      const cleanShort = String(shortMessage || "").trim();
+      if (cleanShort.length < 5 || cleanShort.length > 140) {
+        return res.status(400).json({
+          success: false,
+          error: "Short ticker message must be between 5 and 140 characters."
+        });
+      }
+      const cleanHeadline = String(headline || "").trim();
+      if (cleanHeadline.length < 4 || cleanHeadline.length > 100) {
+        return res.status(400).json({
+          success: false,
+          error: "Promotional headline must be between 4 and 100 characters."
+        });
+      }
+      const cleanDesc = String(fullDescription || "").trim();
+      if (cleanDesc.length < 10 || cleanDesc.length > 600) {
+        return res.status(400).json({
+          success: false,
+          error: "Full promotional description must be between 10 and 600 characters."
+        });
+      }
+      const cleanDestUrl = sanitizeHttpUrl(destinationUrl);
+      if (!cleanDestUrl) {
+        return res.status(400).json({
+          success: false,
+          error: "A valid destination website URL (https://...) is required."
+        });
+      }
+      const validHighlightColor = brandHighlightColor !== void 0 && String(brandHighlightColor).trim() !== "" ? sanitizeHexColor(brandHighlightColor) : null;
+      if (brandHighlightColor !== void 0 && String(brandHighlightColor).trim() !== "" && !validHighlightColor) {
+        return res.status(400).json({
+          success: false,
+          error: "Brand highlight color must be a valid hex color (e.g. #2563EB)."
+        });
+      }
+      const maxTickerQuota = Number(activeSub.max_ticker_campaigns_snapshot || 1);
+      if (submitForReview) {
+        const { count } = await supabaseAdmin.from("corporate_ticker_campaigns").select("id", { count: "exact", head: true }).eq("company_id", company.id).in("status", ["Pending Review", "Approved", "Active"]);
+        if ((count || 0) >= maxTickerQuota) {
+          return res.status(403).json({
+            success: false,
+            error: `Your plan allows up to ${maxTickerQuota} active or pending Sponsor Ticker campaign(s). Pause an existing ticker campaign or upgrade your plan.`
+          });
+        }
+      }
+      let nextCompany = company;
+      if (applyColorToBrand && validHighlightColor) {
+        const { data: updatedCo } = await supabaseAdmin.from("corporate_accounts").update({
+          brand_highlight_color: validHighlightColor,
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        }).eq("id", company.id).select().single();
+        if (updatedCo) nextCompany = updatedCo;
+      }
+      const maxDuration = Number(activeSub.ticker_campaign_duration_days_snapshot || 30);
+      const parsedDuration = Math.min(
+        Math.max(1, Number(requestedDurationDays) || maxDuration),
+        maxDuration
+      );
+      const initialStatus = submitForReview ? "Pending Review" : "Draft";
+      const { data: created, error } = await supabaseAdmin.from("corporate_ticker_campaigns").insert({
+        company_id: company.id,
+        subscription_id: activeSub.id,
+        campaign_name: String(campaignName).trim(),
+        ticker_message: cleanShort,
+        headline: cleanHeadline,
+        full_description: cleanDesc,
+        cta_label: String(ctaLabel || "Learn More").trim().slice(0, 40),
+        destination_url: cleanDestUrl,
+        requested_duration_days: parsedDuration,
+        brand_highlight_color: validHighlightColor || "",
+        status: initialStatus
+      }).select().single();
+      if (error || !created) {
+        return res.status(500).json({
+          success: false,
+          error: error?.message || "Failed to save Sponsor Ticker campaign."
+        });
+      }
+      if (initialStatus === "Pending Review") {
+        await dispatchCorporateAdminNotification({
+          title: "Sponsor Ticker Ad Pending Review",
+          message: `${nextCompany.brand_name || nextCompany.company_name} submitted ticker ad "${created.campaign_name}" for Admin moderation.`,
+          actionUrl: "/admin?tab=corporate_ads"
+        });
+      }
+      return res.status(201).json({
+        success: true,
+        tickerCampaign: mapTickerCampaignRow(created, nextCompany)
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.patch(
+  "/ticker-campaigns/:id",
+  requireCorporateAuth,
+  async (req, res) => {
+    try {
+      const company = req.corporateCompany;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || "")) {
+        return res.status(400).json({ success: false, error: "Invalid ticker campaign ID." });
+      }
+      const { data: camp } = await supabaseAdmin.from("corporate_ticker_campaigns").select("*").eq("id", id).eq("company_id", company.id).maybeSingle();
+      if (!camp) {
+        return res.status(404).json({ success: false, error: "Ticker campaign not found." });
+      }
+      const { action } = req.body || {};
+      const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+      if (action === "pause") {
+        if (camp.status !== "Active") {
+          return res.status(400).json({
+            success: false,
+            error: "Only Active Sponsor Ticker campaigns can be paused."
+          });
+        }
+        const { data: updated2 } = await supabaseAdmin.from("corporate_ticker_campaigns").update({ status: "Paused", updated_at: nowIso }).eq("id", camp.id).select().single();
+        return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated2, company) });
+      }
+      if (action === "resume") {
+        if (camp.status !== "Paused" || !camp.reviewed_at) {
+          return res.status(400).json({
+            success: false,
+            error: "Only previously Admin-approved Paused ticker campaigns can be resumed."
+          });
+        }
+        if (company.status !== "Approved") {
+          return res.status(403).json({
+            success: false,
+            error: "Company must be Approved to resume Sponsor Ticker campaigns."
+          });
+        }
+        const activeSub2 = await getActiveSubscriptionForCompany(company.id);
+        if (!activeSub2 || !isSubscriptionTickerEligible(activeSub2)) {
+          return res.status(403).json({
+            success: false,
+            error: "Active plan with Sponsor Ticker eligibility is required to resume."
+          });
+        }
+        if (camp.expiry_date && new Date(camp.expiry_date).getTime() <= Date.now()) {
+          return res.status(400).json({
+            success: false,
+            error: "Ticker campaign duration has expired. Please create or renew a campaign."
+          });
+        }
+        const { count } = await supabaseAdmin.from("corporate_ticker_campaigns").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("status", "Active");
+        if ((count || 0) >= Number(activeSub2.max_ticker_campaigns_snapshot || 1)) {
+          return res.status(403).json({
+            success: false,
+            error: `Active Sponsor Ticker quota (${activeSub2.max_ticker_campaigns_snapshot}) reached.`
+          });
+        }
+        const { data: updated2 } = await supabaseAdmin.from("corporate_ticker_campaigns").update({
+          status: "Active",
+          subscription_id: activeSub2.id,
+          updated_at: nowIso
+        }).eq("id", camp.id).select().single();
+        return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated2, company) });
+      }
+      if (!["Draft", "Rejected", "Paused", "Pending Review"].includes(camp.status)) {
+        return res.status(400).json({
+          success: false,
+          error: "Pause the Sponsor Ticker campaign before editing."
+        });
+      }
+      const {
+        campaignName,
+        shortMessage,
+        headline,
+        fullDescription,
+        destinationUrl,
+        ctaLabel,
+        requestedDurationDays,
+        submitForReview,
+        brandHighlightColor,
+        applyColorToBrand = false
+      } = req.body || {};
+      let cleanDestUrl = camp.destination_url;
+      if (destinationUrl !== void 0) {
+        const checked = sanitizeHttpUrl(destinationUrl);
+        if (!checked) {
+          return res.status(400).json({ success: false, error: "Invalid destination URL." });
+        }
+        cleanDestUrl = checked;
+      }
+      let nextTickerColor = camp.brand_highlight_color || "";
+      if (brandHighlightColor !== void 0) {
+        if (String(brandHighlightColor).trim() === "") {
+          nextTickerColor = "";
+        } else {
+          const validHex = sanitizeHexColor(brandHighlightColor);
+          if (!validHex) {
+            return res.status(400).json({
+              success: false,
+              error: "Brand highlight color must be a valid hex color (e.g. #2563EB)."
+            });
+          }
+          nextTickerColor = validHex;
+        }
+      }
+      const cleanShort = shortMessage !== void 0 ? String(shortMessage).trim() : camp.ticker_message ?? camp.short_message ?? "";
+      if (cleanShort.length < 5 || cleanShort.length > 140) {
+        return res.status(400).json({
+          success: false,
+          error: "Short ticker message must be between 5 and 140 characters."
+        });
+      }
+      const activeSub = await getActiveSubscriptionForCompany(company.id);
+      if (submitForReview) {
+        if (company.status !== "Approved" || !activeSub || !isSubscriptionTickerEligible(activeSub)) {
+          return res.status(403).json({
+            success: false,
+            error: "Approved company and active Sponsor Ticker plan eligibility are required to submit for review."
+          });
+        }
+        const { count } = await supabaseAdmin.from("corporate_ticker_campaigns").select("id", { count: "exact", head: true }).eq("company_id", company.id).neq("id", camp.id).in("status", ["Pending Review", "Approved", "Active"]);
+        if ((count || 0) >= Number(activeSub.max_ticker_campaigns_snapshot || 1)) {
+          return res.status(403).json({
+            success: false,
+            error: `Plan limit of ${activeSub.max_ticker_campaigns_snapshot} active/pending ticker campaigns reached.`
+          });
+        }
+      }
+      let nextCompany = company;
+      if (applyColorToBrand && nextTickerColor) {
+        const { data: updatedCo } = await supabaseAdmin.from("corporate_accounts").update({
+          brand_highlight_color: nextTickerColor,
+          updated_at: nowIso
+        }).eq("id", company.id).select().single();
+        if (updatedCo) nextCompany = updatedCo;
+      }
+      const maxDuration = Number(
+        activeSub?.ticker_campaign_duration_days_snapshot || camp.requested_duration_days || 30
+      );
+      const nextDuration = requestedDurationDays !== void 0 ? Math.min(Math.max(1, Number(requestedDurationDays)), maxDuration) : camp.requested_duration_days;
+      const nextStatus = submitForReview ? "Pending Review" : "Draft";
+      const { data: updated, error } = await supabaseAdmin.from("corporate_ticker_campaigns").update({
+        campaign_name: campaignName ? String(campaignName).trim() : camp.campaign_name,
+        ticker_message: cleanShort,
+        headline: headline ? String(headline).trim() : camp.headline,
+        full_description: fullDescription ? String(fullDescription).trim() : camp.full_description,
+        destination_url: cleanDestUrl,
+        cta_label: ctaLabel ? String(ctaLabel).trim().slice(0, 40) : camp.cta_label,
+        requested_duration_days: nextDuration,
+        brand_highlight_color: nextTickerColor,
+        status: nextStatus,
+        subscription_id: activeSub?.id || camp.subscription_id,
+        rejection_reason: "",
+        updated_at: nowIso
+      }).eq("id", camp.id).select().single();
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      if (nextStatus === "Pending Review") {
+        await dispatchCorporateAdminNotification({
+          title: "Sponsor Ticker Ad Submitted for Review",
+          message: `${nextCompany.brand_name || nextCompany.company_name} submitted Sponsor Ticker "${updated.campaign_name}" for Admin approval.`,
+          actionUrl: "/admin?tab=corporate_ads"
+        });
+      }
+      return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated, nextCompany) });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.delete(
+  "/ticker-campaigns/:id",
+  requireCorporateAuth,
+  async (req, res) => {
+    try {
+      const company = req.corporateCompany;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || "")) {
+        return res.status(400).json({ success: false, error: "Invalid ticker campaign ID." });
+      }
+      const { data: camp } = await supabaseAdmin.from("corporate_ticker_campaigns").select("id, status").eq("id", id).eq("company_id", company.id).maybeSingle();
+      if (!camp) {
+        return res.status(404).json({ success: false, error: "Ticker campaign not found." });
+      }
+      if (!["Draft", "Rejected"].includes(camp.status)) {
+        return res.status(400).json({
+          success: false,
+          error: "Only Draft or Rejected ticker campaigns can be deleted."
+        });
+      }
+      await supabaseAdmin.from("corporate_ticker_campaigns").delete().eq("id", id);
+      return res.json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get(
+  "/admin/overview",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      await expireOverdueRecords();
+      const fromParam = String(req.query.from || "").trim();
+      const toParam = String(req.query.to || "").trim();
+      const [companiesRes, plansRes, subsRes, paymentsRes, campaignsRes, tickerRes] = await Promise.all([
+        supabaseAdmin.from("corporate_accounts").select("id, status"),
+        supabaseAdmin.from("corporate_subscription_plans").select("id, name, is_active"),
+        supabaseAdmin.from("corporate_subscriptions").select("id, status, plan_id, plan_name_snapshot"),
+        supabaseAdmin.from("corporate_payments").select("*").order("created_at", { ascending: false }),
+        supabaseAdmin.from("corporate_ad_campaigns").select("id, status, impressions_count, clicks_count"),
+        supabaseAdmin.from("corporate_ticker_campaigns").select(
+          "id, status, impressions_count, bar_clicks_count, detail_views_count, website_clicks_count"
+        )
+      ]);
+      const allPayments = paymentsRes.data || [];
+      const fromTs = fromParam ? new Date(fromParam).getTime() : null;
+      const toTs = toParam ? (/* @__PURE__ */ new Date(`${toParam}T23:59:59.999Z`)).getTime() : null;
+      const filteredPayments = allPayments.filter((p) => {
+        const ts = new Date(p.paid_at || p.created_at).getTime();
+        if (fromTs && !Number.isNaN(fromTs) && ts < fromTs) return false;
+        if (toTs && !Number.isNaN(toTs) && ts > toTs) return false;
+        return true;
+      });
+      const successfulPayments = filteredPayments.filter((p) => p.status === "success");
+      const pendingPayments = filteredPayments.filter((p) => p.status === "pending");
+      const failedPayments = filteredPayments.filter((p) => p.status === "failed");
+      const totalRevenueNaira = successfulPayments.reduce(
+        (sum, p) => sum + Number(p.amount_naira || 0),
+        0
+      );
+      const pendingAmountNaira = pendingPayments.reduce(
+        (sum, p) => sum + Number(p.amount_naira || 0),
+        0
+      );
+      const failedAmountNaira = failedPayments.reduce(
+        (sum, p) => sum + Number(p.amount_naira || 0),
+        0
+      );
+      const revByPlanMap = /* @__PURE__ */ new Map();
+      for (const p of successfulPayments) {
+        const key = p.plan_id;
+        const cur = revByPlanMap.get(key) || {
+          planId: key,
+          planName: p.plan_name_snapshot || key,
+          revenueNaira: 0,
+          paymentCount: 0
+        };
+        cur.revenueNaira += Number(p.amount_naira || 0);
+        cur.paymentCount += 1;
+        revByPlanMap.set(key, cur);
+      }
+      const companies = companiesRes.data || [];
+      const subs = subsRes.data || [];
+      const campaigns = campaignsRes.data || [];
+      const tickerRows = tickerRes.data || [];
+      const totalImpressions = campaigns.reduce(
+        (s, c) => s + Number(c.impressions_count || 0),
+        0
+      );
+      const totalClicks = campaigns.reduce(
+        (s, c) => s + Number(c.clicks_count || 0),
+        0
+      );
+      const tickerTotalBarImpressions = tickerRows.reduce(
+        (s, r) => s + Number(r.impressions_count ?? r.bar_impressions_count ?? 0),
+        0
+      );
+      const tickerTotalBarClicks = tickerRows.reduce(
+        (s, r) => s + Number(r.bar_clicks_count || 0),
+        0
+      );
+      const tickerTotalDetailViews = tickerRows.reduce(
+        (s, r) => s + Number(r.detail_views_count || 0),
+        0
+      );
+      const tickerTotalWebsiteClicks = tickerRows.reduce(
+        (s, r) => s + Number(r.website_clicks_count || 0),
+        0
+      );
+      return res.json({
+        success: true,
+        overview: {
+          totalRevenueNaira,
+          successfulPaymentsCount: successfulPayments.length,
+          pendingPaymentsCount: pendingPayments.length,
+          pendingAmountNaira,
+          failedPaymentsCount: failedPayments.length,
+          failedAmountNaira,
+          activeSubscriptionsCount: subs.filter((s) => s.status === "active").length,
+          expiredSubscriptionsCount: subs.filter((s) => s.status === "expired").length,
+          activeCampaignsCount: campaigns.filter((c) => c.status === "Active").length,
+          pendingCampaignsCount: campaigns.filter((c) => c.status === "Pending Review").length,
+          totalCompaniesCount: companies.length,
+          pendingCompaniesCount: companies.filter((c) => c.status === "Pending").length,
+          approvedCompaniesCount: companies.filter((c) => c.status === "Approved").length,
+          rejectedCompaniesCount: companies.filter((c) => c.status === "Rejected").length,
+          suspendedCompaniesCount: companies.filter((c) => c.status === "Suspended").length,
+          activePlansCount: (plansRes.data || []).filter((p) => p.is_active).length,
+          totalImpressions,
+          totalClicks,
+          ctr: totalImpressions > 0 ? Number((totalClicks / totalImpressions * 100).toFixed(2)) : 0,
+          activeTickerCampaignsCount: tickerRows.filter((r) => r.status === "Active").length,
+          pendingTickerCampaignsCount: tickerRows.filter((r) => r.status === "Pending Review").length,
+          tickerStats: {
+            totalTickerCampaigns: tickerRows.length,
+            activeTickerCampaigns: tickerRows.filter((r) => r.status === "Active").length,
+            pendingTickerCampaigns: tickerRows.filter((r) => r.status === "Pending Review").length,
+            totalBarImpressions: tickerTotalBarImpressions,
+            totalBarClicks: tickerTotalBarClicks,
+            totalDetailViews: tickerTotalDetailViews,
+            totalWebsiteClicks: tickerTotalWebsiteClicks
+          },
+          revenueByPlan: Array.from(revByPlanMap.values())
+        }
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get(
+  "/admin/companies",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      const status = String(req.query.status || "").trim();
+      const search = String(req.query.search || "").trim().toLowerCase();
+      let q = supabaseAdmin.from("corporate_accounts").select("*").order("created_at", { ascending: false });
+      if (status && COMPANY_STATUSES.has(status)) {
+        q = q.eq("status", status);
+      }
+      const { data, error } = await q;
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      const rawCompanies = data || [];
+      const authIds = Array.from(
+        new Set(rawCompanies.map((c) => c.auth_user_id).filter(Boolean))
+      );
+      let grobaaxUserIds = /* @__PURE__ */ new Set();
+      if (authIds.length > 0) {
+        const { data: userMatches } = await supabaseAdmin.from("users").select("id").in("id", authIds);
+        grobaaxUserIds = new Set((userMatches || []).map((u) => String(u.id)));
+      }
+      let rows = rawCompanies.map(
+        (c) => mapCompanyRow(c, {
+          accountSource: grobaaxUserIds.has(String(c.auth_user_id)) ? "grobaax_user" : "external_signup"
+        })
+      );
+      if (search) {
+        rows = rows.filter(
+          (c) => c.companyName.toLowerCase().includes(search) || c.brandName.toLowerCase().includes(search) || c.officialEmail.toLowerCase().includes(search) || c.industry.toLowerCase().includes(search)
+        );
+      }
+      return res.json({ success: true, companies: rows });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get(
+  "/admin/companies/:id/document-url",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!UUID_RE.test(id || "")) {
+        return res.status(400).json({ success: false, error: "Invalid company ID." });
+      }
+      const { data: company } = await supabaseAdmin.from("corporate_accounts").select("supporting_document_url, supporting_document_name").eq("id", id).maybeSingle();
+      if (!company?.supporting_document_url) {
+        return res.status(404).json({ success: false, error: "No supporting document uploaded." });
+      }
+      const { data: signed, error } = await supabaseAdmin.storage.from("corporate-verification-docs").createSignedUrl(company.supporting_document_url, 600);
+      if (error || !signed?.signedUrl) {
+        return res.status(500).json({
+          success: false,
+          error: error?.message || "Failed to generate signed document link."
+        });
+      }
+      return res.json({
+        success: true,
+        signedUrl: signed.signedUrl,
+        fileName: company.supporting_document_name || "Verification Document"
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.patch(
+  "/admin/companies/:id/status",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      const admin = req.authUser;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || "")) {
+        return res.status(400).json({ success: false, error: "Invalid company ID." });
+      }
+      const { status, adminFeedback = "" } = req.body || {};
+      if (!COMPANY_STATUSES.has(status)) {
+        return res.status(400).json({ success: false, error: "Invalid company status." });
+      }
+      if ((status === "Rejected" || status === "Suspended") && String(adminFeedback).trim().length < 3) {
+        return res.status(400).json({
+          success: false,
+          error: "Please provide a clear reason/feedback when rejecting or suspending a company."
+        });
+      }
+      const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+      const { data: updated, error } = await supabaseAdmin.from("corporate_accounts").update({
+        status,
+        admin_feedback: String(adminFeedback || "").trim(),
+        reviewed_by: admin.id,
+        reviewer_name: admin.name,
+        reviewed_at: nowIso,
+        updated_at: nowIso
+      }).eq("id", id).select().single();
+      if (error || !updated) {
+        return res.status(404).json({ success: false, error: error?.message || "Company not found." });
+      }
+      if (status === "Suspended" || status === "Rejected") {
+        await Promise.all([
+          supabaseAdmin.from("corporate_ad_campaigns").update({
+            status: "Suspended",
+            admin_feedback: `Paused due to company status change (${status}).`,
+            updated_at: nowIso
+          }).eq("company_id", id).in("status", ["Active", "Approved", "Pending Review"]),
+          supabaseAdmin.from("corporate_ticker_campaigns").update({
+            status: "Suspended",
+            admin_feedback: `Paused due to company status change (${status}).`,
+            updated_at: nowIso
+          }).eq("company_id", id).in("status", ["Active", "Approved", "Pending Review"])
+        ]);
+      }
+      await logCorporateAudit({
+        actorUserId: admin.id,
+        actorName: admin.name,
+        actorRole: admin.managerRole || admin.role,
+        action: `COMPANY_STATUS_${status.toUpperCase()}`,
+        targetType: "corporate_account",
+        targetId: id,
+        details: {
+          companyName: updated.company_name,
+          status,
+          adminFeedback: String(adminFeedback || "").trim()
+        }
+      });
+      return res.json({ success: true, company: mapCompanyRow(updated) });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get(
+  "/admin/plans",
+  requireCorporateAdmin,
+  async (_req, res) => {
+    try {
+      const { data, error } = await supabaseAdmin.from("corporate_subscription_plans").select("*").order("sort_order", { ascending: true }).order("monthly_price_naira", { ascending: true });
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      return res.json({ success: true, plans: (data || []).map(mapPlanRow) });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.post(
+  "/admin/plans",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      const admin = req.authUser;
+      const {
+        name,
+        description = "",
+        monthlyPriceNaira,
+        durationDays = 30,
+        maxActiveCampaigns = 1,
+        campaignDurationDays = 30,
+        placementEligibility = ["school_blog_article_footer"],
+        sponsorTickerMode = "none",
+        maxTickerCampaigns = 0,
+        tickerCampaignDurationDays = 30,
+        tickerUpgradePriceNaira = 0,
+        features = [],
+        isActive = true,
+        sortOrder = 1
+      } = req.body || {};
+      if (!name || String(name).trim().length < 2) {
+        return res.status(400).json({ success: false, error: "Plan name is required." });
+      }
+      const price = Number(monthlyPriceNaira);
+      if (Number.isNaN(price) || price <= 0) {
+        return res.status(400).json({ success: false, error: "A valid positive price in Naira is required." });
+      }
+      const cleanTickerMode = SPONSOR_TICKER_MODES.has(sponsorTickerMode) ? sponsorTickerMode : "none";
+      const parsedMaxTickers = cleanTickerMode === "none" ? 0 : Math.max(1, Number(maxTickerCampaigns) || 1);
+      const parsedTickerDuration = Math.max(1, Number(tickerCampaignDurationDays) || 30);
+      const parsedUpgradePrice = cleanTickerMode === "optional_upgrade" ? Math.max(0, Number(tickerUpgradePriceNaira) || 0) : 0;
+      if (cleanTickerMode === "optional_upgrade" && parsedUpgradePrice <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Optional Sponsor Ticker Upgrade requires a positive upgrade price in Naira."
+        });
+      }
+      const planId = `corp_plan_${String(name).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}_${Date.now().toString(36)}`;
+      const { data: created, error } = await supabaseAdmin.from("corporate_subscription_plans").insert({
+        id: planId,
+        name: String(name).trim(),
+        description: String(description).trim(),
+        monthly_price_naira: price,
+        currency: "NGN",
+        duration_days: Math.max(1, Number(durationDays) || 30),
+        max_active_campaigns: Math.max(1, Number(maxActiveCampaigns) || 1),
+        campaign_duration_days: Math.max(1, Number(campaignDurationDays) || 30),
+        placement_eligibility: Array.isArray(placementEligibility) && placementEligibility.length > 0 ? placementEligibility : ["school_blog_article_footer"],
+        sponsor_ticker_mode: cleanTickerMode,
+        max_ticker_campaigns: parsedMaxTickers,
+        ticker_campaign_duration_days: parsedTickerDuration,
+        ticker_upgrade_price_naira: parsedUpgradePrice,
+        features: Array.isArray(features) ? features.filter(Boolean) : [],
+        is_active: Boolean(isActive),
+        sort_order: Number(sortOrder) || 1,
+        created_by: admin.id,
+        updated_by: admin.id
+      }).select().single();
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      await logCorporateAudit({
+        actorUserId: admin.id,
+        actorName: admin.name,
+        actorRole: admin.managerRole || admin.role,
+        action: "CORPORATE_PLAN_CREATED",
+        targetType: "corporate_subscription_plan",
+        targetId: created.id,
+        details: {
+          name: created.name,
+          monthlyPriceNaira: price,
+          sponsorTickerMode: cleanTickerMode
+        }
+      });
+      return res.status(201).json({ success: true, plan: mapPlanRow(created) });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.patch(
+  "/admin/plans/:id",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      const admin = req.authUser;
+      const { id } = req.params;
+      const { data: existing } = await supabaseAdmin.from("corporate_subscription_plans").select("*").eq("id", id).maybeSingle();
+      if (!existing) {
+        return res.status(404).json({ success: false, error: "Corporate plan not found." });
+      }
+      const b = req.body || {};
+      const nextPrice = b.monthlyPriceNaira !== void 0 ? Number(b.monthlyPriceNaira) : Number(existing.monthly_price_naira);
+      if (Number.isNaN(nextPrice) || nextPrice <= 0) {
+        return res.status(400).json({ success: false, error: "Price must be positive." });
+      }
+      const nextTickerMode = b.sponsorTickerMode !== void 0 && SPONSOR_TICKER_MODES.has(b.sponsorTickerMode) ? b.sponsorTickerMode : existing.sponsor_ticker_mode || "none";
+      const nextMaxTickers = nextTickerMode === "none" ? 0 : b.maxTickerCampaigns !== void 0 ? Math.max(1, Number(b.maxTickerCampaigns) || 1) : Math.max(1, Number(existing.max_ticker_campaigns) || 1);
+      const nextTickerDuration = b.tickerCampaignDurationDays !== void 0 ? Math.max(1, Number(b.tickerCampaignDurationDays) || 30) : Number(existing.ticker_campaign_duration_days || 30);
+      const nextUpgradePrice = nextTickerMode === "optional_upgrade" ? b.tickerUpgradePriceNaira !== void 0 ? Math.max(0, Number(b.tickerUpgradePriceNaira) || 0) : Number(existing.ticker_upgrade_price_naira || 0) : 0;
+      if (nextTickerMode === "optional_upgrade" && nextUpgradePrice <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Optional Sponsor Ticker Upgrade requires a positive upgrade price in Naira."
+        });
+      }
+      const { data: updated, error } = await supabaseAdmin.from("corporate_subscription_plans").update({
+        name: b.name !== void 0 ? String(b.name).trim() : existing.name,
+        description: b.description !== void 0 ? String(b.description).trim() : existing.description,
+        monthly_price_naira: nextPrice,
+        duration_days: b.durationDays !== void 0 ? Math.max(1, Number(b.durationDays)) : existing.duration_days,
+        max_active_campaigns: b.maxActiveCampaigns !== void 0 ? Math.max(1, Number(b.maxActiveCampaigns)) : existing.max_active_campaigns,
+        campaign_duration_days: b.campaignDurationDays !== void 0 ? Math.max(1, Number(b.campaignDurationDays)) : existing.campaign_duration_days,
+        placement_eligibility: Array.isArray(b.placementEligibility) ? b.placementEligibility : existing.placement_eligibility,
+        sponsor_ticker_mode: nextTickerMode,
+        max_ticker_campaigns: nextMaxTickers,
+        ticker_campaign_duration_days: nextTickerDuration,
+        ticker_upgrade_price_naira: nextUpgradePrice,
+        features: Array.isArray(b.features) ? b.features.filter(Boolean) : existing.features,
+        is_active: b.isActive !== void 0 ? Boolean(b.isActive) : existing.is_active,
+        sort_order: b.sortOrder !== void 0 ? Number(b.sortOrder) : existing.sort_order,
+        updated_by: admin.id,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", id).select().single();
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      await logCorporateAudit({
+        actorUserId: admin.id,
+        actorName: admin.name,
+        actorRole: admin.managerRole || admin.role,
+        action: "CORPORATE_PLAN_UPDATED",
+        targetType: "corporate_subscription_plan",
+        targetId: id,
+        details: {
+          name: updated.name,
+          monthlyPriceNaira: nextPrice,
+          isActive: updated.is_active,
+          sponsorTickerMode: nextTickerMode
+        }
+      });
+      return res.json({ success: true, plan: mapPlanRow(updated) });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get(
+  "/admin/subscriptions",
+  requireCorporateAdmin,
+  async (_req, res) => {
+    try {
+      await expireOverdueRecords();
+      const { data, error } = await supabaseAdmin.from("corporate_subscriptions").select("*, corporate_accounts(company_name, brand_name, official_email)").order("created_at", { ascending: false });
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      return res.json({
+        success: true,
+        subscriptions: (data || []).map((row) => ({
+          ...mapSubscriptionRow(row),
+          companyName: row.corporate_accounts?.company_name || "",
+          brandName: row.corporate_accounts?.brand_name || "",
+          officialEmail: row.corporate_accounts?.official_email || ""
+        }))
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get(
+  "/admin/payments",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      const status = String(req.query.status || "").trim();
+      let q = supabaseAdmin.from("corporate_payments").select("*, corporate_accounts(company_name, brand_name, official_email)").order("created_at", { ascending: false });
+      if (status && ["pending", "success", "failed"].includes(status)) {
+        q = q.eq("status", status);
+      }
+      const { data, error } = await q;
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      return res.json({
+        success: true,
+        payments: (data || []).map((row) => ({
+          ...mapPaymentRow(row),
+          companyName: row.corporate_accounts?.company_name || "",
+          brandName: row.corporate_accounts?.brand_name || "",
+          officialEmail: row.corporate_accounts?.official_email || ""
+        }))
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get(
+  "/admin/campaigns",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      await expireOverdueRecords();
+      const status = String(req.query.status || "").trim();
+      const search = String(req.query.search || "").trim().toLowerCase();
+      let q = supabaseAdmin.from("corporate_ad_campaigns").select("*, corporate_accounts(company_name, brand_name, status, logo_url, brand_highlight_color)").order("created_at", { ascending: false });
+      if (status && CAMPAIGN_STATUSES.has(status)) {
+        q = q.eq("status", status);
+      }
+      const { data, error } = await q;
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      let rows = (data || []).map((row) => mapCampaignRow(row));
+      if (search) {
+        rows = rows.filter(
+          (c) => c.campaignName.toLowerCase().includes(search) || c.headline.toLowerCase().includes(search) || c.companyName.toLowerCase().includes(search) || c.brandName.toLowerCase().includes(search)
+        );
+      }
+      return res.json({ success: true, campaigns: rows });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.patch(
+  "/admin/campaigns/:id/review",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      const admin = req.authUser;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || "")) {
+        return res.status(400).json({ success: false, error: "Invalid campaign ID." });
+      }
+      const { action, rejectionReason = "", adminFeedback = "" } = req.body || {};
+      const { data: camp } = await supabaseAdmin.from("corporate_ad_campaigns").select("*, corporate_accounts(*)").eq("id", id).maybeSingle();
+      if (!camp) {
+        return res.status(404).json({ success: false, error: "Campaign not found." });
+      }
+      const now = /* @__PURE__ */ new Date();
+      const nowIso = now.toISOString();
+      let updates = {
+        reviewed_by: admin.id,
+        reviewer_name: admin.name,
+        reviewed_at: nowIso,
+        updated_at: nowIso
+      };
+      if (action === "approve" || action === "activate") {
+        if (camp.corporate_accounts?.status !== "Approved") {
+          return res.status(400).json({
+            success: false,
+            error: "Cannot activate campaign because the company is not Approved."
+          });
+        }
+        const activeSub = await getActiveSubscriptionForCompany(camp.company_id);
+        if (!activeSub) {
+          return res.status(400).json({
+            success: false,
+            error: "Cannot activate campaign because the company has no active subscription."
+          });
+        }
+        const { count } = await supabaseAdmin.from("corporate_ad_campaigns").select("id", { count: "exact", head: true }).eq("company_id", camp.company_id).neq("id", camp.id).eq("status", "Active");
+        if ((count || 0) >= Number(activeSub.max_active_campaigns_snapshot || 1)) {
+          return res.status(400).json({
+            success: false,
+            error: `Company already has ${activeSub.max_active_campaigns_snapshot} active campaign(s) on their current plan.`
+          });
+        }
+        const durationDays = Math.min(
+          Number(camp.requested_duration_days || 30),
+          Number(activeSub.campaign_duration_days_snapshot || 30)
+        );
+        const rawEnd = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1e3);
+        const subEnd = new Date(activeSub.expiry_date);
+        const finalExpiry = rawEnd.getTime() > subEnd.getTime() ? subEnd : rawEnd;
+        updates = {
+          ...updates,
+          subscription_id: activeSub.id,
+          status: "Active",
+          start_date: camp.start_date || nowIso,
+          expiry_date: camp.expiry_date && new Date(camp.expiry_date) > now ? camp.expiry_date : finalExpiry.toISOString(),
+          rejection_reason: "",
+          admin_feedback: String(adminFeedback || "Approved for School Blog placement.").trim()
+        };
+      } else if (action === "reject") {
+        if (String(rejectionReason).trim().length < 3) {
+          return res.status(400).json({
+            success: false,
+            error: "A rejection reason is required when rejecting a campaign."
+          });
+        }
+        updates = {
+          ...updates,
+          status: "Rejected",
+          rejection_reason: String(rejectionReason).trim(),
+          admin_feedback: String(rejectionReason).trim()
+        };
+      } else if (action === "pause") {
+        updates = {
+          ...updates,
+          status: "Paused",
+          admin_feedback: String(adminFeedback || "Paused by administrator.").trim()
+        };
+      } else if (action === "suspend" || action === "remove") {
+        updates = {
+          ...updates,
+          status: "Suspended",
+          rejection_reason: String(rejectionReason || adminFeedback || "Removed by administrator.").trim(),
+          admin_feedback: String(adminFeedback || rejectionReason || "Suspended by administrator.").trim()
+        };
+      } else {
+        return res.status(400).json({ success: false, error: "Unsupported review action." });
+      }
+      const { data: updated, error } = await supabaseAdmin.from("corporate_ad_campaigns").update(updates).eq("id", id).select("*, corporate_accounts(company_name, brand_name, status, logo_url, brand_highlight_color)").single();
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      await logCorporateAudit({
+        actorUserId: admin.id,
+        actorName: admin.name,
+        actorRole: admin.managerRole || admin.role,
+        action: `CAMPAIGN_${String(action).toUpperCase()}`,
+        targetType: "corporate_ad_campaign",
+        targetId: id,
+        details: {
+          campaignName: updated.campaign_name,
+          companyName: updated.corporate_accounts?.company_name,
+          status: updated.status,
+          rejectionReason: updated.rejection_reason
+        }
+      });
+      return res.json({ success: true, campaign: mapCampaignRow(updated) });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get(
+  "/admin/audit-logs",
+  requireCorporateAdmin,
+  async (_req, res) => {
+    try {
+      const { data, error } = await supabaseAdmin.from("corporate_ad_audit_logs").select("*").order("created_at", { ascending: false }).limit(100);
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      return res.json({ success: true, logs: data || [] });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.get(
+  "/admin/ticker-campaigns",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      await expireOverdueRecords();
+      const status = String(req.query.status || "").trim();
+      const search = String(req.query.search || "").trim().toLowerCase();
+      let q = supabaseAdmin.from("corporate_ticker_campaigns").select("*, corporate_accounts(company_name, brand_name, status, brand_highlight_color)").order("created_at", { ascending: false });
+      if (status && CAMPAIGN_STATUSES.has(status)) {
+        q = q.eq("status", status);
+      }
+      const { data, error } = await q;
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      let rows = (data || []).map((row) => mapTickerCampaignRow(row));
+      if (search) {
+        rows = rows.filter(
+          (c) => c.campaignName.toLowerCase().includes(search) || c.shortMessage.toLowerCase().includes(search) || c.headline.toLowerCase().includes(search) || c.companyName.toLowerCase().includes(search) || c.brandName.toLowerCase().includes(search)
+        );
+      }
+      return res.json({ success: true, tickerCampaigns: rows });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.patch(
+  "/admin/ticker-campaigns/:id/review",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      const admin = req.authUser;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || "")) {
+        return res.status(400).json({ success: false, error: "Invalid ticker campaign ID." });
+      }
+      const { action, rejectionReason = "", adminFeedback = "" } = req.body || {};
+      const { data: camp } = await supabaseAdmin.from("corporate_ticker_campaigns").select("*, corporate_accounts(*)").eq("id", id).maybeSingle();
+      if (!camp) {
+        return res.status(404).json({ success: false, error: "Ticker campaign not found." });
+      }
+      const now = /* @__PURE__ */ new Date();
+      const nowIso = now.toISOString();
+      let updates = {
+        reviewed_by: admin.id,
+        reviewer_name: admin.name,
+        reviewed_at: nowIso,
+        updated_at: nowIso
+      };
+      if (action === "approve" || action === "activate") {
+        if (camp.corporate_accounts?.status !== "Approved") {
+          return res.status(400).json({
+            success: false,
+            error: "Cannot activate ticker ad because the company is not Approved."
+          });
+        }
+        const activeSub = await getActiveSubscriptionForCompany(camp.company_id);
+        if (!activeSub || !isSubscriptionTickerEligible(activeSub)) {
+          return res.status(400).json({
+            success: false,
+            error: "Cannot activate Sponsor Ticker ad because the company has no active subscription with Sponsor Ticker eligibility."
+          });
+        }
+        const { count } = await supabaseAdmin.from("corporate_ticker_campaigns").select("id", { count: "exact", head: true }).eq("company_id", camp.company_id).neq("id", camp.id).eq("status", "Active");
+        if ((count || 0) >= Number(activeSub.max_ticker_campaigns_snapshot || 1)) {
+          return res.status(400).json({
+            success: false,
+            error: `Company already has ${activeSub.max_ticker_campaigns_snapshot} active Sponsor Ticker campaign(s) on their current plan.`
+          });
+        }
+        const durationDays = Math.min(
+          Number(camp.requested_duration_days || 30),
+          Number(activeSub.ticker_campaign_duration_days_snapshot || 30)
+        );
+        const rawEnd = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1e3);
+        const subEnd = new Date(activeSub.expiry_date);
+        const finalExpiry = rawEnd.getTime() > subEnd.getTime() ? subEnd : rawEnd;
+        updates = {
+          ...updates,
+          subscription_id: activeSub.id,
+          status: "Active",
+          start_date: camp.start_date || nowIso,
+          expiry_date: camp.expiry_date && new Date(camp.expiry_date) > now ? camp.expiry_date : finalExpiry.toISOString(),
+          rejection_reason: "",
+          admin_feedback: String(
+            adminFeedback || "Approved for Grobaax Student Sponsor Ticker."
+          ).trim()
+        };
+      } else if (action === "reject") {
+        if (String(rejectionReason).trim().length < 3) {
+          return res.status(400).json({
+            success: false,
+            error: "A rejection reason is required when rejecting a Sponsor Ticker ad."
+          });
+        }
+        updates = {
+          ...updates,
+          status: "Rejected",
+          rejection_reason: String(rejectionReason).trim(),
+          admin_feedback: String(rejectionReason).trim()
+        };
+      } else if (action === "pause") {
+        updates = {
+          ...updates,
+          status: "Paused",
+          admin_feedback: String(adminFeedback || "Paused by administrator.").trim()
+        };
+      } else if (action === "suspend" || action === "remove") {
+        updates = {
+          ...updates,
+          status: "Suspended",
+          rejection_reason: String(
+            rejectionReason || adminFeedback || "Removed by administrator."
+          ).trim(),
+          admin_feedback: String(
+            adminFeedback || rejectionReason || "Suspended by administrator."
+          ).trim()
+        };
+      } else {
+        return res.status(400).json({ success: false, error: "Unsupported review action." });
+      }
+      const { data: updated, error } = await supabaseAdmin.from("corporate_ticker_campaigns").update(updates).eq("id", id).select("*, corporate_accounts(company_name, brand_name, status, brand_highlight_color)").single();
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      await logCorporateAudit({
+        actorUserId: admin.id,
+        actorName: admin.name,
+        actorRole: admin.managerRole || admin.role,
+        action: `TICKER_CAMPAIGN_${String(action).toUpperCase()}`,
+        targetType: "corporate_ticker_campaign",
+        targetId: id,
+        details: {
+          campaignName: updated.campaign_name,
+          companyName: updated.corporate_accounts?.company_name,
+          status: updated.status,
+          rejectionReason: updated.rejection_reason
+        }
+      });
+      return res.json({ success: true, tickerCampaign: mapTickerCampaignRow(updated) });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
+corporateAdsRouter.delete(
+  "/admin/ticker-campaigns/:id",
+  requireCorporateAdmin,
+  async (req, res) => {
+    try {
+      const admin = req.authUser;
+      const { id } = req.params;
+      if (!UUID_RE.test(id || "")) {
+        return res.status(400).json({ success: false, error: "Invalid ticker campaign ID." });
+      }
+      const { data: existing } = await supabaseAdmin.from("corporate_ticker_campaigns").select("id, campaign_name").eq("id", id).maybeSingle();
+      if (!existing) {
+        return res.status(404).json({ success: false, error: "Ticker campaign not found." });
+      }
+      await supabaseAdmin.from("corporate_ticker_campaigns").delete().eq("id", id);
+      await logCorporateAudit({
+        actorUserId: admin.id,
+        actorName: admin.name,
+        actorRole: admin.managerRole || admin.role,
+        action: "TICKER_CAMPAIGN_DELETED",
+        targetType: "corporate_ticker_campaign",
+        targetId: id,
+        details: { campaignName: existing.campaign_name }
+      });
+      return res.json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+);
 
 // server/paystackRouter.ts
 async function safeActivateSubscription(options) {
@@ -13555,7 +18501,8 @@ async function safeActivateSubscription(options) {
     if (fb && typeof fb.activateUserSubscriptionInFirestore === "function") {
       return await fb.activateUserSubscriptionInFirestore(options);
     }
-  } catch {
+  } catch (err) {
+    console.error("[Paystack] safeActivateSubscription error:", err);
   }
   return { success: true, isLocalFallback: true };
 }
@@ -13705,7 +18652,10 @@ paystackRouter.post("/charge-transfer", async (req, res) => {
       amountNaira,
       email,
       userId,
-      userName
+      userName,
+      callbackUrl,
+      durationValue,
+      durationUnit
     } = req.body || {};
     if (!amountNaira || isNaN(Number(amountNaira)) || Number(amountNaira) <= 0) {
       return res.status(400).json({
@@ -13716,6 +18666,7 @@ paystackRouter.post("/charge-transfer", async (req, res) => {
     const cleanEmail = email && email.includes("@") ? email.trim().toLowerCase() : "scholar@grobaax.org";
     const amountInKobo = Math.round(Number(amountNaira) * 100);
     const reference = `GRBX_TRF_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const checkoutRef = `${reference}_CHK`;
     const secretKey = getSecretKey();
     if (!secretKey || !secretKey.startsWith("sk_live_") && !secretKey.startsWith("sk_test_")) {
       return res.status(400).json({
@@ -13723,6 +18674,21 @@ paystackRouter.post("/charge-transfer", async (req, res) => {
         error: "Paystack live secret key is not configured in server environment."
       });
     }
+    let originHint = "";
+    try {
+      originHint = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : "");
+    } catch {
+    }
+    const resolvedChkCallback = buildPaystackCallbackUrl(
+      callbackUrl || (originHint ? `${originHint}/` : void 0),
+      checkoutRef,
+      planId
+    );
+    const resolvedFallbackCallback = buildPaystackCallbackUrl(
+      callbackUrl || (originHint ? `${originHint}/` : void 0),
+      reference,
+      planId
+    );
     const expiresAt = new Date(Date.now() + 3600 * 1e3).toISOString();
     try {
       const baseUrl2 = getPaystackBaseUrl();
@@ -13748,6 +18714,8 @@ paystackRouter.post("/charge-transfer", async (req, res) => {
             planId: planId || "premium_1m",
             planName: planName || "Premium",
             amountNaira: Number(amountNaira),
+            durationValue: durationValue !== void 0 ? durationValue : void 0,
+            durationUnit: durationUnit || void 0,
             platform: "grobax_web",
             timestamp: Date.now()
           }
@@ -13770,14 +18738,35 @@ paystackRouter.post("/charge-transfer", async (req, res) => {
               body: JSON.stringify({
                 email: cleanEmail,
                 amount: amountInKobo,
-                reference: `${reference}_CHK`,
+                reference: checkoutRef,
                 currency: "NGN",
-                channels: ["card", "bank", "bank_transfer", "ussd", "qr"],
+                callback_url: resolvedChkCallback || void 0,
+                channels: ["card", "bank", "bank_transfer", "ussd", "qr", "mobile_money"],
                 metadata: {
                   userId: userId || "scholar",
+                  scholar_uid: userId || "scholar",
+                  userName: userName || "Scholar",
+                  userEmail: cleanEmail,
                   planId: planId || "premium_1m",
                   planName: planName || "Premium",
-                  amountNaira: Number(amountNaira)
+                  amountNaira: Number(amountNaira),
+                  durationValue: durationValue !== void 0 ? durationValue : void 0,
+                  durationUnit: durationUnit || void 0,
+                  parentTransferReference: d.reference || reference,
+                  platform: "grobax_web",
+                  timestamp: Date.now(),
+                  custom_fields: [
+                    {
+                      display_name: "Plan Name",
+                      variable_name: "plan_name",
+                      value: planName || "Premium"
+                    },
+                    {
+                      display_name: "Scholar UID",
+                      variable_name: "scholar_uid",
+                      value: userId || "unknown"
+                    }
+                  ]
                 }
               })
             });
@@ -13789,6 +18778,7 @@ paystackRouter.post("/charge-transfer", async (req, res) => {
           return res.json({
             success: true,
             reference: d.reference || reference,
+            checkoutReference: checkoutUrl ? checkoutRef : void 0,
             accountNumber,
             accountName: d.account_name || "PAYSTACK CHECKOUT",
             bankName,
@@ -13817,7 +18807,8 @@ paystackRouter.post("/charge-transfer", async (req, res) => {
         amount: amountInKobo,
         reference,
         currency: "NGN",
-        channels: ["bank_transfer", "card", "bank", "ussd"],
+        callback_url: resolvedFallbackCallback || void 0,
+        channels: ["bank_transfer", "card", "bank", "ussd", "qr", "mobile_money"],
         metadata: {
           userId: userId || "scholar",
           scholar_uid: userId || "scholar",
@@ -13826,6 +18817,8 @@ paystackRouter.post("/charge-transfer", async (req, res) => {
           planId: planId || "premium_1m",
           planName: planName || "Premium",
           amountNaira: Number(amountNaira),
+          durationValue: durationValue !== void 0 ? durationValue : void 0,
+          durationUnit: durationUnit || void 0,
           platform: "grobax_web",
           timestamp: Date.now()
         }
@@ -13836,6 +18829,7 @@ paystackRouter.post("/charge-transfer", async (req, res) => {
       return res.json({
         success: true,
         reference,
+        checkoutReference: reference,
         authorization_url: initData.data.authorization_url,
         access_code: initData.data.access_code,
         amountNaira: Number(amountNaira),
@@ -13857,6 +18851,7 @@ paystackRouter.post("/charge-transfer", async (req, res) => {
 var handlePaystackVerify = async (req, res) => {
   try {
     const rawRef = (req.params.reference || req.query.reference || "").trim();
+    const extraRefs = req.query.references || "";
     if (!rawRef || rawRef === "undefined" || rawRef === "null") {
       return res.status(400).json({
         success: false,
@@ -13869,36 +18864,30 @@ var handlePaystackVerify = async (req, res) => {
     const secretKey = getSecretKey();
     if (secretKey && (secretKey.startsWith("sk_live_") || secretKey.startsWith("sk_test_"))) {
       try {
-        const baseUrl = getPaystackBaseUrl();
-        const { ok, status, data, rawText, isJson } = await safePaystackFetch(
-          `${baseUrl}/transaction/verify/${encodeURIComponent(reference)}`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${secretKey}`
-            }
-          }
-        );
-        if (!isJson) {
-          console.warn(`[Paystack Verify] Paystack returned non-JSON response (HTTP ${status}) for reference ${reference}:`, rawText.slice(0, 120));
+        const outcome = await verifyPaystackCandidates({
+          reference,
+          extraRefs,
+          secretKey
+        });
+        if (outcome.kind === "network_error") {
           return res.json({
             success: false,
             verified: false,
             status: "failed",
-            error: `Paystack API returned an unexpected response (HTTP ${status}). Please retry in a few moments.`
+            error: outcome.error || "Paystack API returned an unexpected response."
           });
         }
-        if (data && data.status && data.data) {
-          const tx = data.data;
-          const isSuccessful = tx.status === "success";
-          const isPending = tx.status === "ongoing" || tx.status === "pending_bank_transfer" || tx.status === "pending";
+        if (outcome.tx) {
+          const tx = outcome.tx;
+          const isSuccessful = outcome.kind === "success";
+          const isPending = outcome.kind === "pending";
           let activationResult = null;
           if (isSuccessful) {
             try {
               activationResult = await safeActivateSubscription({
                 reference: tx.reference,
                 userId: tx.metadata?.userId || tx.metadata?.scholar_uid || "",
-                userEmail: tx.customer?.email || "",
+                userEmail: tx.customer?.email || tx.metadata?.userEmail || "",
                 userName: tx.metadata?.userName || "",
                 planId: tx.metadata?.planId,
                 planName: tx.metadata?.planName,
@@ -13918,11 +18907,14 @@ var handlePaystackVerify = async (req, res) => {
             status: tx.status,
             amountNaira: tx.amount ? tx.amount / 100 : 0,
             reference: tx.reference,
+            originalReference: reference,
             channel: tx.channel,
             paidAt: tx.paid_at || (isSuccessful ? (/* @__PURE__ */ new Date()).toISOString() : null),
             metadata: tx.metadata || {},
             planId: tx.metadata?.planId,
             planName: tx.metadata?.planName,
+            durationValue: tx.metadata?.durationValue,
+            durationUnit: tx.metadata?.durationUnit,
             customer: tx.customer,
             gatewayResponse: tx.gateway_response,
             isPending,
@@ -13933,7 +18925,7 @@ var handlePaystackVerify = async (req, res) => {
             success: false,
             verified: false,
             status: "failed",
-            error: data?.message || "Transaction could not be verified by Paystack."
+            error: outcome.error || "Transaction could not be verified by Paystack."
           });
         }
       } catch (err) {
@@ -13973,35 +18965,32 @@ paystackRouter.post("/activate", async (req, res) => {
       return res.status(400).json({ success: false, error: "Payment reference is required." });
     }
     const secretKey = getSecretKey();
+    let effectiveRef = reference;
     let channel = "paystack";
     let verifiedAmount = Number(amountNaira || 0);
     let resolvedDurationValue = durationValue;
     let resolvedDurationUnit = durationUnit;
     if (secretKey && (secretKey.startsWith("sk_live_") || secretKey.startsWith("sk_test_"))) {
       try {
-        const baseUrl = getPaystackBaseUrl();
-        const verifyResult = await safePaystackFetch(
-          `${baseUrl}/transaction/verify/${encodeURIComponent(reference)}`,
-          {
-            method: "GET",
-            headers: { Authorization: `Bearer ${secretKey}` }
-          }
-        );
-        const verifyData = verifyResult.data;
-        if (verifyData && verifyData.data) {
-          if (verifyData.data.status !== "success") {
+        const outcome = await verifyPaystackCandidates({
+          reference,
+          secretKey
+        });
+        if (outcome.tx) {
+          if (outcome.kind !== "success") {
             return res.status(400).json({
               success: false,
-              error: `Transaction status is ${verifyData.data.status}, not success.`
+              error: `Transaction status is ${outcome.tx.status}, not success.`
             });
           }
-          channel = verifyData.data.channel || "paystack";
-          verifiedAmount = verifyData.data.amount ? verifyData.data.amount / 100 : verifiedAmount;
-          if (resolvedDurationValue === void 0 && verifyData.data.metadata?.durationValue !== void 0) {
-            resolvedDurationValue = verifyData.data.metadata.durationValue;
+          effectiveRef = outcome.tx.reference || reference;
+          channel = outcome.tx.channel || "paystack";
+          verifiedAmount = outcome.tx.amount ? outcome.tx.amount / 100 : verifiedAmount;
+          if (resolvedDurationValue === void 0 && outcome.tx.metadata?.durationValue !== void 0) {
+            resolvedDurationValue = outcome.tx.metadata.durationValue;
           }
-          if (!resolvedDurationUnit && verifyData.data.metadata?.durationUnit) {
-            resolvedDurationUnit = verifyData.data.metadata.durationUnit;
+          if (!resolvedDurationUnit && outcome.tx.metadata?.durationUnit) {
+            resolvedDurationUnit = outcome.tx.metadata.durationUnit;
           }
         }
       } catch (vfErr) {
@@ -14009,7 +18998,7 @@ paystackRouter.post("/activate", async (req, res) => {
       }
     }
     const result = await safeActivateSubscription({
-      reference,
+      reference: effectiveRef,
       userId: userId || "",
       userEmail: userEmail || "",
       userName: userName || "",
@@ -14046,7 +19035,7 @@ paystackRouter.post("/webhook", async (req, res) => {
       const bodyBuffer = req.body;
       const bodyStr = typeof bodyBuffer === "string" ? bodyBuffer : bodyBuffer.toString("utf8");
       if (secretKey && signature) {
-        const hash = crypto.createHmac("sha512", secretKey).update(bodyStr).digest("hex");
+        const hash = crypto3.createHmac("sha512", secretKey).update(bodyStr).digest("hex");
         if (hash !== signature) {
           console.warn("[Paystack Webhook] Invalid signature mismatch");
           return res.status(400).send("Invalid signature");
@@ -14058,6 +19047,11 @@ paystackRouter.post("/webhook", async (req, res) => {
       return res.status(400).send("Empty payload");
     }
     console.log(`[Paystack Webhook] Received event: ${event.event} | Ref: ${event.data?.reference}`);
+    const isCorporatePayment = String(event?.data?.reference || "").startsWith("GRBX_CORP_") || event?.data?.metadata?.channel_type === "corporate_advertising";
+    if (isCorporatePayment) {
+      await handleCorporatePaystackWebhookEvent(event);
+      return res.status(200).json({ received: true, corporate: true });
+    }
     if (event.event === "charge.success") {
       const data = event.data;
       console.log(`[Paystack Webhook] Successful payment for ${data.customer?.email} - \u20A6${data.amount / 100}`);
@@ -14088,40 +19082,42 @@ paystackRouter.post("/webhook", async (req, res) => {
 paystackRouter.get("/sensor-status", async (req, res) => {
   try {
     const reference = (req.query.reference || "").trim();
+    const extraRefs = req.query.references || "";
     const email = (req.query.email || "").trim();
     const userId = (req.query.userId || "").trim();
     if (reference) {
       const secretKey = getSecretKey();
       if (secretKey && (secretKey.startsWith("sk_live_") || secretKey.startsWith("sk_test_"))) {
         try {
-          const baseUrl = getPaystackBaseUrl();
-          const resp = await safePaystackFetch(
-            `${baseUrl}/transaction/verify/${encodeURIComponent(reference)}`,
-            {
-              headers: {
-                Authorization: `Bearer ${secretKey}`
-              }
-            }
-          );
-          const json = resp.data;
-          if (json && json.status && json.data) {
-            const tx = json.data;
-            const isSuccess = tx.status === "success";
+          const outcome = await verifyPaystackCandidates({
+            reference,
+            extraRefs,
+            secretKey
+          });
+          if (outcome.tx) {
+            const tx = outcome.tx;
+            const isSuccess = outcome.kind === "success";
             let activationResult = null;
             if (isSuccess) {
-              try {
-                activationResult = await safeActivateSubscription({
-                  reference: tx.reference,
-                  userId: tx.metadata?.userId || tx.metadata?.scholar_uid || userId || "",
-                  userEmail: tx.customer?.email || email || "",
-                  userName: tx.metadata?.userName || "",
-                  planId: tx.metadata?.planId,
-                  planName: tx.metadata?.planName,
-                  amountNaira: tx.amount ? tx.amount / 100 : 0,
-                  channel: tx.channel || "paystack"
-                });
-              } catch (actErr) {
-                console.warn("[Sensor Status] Firestore activation notice:", actErr);
+              if (String(tx.reference || "").startsWith("GRBX_CORP_") || tx.metadata?.channel_type === "corporate_advertising") {
+                await handleCorporatePaystackWebhookEvent({ event: "charge.success", data: tx });
+              } else {
+                try {
+                  activationResult = await safeActivateSubscription({
+                    reference: tx.reference,
+                    userId: tx.metadata?.userId || tx.metadata?.scholar_uid || userId || "",
+                    userEmail: tx.customer?.email || tx.metadata?.userEmail || email || "",
+                    userName: tx.metadata?.userName || "",
+                    planId: tx.metadata?.planId,
+                    planName: tx.metadata?.planName,
+                    durationValue: tx.metadata?.durationValue,
+                    durationUnit: tx.metadata?.durationUnit,
+                    amountNaira: tx.amount ? tx.amount / 100 : 0,
+                    channel: tx.channel || "paystack"
+                  });
+                } catch (actErr) {
+                  console.warn("[Sensor Status] Firestore activation notice:", actErr);
+                }
               }
             }
             return res.json({
@@ -14129,9 +19125,13 @@ paystackRouter.get("/sensor-status", async (req, res) => {
               verified: isSuccess,
               status: tx.status,
               reference: tx.reference,
+              originalReference: reference,
               amountNaira: tx.amount ? tx.amount / 100 : 0,
+              metadata: tx.metadata || {},
               planId: tx.metadata?.planId,
               planName: tx.metadata?.planName,
+              durationValue: tx.metadata?.durationValue,
+              durationUnit: tx.metadata?.durationUnit,
               customer: tx.customer,
               activation: activationResult
             });
@@ -14152,7 +19152,7 @@ paystackRouter.get("/sensor-status", async (req, res) => {
 });
 
 // server/libraryRouter.ts
-import { Router as Router3 } from "express";
+import { Router as Router4 } from "express";
 import fs2 from "fs";
 import path2 from "path";
 
@@ -14581,7 +19581,7 @@ ${d.content.slice(0, 600)}...`);
 }
 
 // server/libraryRouter.ts
-var libraryRouter = Router3();
+var libraryRouter = Router4();
 var DATA_FILE = path2.join(process.cwd(), "server", "handout_library_data.json");
 var DEFAULT_SETTINGS = {
   freeDailyLimit: 2,
@@ -15390,8 +20390,889 @@ ATTENTION TO QUALITY: Previous attempt failed validation because: ${qc.reasons.j
 
 // server/campusRouter.ts
 init_supabaseFirestoreAdapter();
-import { Router as Router4 } from "express";
-var campusRouter = Router4();
+init_supabase();
+import { Router as Router5 } from "express";
+
+// src/data/campusSkillsData.ts
+var DEFAULT_CAMPUS_SKILL_CATEGORIES = [
+  { id: "skill_graphic_design", slug: "graphic-design", name: "Graphic Design", groupName: "Creative & Design", icon: "\u{1F3A8}", isActive: true, sortOrder: 10 },
+  { id: "skill_ui_ux_design", slug: "ui-ux-design", name: "UI/UX Design", groupName: "Creative & Design", icon: "\u{1F4D0}", isActive: true, sortOrder: 20 },
+  { id: "skill_video_editing", slug: "video-editing", name: "Video Editing", groupName: "Creative & Design", icon: "\u{1F3AC}", isActive: true, sortOrder: 30 },
+  { id: "skill_photography", slug: "photography", name: "Photography", groupName: "Creative & Design", icon: "\u{1F4F7}", isActive: true, sortOrder: 40 },
+  { id: "skill_web_development", slug: "web-development", name: "Web Development", groupName: "Tech & Digital", icon: "\u{1F4BB}", isActive: true, sortOrder: 50 },
+  { id: "skill_mobile_app_development", slug: "mobile-app-development", name: "Mobile App Development", groupName: "Tech & Digital", icon: "\u{1F4F1}", isActive: true, sortOrder: 60 },
+  { id: "skill_data_analysis", slug: "data-analysis", name: "Data Analysis", groupName: "Tech & Digital", icon: "\u{1F4CA}", isActive: true, sortOrder: 70 },
+  { id: "skill_software_testing", slug: "software-qa", name: "Software QA & Testing", groupName: "Tech & Digital", icon: "\u{1F9EA}", isActive: true, sortOrder: 220 },
+  { id: "skill_digital_marketing", slug: "digital-marketing", name: "Digital Marketing", groupName: "Media & Writing", icon: "\u{1F4E3}", isActive: true, sortOrder: 80 },
+  { id: "skill_content_creation", slug: "content-creation", name: "Content Creation", groupName: "Media & Writing", icon: "\u{1F399}\uFE0F", isActive: true, sortOrder: 90 },
+  { id: "skill_copywriting", slug: "copywriting", name: "Copywriting", groupName: "Media & Writing", icon: "\u270D\uFE0F", isActive: true, sortOrder: 100 },
+  { id: "skill_public_speaking", slug: "public-speaking", name: "Public Speaking & MC", groupName: "Media & Writing", icon: "\u{1F3A4}", isActive: true, sortOrder: 230 },
+  { id: "skill_fashion_design", slug: "fashion-design", name: "Fashion Design", groupName: "Fashion & Beauty", icon: "\u{1F457}", isActive: true, sortOrder: 110 },
+  { id: "skill_tailoring", slug: "tailoring", name: "Tailoring", groupName: "Fashion & Beauty", icon: "\u{1F9F5}", isActive: true, sortOrder: 120 },
+  { id: "skill_hairdressing", slug: "hairdressing", name: "Hairdressing", groupName: "Fashion & Beauty", icon: "\u{1F487}\u200D\u2640\uFE0F", isActive: true, sortOrder: 130 },
+  { id: "skill_barbing", slug: "barbing", name: "Barbing", groupName: "Fashion & Beauty", icon: "\u{1F488}", isActive: true, sortOrder: 140 },
+  { id: "skill_makeup_artistry", slug: "makeup-artistry", name: "Makeup Artistry", groupName: "Fashion & Beauty", icon: "\u{1F484}", isActive: true, sortOrder: 150 },
+  { id: "skill_catering", slug: "catering", name: "Catering", groupName: "Hospitality & Services", icon: "\u{1F372}", isActive: true, sortOrder: 160 },
+  { id: "skill_event_planning", slug: "event-planning", name: "Event Planning", groupName: "Hospitality & Services", icon: "\u{1F3AA}", isActive: true, sortOrder: 240 },
+  { id: "skill_electrical_repairs", slug: "electrical-repairs", name: "Electrical Repairs", groupName: "Technical & Vocational", icon: "\u26A1", isActive: true, sortOrder: 170 },
+  { id: "skill_plumbing", slug: "plumbing", name: "Plumbing", groupName: "Technical & Vocational", icon: "\u{1F527}", isActive: true, sortOrder: 180 },
+  { id: "skill_carpentry", slug: "carpentry", name: "Carpentry", groupName: "Technical & Vocational", icon: "\u{1FA9A}", isActive: true, sortOrder: 190 },
+  { id: "skill_phone_repairs", slug: "phone-repairs", name: "Phone Repairs", groupName: "Technical & Vocational", icon: "\u{1F6E0}\uFE0F", isActive: true, sortOrder: 200 },
+  { id: "skill_tutoring", slug: "academic-tutoring", name: "Academic Tutoring", groupName: "Academic & Tutoring", icon: "\u{1F4DA}", isActive: true, sortOrder: 210 }
+];
+
+// server/pushService.ts
+init_supabase();
+init_adminPermissions();
+init_firebase_applet_config();
+import fs3 from "fs";
+import path3 from "path";
+import { initializeApp as initializeApp2, getApps as getApps2, cert } from "firebase-admin/app";
+import { getMessaging as getMessaging2 } from "firebase-admin/messaging";
+var DEFAULT_PUSH_CATEGORIES = {
+  connections: true,
+  messages: true,
+  announcements: true,
+  school_dome: true,
+  competitions: true,
+  school_blog: true,
+  wallet: true,
+  system: true
+};
+var INVALID_FCM_TOKEN_CODES = /* @__PURE__ */ new Set([
+  "messaging/registration-token-not-registered",
+  "messaging/invalid-registration-token",
+  "messaging/mismatched-credential",
+  "UNREGISTERED",
+  "INVALID_ARGUMENT"
+]);
+var SUSPENDED_USER_STATUSES = /* @__PURE__ */ new Set([
+  "suspended",
+  "deleted",
+  "banned",
+  "disabled",
+  "inactive",
+  "flagged",
+  "restricted",
+  "bot"
+]);
+var recentDedupeMemoryCache = /* @__PURE__ */ new Map();
+var cachedAppletConfig = null;
+var firebaseAdminInitAttempted = false;
+var firebaseAdminApp = null;
+var firebaseAdminCredentialError = null;
+function readAppletConfigFile() {
+  if (cachedAppletConfig) return cachedAppletConfig;
+  try {
+    const configPath = path3.join(process.cwd(), "firebase-applet-config.json");
+    if (fs3.existsSync(configPath)) {
+      const parsed = JSON.parse(fs3.readFileSync(configPath, "utf8"));
+      if (parsed && typeof parsed === "object") {
+        cachedAppletConfig = parsed;
+        return cachedAppletConfig;
+      }
+    }
+  } catch (err) {
+    console.warn("[PushService] Could not parse firebase-applet-config.json:", err?.message || err);
+  }
+  if (firebase_applet_config_default && typeof firebase_applet_config_default === "object") {
+    cachedAppletConfig = firebase_applet_config_default;
+    return cachedAppletConfig;
+  }
+  cachedAppletConfig = {};
+  return cachedAppletConfig;
+}
+function getPublicFirebaseClientConfig() {
+  const fileCfg = readAppletConfigFile();
+  return {
+    apiKey: process.env.VITE_FIREBASE_API_KEY || fileCfg.apiKey || "",
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || fileCfg.authDomain || "",
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || fileCfg.projectId || "",
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || fileCfg.storageBucket || "",
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || fileCfg.messagingSenderId || "",
+    appId: process.env.VITE_FIREBASE_APP_ID || fileCfg.appId || "",
+    measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID || fileCfg.measurementId || ""
+  };
+}
+function getVapidPublicKey() {
+  return String(
+    process.env.VITE_FIREBASE_VAPID_KEY || process.env.FIREBASE_VAPID_KEY || ""
+  ).trim();
+}
+function parseServiceAccountFromEnv() {
+  let rawJson = String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "").trim();
+  if (rawJson.startsWith("'") && rawJson.endsWith("'") || rawJson.startsWith('"') && rawJson.endsWith('"') && !rawJson.startsWith('{"')) {
+    rawJson = rawJson.slice(1, -1).trim();
+  }
+  if (rawJson) {
+    try {
+      const decoded = rawJson.startsWith("{") ? rawJson : Buffer.from(rawJson, "base64").toString("utf8");
+      const parsed = JSON.parse(decoded);
+      if (parsed.private_key && typeof parsed.private_key === "string") {
+        parsed.private_key = parsed.private_key.replace(/\\n/g, "\n");
+      }
+      if (parsed.client_email && parsed.private_key) {
+        return parsed;
+      }
+    } catch (err) {
+      firebaseAdminCredentialError = `Invalid FIREBASE_SERVICE_ACCOUNT_JSON: ${err?.message || "parse error"}`;
+      return null;
+    }
+  }
+  const projectId = String(
+    process.env.FIREBASE_PROJECT_ID || getPublicFirebaseClientConfig().projectId || ""
+  ).trim();
+  const clientEmail = String(process.env.FIREBASE_CLIENT_EMAIL || "").trim();
+  const privateKeyRaw = String(process.env.FIREBASE_PRIVATE_KEY || "").trim();
+  if (projectId && clientEmail && privateKeyRaw) {
+    return {
+      projectId,
+      clientEmail,
+      privateKey: privateKeyRaw.replace(/\\n/g, "\n")
+    };
+  }
+  const credPath = String(process.env.GOOGLE_APPLICATION_CREDENTIALS || "").trim();
+  if (credPath && fs3.existsSync(credPath)) {
+    try {
+      const parsed = JSON.parse(fs3.readFileSync(credPath, "utf8"));
+      if (parsed.private_key && typeof parsed.private_key === "string") {
+        parsed.private_key = parsed.private_key.replace(/\\n/g, "\n");
+      }
+      if (parsed.client_email && parsed.private_key) {
+        return parsed;
+      }
+    } catch (err) {
+      firebaseAdminCredentialError = `Invalid GOOGLE_APPLICATION_CREDENTIALS file: ${err?.message || "parse error"}`;
+      return null;
+    }
+  }
+  return null;
+}
+function getFirebaseAdminMessaging() {
+  if (firebaseAdminApp) {
+    return getMessaging2(firebaseAdminApp);
+  }
+  if (firebaseAdminInitAttempted && !firebaseAdminApp) {
+    const existing = getApps2().find((a) => a?.name === "grobaax-push");
+    if (existing) {
+      firebaseAdminApp = existing;
+      return getMessaging2(firebaseAdminApp);
+    }
+  }
+  firebaseAdminInitAttempted = true;
+  const serviceAccount = parseServiceAccountFromEnv();
+  if (!serviceAccount) {
+    return null;
+  }
+  try {
+    const existing = getApps2().find((a) => a?.name === "grobaax-push");
+    firebaseAdminApp = existing || initializeApp2(
+      {
+        credential: cert(serviceAccount),
+        projectId: serviceAccount.project_id || serviceAccount.projectId || getPublicFirebaseClientConfig().projectId || void 0
+      },
+      "grobaax-push"
+    );
+    firebaseAdminCredentialError = null;
+    return getMessaging2(firebaseAdminApp);
+  } catch (err) {
+    firebaseAdminCredentialError = err?.message || "Failed to initialize Firebase Admin Messaging";
+    console.warn("[PushService] Firebase Admin init notice:", firebaseAdminCredentialError);
+    return null;
+  }
+}
+function getPushConfigurationStatus() {
+  const clientConfig = getPublicFirebaseClientConfig();
+  const vapidPublicKey = getVapidPublicKey();
+  const serviceAccount = parseServiceAccountFromEnv();
+  const clientReady = Boolean(
+    clientConfig.apiKey && clientConfig.projectId && clientConfig.messagingSenderId && clientConfig.appId
+  );
+  const vapidReady = Boolean(vapidPublicKey);
+  const serverReady = Boolean(serviceAccount);
+  const serverProjectId = String(
+    serviceAccount?.project_id || serviceAccount?.projectId || ""
+  ).trim();
+  const clientProjectId = String(clientConfig.projectId || "").trim();
+  const projectMismatch = Boolean(
+    serverProjectId && clientProjectId && serverProjectId !== clientProjectId
+  );
+  const missingKeys = [];
+  if (!clientReady) {
+    missingKeys.push("VITE_FIREBASE_API_KEY / VITE_FIREBASE_PROJECT_ID / VITE_FIREBASE_MESSAGING_SENDER_ID / VITE_FIREBASE_APP_ID");
+  }
+  if (!vapidReady) {
+    missingKeys.push("VITE_FIREBASE_VAPID_KEY");
+  }
+  if (!serverReady) {
+    missingKeys.push("FIREBASE_SERVICE_ACCOUNT_JSON (or FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY)");
+  }
+  if (projectMismatch) {
+    missingKeys.push(
+      `Matching VITE_FIREBASE_* project config (frontend uses ${clientProjectId}, service account uses ${serverProjectId})`
+    );
+  }
+  const mismatchError = projectMismatch ? `Firebase project mismatch: client uses "${clientProjectId}" while server service account uses "${serverProjectId}".` : null;
+  return {
+    firebaseConfigReady: clientReady,
+    vapidConfigured: vapidReady,
+    serverDeliveryConfigured: serverReady,
+    projectMismatch,
+    pushFullyConfigured: clientReady && vapidReady && serverReady && !projectMismatch,
+    credentialError: firebaseAdminCredentialError || mismatchError,
+    missingKeys
+  };
+}
+function getPublicPushConfig() {
+  const status = getPushConfigurationStatus();
+  return {
+    firebaseConfig: getPublicFirebaseClientConfig(),
+    vapidPublicKey: getVapidPublicKey(),
+    ...status
+  };
+}
+function resolvePushCategory(rawType, actionUrl, title) {
+  const t = String(rawType || "").toLowerCase().trim();
+  const a = String(actionUrl || "").toLowerCase().trim();
+  const h = String(title || "").toLowerCase().trim();
+  if (t === "campus" || a.includes("campus") || a.includes("connection") || h.includes("connection")) {
+    return "connections";
+  }
+  if (t === "message" || t === "messages" || t === "chat" || a.includes("chat")) {
+    return "messages";
+  }
+  if (t === "wallet" || t === "reward" || a.includes("wallet") || h.includes("gp reward")) {
+    return "wallet";
+  }
+  if (t === "school_blog" || a.includes("school-blog") || a.includes("school_blog") || h.includes("school blog") || h.includes("blogger")) {
+    return "school_blog";
+  }
+  if (t === "dome" || t === "arena" || a.includes("school_dome") || a.includes("dome") || h.includes("school dome")) {
+    return "school_dome";
+  }
+  if (t === "gus" || t === "league" || a.includes("gus") || a.includes("league") || h.includes("result") || h.includes("tournament") || h.includes("competition")) {
+    return "competitions";
+  }
+  if (t === "announcement" || h.includes("announcement") || h.includes("broadcast")) {
+    return "announcements";
+  }
+  return "system";
+}
+function resolvePushDestinationUrl(actionUrl, category) {
+  const raw = String(actionUrl || "").trim();
+  let dest = raw;
+  if (!dest) {
+    switch (category) {
+      case "connections":
+        dest = "/community?tab=campus&view=connections";
+        break;
+      case "messages":
+        dest = "/community?tab=campus&view=connections";
+        break;
+      case "school_dome":
+        dest = "/school_dome";
+        break;
+      case "competitions":
+        dest = "/gus";
+        break;
+      case "school_blog":
+        dest = "/school-blog";
+        break;
+      case "wallet":
+        dest = "/wallet";
+        break;
+      default:
+        dest = "/home";
+        break;
+    }
+  }
+  const clean = dest.replace(/^#/, "");
+  return `/?push_dest=${encodeURIComponent(clean)}`;
+}
+function sanitizeNotificationPreview(text, maxLen = 150) {
+  let cleaned = String(text || "").replace(/\s+/g, " ").trim();
+  cleaned = cleaned.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email hidden]");
+  cleaned = cleaned.replace(/https?:\/\/wa\.me\/\S+/gi, "WhatsApp");
+  cleaned = cleaned.replace(/\+?\d[\d\s-]{8,}\d/g, "[number]");
+  if (cleaned.length > maxLen) {
+    return `${cleaned.slice(0, maxLen - 1).trim()}\u2026`;
+  }
+  return cleaned;
+}
+function sanitizeNotificationTitle(title, maxLen = 70) {
+  const cleaned = String(title || "Grobaax Update").replace(/\s+/g, " ").trim();
+  return cleaned.length > maxLen ? `${cleaned.slice(0, maxLen - 1).trim()}\u2026` : cleaned;
+}
+function normalizeCategories(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  return {
+    connections: src.connections !== false,
+    messages: src.messages !== false,
+    announcements: src.announcements !== false,
+    school_dome: src.school_dome !== false,
+    competitions: src.competitions !== false,
+    school_blog: src.school_blog !== false,
+    wallet: src.wallet !== false,
+    system: src.system !== false
+  };
+}
+function mergeLegacyPrefsIntoCategories(legacy, categories2) {
+  if (!legacy || typeof legacy !== "object") return categories2;
+  return {
+    ...categories2,
+    school_dome: legacy.matchAlerts === false ? false : categories2.school_dome,
+    competitions: legacy.gusAlerts === false || legacy.gusReminders === false ? false : categories2.competitions,
+    wallet: legacy.walletAlerts === false || legacy.walletTransactions === false ? false : categories2.wallet,
+    connections: legacy.communityMentions === false ? false : categories2.connections,
+    announcements: legacy.adminBroadcasts === false ? false : categories2.announcements
+  };
+}
+async function getUserPushPreferences(userId) {
+  const [{ data: prefRow }, { data: userRow }] = await Promise.all([
+    supabaseAdmin.from("push_notification_preferences").select("user_id, push_enabled, categories, updated_at").eq("user_id", userId).maybeSingle(),
+    supabaseAdmin.from("users").select("id, data").eq("id", userId).maybeSingle()
+  ]);
+  const legacy = userRow?.data?.notificationPreferences;
+  if (prefRow) {
+    return {
+      userId,
+      pushEnabled: prefRow.push_enabled !== false,
+      categories: normalizeCategories(prefRow.categories),
+      updatedAt: prefRow.updated_at || (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  const pushEnabled = legacy && typeof legacy === "object" ? legacy.enablePush !== false && legacy.pushEnabled !== false : true;
+  return {
+    userId,
+    pushEnabled,
+    categories: mergeLegacyPrefsIntoCategories(legacy, { ...DEFAULT_PUSH_CATEGORIES }),
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+async function updateUserPushPreferences(userId, patch) {
+  const current = await getUserPushPreferences(userId);
+  const nextPushEnabled = typeof patch.pushEnabled === "boolean" ? patch.pushEnabled : current.pushEnabled;
+  const nextCategories = normalizeCategories({
+    ...current.categories,
+    ...patch.categories || {}
+  });
+  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+  await supabaseAdmin.from("push_notification_preferences").upsert(
+    {
+      user_id: userId,
+      push_enabled: nextPushEnabled,
+      categories: nextCategories,
+      updated_at: nowIso
+    },
+    { onConflict: "user_id" }
+  );
+  try {
+    const { data: userRow } = await supabaseAdmin.from("users").select("id, data").eq("id", userId).maybeSingle();
+    if (userRow?.data) {
+      const existingLegacy = userRow.data.notificationPreferences && typeof userRow.data.notificationPreferences === "object" ? userRow.data.notificationPreferences : {};
+      await supabaseAdmin.from("users").update({
+        data: {
+          ...userRow.data,
+          notificationPreferences: {
+            ...existingLegacy,
+            enablePush: nextPushEnabled,
+            pushEnabled: nextPushEnabled,
+            matchAlerts: nextCategories.school_dome,
+            gusAlerts: nextCategories.competitions,
+            gusReminders: nextCategories.competitions,
+            walletAlerts: nextCategories.wallet,
+            walletTransactions: nextCategories.wallet,
+            communityMentions: nextCategories.connections,
+            adminBroadcasts: nextCategories.announcements
+          },
+          updatedAt: nowIso
+        },
+        updated_at: nowIso
+      }).eq("id", userId);
+    }
+  } catch (syncErr) {
+    console.warn("[PushService] Preference mirror notice:", syncErr?.message || syncErr);
+  }
+  return {
+    userId,
+    pushEnabled: nextPushEnabled,
+    categories: nextCategories,
+    updatedAt: nowIso
+  };
+}
+async function registerUserPushDevice(params) {
+  const token = String(params.token || "").trim();
+  if (!token || token.length < 20 || token.length > 4096) {
+    throw new Error("Invalid FCM device registration token.");
+  }
+  const platform = params.platform === "web_android" || params.platform === "web_ios" || params.platform === "web_desktop" ? params.platform : "web_desktop";
+  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+  const { data, error } = await supabaseAdmin.from("push_device_tokens").upsert(
+    {
+      user_id: params.userId,
+      token,
+      platform,
+      browser: String(params.browser || "Browser").slice(0, 80),
+      device_label: String(params.deviceLabel || "Web Device").slice(0, 120),
+      user_agent: String(params.userAgent || "").slice(0, 400),
+      is_standalone: Boolean(params.isStandalone),
+      is_active: true,
+      failed_count: 0,
+      last_error: null,
+      last_seen_at: nowIso,
+      updated_at: nowIso
+    },
+    { onConflict: "token" }
+  ).select("id, user_id, platform, browser, device_label, is_standalone, is_active, last_seen_at, created_at").single();
+  if (error) {
+    throw new Error(error.message || "Failed to save push device token.");
+  }
+  await supabaseAdmin.from("push_notification_preferences").upsert(
+    {
+      user_id: params.userId,
+      push_enabled: true,
+      categories: DEFAULT_PUSH_CATEGORIES,
+      updated_at: nowIso
+    },
+    { onConflict: "user_id", ignoreDuplicates: true }
+  );
+  return {
+    id: data.id,
+    userId: data.user_id,
+    platform: data.platform,
+    browser: data.browser,
+    deviceLabel: data.device_label,
+    isStandalone: Boolean(data.is_standalone),
+    isActive: Boolean(data.is_active),
+    lastSeenAt: data.last_seen_at,
+    createdAt: data.created_at
+  };
+}
+async function listUserPushDevices(userId, currentToken) {
+  const { data, error } = await supabaseAdmin.from("push_device_tokens").select("id, token, platform, browser, device_label, is_standalone, is_active, failed_count, last_error, last_seen_at, created_at").eq("user_id", userId).order("last_seen_at", { ascending: false }).limit(30);
+  if (error) {
+    throw new Error(error.message || "Failed to fetch registered devices.");
+  }
+  const trimmedCurrent = String(currentToken || "").trim();
+  return (data || []).filter((d) => d.is_active !== false).map((d) => ({
+    id: d.id,
+    platform: d.platform,
+    browser: d.browser,
+    deviceLabel: d.device_label,
+    isStandalone: Boolean(d.is_standalone),
+    isCurrentDevice: Boolean(trimmedCurrent && d.token === trimmedCurrent),
+    tokenSuffix: typeof d.token === "string" && d.token.length > 10 ? `\u2026${d.token.slice(-8)}` : "",
+    lastSeenAt: d.last_seen_at,
+    createdAt: d.created_at
+  }));
+}
+async function removeUserPushDevice(userId, deviceId) {
+  const { error, count } = await supabaseAdmin.from("push_device_tokens").delete({ count: "exact" }).eq("id", deviceId).eq("user_id", userId);
+  if (error) {
+    throw new Error(error.message || "Failed to remove device.");
+  }
+  return Number(count || 0) > 0;
+}
+async function unregisterUserPushDeviceByToken(userId, token) {
+  const clean = String(token || "").trim();
+  if (!clean) return false;
+  const { error, count } = await supabaseAdmin.from("push_device_tokens").delete({ count: "exact" }).eq("token", clean).eq("user_id", userId);
+  if (error) {
+    throw new Error(error.message || "Failed to unregister token.");
+  }
+  return Number(count || 0) > 0;
+}
+function isUserActiveRow(rawUser) {
+  if (!rawUser || typeof rawUser !== "object") return false;
+  if (rawUser.isDeleted === true || rawUser.isBot === true || rawUser.isFlagged === true) return false;
+  const status = String(rawUser.accountStatus || "active").toLowerCase().trim();
+  return !SUSPENDED_USER_STATUSES.has(status);
+}
+function userMatchesTargetRole(userId, rawUser, targetRole) {
+  const roleTarget = String(targetRole || "ALL").trim();
+  if (!roleTarget || roleTarget.toUpperCase() === "ALL") return true;
+  const uRole = String(rawUser?.role || "student").toLowerCase().trim();
+  if (roleTarget === "admin") {
+    return uRole === "admin" || uRole === "super_admin" || uRole === "moderator" || uRole === "manager" || Boolean(rawUser?.isAdmin || rawUser?.isSuperAdmin || rawUser?.managerRole) || isSuperAdmin(userId, rawUser?.email) || isPrimarySuperAdmin(userId, rawUser?.email);
+  }
+  if (roleTarget === "representative") {
+    return Boolean(rawUser?.isRepresentative || uRole === "representative");
+  }
+  if (roleTarget === "student") {
+    return uRole === "student" || !rawUser?.isAdmin && !rawUser?.isSuperAdmin;
+  }
+  return uRole === roleTarget.toLowerCase();
+}
+async function claimDeliveryDedupe(dedupeKey, eventType, category, recipientKey, notificationId) {
+  if (!dedupeKey) return true;
+  const now = Date.now();
+  if (recentDedupeMemoryCache.size > 2e3) {
+    for (const [k, exp] of recentDedupeMemoryCache.entries()) {
+      if (exp <= now) recentDedupeMemoryCache.delete(k);
+    }
+  }
+  const existingMem = recentDedupeMemoryCache.get(dedupeKey);
+  if (existingMem && existingMem > now) {
+    return false;
+  }
+  recentDedupeMemoryCache.set(dedupeKey, now + 10 * 60 * 1e3);
+  try {
+    const { error } = await supabaseAdmin.from("push_delivery_logs").insert({
+      dedupe_key: dedupeKey,
+      notification_id: notificationId || null,
+      event_type: eventType,
+      category,
+      recipient_user_id: recipientKey,
+      status: "pending"
+    });
+    if (error) {
+      if (error.code === "23505") {
+        return false;
+      }
+    }
+  } catch {
+  }
+  return true;
+}
+async function updateDeliveryLog(dedupeKey, patch) {
+  if (!dedupeKey) return;
+  try {
+    await supabaseAdmin.from("push_delivery_logs").update({
+      status: patch.status,
+      sent_count: patch.sentCount ?? 0,
+      failed_count: patch.failedCount ?? 0,
+      error_code: patch.errorCode || null
+    }).eq("dedupe_key", dedupeKey);
+  } catch {
+  }
+}
+async function dispatchExternalPush(params) {
+  const category = params.category || resolvePushCategory(params.eventType, params.actionUrl, params.title);
+  const title = sanitizeNotificationTitle(params.title);
+  const body = sanitizeNotificationPreview(params.body);
+  const destinationUrl = resolvePushDestinationUrl(params.actionUrl, category);
+  const recipientKey = params.recipientUserId || (params.recipientUserIds?.length ? "multi" : `role:${params.targetRole || "ALL"}`);
+  const normalizedDedupeKey = params.dedupeKey ? `${params.dedupeKey}:${recipientKey}` : void 0;
+  const canProceed = await claimDeliveryDedupe(
+    normalizedDedupeKey,
+    params.eventType,
+    category,
+    recipientKey,
+    params.notificationId
+  );
+  if (!canProceed) {
+    return {
+      success: true,
+      configured: getPushConfigurationStatus().serverDeliveryConfigured,
+      status: "skipped",
+      eligibleUsers: 0,
+      targetedDevices: 0,
+      sentCount: 0,
+      failedCount: 0,
+      deactivatedTokens: 0,
+      reason: "Duplicate push prevented"
+    };
+  }
+  try {
+    let tokenQuery = supabaseAdmin.from("push_device_tokens").select("id, user_id, token, platform, failed_count").eq("is_active", true);
+    if (params.recipientUserId) {
+      tokenQuery = tokenQuery.eq("user_id", params.recipientUserId);
+    } else if (Array.isArray(params.recipientUserIds) && params.recipientUserIds.length > 0) {
+      tokenQuery = tokenQuery.in("user_id", params.recipientUserIds);
+    }
+    const { data: tokenRows, error: tokenErr } = await tokenQuery.limit(5e3);
+    if (tokenErr) {
+      await updateDeliveryLog(normalizedDedupeKey, { status: "failed", errorCode: tokenErr.message });
+      return {
+        success: false,
+        configured: false,
+        status: "failed",
+        eligibleUsers: 0,
+        targetedDevices: 0,
+        sentCount: 0,
+        failedCount: 0,
+        deactivatedTokens: 0,
+        reason: tokenErr.message
+      };
+    }
+    const rawTokens = (tokenRows || []).filter(
+      (r) => r.token && (!params.excludeUserId || r.user_id !== params.excludeUserId)
+    );
+    if (rawTokens.length === 0) {
+      const serverConfigured = Boolean(getFirebaseAdminMessaging());
+      await updateDeliveryLog(normalizedDedupeKey, {
+        status: serverConfigured ? "skipped" : "unconfigured",
+        errorCode: serverConfigured ? "NO_ACTIVE_DEVICES" : "FCM_UNCONFIGURED"
+      });
+      return {
+        success: true,
+        configured: serverConfigured,
+        status: "skipped",
+        eligibleUsers: 0,
+        targetedDevices: 0,
+        sentCount: 0,
+        failedCount: 0,
+        deactivatedTokens: 0,
+        reason: "No active registered devices for target audience"
+      };
+    }
+    const candidateUserIds = Array.from(new Set(rawTokens.map((t) => String(t.user_id))));
+    const userMap = /* @__PURE__ */ new Map();
+    const prefMap = /* @__PURE__ */ new Map();
+    for (let i = 0; i < candidateUserIds.length; i += 150) {
+      const slice = candidateUserIds.slice(i, i + 150);
+      const [{ data: uRows }, { data: pRows }] = await Promise.all([
+        supabaseAdmin.from("users").select("id, data").in("id", slice),
+        supabaseAdmin.from("push_notification_preferences").select("user_id, push_enabled, categories").in("user_id", slice)
+      ]);
+      for (const u of uRows || []) userMap.set(u.id, u.data);
+      for (const p of pRows || []) {
+        prefMap.set(p.user_id, {
+          pushEnabled: p.push_enabled !== false,
+          categories: normalizeCategories(p.categories)
+        });
+      }
+    }
+    const eligibleUserIds = /* @__PURE__ */ new Set();
+    for (const uid of candidateUserIds) {
+      const uData = userMap.get(uid);
+      if (uData && !isUserActiveRow(uData)) continue;
+      if (!params.recipientUserId && !params.recipientUserIds?.length) {
+        if (!userMatchesTargetRole(uid, uData || {}, params.targetRole)) continue;
+      }
+      const explicitPref = prefMap.get(uid);
+      const legacyPref = uData?.notificationPreferences;
+      const pushEnabled = explicitPref ? explicitPref.pushEnabled : legacyPref ? legacyPref.enablePush !== false && legacyPref.pushEnabled !== false : true;
+      if (!pushEnabled) continue;
+      const effectiveCats = explicitPref ? explicitPref.categories : mergeLegacyPrefsIntoCategories(legacyPref, { ...DEFAULT_PUSH_CATEGORIES });
+      if (effectiveCats[category] === false) continue;
+      eligibleUserIds.add(uid);
+    }
+    const eligibleTokens = rawTokens.filter((t) => eligibleUserIds.has(String(t.user_id)));
+    if (eligibleTokens.length === 0) {
+      const serverConfigured = Boolean(getFirebaseAdminMessaging());
+      await updateDeliveryLog(normalizedDedupeKey, {
+        status: "skipped",
+        errorCode: "PREFERENCES_OR_AUDIENCE_FILTERED"
+      });
+      return {
+        success: true,
+        configured: serverConfigured,
+        status: "skipped",
+        eligibleUsers: 0,
+        targetedDevices: 0,
+        sentCount: 0,
+        failedCount: 0,
+        deactivatedTokens: 0,
+        reason: "Filtered out by recipient preferences or audience role"
+      };
+    }
+    const messaging = getFirebaseAdminMessaging();
+    if (!messaging) {
+      await updateDeliveryLog(normalizedDedupeKey, {
+        status: "unconfigured",
+        errorCode: "MISSING_FIREBASE_SERVICE_ACCOUNT"
+      });
+      return {
+        success: true,
+        configured: false,
+        status: "unconfigured",
+        eligibleUsers: eligibleUserIds.size,
+        targetedDevices: eligibleTokens.length,
+        sentCount: 0,
+        failedCount: 0,
+        deactivatedTokens: 0,
+        reason: firebaseAdminCredentialError || "Firebase Admin service account credentials are not configured on the server."
+      };
+    }
+    let sentCount = 0;
+    let failedCount = 0;
+    let deactivatedTokens = 0;
+    let lastErrorCode = null;
+    const tag = `grobaax-${category}-${params.notificationId || Date.now()}`;
+    for (let i = 0; i < eligibleTokens.length; i += 500) {
+      const batch = eligibleTokens.slice(i, i + 500);
+      const tokenStrings = batch.map((b) => String(b.token));
+      const response = await messaging.sendEachForMulticast({
+        tokens: tokenStrings,
+        notification: {
+          title,
+          body
+        },
+        data: {
+          title,
+          body,
+          url: destinationUrl,
+          destination: String(params.actionUrl || ""),
+          category,
+          eventType: params.eventType,
+          notificationId: String(params.notificationId || ""),
+          icon: "/pwa-192x192.png",
+          badge: "/favicon.png",
+          tag,
+          ...params.data || {}
+        },
+        webpush: {
+          headers: {
+            Urgency: category === "school_dome" || category === "connections" ? "high" : "normal"
+          },
+          notification: {
+            title,
+            body,
+            icon: "/pwa-192x192.png",
+            badge: "/favicon.png",
+            tag,
+            renotify: false
+          },
+          fcmOptions: {
+            link: destinationUrl
+          }
+        }
+      });
+      sentCount += response.successCount;
+      failedCount += response.failureCount;
+      const invalidIds = [];
+      const softFailUpdates = [];
+      response.responses.forEach((r, idx) => {
+        if (!r.success && r.error) {
+          const code = String(r.error.code || r.error.message || "UNKNOWN_FCM_ERROR");
+          lastErrorCode = code;
+          const row = batch[idx];
+          if (INVALID_FCM_TOKEN_CODES.has(code) || code.includes("not-registered") || code.includes("UNREGISTERED")) {
+            invalidIds.push(row.id);
+          } else {
+            softFailUpdates.push({
+              id: row.id,
+              code,
+              prevCount: Number(row.failed_count || 0)
+            });
+          }
+        }
+      });
+      if (invalidIds.length > 0) {
+        deactivatedTokens += invalidIds.length;
+        await supabaseAdmin.from("push_device_tokens").update({
+          is_active: false,
+          last_error: "UNREGISTERED_TOKEN",
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        }).in("id", invalidIds);
+      }
+      if (softFailUpdates.length > 0) {
+        await Promise.all(
+          softFailUpdates.map(
+            (sf) => supabaseAdmin.from("push_device_tokens").update({
+              failed_count: sf.prevCount + 1,
+              last_error: sf.code.slice(0, 180),
+              is_active: sf.prevCount + 1 < 5,
+              updated_at: (/* @__PURE__ */ new Date()).toISOString()
+            }).eq("id", sf.id)
+          )
+        );
+      }
+    }
+    const finalStatus = sentCount > 0 && failedCount === 0 ? "sent" : sentCount > 0 ? "partial" : "failed";
+    await updateDeliveryLog(normalizedDedupeKey, {
+      status: finalStatus,
+      sentCount,
+      failedCount,
+      errorCode: lastErrorCode
+    });
+    return {
+      success: sentCount > 0 || failedCount === 0,
+      configured: true,
+      status: finalStatus,
+      eligibleUsers: eligibleUserIds.size,
+      targetedDevices: eligibleTokens.length,
+      sentCount,
+      failedCount,
+      deactivatedTokens,
+      reason: lastErrorCode || void 0
+    };
+  } catch (err) {
+    console.warn("[PushService] dispatchExternalPush exception:", err?.message || err);
+    await updateDeliveryLog(normalizedDedupeKey, {
+      status: "failed",
+      errorCode: String(err?.message || "EXCEPTION").slice(0, 180)
+    });
+    return {
+      success: false,
+      configured: Boolean(getFirebaseAdminMessaging()),
+      status: "failed",
+      eligibleUsers: 0,
+      targetedDevices: 0,
+      sentCount: 0,
+      failedCount: 0,
+      deactivatedTokens: 0,
+      reason: err?.message || "Push dispatch failed"
+    };
+  }
+}
+
+// server/campusRouter.ts
+var campusRouter = Router5();
+var SUSPENDED_STATUSES = /* @__PURE__ */ new Set([
+  "suspended",
+  "deleted",
+  "banned",
+  "disabled",
+  "inactive",
+  "flagged",
+  "restricted",
+  "bot"
+]);
+function isUserAccountActive(rawUser) {
+  if (!rawUser || typeof rawUser !== "object") return false;
+  if (rawUser.isDeleted === true) return false;
+  if (rawUser.isSuspicious === true) return false;
+  if (rawUser.isDuplicateAccount === true) return false;
+  if (rawUser.isBot === true) return false;
+  if (rawUser.isArtificial === true) return false;
+  if (rawUser.isFlagged === true) return false;
+  const st = String(rawUser.accountStatus || "active").toLowerCase().trim();
+  return !SUSPENDED_STATUSES.has(st);
+}
+async function computeFollowCounts(targetUserId, viewerUserId) {
+  const [{ data: followersRows }, { data: followingRows }, { data: myFollowRow }] = await Promise.all([
+    supabaseAdmin.from("campus_follows").select("follower_user_id").eq("following_user_id", targetUserId).neq("follower_user_id", targetUserId),
+    supabaseAdmin.from("campus_follows").select("following_user_id").eq("follower_user_id", targetUserId).neq("following_user_id", targetUserId),
+    viewerUserId && viewerUserId !== targetUserId ? supabaseAdmin.from("campus_follows").select("id").eq("follower_user_id", viewerUserId).eq("following_user_id", targetUserId).maybeSingle() : Promise.resolve({ data: null })
+  ]);
+  const candidateIds = Array.from(
+    /* @__PURE__ */ new Set([
+      ...(followersRows || []).map((r) => r.follower_user_id),
+      ...(followingRows || []).map((r) => r.following_user_id)
+    ])
+  ).filter(Boolean);
+  const activeUsersById = /* @__PURE__ */ new Map();
+  if (candidateIds.length > 0) {
+    for (let i = 0; i < candidateIds.length; i += 150) {
+      const slice = candidateIds.slice(i, i + 150);
+      const { data: uRows } = await supabaseAdmin.from("users").select("id, data").in("id", slice);
+      for (const u of uRows || []) {
+        if (isUserAccountActive(u.data)) {
+          activeUsersById.set(u.id, u.data);
+        }
+      }
+    }
+  }
+  const uniqueGenuineFollowerKeys = /* @__PURE__ */ new Set();
+  for (const r of followersRows || []) {
+    const fid = r.follower_user_id;
+    const uData = activeUsersById.get(fid);
+    if (!uData) continue;
+    const normEmail = String(uData.email || "").trim().toLowerCase();
+    uniqueGenuineFollowerKeys.add(normEmail || fid);
+  }
+  const followersCount = uniqueGenuineFollowerKeys.size;
+  const followingCount = new Set(
+    (followingRows || []).map((r) => r.following_user_id).filter((id) => activeUsersById.has(id))
+  ).size;
+  return {
+    followersCount,
+    followingCount,
+    isFollowing: Boolean(myFollowRow)
+  };
+}
 var membershipsCache = /* @__PURE__ */ new Map();
 var connectionRequestsCache = /* @__PURE__ */ new Map();
 function formatWhatsAppNumber(phone) {
@@ -15449,9 +21330,196 @@ function getUserTier2(user) {
   }
   return "free";
 }
+async function syncStudentSkills(params) {
+  const { data: catRows } = await supabaseAdmin.from("campus_skill_categories").select("id, slug, name, is_active").eq("is_active", true);
+  const catalog = catRows && catRows.length > 0 ? catRows : DEFAULT_CAMPUS_SKILL_CATEGORIES.map((s) => ({
+    id: s.id,
+    slug: s.slug,
+    name: s.name,
+    is_active: s.isActive
+  }));
+  const requestedIds = Array.isArray(params.skillIds) ? params.skillIds : [];
+  const requestedNames = Array.isArray(params.skills) ? params.skills : [];
+  const matched = /* @__PURE__ */ new Map();
+  for (const rawId of requestedIds) {
+    const found = catalog.find(
+      (c) => c.id === rawId || c.slug === rawId || c.name.toLowerCase() === String(rawId).toLowerCase()
+    );
+    if (found) matched.set(found.id, found.name);
+  }
+  for (const rawName of requestedNames) {
+    const found = catalog.find(
+      (c) => c.name.toLowerCase() === String(rawName).trim().toLowerCase() || c.id === rawName || c.slug === rawName
+    );
+    if (found) matched.set(found.id, found.name);
+  }
+  const finalIds = Array.from(matched.keys());
+  const finalNames = Array.from(matched.values());
+  await supabaseAdmin.from("student_skills").delete().eq("user_id", params.userId);
+  if (finalIds.length > 0) {
+    const rows = finalIds.map((skillId) => ({
+      user_id: params.userId,
+      skill_id: skillId,
+      skill_name: matched.get(skillId) || skillId,
+      institution_id: params.institutionId || null,
+      institution_name: params.institutionName || null
+    }));
+    await supabaseAdmin.from("student_skills").insert(rows);
+  }
+  try {
+    const { data: memRow } = await supabaseAdmin.from("campus_memberships").select("id, data").eq("id", params.userId).maybeSingle();
+    if (memRow?.data) {
+      await supabaseAdmin.from("campus_memberships").upsert(
+        {
+          id: params.userId,
+          data: {
+            ...memRow.data,
+            skills: finalNames,
+            skillIds: finalIds,
+            updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+          },
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        { onConflict: "id" }
+      );
+    }
+  } catch {
+  }
+  try {
+    const { data: userRow } = await supabaseAdmin.from("users").select("id, data").eq("id", params.userId).maybeSingle();
+    if (userRow?.data) {
+      await supabaseAdmin.from("users").upsert(
+        {
+          id: params.userId,
+          data: {
+            ...userRow.data,
+            skills: finalNames,
+            skillIds: finalIds,
+            updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+          },
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        { onConflict: "id" }
+      );
+    }
+  } catch {
+  }
+  return { skillIds: finalIds, skills: finalNames };
+}
+campusRouter.get("/skills/categories", async (_req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin.from("campus_skill_categories").select("*").eq("is_active", true).order("sort_order", { ascending: true });
+    if (error || !data || data.length === 0) {
+      return res.json({ success: true, categories: DEFAULT_CAMPUS_SKILL_CATEGORIES });
+    }
+    const categories2 = data.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      groupName: row.group_name || "General Skills",
+      icon: row.icon || "\u2728",
+      isActive: Boolean(row.is_active),
+      sortOrder: Number(row.sort_order || 0)
+    }));
+    return res.json({ success: true, categories: categories2 });
+  } catch (err) {
+    return res.json({ success: true, categories: DEFAULT_CAMPUS_SKILL_CATEGORIES });
+  }
+});
+campusRouter.post("/skills/categories", requireAdmin, async (req, res) => {
+  try {
+    const { name, groupName, icon, sortOrder } = req.body || {};
+    if (!name || String(name).trim().length < 2) {
+      return res.status(400).json({ success: false, error: "Skill name is required." });
+    }
+    const cleanName = String(name).trim();
+    const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const id = `skill_${slug.replace(/-/g, "_")}`;
+    const { data, error } = await supabaseAdmin.from("campus_skill_categories").upsert(
+      {
+        id,
+        slug,
+        name: cleanName,
+        group_name: String(groupName || "General Skills").trim(),
+        icon: String(icon || "\u2728").trim(),
+        is_active: true,
+        sort_order: Number(sortOrder) || 300
+      },
+      { onConflict: "slug" }
+    ).select("*").single();
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.json({
+      success: true,
+      category: {
+        id: data.id,
+        slug: data.slug,
+        name: data.name,
+        groupName: data.group_name,
+        icon: data.icon,
+        isActive: data.is_active,
+        sortOrder: data.sort_order
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+campusRouter.get("/skills/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { data } = await supabaseAdmin.from("student_skills").select("skill_id, skill_name").eq("user_id", userId);
+    const skillIds = (data || []).map((r) => r.skill_id);
+    const skills = (data || []).map((r) => r.skill_name);
+    return res.json({ success: true, skillIds, skills });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+campusRouter.put("/skills", requireAuth, async (req, res) => {
+  try {
+    const authUser = req.authUser;
+    const { skillIds, skills } = req.body || {};
+    const synced = await syncStudentSkills({
+      userId: authUser.id,
+      skillIds: Array.isArray(skillIds) ? skillIds : [],
+      skills: Array.isArray(skills) ? skills : [],
+      institutionId: authUser.institutionId,
+      institutionName: authUser.institutionName
+    });
+    const cachedMem = membershipsCache.get(authUser.id);
+    if (cachedMem) {
+      cachedMem.skills = synced.skills;
+      cachedMem.skillIds = synced.skillIds;
+      cachedMem.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      membershipsCache.set(authUser.id, cachedMem);
+    }
+    return res.json({
+      success: true,
+      message: "Your Campus skills have been updated.",
+      skills: synced.skills,
+      skillIds: synced.skillIds
+    });
+  } catch (err) {
+    console.error("Error in PUT /api/campus/skills:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to update skills." });
+  }
+});
 campusRouter.post("/join", async (req, res) => {
   try {
-    const { userId, whatsappNumber, institution, faculty, department, level, institutionCategory } = req.body;
+    const {
+      userId,
+      whatsappNumber,
+      institution,
+      institutionId,
+      faculty,
+      department,
+      level,
+      institutionCategory,
+      skillIds,
+      skills
+    } = req.body;
     if (!userId || !whatsappNumber || !institution) {
       return res.status(400).json({
         success: false,
@@ -15466,16 +21534,38 @@ campusRouter.post("/join", async (req, res) => {
         error: "Please provide a valid WhatsApp phone number (10 to 15 digits)."
       });
     }
+    const canonical = await resolveCanonicalInstitution({
+      institutionId,
+      institutionName: institution,
+      category: institutionCategory
+    });
+    let syncedSkills = { skillIds: [], skills: [] };
+    if (Array.isArray(skillIds) && skillIds.length > 0 || Array.isArray(skills) && skills.length > 0) {
+      try {
+        syncedSkills = await syncStudentSkills({
+          userId,
+          skillIds,
+          skills,
+          institutionId: canonical?.institutionId || institutionId,
+          institutionName: canonical?.institutionName || institution.trim()
+        });
+      } catch (skErr) {
+        console.warn("Notice syncing initial join skills:", skErr);
+      }
+    }
     const membershipData = {
       id: userId,
       userId,
-      institution: institution.trim(),
-      institutionCategory: institutionCategory || "University",
+      institution: canonical?.institutionName || institution.trim(),
+      institutionId: canonical?.institutionId || institutionId || "",
+      institutionCategory: canonical?.category || institutionCategory || "University",
       faculty: (faculty || "").trim(),
       department: (department || "").trim(),
       level: (level || "").trim(),
       whatsappNumber: formattedNumber,
       whatsappVerified: true,
+      skills: syncedSkills.skills,
+      skillIds: syncedSkills.skillIds,
       joinedAt: (/* @__PURE__ */ new Date()).toISOString(),
       updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
       status: "active",
@@ -15564,9 +21654,10 @@ campusRouter.put("/whatsapp-number", async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
-campusRouter.get("/students", async (req, res) => {
+campusRouter.get("/students", optionalAuth, async (req, res) => {
   try {
-    const { institution, faculty, department, search, requestingUserId } = req.query;
+    const { institution, faculty, department, skill, search, requestingUserId } = req.query;
+    const effectiveViewerId = req.authUser?.id || requestingUserId || "";
     if (!institution) {
       return res.status(400).json({
         success: false,
@@ -15574,48 +21665,29 @@ campusRouter.get("/students", async (req, res) => {
       });
     }
     const targetInstitution = institution.trim().toLowerCase();
+    const targetSkill = (skill || "").trim().toLowerCase();
     const studentsMap = /* @__PURE__ */ new Map();
+    const userSkillsMap = /* @__PURE__ */ new Map();
+    try {
+      const { data: skillRows } = await supabaseAdmin.from("student_skills").select("user_id, skill_id, skill_name");
+      for (const row of skillRows || []) {
+        const entry = userSkillsMap.get(row.user_id) || { skills: [], skillIds: [] };
+        if (!entry.skills.includes(row.skill_name)) entry.skills.push(row.skill_name);
+        if (!entry.skillIds.includes(row.skill_id)) entry.skillIds.push(row.skill_id);
+        userSkillsMap.set(row.user_id, entry);
+      }
+    } catch {
+    }
+    const matchesSkillFilter = (skillsList, skillIdsList) => {
+      if (!targetSkill) return true;
+      return skillsList.some((sk) => sk.toLowerCase().includes(targetSkill) || targetSkill.includes(sk.toLowerCase())) || skillIdsList.some((sid) => sid.toLowerCase() === targetSkill);
+    };
+    const rawUsersMap = /* @__PURE__ */ new Map();
     try {
       const usersRef = collection(db, "users");
       const usersSnap = await getDocs(usersRef);
       usersSnap.forEach((docSnap) => {
-        const data = docSnap.data();
-        const userInst = (data.institution || data.institutionName || data.academicProfile?.institutionName || "").trim().toLowerCase();
-        if (userInst && (userInst === targetInstitution || userInst.includes(targetInstitution) || targetInstitution.includes(userInst))) {
-          const userFaculty = data.faculty || data.facultyName || data.academicProfile?.facultyName || data.academicProfile?.faculty || "";
-          const userDept = data.department || data.departmentName || data.academicProfile?.departmentName || data.academicProfile?.department || "";
-          const userLevel = data.level || data.academicProfile?.level || "100 Level";
-          const userName = data.name || data.fullName || data.username || "Scholar";
-          const userUsername = data.username ? data.username.startsWith("@") ? data.username : `@${data.username}` : "@scholar";
-          const userAvatar = data.avatar || data.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userName)}`;
-          const userTier = getUserTier2(data);
-          const matchesFaculty = !faculty || userFaculty.toLowerCase().includes(faculty.toLowerCase()) || faculty.toLowerCase().includes(userFaculty.toLowerCase());
-          const matchesDepartment = !department || userDept.toLowerCase().includes(department.toLowerCase()) || department.toLowerCase().includes(userDept.toLowerCase());
-          let matchesSearch = true;
-          if (search && search.trim()) {
-            const s = search.trim().toLowerCase();
-            matchesSearch = userName.toLowerCase().includes(s) || userUsername.toLowerCase().includes(s) || userDept.toLowerCase().includes(s) || userFaculty.toLowerCase().includes(s);
-          }
-          if (matchesFaculty && matchesDepartment && matchesSearch) {
-            const hasBlue = userTier === "premium" || userTier === "vip" || data.isVerified || data.hasBlueBadge || data.verifiedBadge;
-            studentsMap.set(docSnap.id, {
-              id: docSnap.id,
-              name: userName,
-              username: userUsername,
-              avatar: userAvatar,
-              institution: data.institution || data.institutionName || institution,
-              faculty: userFaculty,
-              department: userDept,
-              level: userLevel,
-              tier: userTier,
-              hasBlueBadge: hasBlue,
-              isVerified: hasBlue,
-              isOnline: true,
-              connectionStatus: docSnap.id === requestingUserId ? "self" : "none",
-              joinedCampus: true
-            });
-          }
-        }
+        rawUsersMap.set(docSnap.id, docSnap.data());
       });
     } catch (usersErr) {
       console.warn("Error reading users from Firestore:", usersErr);
@@ -15625,94 +21697,69 @@ campusRouter.get("/students", async (req, res) => {
       const memSnap = await getDocs(memRef);
       memSnap.forEach((docSnap) => {
         const data = docSnap.data();
-        const memInst = (data.institution || "").trim().toLowerCase();
+        const memberId = data.userId || docSnap.id;
+        if (!memberId || memberId.startsWith("scholar_peer_") || data.status === "suspended") {
+          return;
+        }
+        const rawUser = rawUsersMap.get(memberId);
+        if (rawUser && !isUserAccountActive(rawUser)) {
+          return;
+        }
+        const memInstRaw = (data.institution || rawUser?.institution || rawUser?.institutionName || rawUser?.academicProfile?.institutionName || "").trim();
+        const memInst = memInstRaw.toLowerCase();
         if (memInst && (memInst === targetInstitution || memInst.includes(targetInstitution) || targetInstitution.includes(memInst))) {
-          if (!studentsMap.has(data.userId)) {
-            const matchesFaculty = !faculty || data.faculty.toLowerCase().includes(faculty.toLowerCase()) || faculty.toLowerCase().includes(data.faculty.toLowerCase());
-            const matchesDepartment = !department || data.department.toLowerCase().includes(department.toLowerCase()) || department.toLowerCase().includes(data.department.toLowerCase());
-            let matchesSearch = true;
-            if (search && search.trim()) {
-              const s = search.trim().toLowerCase();
-              matchesSearch = data.department.toLowerCase().includes(s) || data.faculty.toLowerCase().includes(s);
-            }
-            if (matchesFaculty && matchesDepartment && matchesSearch) {
-              studentsMap.set(data.userId, {
-                id: data.userId,
-                name: "Grobaax Scholar",
-                username: `@scholar_${data.userId.substring(0, 5)}`,
-                avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(data.userId)}`,
-                institution: data.institution,
-                faculty: data.faculty,
-                department: data.department,
-                level: data.level || "100 Level",
-                tier: "free",
-                isOnline: true,
-                connectionStatus: data.userId === requestingUserId ? "self" : "none",
-                joinedCampus: true
-              });
-            }
+          const userFaculty = (data.faculty || rawUser?.faculty || rawUser?.facultyName || rawUser?.academicProfile?.facultyName || rawUser?.academicProfile?.faculty || "").trim();
+          const userDept = (data.department || rawUser?.department || rawUser?.departmentName || rawUser?.academicProfile?.departmentName || rawUser?.academicProfile?.department || "").trim();
+          const userLevel = data.level || rawUser?.level || rawUser?.academicProfile?.level || "100 Level";
+          const userName = rawUser?.name || rawUser?.fullName || rawUser?.username || "Scholar";
+          const userUsername = rawUser?.username ? rawUser.username.startsWith("@") ? rawUser.username : `@${rawUser.username}` : `@scholar_${memberId.substring(0, 5)}`;
+          const userAvatar = rawUser?.avatar || rawUser?.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userName || memberId)}`;
+          const userTier = rawUser ? getUserTier2(rawUser) : "free";
+          const relSkills = userSkillsMap.get(memberId);
+          const mSkills = relSkills?.skills?.length ? relSkills.skills : Array.isArray(data.skills) && data.skills.length > 0 ? data.skills : Array.isArray(rawUser?.skills) ? rawUser.skills : [];
+          const mSkillIds = relSkills?.skillIds?.length ? relSkills.skillIds : Array.isArray(data.skillIds) && data.skillIds.length > 0 ? data.skillIds : Array.isArray(rawUser?.skillIds) ? rawUser.skillIds : [];
+          const matchesFaculty = !faculty || userFaculty.length > 0 && (userFaculty.toLowerCase().includes(faculty.toLowerCase()) || faculty.toLowerCase().includes(userFaculty.toLowerCase()));
+          const matchesDepartment = !department || userDept.length > 0 && (userDept.toLowerCase().includes(department.toLowerCase()) || department.toLowerCase().includes(userDept.toLowerCase()));
+          const matchesSkill = matchesSkillFilter(mSkills, mSkillIds);
+          let matchesSearch = true;
+          if (search && search.trim()) {
+            const s = search.trim().toLowerCase();
+            matchesSearch = userName.toLowerCase().includes(s) || userUsername.toLowerCase().includes(s) || userDept.toLowerCase().includes(s) || userFaculty.toLowerCase().includes(s) || mSkills.some((sk) => sk.toLowerCase().includes(s));
+          }
+          if (matchesFaculty && matchesDepartment && matchesSkill && matchesSearch) {
+            const hasBlue = Boolean(
+              userTier === "premium" || userTier === "vip" || rawUser?.isVerified || rawUser?.hasBlueBadge || rawUser?.verifiedBadge
+            );
+            studentsMap.set(memberId, {
+              id: memberId,
+              name: userName,
+              username: userUsername,
+              avatar: userAvatar,
+              institution: memInstRaw || institution,
+              institutionId: data.institutionId || rawUser?.institutionId || rawUser?.academicProfile?.institutionId,
+              faculty: userFaculty,
+              department: userDept,
+              level: userLevel,
+              bio: rawUser?.bio || "",
+              skills: mSkills,
+              skillIds: mSkillIds,
+              tier: userTier,
+              hasBlueBadge: hasBlue,
+              isVerified: hasBlue,
+              isOnline: true,
+              connectionStatus: memberId === effectiveViewerId ? "self" : "none",
+              joinedCampus: true,
+              followersCount: 0,
+              followingCount: 0,
+              isFollowing: false
+            });
           }
         }
       });
     } catch (memErr) {
       console.warn("Error reading campus memberships:", memErr);
     }
-    if (department && studentsMap.size < 4) {
-      const sampleNames = [
-        { name: "John Abdul", tier: "premium", level: "300 Level", gender: "male", phone: "+2348031234567" },
-        { name: "Sarah Ibrahim", tier: "vip", level: "400 Level", gender: "female", phone: "+2348029876543" },
-        { name: "David Musa", tier: "free", level: "200 Level", gender: "male", phone: "+2348145551234" },
-        { name: "Chinedu Eze", tier: "premium", level: "500 Level", gender: "male", phone: "+2348057778899" },
-        { name: "Fatima Bello", tier: "vip", level: "100 Level", gender: "female", phone: "+2348134443322" },
-        { name: "Emmanuel Okafor", tier: "free", level: "300 Level", gender: "male", phone: "+2348091112233" },
-        { name: "Aisha Mohammed", tier: "premium", level: "400 Level", gender: "female", phone: "+2348076665544" },
-        { name: "Oluwaseun Adeleke", tier: "vip", level: "200 Level", gender: "male", phone: "+2348162223344" }
-      ];
-      sampleNames.forEach((item, index) => {
-        const id = `scholar_peer_${institution.substring(0, 4).toLowerCase()}_${department.substring(0, 4).toLowerCase()}_${index + 1}`;
-        if (!studentsMap.has(id) && id !== requestingUserId) {
-          const username = `@${item.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
-          const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(item.name)}`;
-          let matchesSearch = true;
-          if (search && search.trim()) {
-            const s = search.trim().toLowerCase();
-            matchesSearch = item.name.toLowerCase().includes(s) || username.toLowerCase().includes(s) || department.toLowerCase().includes(s);
-          }
-          if (matchesSearch) {
-            studentsMap.set(id, {
-              id,
-              name: item.name,
-              username,
-              avatar,
-              institution,
-              faculty: faculty || "General Faculty",
-              department,
-              level: item.level,
-              tier: item.tier,
-              isOnline: true,
-              connectionStatus: "none",
-              joinedCampus: true
-            });
-            if (!membershipsCache.has(id)) {
-              membershipsCache.set(id, {
-                id,
-                userId: id,
-                institution,
-                faculty: faculty || "",
-                department,
-                level: item.level,
-                whatsappNumber: item.phone,
-                whatsappVerified: true,
-                joinedAt: (/* @__PURE__ */ new Date()).toISOString(),
-                updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-                status: "active"
-              });
-            }
-          }
-        }
-      });
-    }
-    if (requestingUserId) {
+    if (effectiveViewerId) {
       try {
         const reqRef = collection(db, "campus_connection_requests");
         const reqSnap = await getDocs(reqRef);
@@ -15743,7 +21790,7 @@ campusRouter.get("/students", async (req, res) => {
       } catch (reqErr) {
         console.warn("Error reading connection requests:", reqErr);
       }
-      connectionRequestsCache.forEach((reqData, reqId) => {
+      connectionRequestsCache.forEach((reqData) => {
         if (reqData.senderId === requestingUserId && studentsMap.has(reqData.recipientId)) {
           const student = studentsMap.get(reqData.recipientId);
           if (reqData.status === "PENDING") {
@@ -15767,6 +21814,46 @@ campusRouter.get("/students", async (req, res) => {
         }
       });
     }
+    const studentIds = Array.from(studentsMap.keys());
+    if (studentIds.length > 0) {
+      try {
+        const [{ data: followerEdges }, { data: followingEdges }] = await Promise.all([
+          supabaseAdmin.from("campus_follows").select("follower_user_id, following_user_id").in("following_user_id", studentIds),
+          supabaseAdmin.from("campus_follows").select("follower_user_id, following_user_id").in("follower_user_id", studentIds)
+        ]);
+        const isActiveCounterpart = (uid) => {
+          const u = rawUsersMap.get(uid);
+          return !u || isUserAccountActive(u);
+        };
+        const followersSets = /* @__PURE__ */ new Map();
+        const followingSets = /* @__PURE__ */ new Map();
+        const followedByViewer = /* @__PURE__ */ new Set();
+        for (const edge of followerEdges || []) {
+          if (edge.follower_user_id === edge.following_user_id) continue;
+          if (!isActiveCounterpart(edge.follower_user_id)) continue;
+          const s = followersSets.get(edge.following_user_id) || /* @__PURE__ */ new Set();
+          s.add(edge.follower_user_id);
+          followersSets.set(edge.following_user_id, s);
+          if (effectiveViewerId && edge.follower_user_id === effectiveViewerId) {
+            followedByViewer.add(edge.following_user_id);
+          }
+        }
+        for (const edge of followingEdges || []) {
+          if (edge.follower_user_id === edge.following_user_id) continue;
+          if (!isActiveCounterpart(edge.following_user_id)) continue;
+          const s = followingSets.get(edge.follower_user_id) || /* @__PURE__ */ new Set();
+          s.add(edge.following_user_id);
+          followingSets.set(edge.follower_user_id, s);
+        }
+        for (const [sid, card] of studentsMap.entries()) {
+          card.followersCount = followersSets.get(sid)?.size || 0;
+          card.followingCount = followingSets.get(sid)?.size || 0;
+          card.isFollowing = sid !== effectiveViewerId && followedByViewer.has(sid);
+        }
+      } catch (followErr) {
+        console.warn("Error enriching student follow counts:", followErr);
+      }
+    }
     const students = Array.from(studentsMap.values());
     return res.json({
       success: true,
@@ -15777,6 +21864,123 @@ campusRouter.get("/students", async (req, res) => {
   } catch (err) {
     console.error("Error in /api/campus/students:", err);
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+campusRouter.get("/students/:targetUserId", optionalAuth, async (req, res) => {
+  try {
+    const targetUserId = decodeURIComponent(req.params.targetUserId || "").trim();
+    const { requestingUserId } = req.query;
+    const effectiveViewerId = req.authUser?.id || requestingUserId || "";
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: "Target student user ID is required." });
+    }
+    const [{ data: userRow }, { data: memRow }, { data: skillRows }] = await Promise.all([
+      supabaseAdmin.from("users").select("id, data").eq("id", targetUserId).maybeSingle(),
+      supabaseAdmin.from("campus_memberships").select("id, data").eq("id", targetUserId).maybeSingle(),
+      supabaseAdmin.from("student_skills").select("skill_id, skill_name").eq("user_id", targetUserId)
+    ]);
+    let rawUser = userRow?.data || null;
+    if (!rawUser) {
+      try {
+        const uSnap = await getDoc(doc(db, "users", targetUserId));
+        if (uSnap.exists()) rawUser = uSnap.data();
+      } catch {
+      }
+    }
+    let memData = memRow?.data || null;
+    if (!memData) {
+      try {
+        const mSnap = await getDoc(doc(db, "campus_memberships", targetUserId));
+        if (mSnap.exists()) memData = mSnap.data();
+      } catch {
+      }
+    }
+    if (!rawUser && !memData) {
+      return res.status(404).json({ success: false, error: "Student profile not found." });
+    }
+    if (rawUser && !isUserAccountActive(rawUser)) {
+      return res.status(404).json({ success: false, error: "Student profile is unavailable." });
+    }
+    const userName = rawUser?.name || rawUser?.fullName || rawUser?.username || memData?.userName || "Scholar";
+    const userUsername = rawUser?.username ? rawUser.username.startsWith("@") ? rawUser.username : `@${rawUser.username}` : `@scholar_${targetUserId.substring(0, 5)}`;
+    const userAvatar = rawUser?.avatar || rawUser?.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userName || targetUserId)}`;
+    const userInstitution = (memData?.institution || rawUser?.institution || rawUser?.institutionName || rawUser?.academicProfile?.institutionName || "Grobaax Campus").trim();
+    const userFaculty = (memData?.faculty || rawUser?.faculty || rawUser?.facultyName || rawUser?.academicProfile?.facultyName || rawUser?.academicProfile?.faculty || "").trim();
+    const userDepartment = (memData?.department || rawUser?.department || rawUser?.departmentName || rawUser?.academicProfile?.departmentName || rawUser?.academicProfile?.department || "").trim();
+    const userLevel = memData?.level || rawUser?.level || rawUser?.academicProfile?.level || "Student";
+    const relSkillNames = Array.from(new Set((skillRows || []).map((r) => r.skill_name).filter(Boolean)));
+    const relSkillIds = Array.from(new Set((skillRows || []).map((r) => r.skill_id).filter(Boolean)));
+    const mSkills = relSkillNames.length ? relSkillNames : Array.isArray(memData?.skills) && memData.skills.length > 0 ? memData.skills : Array.isArray(rawUser?.skills) ? rawUser.skills : [];
+    const mSkillIds = relSkillIds.length ? relSkillIds : Array.isArray(memData?.skillIds) && memData.skillIds.length > 0 ? memData.skillIds : Array.isArray(rawUser?.skillIds) ? rawUser.skillIds : [];
+    const userTier = rawUser ? getUserTier2(rawUser) : "free";
+    const hasBlue = Boolean(
+      userTier === "premium" || userTier === "vip" || rawUser?.isVerified || rawUser?.hasBlueBadge || rawUser?.verifiedBadge
+    );
+    const followStats = await computeFollowCounts(targetUserId, effectiveViewerId || void 0);
+    let connectionStatus = effectiveViewerId && effectiveViewerId === targetUserId ? "self" : "none";
+    let requestId;
+    if (effectiveViewerId && effectiveViewerId !== targetUserId) {
+      try {
+        const reqSnap = await getDocs(collection(db, "campus_connection_requests"));
+        reqSnap.forEach((docSnap) => {
+          const reqData = docSnap.data();
+          if (reqData.senderId === effectiveViewerId && reqData.recipientId === targetUserId) {
+            if (reqData.status === "PENDING") connectionStatus = "pending_sent";
+            else if (reqData.status === "ACCEPTED") connectionStatus = "accepted";
+            else if (reqData.status === "REJECTED") connectionStatus = "rejected";
+            requestId = docSnap.id;
+          } else if (reqData.recipientId === effectiveViewerId && reqData.senderId === targetUserId) {
+            if (reqData.status === "PENDING") connectionStatus = "pending_received";
+            else if (reqData.status === "ACCEPTED") connectionStatus = "accepted";
+            else if (reqData.status === "REJECTED") connectionStatus = "none";
+            requestId = docSnap.id;
+          }
+        });
+      } catch (reqErr) {
+        console.warn("Error checking connection status for profile:", reqErr);
+      }
+      connectionRequestsCache.forEach((reqData) => {
+        if (reqData.senderId === effectiveViewerId && reqData.recipientId === targetUserId) {
+          if (reqData.status === "PENDING") connectionStatus = "pending_sent";
+          else if (reqData.status === "ACCEPTED") connectionStatus = "accepted";
+          else if (reqData.status === "REJECTED") connectionStatus = "rejected";
+          requestId = reqData.id;
+        } else if (reqData.recipientId === effectiveViewerId && reqData.senderId === targetUserId) {
+          if (reqData.status === "PENDING") connectionStatus = "pending_received";
+          else if (reqData.status === "ACCEPTED") connectionStatus = "accepted";
+          else if (reqData.status === "REJECTED") connectionStatus = "none";
+          requestId = reqData.id;
+        }
+      });
+    }
+    const student = {
+      id: targetUserId,
+      name: userName,
+      username: userUsername,
+      avatar: userAvatar,
+      institution: userInstitution,
+      institutionId: memData?.institutionId || rawUser?.institutionId || rawUser?.academicProfile?.institutionId,
+      faculty: userFaculty,
+      department: userDepartment,
+      level: userLevel,
+      bio: rawUser?.bio || "",
+      skills: mSkills,
+      skillIds: mSkillIds,
+      tier: userTier,
+      hasBlueBadge: hasBlue,
+      isVerified: hasBlue,
+      isOnline: true,
+      connectionStatus,
+      requestId,
+      joinedCampus: Boolean(memData),
+      followersCount: followStats.followersCount,
+      followingCount: followStats.followingCount,
+      isFollowing: effectiveViewerId && effectiveViewerId !== targetUserId ? followStats.isFollowing : false
+    };
+    return res.json({ success: true, student });
+  } catch (err) {
+    console.error("Error in GET /api/campus/students/:targetUserId:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to load student profile." });
   }
 });
 campusRouter.post("/request", async (req, res) => {
@@ -15875,6 +22079,16 @@ campusRouter.post("/request", async (req, res) => {
     }
     connectionRequestsCache.set(existingKey, newRequest);
     connectionRequestsCache.set(newRequest.id, newRequest);
+    void dispatchExternalPush({
+      eventType: "campus_connection_request",
+      category: "connections",
+      title: "New Connection Request",
+      body: `${newRequest.senderName} wants to connect with you on Grobaax.`,
+      actionUrl: "/community?tab=campus&view=connections",
+      dedupeKey: `campus_req_${newRequest.id}`,
+      recipientUserId: recipientId
+    }).catch(() => {
+    });
     return res.json({
       success: true,
       message: "Connection request sent successfully!",
@@ -15971,6 +22185,18 @@ campusRouter.post("/respond", async (req, res) => {
     connectionRequestsCache.set(actualDocId, requestObj);
     connectionRequestsCache.set(requestId, requestObj);
     connectionRequestsCache.set(`${requestObj.senderId}_${requestObj.recipientId}`, requestObj);
+    if (nextStatus === "ACCEPTED" && requestObj.senderId) {
+      void dispatchExternalPush({
+        eventType: "campus_connection_accepted",
+        category: "connections",
+        title: "Connection Request Accepted",
+        body: `${requestObj.recipientName} accepted your Campus connection request on Grobaax.`,
+        actionUrl: "/community?tab=campus&view=connections",
+        dedupeKey: `campus_accept_${actualDocId}`,
+        recipientUserId: requestObj.senderId
+      }).catch(() => {
+      });
+    }
     return res.json({
       success: true,
       status: nextStatus,
@@ -16128,11 +22354,2315 @@ campusRouter.post("/whatsapp-link", async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
+campusRouter.post("/follow", requireAuth, async (req, res) => {
+  try {
+    const viewer = req.authUser;
+    if (SUSPENDED_STATUSES.has(viewer.accountStatus)) {
+      return res.status(403).json({
+        success: false,
+        error: "Your account is currently restricted from following students."
+      });
+    }
+    const targetUserId = String(req.body?.targetUserId || "").trim();
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: "Target student user ID is required." });
+    }
+    if (targetUserId === viewer.id) {
+      return res.status(400).json({ success: false, error: "You cannot follow yourself." });
+    }
+    const [{ data: actorUserRow }, { data: targetUserRow }] = await Promise.all([
+      supabaseAdmin.from("users").select("id, data").eq("id", viewer.id).maybeSingle(),
+      supabaseAdmin.from("users").select("id, data").eq("id", targetUserId).maybeSingle()
+    ]);
+    if (!actorUserRow || !isUserAccountActive(actorUserRow.data)) {
+      return res.status(403).json({
+        success: false,
+        error: "Your account is restricted or ineligible to follow students."
+      });
+    }
+    if (!targetUserRow) {
+      return res.status(404).json({ success: false, error: "Target student account was not found." });
+    }
+    if (!isUserAccountActive(targetUserRow.data)) {
+      return res.status(403).json({
+        success: false,
+        error: "This student account is suspended or unavailable."
+      });
+    }
+    const actorEmail = String(actorUserRow.data?.email || viewer.email || "").trim().toLowerCase();
+    if (actorEmail) {
+      const { data: sameEmailUsers } = await supabaseAdmin.from("users").select("id").ilike("data->>email", actorEmail).limit(25);
+      const siblingIds = (sameEmailUsers || []).map((r) => r.id).filter((id) => id && id !== viewer.id);
+      if (siblingIds.length > 0) {
+        const { data: siblingFollow } = await supabaseAdmin.from("campus_follows").select("id").in("follower_user_id", siblingIds).eq("following_user_id", targetUserId).limit(1).maybeSingle();
+        if (siblingFollow) {
+          const counts2 = await computeFollowCounts(targetUserId, viewer.id);
+          return res.status(409).json({
+            success: false,
+            alreadyFollowing: true,
+            error: "Duplicate account follow detected and blocked.",
+            ...counts2
+          });
+        }
+      }
+    }
+    const { data: existingFollow } = await supabaseAdmin.from("campus_follows").select("id").eq("follower_user_id", viewer.id).eq("following_user_id", targetUserId).maybeSingle();
+    if (existingFollow) {
+      const counts2 = await computeFollowCounts(targetUserId, viewer.id);
+      return res.status(409).json({
+        success: false,
+        alreadyFollowing: true,
+        error: "You are already following this student.",
+        ...counts2
+      });
+    }
+    const { error: insertErr } = await supabaseAdmin.from("campus_follows").insert({
+      follower_user_id: viewer.id,
+      following_user_id: targetUserId
+    });
+    if (insertErr) {
+      if (insertErr.code === "23505") {
+        const counts2 = await computeFollowCounts(targetUserId, viewer.id);
+        return res.status(409).json({
+          success: false,
+          alreadyFollowing: true,
+          error: "You are already following this student.",
+          ...counts2
+        });
+      }
+      return res.status(500).json({ success: false, error: insertErr.message });
+    }
+    const counts = await computeFollowCounts(targetUserId, viewer.id);
+    return res.json({
+      success: true,
+      message: "Following student.",
+      targetUserId,
+      ...counts,
+      isFollowing: true
+    });
+  } catch (err) {
+    console.error("Error in POST /api/campus/follow:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to follow student." });
+  }
+});
+async function handleUnfollow(req, res, targetUserIdRaw) {
+  try {
+    const viewer = req.authUser;
+    const targetUserId = String(targetUserIdRaw || "").trim();
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: "Target student user ID is required." });
+    }
+    if (targetUserId === viewer.id) {
+      return res.status(400).json({ success: false, error: "Cannot unfollow yourself." });
+    }
+    const { error: delErr } = await supabaseAdmin.from("campus_follows").delete().eq("follower_user_id", viewer.id).eq("following_user_id", targetUserId);
+    if (delErr) {
+      return res.status(500).json({ success: false, error: delErr.message });
+    }
+    const counts = await computeFollowCounts(targetUserId, viewer.id);
+    return res.json({
+      success: true,
+      message: "Unfollowed student.",
+      targetUserId,
+      ...counts,
+      isFollowing: false
+    });
+  } catch (err) {
+    console.error("Error unfollowing student:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to unfollow student." });
+  }
+}
+campusRouter.delete("/follow/:targetUserId", requireAuth, async (req, res) => {
+  return handleUnfollow(req, res, decodeURIComponent(req.params.targetUserId || ""));
+});
+campusRouter.post("/unfollow", requireAuth, async (req, res) => {
+  return handleUnfollow(req, res, String(req.body?.targetUserId || ""));
+});
+campusRouter.get("/follow/status/:targetUserId", optionalAuth, async (req, res) => {
+  try {
+    const targetUserId = decodeURIComponent(req.params.targetUserId || "").trim();
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: "Target student user ID is required." });
+    }
+    const counts = await computeFollowCounts(targetUserId, req.authUser?.id);
+    return res.json({
+      success: true,
+      targetUserId,
+      ...counts
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || "Failed to check follow status." });
+  }
+});
+campusRouter.get("/follow/list/:targetUserId", optionalAuth, async (req, res) => {
+  try {
+    const targetUserId = decodeURIComponent(req.params.targetUserId || "").trim();
+    const listType = req.query.type === "following" ? "following" : "followers";
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: "Target user ID is required." });
+    }
+    const viewerId = req.authUser?.id || "";
+    const { data: followEdges, error: edgesErr } = listType === "followers" ? await supabaseAdmin.from("campus_follows").select("follower_user_id, created_at").eq("following_user_id", targetUserId).neq("follower_user_id", targetUserId).order("created_at", { ascending: false }).limit(500) : await supabaseAdmin.from("campus_follows").select("following_user_id, created_at").eq("follower_user_id", targetUserId).neq("following_user_id", targetUserId).order("created_at", { ascending: false }).limit(500);
+    if (edgesErr) {
+      return res.status(500).json({ success: false, error: edgesErr.message });
+    }
+    const edgePairs = (followEdges || []).map((r) => ({
+      userId: listType === "followers" ? r.follower_user_id : r.following_user_id,
+      followedAt: r.created_at
+    })).filter((x) => Boolean(x.userId));
+    if (edgePairs.length === 0) {
+      return res.json({ success: true, type: listType, total: 0, users: [] });
+    }
+    const userIds = Array.from(new Set(edgePairs.map((p) => p.userId)));
+    const userMap = /* @__PURE__ */ new Map();
+    const membershipMap = /* @__PURE__ */ new Map();
+    for (let i = 0; i < userIds.length; i += 150) {
+      const slice = userIds.slice(i, i + 150);
+      const [{ data: uRows }, { data: mRows }] = await Promise.all([
+        supabaseAdmin.from("users").select("id, data").in("id", slice),
+        supabaseAdmin.from("campus_memberships").select("id, data").in("id", slice)
+      ]);
+      for (const u of uRows || []) userMap.set(u.id, u.data);
+      for (const m of mRows || []) membershipMap.set(m.id, m.data);
+    }
+    const viewerFollowingSet = /* @__PURE__ */ new Set();
+    if (viewerId) {
+      const { data: vEdges } = await supabaseAdmin.from("campus_follows").select("following_user_id").eq("follower_user_id", viewerId).in("following_user_id", userIds);
+      for (const ve of vEdges || []) viewerFollowingSet.add(ve.following_user_id);
+    }
+    const users = edgePairs.map(({ userId, followedAt }) => {
+      const rawUser = userMap.get(userId);
+      if (!rawUser || !isUserAccountActive(rawUser)) return null;
+      const mem = membershipMap.get(userId) || {};
+      const name = rawUser.name || rawUser.fullName || rawUser.username || "Scholar";
+      const username = rawUser.username ? rawUser.username.startsWith("@") ? rawUser.username : `@${rawUser.username}` : `@scholar_${userId.substring(0, 5)}`;
+      const tier = getUserTier2(rawUser);
+      const hasBlue = Boolean(
+        tier === "premium" || tier === "vip" || rawUser.isVerified || rawUser.hasBlueBadge || rawUser.verifiedBadge
+      );
+      return {
+        id: userId,
+        name,
+        username,
+        avatar: rawUser.avatar || rawUser.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name || userId)}`,
+        institution: mem.institution || rawUser.institution || rawUser.institutionName || rawUser.academicProfile?.institutionName || "",
+        department: mem.department || rawUser.department || rawUser.departmentName || rawUser.academicProfile?.departmentName || "General Studies",
+        level: mem.level || rawUser.level || rawUser.academicProfile?.level || "100 Level",
+        tier,
+        hasBlueBadge: hasBlue,
+        isVerified: hasBlue,
+        isFollowing: viewerId ? viewerFollowingSet.has(userId) : false,
+        followedAt
+      };
+    }).filter(Boolean);
+    return res.json({
+      success: true,
+      type: listType,
+      total: users.length,
+      users
+    });
+  } catch (err) {
+    console.error("Error in GET /api/campus/follow/list/:targetUserId:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to load follow list." });
+  }
+});
+
+// server/schoolBlogRouter.ts
+init_supabase();
+import { Router as Router6 } from "express";
+var schoolBlogRouter = Router6();
+var HOMEPAGE_ARTICLE_COLUMNS = "id, blog_institution_id, institution_name, author_user_id, author_name, title, slug, excerpt, category, cover_image_url, status, eligible_views_count, qualifying_views_count, reactions_count, published_at, created_at, updated_at";
+var PUBLIC_CACHE_TTL_MS = 30 * 1e3;
+var HOMEPAGE_ARTICLE_LIMIT = 200;
+var publicHomepageCache = /* @__PURE__ */ new Map();
+var publicArticleCache = /* @__PURE__ */ new Map();
+var allBlogsSummaryCache = null;
+function invalidateSchoolBlogCaches(opts) {
+  allBlogsSummaryCache = null;
+  if (opts?.articleId) {
+    publicArticleCache.delete(opts.articleId);
+  }
+  if (opts?.institutionId) {
+    publicHomepageCache.delete(opts.institutionId);
+    invalidateSchoolBlogRecordCache(opts.institutionId);
+  } else {
+    publicHomepageCache.clear();
+    publicArticleCache.clear();
+    invalidateSchoolBlogRecordCache();
+  }
+}
+var VALID_CATEGORIES = ["News", "Events", "Academics", "Campus Life"];
+var VALID_REACTIONS = ["like", "helpful", "insightful", "celebrate"];
+var ALLOWED_IMAGE_MIME = /* @__PURE__ */ new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+var MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+var UUID_RE2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var VIEWS_PER_REWARD_MILESTONE = 250;
+var GP_PER_REWARD_MILESTONE = 1e3;
+var MAX_MILESTONES_PER_ARTICLE = 1;
+var MAX_VIEWS_PER_ARTICLE = 250;
+var MAX_GP_PER_ARTICLE = 1e3;
+var MIN_FOLLOWERS_FOR_REWARDS = 500;
+var SUSPENDED_ACCOUNT_STATUSES = /* @__PURE__ */ new Set([
+  "suspended",
+  "deleted",
+  "banned",
+  "disabled",
+  "inactive",
+  "flagged",
+  "restricted",
+  "bot"
+]);
+function mapBlogRow(row) {
+  return {
+    institutionId: row.institution_id,
+    institutionName: row.institution_name,
+    shortName: row.short_name || "",
+    category: row.category || "University",
+    state: row.state || "",
+    logo: row.logo || "\u{1F3DB}\uFE0F",
+    slug: row.slug,
+    description: row.description || "",
+    status: row.status || "active",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function mapAssignmentRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    institutionId: row.institution_id,
+    institutionName: row.institution_name,
+    userId: row.user_id,
+    userName: row.user_name,
+    department: row.department || "",
+    level: row.level || "",
+    status: row.status,
+    appointedBy: row.appointed_by,
+    appointedByName: row.appointed_by_name || "Grobaax Admin",
+    appointedAt: row.appointed_at,
+    endedBy: row.ended_by || null,
+    endedAt: row.ended_at || null,
+    endReason: row.end_reason || null
+  };
+}
+function mapApplicationRow(row) {
+  return {
+    id: row.id,
+    applicantUserId: row.applicant_user_id,
+    institutionId: row.institution_id,
+    institutionName: row.institution_name,
+    applicantName: row.applicant_name,
+    department: row.department || "",
+    level: row.level || "",
+    reason: row.reason || "",
+    experience: row.experience || "",
+    additionalInfo: row.additional_info || "",
+    status: row.status,
+    reviewedBy: row.reviewed_by || null,
+    reviewerName: row.reviewer_name || null,
+    reviewNotes: row.review_notes || null,
+    reviewedAt: row.reviewed_at || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function mapArticleRow(row) {
+  return {
+    id: row.id,
+    blogInstitutionId: row.blog_institution_id,
+    institutionName: row.institution_name,
+    authorUserId: row.author_user_id,
+    authorName: row.author_name,
+    title: row.title,
+    slug: row.slug,
+    excerpt: row.excerpt,
+    category: row.category,
+    coverImageUrl: row.cover_image_url,
+    contentBlocks: Array.isArray(row.content_blocks) ? row.content_blocks : [],
+    contentText: row.content_text || "",
+    status: row.status,
+    viewsCount: Number(row.eligible_views_count ?? row.views_count ?? 0),
+    qualifyingViewsCount: Number(row.qualifying_views_count ?? 0),
+    reactionsCount: Number(row.reactions_count || 0),
+    moderationReason: row.moderation_reason || null,
+    moderatedBy: row.moderated_by || null,
+    moderatedAt: row.moderated_at || null,
+    publishedAt: row.published_at || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+async function writeAuditLog(params) {
+  try {
+    await supabaseAdmin.from("school_blog_audit_logs").insert({
+      actor_user_id: params.actorUserId,
+      actor_name: params.actorName,
+      actor_role: params.actorRole,
+      action: params.action,
+      institution_id: params.institutionId || null,
+      institution_name: params.institutionName || null,
+      target_type: params.targetType,
+      target_id: params.targetId,
+      details: params.details || {}
+    });
+  } catch (err) {
+    console.warn("[SchoolBlog] Audit log write notice:", err);
+  }
+}
+async function notifyUserOrAdmins(params) {
+  try {
+    const id = `notif_blog_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const resolvedType = params.type || "school_blog";
+    const defaultUrl = params.targetRole === "admin" ? "/admin?tab=school_blogs" : "/school-blog";
+    await supabaseAdmin.from("notifications").upsert(
+      {
+        id,
+        data: {
+          id,
+          title: params.title,
+          message: params.message,
+          type: resolvedType,
+          targetUserId: params.targetUserId || null,
+          userId: params.targetUserId || null,
+          targetRole: params.targetRole || null,
+          actionUrl: params.actionUrl || defaultUrl,
+          isRead: false,
+          createdAt: nowIso,
+          timestamp: nowIso
+        },
+        updated_at: nowIso
+      },
+      { onConflict: "id" }
+    );
+    if (params.targetUserId || params.targetRole === "admin") {
+      void dispatchExternalPush({
+        eventType: resolvedType,
+        category: resolvePushCategory(resolvedType, params.actionUrl || defaultUrl, params.title),
+        title: params.title,
+        body: params.message,
+        actionUrl: params.actionUrl || defaultUrl,
+        notificationId: id,
+        dedupeKey: `blog_notif_${id}`,
+        recipientUserId: params.targetUserId || void 0,
+        targetRole: params.targetUserId ? void 0 : params.targetRole
+      }).catch(() => {
+      });
+    }
+  } catch (err) {
+    console.warn("[SchoolBlog] Notification dispatch notice:", err);
+  }
+}
+async function getGenuineFollowerCount(userId) {
+  if (!userId) return 0;
+  try {
+    const { data, error } = await supabaseAdmin.rpc("get_genuine_campus_follower_count", {
+      p_user_id: userId
+    });
+    if (!error && typeof data === "number") {
+      return Math.max(0, data);
+    }
+  } catch {
+  }
+  try {
+    const { count } = await supabaseAdmin.from("campus_follows").select("id", { count: "exact", head: true }).eq("following_user_id", userId);
+    return Number(count || 0);
+  } catch {
+    return 0;
+  }
+}
+function isAccountSuspended(user) {
+  if (!user) return false;
+  return SUSPENDED_ACCOUNT_STATUSES.has(String(user.accountStatus || "active").toLowerCase());
+}
+function normalizeArticleBlocks(blocks, fallbackText, customExcerpt) {
+  const cleanBlocks = [];
+  const textParts = [];
+  const inlineImages = [];
+  if (Array.isArray(blocks)) {
+    blocks.forEach((b, idx) => {
+      if (!b || typeof b !== "object") return;
+      if (b.type === "heading" && String(b.text || "").trim()) {
+        const text = String(b.text).trim();
+        cleanBlocks.push({
+          id: b.id || `blk_${idx}_${Date.now()}`,
+          type: "heading",
+          level: b.level === 3 ? 3 : 2,
+          text
+        });
+        textParts.push(text);
+      } else if (b.type === "paragraph" && String(b.text || "").trim()) {
+        const text = String(b.text).trim();
+        cleanBlocks.push({
+          id: b.id || `blk_${idx}_${Date.now()}`,
+          type: "paragraph",
+          text
+        });
+        textParts.push(text);
+      } else if (b.type === "image" && String(b.imageUrl || "").trim()) {
+        const imageUrl = String(b.imageUrl).trim();
+        const caption = String(b.caption || "").trim();
+        cleanBlocks.push({
+          id: b.id || `blk_${idx}_${Date.now()}`,
+          type: "image",
+          imageUrl,
+          caption
+        });
+        inlineImages.push({ imageUrl, caption, sortOrder: inlineImages.length });
+      }
+    });
+  }
+  if (cleanBlocks.length === 0 && fallbackText && fallbackText.trim()) {
+    const paragraphs = fallbackText.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+    paragraphs.forEach((p, idx) => {
+      cleanBlocks.push({
+        id: `blk_${idx}_${Date.now()}`,
+        type: "paragraph",
+        text: p
+      });
+      textParts.push(p);
+    });
+  }
+  const plainText = textParts.join("\n\n").trim();
+  const explicitSummary = String(customExcerpt || "").trim();
+  const autoSource = (cleanBlocks.find((b) => b.type === "paragraph")?.text || plainText).replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1");
+  const excerpt = explicitSummary ? explicitSummary.slice(0, 300) : autoSource.length > 180 ? autoSource.slice(0, 177).trim() + "..." : autoSource;
+  return { blocks: cleanBlocks, plainText, excerpt, inlineImages };
+}
+schoolBlogRouter.get("/", optionalAuth, async (req, res) => {
+  try {
+    const q = String(req.query.search || "").trim().toLowerCase();
+    const category = String(req.query.category || "All").trim();
+    let dbBlogs;
+    let activeBloggers;
+    let articleStats;
+    if (allBlogsSummaryCache && allBlogsSummaryCache.expiresAt > Date.now()) {
+      dbBlogs = allBlogsSummaryCache.dbBlogs;
+      activeBloggers = allBlogsSummaryCache.activeBloggers;
+      articleStats = allBlogsSummaryCache.articleStats;
+    } else {
+      const [blogsRes, bloggersRes, statsRes] = await Promise.all([
+        supabaseAdmin.from("school_blogs").select("*").eq("status", "active"),
+        supabaseAdmin.from("school_blogger_assignments").select("*").eq("status", "active"),
+        supabaseAdmin.from("school_blog_articles").select("blog_institution_id, published_at, status").eq("status", "published")
+      ]);
+      dbBlogs = blogsRes.data || [];
+      activeBloggers = bloggersRes.data || [];
+      articleStats = statsRes.data || [];
+      allBlogsSummaryCache = {
+        expiresAt: Date.now() + PUBLIC_CACHE_TTL_MS,
+        dbBlogs,
+        activeBloggers,
+        articleStats
+      };
+    }
+    const blogMap = /* @__PURE__ */ new Map();
+    for (const b of dbBlogs || []) {
+      blogMap.set(b.institution_id, mapBlogRow(b));
+    }
+    for (const staticInst of NIGERIAN_INSTITUTIONS) {
+      if (!blogMap.has(staticInst.id)) {
+        blogMap.set(staticInst.id, {
+          institutionId: staticInst.id,
+          institutionName: staticInst.name,
+          shortName: staticInst.shortName,
+          category: staticInst.category,
+          state: staticInst.state,
+          logo: staticInst.logo || "\u{1F3DB}\uFE0F",
+          slug: slugifyText(staticInst.name),
+          description: `Official student newsroom and updates from ${staticInst.name}.`,
+          status: "active",
+          createdAt: "",
+          updatedAt: ""
+        });
+      }
+    }
+    const bloggerByInst = /* @__PURE__ */ new Map();
+    for (const a of activeBloggers || []) {
+      bloggerByInst.set(a.institution_id, mapAssignmentRow(a));
+    }
+    const countByInst = /* @__PURE__ */ new Map();
+    for (const art of articleStats || []) {
+      const cur = countByInst.get(art.blog_institution_id) || { count: 0, latest: null };
+      cur.count += 1;
+      if (art.published_at && (!cur.latest || art.published_at > cur.latest)) {
+        cur.latest = art.published_at;
+      }
+      countByInst.set(art.blog_institution_id, cur);
+    }
+    let list = Array.from(blogMap.values()).map((blog) => {
+      const stats = countByInst.get(blog.institutionId) || { count: 0, latest: null };
+      return {
+        ...blog,
+        publishedArticlesCount: stats.count,
+        latestPublishedAt: stats.latest,
+        activeBlogger: bloggerByInst.get(blog.institutionId) || null
+      };
+    });
+    if (category && category !== "All") {
+      list = list.filter((b) => String(b.category || "").toLowerCase().includes(category.toLowerCase()));
+    }
+    if (q) {
+      list = list.filter(
+        (b) => b.institutionName.toLowerCase().includes(q) || b.shortName.toLowerCase().includes(q) || b.state.toLowerCase().includes(q)
+      );
+    }
+    const homeId = req.authUser?.institutionId || "";
+    list.sort((a, b) => {
+      if (homeId) {
+        if (a.institutionId === homeId && b.institutionId !== homeId) return -1;
+        if (b.institutionId === homeId && a.institutionId !== homeId) return 1;
+      }
+      if ((b.publishedArticlesCount || 0) !== (a.publishedArticlesCount || 0)) {
+        return (b.publishedArticlesCount || 0) - (a.publishedArticlesCount || 0);
+      }
+      if (Boolean(b.activeBlogger) !== Boolean(a.activeBlogger)) {
+        return b.activeBlogger ? 1 : -1;
+      }
+      return a.institutionName.localeCompare(b.institutionName);
+    });
+    return res.json({ success: true, total: list.length, blogs: list });
+  } catch (err) {
+    console.error("Error in GET /api/school-blogs:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.get("/institution/:institutionKey", optionalAuth, async (req, res) => {
+  try {
+    const rawKey = decodeURIComponent(req.params.institutionKey || "").trim();
+    const category = String(req.query.category || "All Posts").trim();
+    const search = String(req.query.search || "").trim().toLowerCase();
+    const fallbackCategory = String(req.query.institutionCategory || "University");
+    const canonical = await resolveCanonicalInstitution({
+      institutionId: rawKey,
+      institutionName: rawKey,
+      category: fallbackCategory
+    });
+    if (!canonical) {
+      return res.status(404).json({ success: false, error: "Institution not found." });
+    }
+    let publicEntry = publicHomepageCache.get(canonical.institutionId);
+    if (!publicEntry || publicEntry.expiresAt <= Date.now()) {
+      const blogRow = await ensureSchoolBlogRecord(canonical);
+      const baseBlog = mapBlogRow(blogRow);
+      if (baseBlog.status !== "active" && !req.authUser?.isAdmin) {
+        return res.status(403).json({
+          success: false,
+          code: "BLOG_SUSPENDED",
+          blogSuspended: true,
+          blog: baseBlog,
+          error: `The ${canonical.institutionName} School Blog is currently suspended by Grobaax Administrators.`
+        });
+      }
+      const [{ data: activeAssignRows }, { data: allArticles }] = await Promise.all([
+        supabaseAdmin.from("school_blogger_assignments").select("*").eq("institution_id", canonical.institutionId).eq("status", "active").order("appointed_at", { ascending: false }),
+        supabaseAdmin.from("school_blog_articles").select(HOMEPAGE_ARTICLE_COLUMNS).eq("blog_institution_id", canonical.institutionId).eq("status", "published").order("published_at", { ascending: false }).limit(HOMEPAGE_ARTICLE_LIMIT)
+      ]);
+      const activeAssigns2 = Array.isArray(activeAssignRows) ? activeAssignRows : [];
+      const publishedRows = allArticles || [];
+      const categoryCounts2 = {
+        "All Posts": publishedRows.length,
+        News: 0,
+        Events: 0,
+        Academics: 0,
+        "Campus Life": 0
+      };
+      for (const art of publishedRows) {
+        if (categoryCounts2[art.category] !== void 0) {
+          categoryCounts2[art.category] += 1;
+        }
+      }
+      const authorIds = Array.from(
+        new Set(publishedRows.map((r) => String(r.author_user_id || "").trim()).filter(Boolean))
+      );
+      const authorUserMap = /* @__PURE__ */ new Map();
+      if (authorIds.length > 0) {
+        const { data: authorRows } = await supabaseAdmin.from("users").select("id, data").in("id", authorIds);
+        for (const u of authorRows || []) {
+          authorUserMap.set(u.id, u.data);
+        }
+      }
+      const enrichedArticles2 = publishedRows.map((row) => {
+        const u = authorUserMap.get(row.author_user_id);
+        const isVip = Boolean(u?.isVip || String(u?.subscriptionTier || "").toLowerCase().includes("vip"));
+        const isPremium = Boolean(u?.isPremium || String(u?.subscriptionTier || "").toLowerCase().includes("premium"));
+        const tier = isVip ? "vip" : isPremium ? "premium" : "free";
+        const hasBlue = Boolean(
+          tier === "premium" || tier === "vip" || u?.isVerified || u?.hasBlueBadge || u?.verifiedBadge
+        );
+        return {
+          ...mapArticleRow(row),
+          authorAvatar: u?.avatar || u?.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(row.author_name || row.author_user_id)}`,
+          authorUsername: u?.username ? u.username.startsWith("@") ? u.username : `@${u.username}` : void 0,
+          authorTier: tier,
+          authorHasBlueBadge: hasBlue
+        };
+      });
+      publicEntry = {
+        expiresAt: Date.now() + PUBLIC_CACHE_TTL_MS,
+        blog: baseBlog,
+        activeAssigns: activeAssigns2,
+        categoryCounts: categoryCounts2,
+        enrichedArticles: enrichedArticles2,
+        publishedArticlesCount: publishedRows.length
+      };
+      if (publicHomepageCache.size > 200) {
+        publicHomepageCache.clear();
+      }
+      publicHomepageCache.set(canonical.institutionId, publicEntry);
+    }
+    const { blog, activeAssigns, categoryCounts, enrichedArticles, publishedArticlesCount } = publicEntry;
+    if (blog.status !== "active" && !req.authUser?.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        code: "BLOG_SUSPENDED",
+        blogSuspended: true,
+        blog,
+        error: `The ${canonical.institutionName} School Blog is currently suspended by Grobaax Administrators.`
+      });
+    }
+    const myActiveAssign = req.authUser ? activeAssigns.find((a) => a.user_id === req.authUser.id) || null : null;
+    const featuredAssign = myActiveAssign || activeAssigns[0] || null;
+    let filtered = enrichedArticles;
+    if (category && category !== "All Posts") {
+      filtered = filtered.filter((a) => a.category === category);
+    }
+    if (search) {
+      filtered = filtered.filter(
+        (a) => String(a.title || "").toLowerCase().includes(search) || String(a.excerpt || "").toLowerCase().includes(search) || String(a.authorName || "").toLowerCase().includes(search)
+      );
+    }
+    const isHomeInstitution = Boolean(
+      req.authUser && (req.authUser.institutionId === canonical.institutionId || req.authUser.institutionName.toLowerCase() === canonical.institutionName.toLowerCase())
+    );
+    const viewerStatus = {
+      isHomeInstitution,
+      isActiveBloggerForThisSchool: Boolean(myActiveAssign),
+      isSuspendedBloggerForThisSchool: false,
+      bloggerRevokedStatus: null,
+      myApplication: null,
+      homeInstitutionId: req.authUser?.institutionId || "",
+      homeInstitutionName: req.authUser?.institutionName || "",
+      followerCount: 0,
+      minFollowersRequired: MIN_FOLLOWERS_FOR_REWARDS,
+      isRewardEligible: false,
+      hasActiveSubscription: true,
+      subscriptionTier: req.authUser?.subscriptionTier || "free",
+      subscriptionExpired: Boolean(req.authUser?.subscriptionExpired)
+    };
+    if (req.authUser) {
+      const [followerCount, assignRes, appRes] = await Promise.all([
+        getGenuineFollowerCount(req.authUser.id),
+        isHomeInstitution && !myActiveAssign ? supabaseAdmin.from("school_blogger_assignments").select("*").eq("institution_id", canonical.institutionId).eq("user_id", req.authUser.id).order("created_at", { ascending: false }).limit(1).maybeSingle() : Promise.resolve({ data: null }),
+        isHomeInstitution && !myActiveAssign ? supabaseAdmin.from("school_blogger_applications").select("*").eq("institution_id", canonical.institutionId).eq("applicant_user_id", req.authUser.id).order("created_at", { ascending: false }).limit(1).maybeSingle() : Promise.resolve({ data: null })
+      ]);
+      viewerStatus.followerCount = followerCount;
+      viewerStatus.isRewardEligible = Boolean(myActiveAssign) && followerCount >= MIN_FOLLOWERS_FOR_REWARDS;
+      if (isHomeInstitution) {
+        const myAssign = assignRes?.data;
+        const myApp = appRes?.data;
+        viewerStatus.isSuspendedBloggerForThisSchool = Boolean(
+          !myActiveAssign && myAssign && (myAssign.status === "suspended" || myAssign.status === "removed")
+        );
+        viewerStatus.bloggerRevokedStatus = !myActiveAssign && myAssign && (myAssign.status === "suspended" || myAssign.status === "removed") ? myAssign.status : null;
+        viewerStatus.myApplication = myApp ? mapApplicationRow(myApp) : null;
+      }
+    }
+    return res.json({
+      success: true,
+      requiresSubscription: false,
+      blog: {
+        ...blog,
+        publishedArticlesCount,
+        activeBloggersCount: activeAssigns.length,
+        activeBlogger: mapAssignmentRow(featuredAssign)
+      },
+      categoryCounts,
+      articles: filtered,
+      viewerStatus
+    });
+  } catch (err) {
+    console.error("Error in GET /api/school-blogs/institution/:institutionKey:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to load School Blog." });
+  }
+});
+schoolBlogRouter.get("/my-blogger-status", requireAuth, async (req, res) => {
+  try {
+    const user = req.authUser;
+    const [{ data: activeAssign }, { data: applications }, followerCount] = await Promise.all([
+      supabaseAdmin.from("school_blogger_assignments").select("*").eq("user_id", user.id).in("status", ["active", "suspended"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabaseAdmin.from("school_blogger_applications").select("*").eq("applicant_user_id", user.id).order("created_at", { ascending: false }).limit(10),
+      getGenuineFollowerCount(user.id)
+    ]);
+    return res.json({
+      success: true,
+      homeInstitutionId: user.institutionId,
+      homeInstitutionName: user.institutionName,
+      department: user.department,
+      level: user.level,
+      followerCount,
+      minFollowersRequired: MIN_FOLLOWERS_FOR_REWARDS,
+      isRewardEligible: Boolean(activeAssign?.status === "active") && followerCount >= MIN_FOLLOWERS_FOR_REWARDS,
+      hasActiveSubscription: true,
+      subscriptionTier: user.subscriptionTier,
+      subscriptionExpired: user.subscriptionExpired,
+      requiresSubscription: false,
+      activeAssignment: mapAssignmentRow(activeAssign),
+      applications: (applications || []).map(mapApplicationRow)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.post("/activate-blogger", requireAuth, async (_req, res) => {
+  return res.status(403).json({
+    success: false,
+    code: "ADMIN_APPROVAL_REQUIRED",
+    error: "Direct blogger activation is not permitted. Please submit a School Blogger application for Admin review."
+  });
+});
+schoolBlogRouter.post("/applications", requireAuth, async (req, res) => {
+  try {
+    const user = req.authUser;
+    if (isAccountSuspended(user)) {
+      return res.status(403).json({
+        success: false,
+        error: "Your account is suspended and cannot apply to become a School Blogger."
+      });
+    }
+    if (!user.canonicalInstitution || !user.institutionName) {
+      return res.status(400).json({
+        success: false,
+        error: "Please complete your Campus institution profile before applying to become a School Blogger."
+      });
+    }
+    const {
+      targetInstitutionId,
+      targetInstitutionName,
+      department,
+      level,
+      reason,
+      experience,
+      additionalInfo
+    } = req.body || {};
+    if (targetInstitutionId && targetInstitutionId !== user.institutionId || targetInstitutionName && targetInstitutionName.trim().toLowerCase() !== user.institutionName.toLowerCase()) {
+      return res.status(403).json({
+        success: false,
+        error: `You can only apply to become a School Blogger for your own verified institution (${user.institutionName}).`
+      });
+    }
+    const blogRow = await ensureSchoolBlogRecord(user.canonicalInstitution);
+    if (blogRow?.status !== "active") {
+      return res.status(403).json({
+        success: false,
+        code: "BLOG_SUSPENDED",
+        error: `${user.institutionName} School Blog is currently suspended.`
+      });
+    }
+    const { data: latestAssign } = await supabaseAdmin.from("school_blogger_assignments").select("*").eq("institution_id", user.institutionId).eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (latestAssign?.status === "active") {
+      return res.status(400).json({
+        success: false,
+        error: `You are already the approved School Blogger for ${user.institutionName}.`
+      });
+    }
+    if (latestAssign && (latestAssign.status === "suspended" || latestAssign.status === "removed")) {
+      return res.status(403).json({
+        success: false,
+        code: "BLOGGER_ACCESS_REVOKED",
+        revoked: true,
+        error: latestAssign.end_reason || `Your School Blogger access for ${user.institutionName} was ${latestAssign.status} by Grobaax Administrators.`
+      });
+    }
+    const { data: pendingApp } = await supabaseAdmin.from("school_blogger_applications").select("id, status").eq("applicant_user_id", user.id).eq("institution_id", user.institutionId).eq("status", "Pending").maybeSingle();
+    if (pendingApp) {
+      return res.status(400).json({
+        success: false,
+        code: "DUPLICATE_PENDING_APPLICATION",
+        error: "You already have a Pending School Blogger application under Admin review for this institution."
+      });
+    }
+    const cleanDepartment = String(department || user.department || "").trim() || "Campus Scholar";
+    const cleanLevel = String(level || user.level || "").trim() || "Student";
+    const cleanReason = String(reason || "").trim();
+    const cleanExperience = String(experience || "").trim();
+    const cleanAdditionalInfo = String(additionalInfo || "").trim();
+    if (cleanReason.length < 15) {
+      return res.status(400).json({
+        success: false,
+        error: "Please explain why you want to become a School Blogger (at least 15 characters)."
+      });
+    }
+    const { data: appCreated, error: insertErr } = await supabaseAdmin.from("school_blogger_applications").insert({
+      applicant_user_id: user.id,
+      institution_id: user.institutionId,
+      institution_name: user.institutionName,
+      applicant_name: user.name,
+      department: cleanDepartment,
+      level: cleanLevel,
+      reason: cleanReason,
+      experience: cleanExperience,
+      additional_info: cleanAdditionalInfo,
+      status: "Pending"
+    }).select("*").single();
+    if (insertErr) {
+      return res.status(500).json({ success: false, error: insertErr.message });
+    }
+    await Promise.all([
+      notifyUserOrAdmins({
+        title: "School Blogger Application Submitted",
+        message: `Your free School Blogger application for ${user.institutionName} has been received and is pending Admin review.`,
+        type: "school_blog",
+        targetUserId: user.id,
+        actionUrl: "/school-blog"
+      }),
+      notifyUserOrAdmins({
+        title: "New School Blogger Application",
+        message: `${user.name} (${cleanDepartment}, ${cleanLevel}) applied to become the School Blogger for ${user.institutionName}.`,
+        targetRole: "admin",
+        actionUrl: "/admin?tab=school_blogs"
+      }),
+      writeAuditLog({
+        actorUserId: user.id,
+        actorName: user.name,
+        actorRole: "student",
+        action: "BLOGGER_APPLICATION_SUBMITTED",
+        institutionId: user.institutionId,
+        institutionName: user.institutionName,
+        targetType: "application",
+        targetId: appCreated.id,
+        details: {
+          department: cleanDepartment,
+          level: cleanLevel,
+          hasExperience: cleanExperience.length > 0
+        }
+      })
+    ]);
+    return res.json({
+      success: true,
+      activated: false,
+      message: `Application submitted for ${user.institutionName}! You will be notified once a Grobaax Admin reviews it.`,
+      application: mapApplicationRow(appCreated)
+    });
+  } catch (err) {
+    console.error("Error in POST /api/school-blogs/applications:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to submit blogger application." });
+  }
+});
+schoolBlogRouter.post("/applications/:applicationId/withdraw", requireAuth, async (req, res) => {
+  try {
+    const user = req.authUser;
+    const { applicationId } = req.params;
+    const { data: appRow } = await supabaseAdmin.from("school_blogger_applications").select("*").eq("id", applicationId).maybeSingle();
+    if (!appRow) {
+      return res.status(404).json({ success: false, error: "Application not found." });
+    }
+    if (appRow.applicant_user_id !== user.id) {
+      return res.status(403).json({ success: false, error: "You can only withdraw your own application." });
+    }
+    if (appRow.status !== "Pending") {
+      return res.status(400).json({ success: false, error: "Only Pending applications can be withdrawn." });
+    }
+    const { data: updated, error } = await supabaseAdmin.from("school_blogger_applications").update({
+      status: "Withdrawn",
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    }).eq("id", applicationId).select("*").single();
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.json({
+      success: true,
+      message: "Application withdrawn.",
+      application: mapApplicationRow(updated)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.get("/articles/:articleId", optionalAuth, async (req, res) => {
+  try {
+    const { articleId } = req.params;
+    if (!UUID_RE2.test(articleId)) {
+      return res.status(404).json({ success: false, error: "Article not found." });
+    }
+    let cachedArt = publicArticleCache.get(articleId);
+    if (!cachedArt || cachedArt.expiresAt <= Date.now()) {
+      const { data: fetchedRow, error } = await supabaseAdmin.from("school_blog_articles").select("*").eq("id", articleId).maybeSingle();
+      if (error || !fetchedRow) {
+        return res.status(404).json({ success: false, error: "Article not found." });
+      }
+      const [{ data: blogRow2 }, { data: authorRow }, authorFollowersCount2] = await Promise.all([
+        supabaseAdmin.from("school_blogs").select("*").eq("institution_id", fetchedRow.blog_institution_id).maybeSingle(),
+        fetchedRow.author_user_id ? supabaseAdmin.from("users").select("id, data").eq("id", fetchedRow.author_user_id).maybeSingle() : Promise.resolve({ data: null }),
+        fetchedRow.author_user_id ? getGenuineFollowerCount(fetchedRow.author_user_id) : Promise.resolve(0)
+      ]);
+      cachedArt = {
+        expiresAt: Date.now() + PUBLIC_CACHE_TTL_MS,
+        articleRow: fetchedRow,
+        blogRow: blogRow2 || null,
+        authorData: authorRow?.data || null,
+        authorFollowersCount: authorFollowersCount2
+      };
+      if (fetchedRow.status === "published") {
+        if (publicArticleCache.size > 300) publicArticleCache.clear();
+        publicArticleCache.set(articleId, cachedArt);
+      }
+    }
+    const { articleRow, blogRow, authorData, authorFollowersCount } = cachedArt;
+    const isOwner = Boolean(req.authUser && req.authUser.id === articleRow.author_user_id);
+    const isAdmin = Boolean(req.authUser?.isAdmin);
+    if (articleRow.status !== "published" && !isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: "This article is currently not publicly available."
+      });
+    }
+    if (blogRow && blogRow.status !== "active" && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        code: "BLOG_SUSPENDED",
+        blogSuspended: true,
+        error: "This School Blog is currently suspended."
+      });
+    }
+    const [{ data: reactions }, { data: myFollowRow }] = await Promise.all([
+      supabaseAdmin.from("school_blog_article_reactions").select("user_id, reaction_type").eq("article_id", articleId),
+      req.authUser && articleRow.author_user_id && req.authUser.id !== articleRow.author_user_id ? supabaseAdmin.from("campus_follows").select("id").eq("follower_user_id", req.authUser.id).eq("following_user_id", articleRow.author_user_id).maybeSingle() : Promise.resolve({ data: null })
+    ]);
+    const breakdown = {
+      like: 0,
+      helpful: 0,
+      insightful: 0,
+      celebrate: 0
+    };
+    let userReaction = null;
+    for (const r of reactions || []) {
+      const rt = r.reaction_type;
+      if (breakdown[rt] !== void 0) breakdown[rt] += 1;
+      if (req.authUser && r.user_id === req.authUser.id) {
+        userReaction = rt;
+      }
+    }
+    const isAuthorVip = Boolean(
+      authorData?.isVip || String(authorData?.subscriptionTier || "").toLowerCase().includes("vip")
+    );
+    const isAuthorPremium = Boolean(
+      authorData?.isPremium || String(authorData?.subscriptionTier || "").toLowerCase().includes("premium")
+    );
+    const authorTier = isAuthorVip ? "vip" : isAuthorPremium ? "premium" : "free";
+    const authorHasBlueBadge = Boolean(
+      authorTier === "premium" || authorTier === "vip" || authorData?.isVerified || authorData?.hasBlueBadge || authorData?.verifiedBadge
+    );
+    const authorAvatar = authorData?.avatar || authorData?.profileImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
+      articleRow.author_name || articleRow.author_user_id || "blogger"
+    )}`;
+    const authorUsername = authorData?.username ? authorData.username.startsWith("@") ? authorData.username : `@${authorData.username}` : void 0;
+    return res.json({
+      success: true,
+      article: {
+        ...mapArticleRow(articleRow),
+        authorAvatar,
+        authorUsername,
+        authorTier,
+        authorHasBlueBadge,
+        authorFollowersCount,
+        authorIsFollowing: Boolean(myFollowRow),
+        reactionBreakdown: breakdown,
+        userReaction
+      },
+      blog: blogRow ? mapBlogRow(blogRow) : null
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.post("/articles/:articleId/view", requireAuth, async (req, res) => {
+  try {
+    const { articleId } = req.params;
+    if (!UUID_RE2.test(articleId)) {
+      return res.status(404).json({ success: false, error: "Published article not found." });
+    }
+    const { data: artCheck } = await supabaseAdmin.from("school_blog_articles").select("id, blog_institution_id, status").eq("id", articleId).maybeSingle();
+    if (!artCheck || artCheck.status !== "published") {
+      return res.status(404).json({ success: false, error: "Published article not found." });
+    }
+    const { data: blogCheck } = await supabaseAdmin.from("school_blogs").select("status").eq("institution_id", artCheck.blog_institution_id).maybeSingle();
+    if (blogCheck && blogCheck.status !== "active") {
+      return res.status(403).json({
+        success: false,
+        code: "BLOG_SUSPENDED",
+        error: "This School Blog is currently suspended."
+      });
+    }
+    const viewerUserId = req.authUser.id;
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
+      "record_eligible_article_view_and_reward",
+      {
+        p_article_id: articleId,
+        p_viewer_user_id: viewerUserId
+      }
+    );
+    if (rpcError) {
+      return res.status(500).json({ success: false, error: rpcError.message });
+    }
+    if (!rpcResult || rpcResult.success === false) {
+      const code = Number(rpcResult?.statusCode || 404);
+      return res.status(code).json({
+        success: false,
+        error: rpcResult?.error || "Published article not found."
+      });
+    }
+    const creditedMilestones = Array.isArray(rpcResult.creditedMilestones) ? rpcResult.creditedMilestones : [];
+    const totalCreditedNow = Number(rpcResult.totalCreditedNow || 0);
+    if (totalCreditedNow > 0 && creditedMilestones.length > 0 && rpcResult.authorUserId) {
+      const highestThreshold = creditedMilestones[creditedMilestones.length - 1]?.eligibleViewThreshold || 250;
+      await Promise.all([
+        writeAuditLog({
+          actorUserId: rpcResult.authorUserId,
+          actorName: rpcResult.authorName || "Approved Blogger",
+          actorRole: "blogger",
+          action: "BLOGGER_MILESTONE_GP_CREDITED",
+          institutionId: rpcResult.institutionId,
+          institutionName: rpcResult.institutionName,
+          targetType: "article",
+          targetId: articleId,
+          details: {
+            articleTitle: rpcResult.articleTitle,
+            totalCreditedGp: totalCreditedNow,
+            eligibleViewsCount: Number(rpcResult.eligibleViewsCount || 0),
+            milestones: creditedMilestones
+          }
+        }),
+        notifyUserOrAdmins({
+          title: "Campus Blogger GP Reward Credited!",
+          message: `+${totalCreditedNow.toLocaleString()} GP has been automatically credited to your Grobaax wallet for reaching ${highestThreshold.toLocaleString()} eligible unique views on "${rpcResult.articleTitle || "your article"}".`,
+          type: "reward",
+          targetUserId: rpcResult.authorUserId,
+          actionUrl: "/wallet"
+        })
+      ]);
+    }
+    if (rpcResult.counted) {
+      invalidateSchoolBlogCaches({ institutionId: artCheck.blog_institution_id, articleId });
+    }
+    return res.json({
+      success: true,
+      counted: Boolean(rpcResult.counted),
+      eligible: Boolean(rpcResult.eligible),
+      reason: String(rpcResult.reason || ""),
+      viewsCount: Number(rpcResult.viewsCount || 0),
+      qualifyingViewsCount: Number(rpcResult.qualifyingViewsCount || 0),
+      followerCount: Number(rpcResult.followerCount || 0),
+      isRewardEligible: Boolean(rpcResult.isRewardEligible),
+      maxCapReached: Boolean(rpcResult.maxCapReached),
+      articleGpEarned: Number(rpcResult.articleGpEarned || 0)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.post("/articles/:articleId/react", requireAuth, async (req, res) => {
+  try {
+    const user = req.authUser;
+    const { articleId } = req.params;
+    const reactionType = String(req.body?.reactionType || "like");
+    if (!VALID_REACTIONS.includes(reactionType)) {
+      return res.status(400).json({ success: false, error: "Invalid reaction type." });
+    }
+    const { data: articleRow } = await supabaseAdmin.from("school_blog_articles").select("id, status, blog_institution_id, author_user_id, title").eq("id", articleId).maybeSingle();
+    if (!articleRow || articleRow.status !== "published") {
+      return res.status(404).json({ success: false, error: "Published article not found." });
+    }
+    const { data: blogCheck } = await supabaseAdmin.from("school_blogs").select("status").eq("institution_id", articleRow.blog_institution_id).maybeSingle();
+    if (blogCheck && blogCheck.status !== "active" && !user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        code: "BLOG_SUSPENDED",
+        error: "This School Blog is currently suspended."
+      });
+    }
+    const { data: existing } = await supabaseAdmin.from("school_blog_article_reactions").select("*").eq("article_id", articleId).eq("user_id", user.id).maybeSingle();
+    let nextUserReaction = null;
+    if (existing) {
+      if (existing.reaction_type === reactionType) {
+        await supabaseAdmin.from("school_blog_article_reactions").delete().eq("id", existing.id);
+        nextUserReaction = null;
+      } else {
+        await supabaseAdmin.from("school_blog_article_reactions").update({ reaction_type: reactionType, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", existing.id);
+        nextUserReaction = reactionType;
+      }
+    } else {
+      await supabaseAdmin.from("school_blog_article_reactions").insert({
+        article_id: articleId,
+        user_id: user.id,
+        reaction_type: reactionType
+      });
+      nextUserReaction = reactionType;
+    }
+    const { data: allReacts } = await supabaseAdmin.from("school_blog_article_reactions").select("reaction_type").eq("article_id", articleId);
+    const breakdown = {
+      like: 0,
+      helpful: 0,
+      insightful: 0,
+      celebrate: 0
+    };
+    for (const r of allReacts || []) {
+      const rt = r.reaction_type;
+      if (breakdown[rt] !== void 0) breakdown[rt] += 1;
+    }
+    const totalReactions = (allReacts || []).length;
+    await supabaseAdmin.from("school_blog_articles").update({ reactions_count: totalReactions }).eq("id", articleId);
+    invalidateSchoolBlogCaches({ institutionId: articleRow.blog_institution_id, articleId });
+    if (nextUserReaction && articleRow.author_user_id && articleRow.author_user_id !== user.id) {
+      const reactNotifId = `notif_blog_react_${articleId}_${user.id}`;
+      const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+      const authorMsg = `${user.name} reacted (${nextUserReaction}) to your School Blog article "${articleRow.title || "Update"}".`;
+      void (async () => {
+        try {
+          await supabaseAdmin.from("notifications").upsert(
+            {
+              id: reactNotifId,
+              data: {
+                id: reactNotifId,
+                title: "New School Blog Reaction",
+                message: authorMsg,
+                type: "school_blog",
+                targetUserId: articleRow.author_user_id,
+                userId: articleRow.author_user_id,
+                actionUrl: "/school-blog",
+                isRead: false,
+                createdAt: nowIso,
+                timestamp: nowIso
+              },
+              updated_at: nowIso
+            },
+            { onConflict: "id" }
+          );
+          await dispatchExternalPush({
+            eventType: "school_blog_reaction",
+            category: "school_blog",
+            title: "New School Blog Reaction",
+            body: authorMsg,
+            actionUrl: "/school-blog",
+            notificationId: reactNotifId,
+            dedupeKey: `blog_react_${articleId}_${user.id}`,
+            recipientUserId: articleRow.author_user_id
+          });
+        } catch {
+        }
+      })();
+    }
+    return res.json({
+      success: true,
+      userReaction: nextUserReaction,
+      reactionsCount: totalReactions,
+      reactionBreakdown: breakdown
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.post("/articles/:articleId/report", requireAuth, async (req, res) => {
+  try {
+    const user = req.authUser;
+    const { articleId } = req.params;
+    const reason = String(req.body?.reason || "").trim();
+    if (reason.length < 5) {
+      return res.status(400).json({ success: false, error: "Please specify a reason for reporting." });
+    }
+    const { data: art } = await supabaseAdmin.from("school_blog_articles").select("id, blog_institution_id, institution_name, title").eq("id", articleId).maybeSingle();
+    if (!art) {
+      return res.status(404).json({ success: false, error: "Article not found." });
+    }
+    const { error } = await supabaseAdmin.from("school_blog_reports").upsert(
+      {
+        article_id: articleId,
+        blog_institution_id: art.blog_institution_id,
+        reporter_user_id: user.id,
+        reporter_name: user.name,
+        reason,
+        status: "open"
+      },
+      { onConflict: "article_id,reporter_user_id" }
+    );
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    await notifyUserOrAdmins({
+      title: "Reported School Blog Article",
+      message: `${user.name} reported "${art.title}" (${art.institution_name}): ${reason}`,
+      targetRole: "admin",
+      actionUrl: "/admin?tab=school_blogs"
+    });
+    return res.json({ success: true, message: "Article reported to Grobaax Admins for review." });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+async function getVerifiedActiveBloggerAssignment(user) {
+  if (isAccountSuspended(user)) {
+    return null;
+  }
+  const { data } = await supabaseAdmin.from("school_blogger_assignments").select("*").eq("user_id", user.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  return data;
+}
+schoolBlogRouter.get("/studio/articles", requireAuth, async (req, res) => {
+  try {
+    const user = req.authUser;
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user);
+    if (!activeAssign) {
+      return res.status(403).json({
+        success: false,
+        error: "You do not currently hold active School Blogger privileges."
+      });
+    }
+    const { data: articles } = await supabaseAdmin.from("school_blog_articles").select("*").eq("blog_institution_id", activeAssign.institution_id).eq("author_user_id", user.id).order("updated_at", { ascending: false });
+    return res.json({
+      success: true,
+      hasActiveSubscription: true,
+      subscriptionTier: user.subscriptionTier,
+      subscriptionExpired: user.subscriptionExpired,
+      requiresSubscription: false,
+      assignment: mapAssignmentRow(activeAssign),
+      articles: (articles || []).map(mapArticleRow)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.get("/studio/rewards", requireAuth, async (req, res) => {
+  try {
+    const user = req.authUser;
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user);
+    if (!activeAssign) {
+      return res.status(403).json({
+        success: false,
+        error: "Blogger GP rewards are strictly accessible to active approved School Bloggers."
+      });
+    }
+    const [
+      { data: rawArticles },
+      { data: rawMilestones },
+      { data: userRow },
+      followerCount
+    ] = await Promise.all([
+      supabaseAdmin.from("school_blog_articles").select("*").eq("blog_institution_id", activeAssign.institution_id).eq("author_user_id", user.id).order("published_at", { ascending: false, nullsFirst: false }).order("updated_at", { ascending: false }),
+      supabaseAdmin.from("school_blog_reward_milestones").select("*").eq("blogger_user_id", user.id).order("created_at", { ascending: false }),
+      supabaseAdmin.from("users").select("id, data").eq("id", user.id).maybeSingle(),
+      getGenuineFollowerCount(user.id)
+    ]);
+    const isRewardEligible = followerCount >= MIN_FOLLOWERS_FOR_REWARDS;
+    const articles = rawArticles || [];
+    const milestonesByArticle = /* @__PURE__ */ new Map();
+    for (const m of rawMilestones || []) {
+      const list = milestonesByArticle.get(m.article_id) || [];
+      list.push(m);
+      milestonesByArticle.set(m.article_id, list);
+    }
+    const viewCountPairs = await Promise.all(
+      articles.map(async (art) => {
+        const [{ count: totalCount }, { count: qualCount }] = await Promise.all([
+          supabaseAdmin.from("school_blog_eligible_article_views").select("id", { count: "exact", head: true }).eq("article_id", art.id),
+          supabaseAdmin.from("school_blog_eligible_article_views").select("id", { count: "exact", head: true }).eq("article_id", art.id).eq("is_reward_qualifying", true)
+        ]);
+        const totalViews = typeof totalCount === "number" ? totalCount : Number(art.eligible_views_count || 0);
+        const qualifyingViews = typeof qualCount === "number" ? qualCount : Number(art.qualifying_views_count || 0);
+        const targetMilestones = Math.min(
+          MAX_MILESTONES_PER_ARTICLE,
+          Math.floor(qualifyingViews / VIEWS_PER_REWARD_MILESTONE)
+        );
+        const existingCount = (milestonesByArticle.get(art.id) || []).length;
+        if (art.status === "published" && isRewardEligible && targetMilestones > existingCount) {
+          await supabaseAdmin.rpc("record_eligible_article_view_and_reward", {
+            p_article_id: art.id,
+            p_viewer_user_id: null
+          });
+        }
+        return [art.id, { totalViews, qualifyingViews }];
+      })
+    );
+    const countsMap = new Map(viewCountPairs);
+    const [{ data: finalMilestones }, { data: freshUserRow }] = await Promise.all([
+      supabaseAdmin.from("school_blog_reward_milestones").select("*").eq("blogger_user_id", user.id).order("created_at", { ascending: false }),
+      supabaseAdmin.from("users").select("id, data").eq("id", user.id).maybeSingle()
+    ]);
+    const milestoneRows = finalMilestones || [];
+    const finalMilestonesByArticle = /* @__PURE__ */ new Map();
+    for (const m of milestoneRows) {
+      const list = finalMilestonesByArticle.get(m.article_id) || [];
+      list.push(m);
+      finalMilestonesByArticle.set(m.article_id, list);
+    }
+    const articleTitleMap = new Map(
+      articles.map((a) => [a.id, a.title])
+    );
+    const publishedArticles = articles.filter((a) => a.status === "published");
+    const trackableArticles = articles.filter(
+      (a) => a.status === "published" || (finalMilestonesByArticle.get(a.id) || []).length > 0
+    );
+    const articleProgress = trackableArticles.map((art) => {
+      const counts = countsMap.get(art.id) || { totalViews: 0, qualifyingViews: 0 };
+      const eligibleViews = counts.totalViews;
+      const qualifyingViews = counts.qualifyingViews;
+      const artMilestones = finalMilestonesByArticle.get(art.id) || [];
+      const gpEarned = Math.min(
+        MAX_GP_PER_ARTICLE,
+        artMilestones.reduce((sum, m) => sum + Number(m.gp_amount || 0), 0)
+      );
+      const achievedCount = artMilestones.length;
+      const maxCapReached = qualifyingViews >= MAX_VIEWS_PER_ARTICLE || achievedCount >= MAX_MILESTONES_PER_ARTICLE || gpEarned >= MAX_GP_PER_ARTICLE;
+      const cappedQualifying = Math.min(qualifyingViews, MAX_VIEWS_PER_ARTICLE);
+      const cycleStart = maxCapReached ? MAX_VIEWS_PER_ARTICLE : Math.floor(cappedQualifying / VIEWS_PER_REWARD_MILESTONE) * VIEWS_PER_REWARD_MILESTONE;
+      const nextMilestoneViews = maxCapReached ? MAX_VIEWS_PER_ARTICLE : Math.min(MAX_VIEWS_PER_ARTICLE, cycleStart + VIEWS_PER_REWARD_MILESTONE);
+      const remainingViews = maxCapReached ? 0 : Math.max(0, nextMilestoneViews - cappedQualifying);
+      const progressPercent = maxCapReached ? 100 : Math.min(100, Math.round((cappedQualifying - cycleStart) / VIEWS_PER_REWARD_MILESTONE * 100));
+      return {
+        articleId: art.id,
+        title: art.title,
+        category: art.category,
+        status: art.status,
+        publishedAt: art.published_at || art.created_at || null,
+        eligibleViews,
+        qualifyingViews,
+        gpEarned,
+        maxGpPossible: MAX_GP_PER_ARTICLE,
+        maxCapReached,
+        milestonesAchieved: achievedCount,
+        nextMilestoneViews,
+        nextRewardGp: maxCapReached ? 0 : (Math.floor(cappedQualifying / VIEWS_PER_REWARD_MILESTONE) + 1) * GP_PER_REWARD_MILESTONE,
+        remainingViews,
+        progressCurrent: cappedQualifying,
+        progressTarget: nextMilestoneViews,
+        progressPercent
+      };
+    });
+    const totalEligibleViews = publishedArticles.reduce(
+      (sum, art) => sum + (countsMap.get(art.id)?.totalViews ?? 0),
+      0
+    );
+    const totalQualifyingViews = publishedArticles.reduce(
+      (sum, art) => sum + (countsMap.get(art.id)?.qualifyingViews ?? 0),
+      0
+    );
+    const totalGpEarned = milestoneRows.reduce(
+      (sum, m) => sum + Number(m.gp_amount || 0),
+      0
+    );
+    const uncappedPublishedProgress = articleProgress.filter(
+      (a) => a.status === "published" && !a.maxCapReached
+    );
+    const closestArticle = uncappedPublishedProgress.length > 0 ? [...uncappedPublishedProgress].sort((a, b) => a.remainingViews - b.remainingViews)[0] : null;
+    const walletGpBalance = Number(
+      (freshUserRow?.data || userRow?.data)?.gpBalance || 0
+    );
+    const summary = {
+      viewsPerMilestone: VIEWS_PER_REWARD_MILESTONE,
+      gpPerMilestone: GP_PER_REWARD_MILESTONE,
+      maxViewsPerArticle: MAX_VIEWS_PER_ARTICLE,
+      maxGpPerArticle: MAX_GP_PER_ARTICLE,
+      minFollowersRequired: MIN_FOLLOWERS_FOR_REWARDS,
+      followerCount,
+      isRewardEligible,
+      totalEligibleViews,
+      totalQualifyingViews,
+      totalGpEarned,
+      publishedArticlesCount: publishedArticles.length,
+      milestonesAchieved: milestoneRows.length,
+      walletGpBalance,
+      nextMilestoneProgress: closestArticle ? {
+        articleId: closestArticle.articleId,
+        articleTitle: closestArticle.title,
+        currentViews: closestArticle.qualifyingViews,
+        targetViews: closestArticle.nextMilestoneViews,
+        remainingViews: closestArticle.remainingViews,
+        nextRewardGp: GP_PER_REWARD_MILESTONE,
+        progressPercent: closestArticle.progressPercent
+      } : {
+        articleId: null,
+        articleTitle: null,
+        currentViews: 0,
+        targetViews: VIEWS_PER_REWARD_MILESTONE,
+        remainingViews: VIEWS_PER_REWARD_MILESTONE,
+        nextRewardGp: GP_PER_REWARD_MILESTONE,
+        progressPercent: 0
+      }
+    };
+    const milestones = milestoneRows.slice(0, 50).map((m) => ({
+      id: m.id,
+      articleId: m.article_id,
+      articleTitle: articleTitleMap.get(m.article_id) || "School Blog Article",
+      bloggerUserId: m.blogger_user_id,
+      institutionId: m.institution_id,
+      milestoneNumber: Number(m.milestone_number || 1),
+      eligibleViewThreshold: Number(m.eligible_view_threshold || 250),
+      gpAmount: Number(m.gp_amount || 1e3),
+      transactionReference: m.transaction_reference,
+      createdAt: m.created_at
+    }));
+    return res.json({
+      success: true,
+      assignment: mapAssignmentRow(activeAssign),
+      summary,
+      articleProgress,
+      milestones
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || "Failed to load blogger rewards." });
+  }
+});
+schoolBlogRouter.post("/studio/upload-image", requireAuth, async (req, res) => {
+  try {
+    const user = req.authUser;
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user);
+    if (!activeAssign && !user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: "Only approved active School Bloggers can upload blog images."
+      });
+    }
+    const { dataUrl, fileName } = req.body || {};
+    if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
+      return res.status(400).json({ success: false, error: "Invalid image payload." });
+    }
+    const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) {
+      return res.status(400).json({ success: false, error: "Malformed image data URL." });
+    }
+    const mimeType = match[1].toLowerCase();
+    const base64Body = match[2];
+    if (!ALLOWED_IMAGE_MIME.has(mimeType)) {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported image format. Please use JPEG, PNG, WebP, or GIF."
+      });
+    }
+    const buffer = Buffer.from(base64Body, "base64");
+    if (buffer.byteLength === 0 || buffer.byteLength > MAX_IMAGE_BYTES) {
+      return res.status(400).json({
+        success: false,
+        error: "Image exceeds the 5MB maximum file size limit."
+      });
+    }
+    const ext = mimeType.split("/")[1].replace("jpeg", "jpg");
+    const safeName = String(fileName || "image").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 40);
+    const instFolder = activeAssign?.institution_id || user.institutionId || "admin";
+    const storagePath = `${instFolder}/${user.id}/${Date.now()}_${safeName}.${ext}`;
+    const { error: uploadErr } = await supabaseAdmin.storage.from("school-blog-media").upload(storagePath, buffer, {
+      contentType: mimeType,
+      upsert: false
+    });
+    if (uploadErr) {
+      console.warn("[SchoolBlog] Storage upload notice, using validated compressed fallback:", uploadErr.message);
+      return res.json({ success: true, imageUrl: dataUrl, storagePath: "" });
+    }
+    const { data: pubUrlData } = supabaseAdmin.storage.from("school-blog-media").getPublicUrl(storagePath);
+    return res.json({
+      success: true,
+      imageUrl: pubUrlData.publicUrl,
+      storagePath
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || "Image upload failed." });
+  }
+});
+schoolBlogRouter.post("/studio/articles", requireAuth, async (req, res) => {
+  try {
+    const user = req.authUser;
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user);
+    if (!activeAssign) {
+      return res.status(403).json({
+        success: false,
+        error: "Only approved active School Bloggers can publish or draft School Blog articles."
+      });
+    }
+    const {
+      targetInstitutionId,
+      title,
+      excerpt,
+      category,
+      coverImageUrl,
+      contentBlocks,
+      contentText,
+      status = "draft"
+    } = req.body || {};
+    if (targetInstitutionId && targetInstitutionId !== activeAssign.institution_id) {
+      return res.status(403).json({
+        success: false,
+        error: `You are only authorized to publish articles for ${activeAssign.institution_name}.`
+      });
+    }
+    const { data: blogCheck } = await supabaseAdmin.from("school_blogs").select("status").eq("institution_id", activeAssign.institution_id).maybeSingle();
+    if (blogCheck && blogCheck.status !== "active") {
+      return res.status(403).json({
+        success: false,
+        code: "BLOG_SUSPENDED",
+        error: `The ${activeAssign.institution_name} School Blog is currently suspended.`
+      });
+    }
+    const cleanTitle = String(title || "").trim();
+    if (cleanTitle.length < 5) {
+      return res.status(400).json({ success: false, error: "Article headline must be at least 5 characters." });
+    }
+    const articleCategory = VALID_CATEGORIES.includes(category) ? category : "News";
+    const nextStatus = status === "published" ? "published" : "draft";
+    const cleanCover = String(coverImageUrl || "").trim();
+    if (nextStatus === "published" && !cleanCover) {
+      return res.status(400).json({ success: false, error: "A cover image is required before publishing." });
+    }
+    const normalized = normalizeArticleBlocks(contentBlocks, contentText, excerpt);
+    if (nextStatus === "published" && normalized.plainText.length < 30) {
+      return res.status(400).json({
+        success: false,
+        error: "Article content must contain at least 30 characters before publishing."
+      });
+    }
+    const articleSlug = `${slugifyText(cleanTitle) || "article"}-${Date.now().toString(36)}`;
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const { data: created, error } = await supabaseAdmin.from("school_blog_articles").insert({
+      blog_institution_id: activeAssign.institution_id,
+      institution_name: activeAssign.institution_name,
+      author_user_id: user.id,
+      author_name: activeAssign.user_name || user.name,
+      title: cleanTitle,
+      slug: articleSlug,
+      excerpt: normalized.excerpt || cleanTitle,
+      category: articleCategory,
+      cover_image_url: cleanCover,
+      content_blocks: normalized.blocks,
+      content_text: normalized.plainText,
+      status: nextStatus,
+      published_at: nextStatus === "published" ? nowIso : null
+    }).select("*").single();
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    if (normalized.inlineImages.length > 0) {
+      await supabaseAdmin.from("school_blog_article_images").insert(
+        normalized.inlineImages.map((img) => ({
+          article_id: created.id,
+          blog_institution_id: activeAssign.institution_id,
+          uploaded_by: user.id,
+          image_url: img.imageUrl,
+          caption: img.caption,
+          sort_order: img.sortOrder
+        }))
+      );
+    }
+    await writeAuditLog({
+      actorUserId: user.id,
+      actorName: user.name,
+      actorRole: "blogger",
+      action: nextStatus === "published" ? "ARTICLE_PUBLISHED" : "ARTICLE_DRAFT_CREATED",
+      institutionId: activeAssign.institution_id,
+      institutionName: activeAssign.institution_name,
+      targetType: "article",
+      targetId: created.id,
+      details: { title: cleanTitle, category: articleCategory }
+    });
+    if (nextStatus === "published") {
+      await notifyUserOrAdmins({
+        title: "School Blog Article Published",
+        message: `Your article "${cleanTitle}" is now live on ${activeAssign.institution_name} Blog! Earn 1,000 GP once your article reaches 250 eligible unique reader views (paid once per article).`,
+        targetUserId: user.id
+      });
+      await notifyUserOrAdmins({
+        title: "New School Blog Article Published",
+        message: `${activeAssign.user_name || user.name} published "${cleanTitle}" on ${activeAssign.institution_name} Blog.`,
+        targetRole: "admin",
+        actionUrl: "/admin?tab=school_blogs"
+      });
+    }
+    invalidateSchoolBlogCaches({ institutionId: activeAssign.institution_id, articleId: created.id });
+    return res.json({
+      success: true,
+      message: nextStatus === "published" ? "Article published to School Blog!" : "Article saved as draft.",
+      article: mapArticleRow(created)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.put("/studio/articles/:articleId", requireAuth, async (req, res) => {
+  try {
+    const user = req.authUser;
+    const { articleId } = req.params;
+    const activeAssign = await getVerifiedActiveBloggerAssignment(user);
+    if (!activeAssign) {
+      return res.status(403).json({
+        success: false,
+        error: "Your School Blogger privileges are not currently active."
+      });
+    }
+    const { data: existing } = await supabaseAdmin.from("school_blog_articles").select("*").eq("id", articleId).maybeSingle();
+    if (!existing) {
+      return res.status(404).json({ success: false, error: "Article not found." });
+    }
+    if (existing.author_user_id !== user.id || existing.blog_institution_id !== activeAssign.institution_id) {
+      return res.status(403).json({
+        success: false,
+        error: "You can only edit or unpublish your own articles for your assigned institution."
+      });
+    }
+    if (existing.status === "removed") {
+      return res.status(403).json({
+        success: false,
+        error: "This article was removed by an administrator and cannot be republished."
+      });
+    }
+    const { title, excerpt, category, coverImageUrl, contentBlocks, contentText, status } = req.body || {};
+    const nextTitle = title !== void 0 ? String(title).trim() : existing.title;
+    const nextCategory = category && VALID_CATEGORIES.includes(category) ? category : existing.category;
+    const nextCover = coverImageUrl !== void 0 ? String(coverImageUrl).trim() : existing.cover_image_url;
+    const normalized = contentBlocks !== void 0 || contentText !== void 0 || excerpt !== void 0 ? normalizeArticleBlocks(
+      contentBlocks !== void 0 ? contentBlocks : existing.content_blocks,
+      contentText !== void 0 ? contentText : existing.content_text,
+      excerpt !== void 0 ? excerpt : void 0
+    ) : {
+      blocks: existing.content_blocks,
+      plainText: existing.content_text,
+      excerpt: existing.excerpt,
+      inlineImages: []
+    };
+    let nextStatus = existing.status;
+    if (status === "published" || status === "draft" || status === "unpublished") {
+      nextStatus = status;
+    }
+    if (nextStatus === "published") {
+      const { data: blogCheck } = await supabaseAdmin.from("school_blogs").select("status").eq("institution_id", activeAssign.institution_id).maybeSingle();
+      if (blogCheck && blogCheck.status !== "active") {
+        return res.status(403).json({
+          success: false,
+          code: "BLOG_SUSPENDED",
+          error: `The ${activeAssign.institution_name} School Blog is currently suspended.`
+        });
+      }
+      if (!nextCover || (normalized.plainText || "").length < 30) {
+        return res.status(400).json({
+          success: false,
+          error: "Published articles require a cover image and at least 30 characters of content."
+        });
+      }
+    }
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const { data: updated, error } = await supabaseAdmin.from("school_blog_articles").update({
+      title: nextTitle,
+      category: nextCategory,
+      cover_image_url: nextCover,
+      content_blocks: normalized.blocks,
+      content_text: normalized.plainText,
+      excerpt: normalized.excerpt || nextTitle,
+      status: nextStatus,
+      published_at: nextStatus === "published" ? existing.published_at || nowIso : existing.published_at,
+      updated_at: nowIso
+    }).eq("id", articleId).select("*").single();
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    if (contentBlocks !== void 0) {
+      await supabaseAdmin.from("school_blog_article_images").delete().eq("article_id", articleId);
+      if (normalized.inlineImages.length > 0) {
+        await supabaseAdmin.from("school_blog_article_images").insert(
+          normalized.inlineImages.map((img) => ({
+            article_id: articleId,
+            blog_institution_id: activeAssign.institution_id,
+            uploaded_by: user.id,
+            image_url: img.imageUrl,
+            caption: img.caption,
+            sort_order: img.sortOrder
+          }))
+        );
+      }
+    }
+    await writeAuditLog({
+      actorUserId: user.id,
+      actorName: user.name,
+      actorRole: "blogger",
+      action: nextStatus !== existing.status ? `ARTICLE_STATUS_${String(nextStatus).toUpperCase()}` : "ARTICLE_UPDATED",
+      institutionId: activeAssign.institution_id,
+      institutionName: activeAssign.institution_name,
+      targetType: "article",
+      targetId: articleId,
+      details: { title: nextTitle, previousStatus: existing.status, nextStatus }
+    });
+    if (nextStatus === "published" && existing.status !== "published") {
+      await notifyUserOrAdmins({
+        title: "School Blog Article Published",
+        message: `Your article "${nextTitle}" is now live on ${activeAssign.institution_name} Blog!`,
+        targetUserId: user.id
+      });
+      await notifyUserOrAdmins({
+        title: "New School Blog Article Published",
+        message: `${activeAssign.user_name || user.name} published "${nextTitle}" on ${activeAssign.institution_name} Blog.`,
+        targetRole: "admin",
+        actionUrl: "/admin?tab=school_blogs"
+      });
+    }
+    invalidateSchoolBlogCaches({ institutionId: activeAssign.institution_id, articleId });
+    return res.json({
+      success: true,
+      message: "Article updated successfully.",
+      article: mapArticleRow(updated)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.get("/admin/overview", requireAdmin, async (_req, res) => {
+  try {
+    const [
+      { data: blogs },
+      { data: apps },
+      { data: assignments },
+      { data: articles },
+      { data: reports2 },
+      { data: logs },
+      { data: milestones },
+      { data: rewardTxRows },
+      { data: recentViews }
+    ] = await Promise.all([
+      supabaseAdmin.from("school_blogs").select("*").order("institution_name", { ascending: true }),
+      supabaseAdmin.from("school_blogger_applications").select("*").order("created_at", { ascending: false }).limit(200),
+      supabaseAdmin.from("school_blogger_assignments").select("*").order("created_at", { ascending: false }).limit(200),
+      supabaseAdmin.from("school_blog_articles").select("*").order("created_at", { ascending: false }).limit(300),
+      supabaseAdmin.from("school_blog_reports").select("*").order("created_at", { ascending: false }).limit(100),
+      supabaseAdmin.from("school_blog_audit_logs").select("*").order("created_at", { ascending: false }).limit(200),
+      supabaseAdmin.from("school_blog_reward_milestones").select("*").order("created_at", { ascending: false }).limit(200),
+      supabaseAdmin.from("walletTransactions").select("id, data, created_at").eq("data->>type", "blogger_reward").order("created_at", { ascending: false }).limit(150),
+      supabaseAdmin.from("school_blog_eligible_article_views").select("article_id, user_id, created_at").order("created_at", { ascending: false }).limit(500)
+    ]);
+    const blogRows = (blogs || []).map(mapBlogRow);
+    const appRows = (apps || []).map(mapApplicationRow);
+    const assignRows = (assignments || []).map(mapAssignmentRow).filter(Boolean);
+    const articleRows = (articles || []).map(mapArticleRow);
+    const articleTitleMap = new Map(articleRows.map((a) => [a.id, a]));
+    const reportRows = (reports2 || []).map((r) => ({
+      id: r.id,
+      articleId: r.article_id,
+      articleTitle: articleTitleMap.get(r.article_id)?.title || "Article",
+      blogInstitutionId: r.blog_institution_id,
+      institutionName: articleTitleMap.get(r.article_id)?.institutionName || r.blog_institution_id,
+      reporterUserId: r.reporter_user_id,
+      reporterName: r.reporter_name || "Scholar",
+      reason: r.reason,
+      status: r.status,
+      resolvedBy: r.resolved_by || null,
+      resolvedAt: r.resolved_at || null,
+      createdAt: r.created_at
+    }));
+    const auditRows = (logs || []).map((l) => ({
+      id: l.id,
+      actorUserId: l.actor_user_id,
+      actorName: l.actor_name,
+      actorRole: l.actor_role,
+      action: l.action,
+      institutionId: l.institution_id,
+      institutionName: l.institution_name,
+      targetType: l.target_type,
+      targetId: l.target_id,
+      details: l.details || {},
+      createdAt: l.created_at
+    }));
+    const bloggerNameById = /* @__PURE__ */ new Map();
+    for (const as of assignRows) {
+      if (!bloggerNameById.has(as.userId)) {
+        bloggerNameById.set(as.userId, { name: as.userName, institutionName: as.institutionName });
+      }
+    }
+    const rewardMilestoneRows = (milestones || []).map((m) => {
+      const art = articleTitleMap.get(m.article_id);
+      const bloggerMeta = bloggerNameById.get(m.blogger_user_id);
+      return {
+        id: m.id,
+        articleId: m.article_id,
+        articleTitle: art?.title || "School Blog Article",
+        bloggerUserId: m.blogger_user_id,
+        bloggerName: art?.authorName || bloggerMeta?.name || "Approved Blogger",
+        institutionId: m.institution_id,
+        institutionName: art?.institutionName || bloggerMeta?.institutionName || m.institution_id,
+        milestoneNumber: Number(m.milestone_number || 1),
+        eligibleViewThreshold: Number(m.eligible_view_threshold || 250),
+        gpAmount: Number(m.gp_amount || 1e3),
+        transactionReference: m.transaction_reference,
+        createdAt: m.created_at
+      };
+    });
+    const rewardTransactionRows = (rewardTxRows || []).map((row) => {
+      const d = row.data || {};
+      return {
+        id: row.id,
+        userId: d.userId || "",
+        userName: d.userName || "Approved Blogger",
+        institutionName: d.institutionName || "",
+        amount: Number(d.amount || 0),
+        articleId: d.articleId || "",
+        articleTitle: d.articleTitle || "",
+        eligibleViewThreshold: Number(d.eligibleViewThreshold || 0),
+        description: d.description || d.title || "Campus Blogger View Reward",
+        createdAt: d.createdAt || row.created_at
+      };
+    });
+    const bloggerAggMap = /* @__PURE__ */ new Map();
+    for (const as of assignRows) {
+      const existing = bloggerAggMap.get(as.userId);
+      if (!existing || as.status === "active") {
+        bloggerAggMap.set(as.userId, {
+          userId: as.userId,
+          userName: as.userName,
+          institutionId: as.institutionId,
+          institutionName: as.institutionName,
+          status: as.status,
+          publishedArticlesCount: existing?.publishedArticlesCount || 0,
+          eligibleViews: existing?.eligibleViews || 0,
+          qualifyingViews: existing?.qualifyingViews || 0,
+          followerCount: existing?.followerCount || 0,
+          isRewardEligible: existing?.isRewardEligible || false,
+          milestonesAchieved: existing?.milestonesAchieved || 0,
+          totalGpEarned: existing?.totalGpEarned || 0
+        });
+      }
+    }
+    for (const art of articleRows) {
+      const entry = bloggerAggMap.get(art.authorUserId) || {
+        userId: art.authorUserId,
+        userName: art.authorName,
+        institutionId: art.blogInstitutionId,
+        institutionName: art.institutionName,
+        status: "unknown",
+        publishedArticlesCount: 0,
+        eligibleViews: 0,
+        qualifyingViews: 0,
+        followerCount: 0,
+        isRewardEligible: false,
+        milestonesAchieved: 0,
+        totalGpEarned: 0
+      };
+      if (art.status === "published") entry.publishedArticlesCount += 1;
+      entry.eligibleViews += Number(art.viewsCount || 0);
+      entry.qualifyingViews += Number(art.qualifyingViewsCount || 0);
+      bloggerAggMap.set(art.authorUserId, entry);
+    }
+    for (const m of rewardMilestoneRows) {
+      const entry = bloggerAggMap.get(m.bloggerUserId);
+      if (entry) {
+        entry.milestonesAchieved += 1;
+        entry.totalGpEarned += Number(m.gpAmount || 0);
+      }
+    }
+    const bloggerEntries = Array.from(bloggerAggMap.values());
+    await Promise.all(
+      bloggerEntries.map(async (entry) => {
+        const fc = await getGenuineFollowerCount(entry.userId);
+        entry.followerCount = fc;
+        entry.isRewardEligible = entry.status === "active" && fc >= MIN_FOLLOWERS_FOR_REWARDS;
+      })
+    );
+    const bloggerRewards = bloggerEntries.sort(
+      (a, b) => b.totalGpEarned - a.totalGpEarned || b.eligibleViews - a.eligibleViews
+    );
+    const viewsByArticleTenMin = /* @__PURE__ */ new Map();
+    const tenMinCutoff = Date.now() - 10 * 60 * 1e3;
+    for (const v of recentViews || []) {
+      const ts = new Date(v.created_at).getTime();
+      if (ts >= tenMinCutoff) {
+        viewsByArticleTenMin.set(v.article_id, (viewsByArticleTenMin.get(v.article_id) || 0) + 1);
+      }
+    }
+    const suspiciousActivity = [];
+    for (const [artId, count] of viewsByArticleTenMin.entries()) {
+      if (count >= 40) {
+        const art = articleTitleMap.get(artId);
+        suspiciousActivity.push({
+          id: `spike_${artId}`,
+          severity: "warning",
+          type: "HIGH_VIEW_VELOCITY",
+          title: `High view spike detected on "${art?.title || artId}"`,
+          details: `${count} unique eligible reader views recorded within 10 minutes (${art?.institutionName || ""}).`,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        });
+      }
+    }
+    for (const as of assignRows) {
+      if (as.status === "suspended" || as.status === "removed") {
+        const entry = bloggerAggMap.get(as.userId);
+        if (entry && entry.totalGpEarned > 0) {
+          suspiciousActivity.push({
+            id: `revoked_payout_${as.id}`,
+            severity: "info",
+            type: "REVOKED_BLOGGER_HISTORY",
+            title: `${as.userName} (${as.status}) holds prior reward payouts`,
+            details: `${entry.totalGpEarned.toLocaleString()} GP earned before privileges became ${as.status}. New milestone payouts remain paused while ${as.status}.`,
+            timestamp: as.endedAt || as.appointedAt
+          });
+        }
+      }
+    }
+    const totalEligibleViews = articleRows.reduce((s, a) => s + Number(a.viewsCount || 0), 0);
+    const totalGpCredited = rewardMilestoneRows.reduce((s, m) => s + Number(m.gpAmount || 0), 0);
+    const enrichedBlogs = blogRows.map((b) => {
+      const bArticles = articleRows.filter((a) => a.blogInstitutionId === b.institutionId);
+      const publishedCount = bArticles.filter((a) => a.status === "published").length;
+      const activeBlogger = assignRows.find(
+        (as) => as.institutionId === b.institutionId && as.status === "active"
+      ) || null;
+      const latestPub = bArticles.find((a) => a.publishedAt)?.publishedAt || null;
+      return {
+        ...b,
+        publishedArticlesCount: publishedCount,
+        totalArticlesCount: bArticles.length,
+        latestPublishedAt: latestPub,
+        activeBlogger
+      };
+    });
+    return res.json({
+      success: true,
+      summary: {
+        totalInstitutionsWithBlogs: enrichedBlogs.length,
+        activeInstitutionsCount: enrichedBlogs.filter((b) => b.status === "active").length,
+        totalApplicationsCount: appRows.length,
+        pendingApplicationsCount: appRows.filter((a) => a.status === "Pending").length,
+        rejectedApplicationsCount: appRows.filter((a) => a.status === "Rejected").length,
+        withdrawnApplicationsCount: appRows.filter((a) => a.status === "Withdrawn").length,
+        activeBloggersCount: assignRows.filter((a) => a.status === "active").length,
+        suspendedBloggersCount: assignRows.filter((a) => a.status === "suspended").length,
+        removedBloggersCount: assignRows.filter((a) => a.status === "removed").length,
+        publishedArticlesCount: articleRows.filter((a) => a.status === "published").length,
+        totalArticlesCount: articleRows.length,
+        openReportsCount: reportRows.filter((r) => r.status === "open").length
+      },
+      rewardSummary: {
+        totalGpCredited,
+        totalMilestonesPaid: rewardMilestoneRows.length,
+        totalEligibleViews,
+        rewardedBloggersCount: bloggerRewards.filter((b) => b.totalGpEarned > 0).length,
+        flaggedAnomaliesCount: suspiciousActivity.filter((s) => s.severity === "warning").length
+      },
+      blogs: enrichedBlogs,
+      applications: appRows,
+      bloggers: assignRows,
+      articles: articleRows,
+      reports: reportRows,
+      auditLogs: auditRows,
+      bloggerRewards,
+      rewardMilestones: rewardMilestoneRows,
+      rewardTransactions: rewardTransactionRows,
+      suspiciousActivity
+    });
+  } catch (err) {
+    console.error("Error in GET /api/school-blogs/admin/overview:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.post("/admin/blogs/:institutionId/status", requireAdmin, async (req, res) => {
+  try {
+    const admin = req.authUser;
+    const institutionId = decodeURIComponent(req.params.institutionId || "").trim();
+    const { status, description, reason } = req.body || {};
+    if (!["active", "suspended"].includes(status)) {
+      return res.status(400).json({ success: false, error: "Blog status must be active or suspended." });
+    }
+    const { data: blogRow } = await supabaseAdmin.from("school_blogs").select("*").eq("institution_id", institutionId).maybeSingle();
+    if (!blogRow) {
+      return res.status(404).json({ success: false, error: "Institution School Blog record not found." });
+    }
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const updates = {
+      status,
+      updated_at: nowIso
+    };
+    if (typeof description === "string" && description.trim().length >= 10) {
+      updates.description = description.trim();
+    }
+    const { data: updated, error } = await supabaseAdmin.from("school_blogs").update(updates).eq("institution_id", institutionId).select("*").single();
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    await writeAuditLog({
+      actorUserId: admin.id,
+      actorName: admin.name,
+      actorRole: admin.managerRole || "ADMIN",
+      action: `SCHOOL_BLOG_${String(status).toUpperCase()}`,
+      institutionId: blogRow.institution_id,
+      institutionName: blogRow.institution_name,
+      targetType: "school_blog",
+      targetId: blogRow.institution_id,
+      details: { previousStatus: blogRow.status, nextStatus: status, reason: reason || "" }
+    });
+    invalidateSchoolBlogCaches({ institutionId });
+    return res.json({
+      success: true,
+      message: `${blogRow.institution_name} School Blog is now ${status}.`,
+      blog: mapBlogRow(updated)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.post("/admin/applications/:applicationId/approve", requireAdmin, async (req, res) => {
+  try {
+    const admin = req.authUser;
+    const { applicationId } = req.params;
+    const { reviewNotes } = req.body || {};
+    const { data: appRow } = await supabaseAdmin.from("school_blogger_applications").select("*").eq("id", applicationId).maybeSingle();
+    if (!appRow) {
+      return res.status(404).json({ success: false, error: "Application not found." });
+    }
+    if (appRow.status !== "Pending") {
+      return res.status(400).json({ success: false, error: `Application is already ${appRow.status}.` });
+    }
+    const { data: applicantUser } = await supabaseAdmin.from("users").select("data").eq("id", appRow.applicant_user_id).maybeSingle();
+    const applicantStatus = String(
+      applicantUser?.data?.accountStatus || applicantUser?.data?.status || "active"
+    ).toLowerCase();
+    if (SUSPENDED_ACCOUNT_STATUSES.has(applicantStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot approve applicant because their account is currently ${applicantStatus}.`
+      });
+    }
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const { data: prevActives } = await supabaseAdmin.from("school_blogger_assignments").select("*").eq("institution_id", appRow.institution_id).eq("status", "active");
+    for (const prev of prevActives || []) {
+      await supabaseAdmin.from("school_blogger_assignments").update({
+        status: "replaced",
+        ended_by: admin.id,
+        ended_at: nowIso,
+        end_reason: `Replaced upon approval of ${appRow.applicant_name}`,
+        updated_at: nowIso
+      }).eq("id", prev.id);
+      await notifyUserOrAdmins({
+        title: "School Blogger Assignment Updated",
+        message: `Your primary blogger role for ${appRow.institution_name} has been reassigned by Grobaax Admin. Past articles remain preserved.`,
+        targetUserId: prev.user_id
+      });
+    }
+    const { data: assignment, error: assignErr } = await supabaseAdmin.from("school_blogger_assignments").insert({
+      institution_id: appRow.institution_id,
+      institution_name: appRow.institution_name,
+      user_id: appRow.applicant_user_id,
+      user_name: appRow.applicant_name,
+      department: appRow.department || "",
+      level: appRow.level || "",
+      status: "active",
+      appointed_by: admin.id,
+      appointed_by_name: admin.name,
+      appointed_at: nowIso
+    }).select("*").single();
+    if (assignErr) {
+      return res.status(500).json({ success: false, error: assignErr.message });
+    }
+    const { data: updatedApp } = await supabaseAdmin.from("school_blogger_applications").update({
+      status: "Approved",
+      reviewed_by: admin.id,
+      reviewer_name: admin.name,
+      review_notes: String(reviewNotes || "Approved as official School Blogger.").trim(),
+      reviewed_at: nowIso,
+      updated_at: nowIso
+    }).eq("id", applicationId).select("*").single();
+    await notifyUserOrAdmins({
+      title: "School Blogger Application Approved!",
+      message: `Congratulations! You are now the approved School Blogger for ${appRow.institution_name}. Open your School Blog to start publishing.`,
+      targetUserId: appRow.applicant_user_id
+    });
+    await writeAuditLog({
+      actorUserId: admin.id,
+      actorName: admin.name,
+      actorRole: admin.managerRole || "ADMIN",
+      action: "BLOGGER_APPLICATION_APPROVED",
+      institutionId: appRow.institution_id,
+      institutionName: appRow.institution_name,
+      targetType: "application",
+      targetId: applicationId,
+      details: {
+        applicantUserId: appRow.applicant_user_id,
+        applicantName: appRow.applicant_name,
+        replacedCount: (prevActives || []).length
+      }
+    });
+    invalidateSchoolBlogCaches({ institutionId: appRow.institution_id });
+    return res.json({
+      success: true,
+      message: `${appRow.applicant_name} approved as primary School Blogger for ${appRow.institution_name}.`,
+      application: updatedApp ? mapApplicationRow(updatedApp) : null,
+      assignment: mapAssignmentRow(assignment)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.post("/admin/applications/:applicationId/reject", requireAdmin, async (req, res) => {
+  try {
+    const admin = req.authUser;
+    const { applicationId } = req.params;
+    const { reviewNotes } = req.body || {};
+    const { data: appRow } = await supabaseAdmin.from("school_blogger_applications").select("*").eq("id", applicationId).maybeSingle();
+    if (!appRow) {
+      return res.status(404).json({ success: false, error: "Application not found." });
+    }
+    if (appRow.status !== "Pending") {
+      return res.status(400).json({ success: false, error: `Application is already ${appRow.status}.` });
+    }
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const cleanNotes = String(reviewNotes || "Your application was not selected at this time.").trim();
+    const { data: updatedApp, error } = await supabaseAdmin.from("school_blogger_applications").update({
+      status: "Rejected",
+      reviewed_by: admin.id,
+      reviewer_name: admin.name,
+      review_notes: cleanNotes,
+      reviewed_at: nowIso,
+      updated_at: nowIso
+    }).eq("id", applicationId).select("*").single();
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    await notifyUserOrAdmins({
+      title: "School Blogger Application Update",
+      message: `Your application for ${appRow.institution_name} Blog was reviewed: ${cleanNotes}`,
+      targetUserId: appRow.applicant_user_id
+    });
+    await writeAuditLog({
+      actorUserId: admin.id,
+      actorName: admin.name,
+      actorRole: admin.managerRole || "ADMIN",
+      action: "BLOGGER_APPLICATION_REJECTED",
+      institutionId: appRow.institution_id,
+      institutionName: appRow.institution_name,
+      targetType: "application",
+      targetId: applicationId,
+      details: { applicantUserId: appRow.applicant_user_id, reason: cleanNotes }
+    });
+    return res.json({
+      success: true,
+      message: "Application rejected.",
+      application: mapApplicationRow(updatedApp)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.post("/admin/bloggers/:assignmentId/status", requireAdmin, async (req, res) => {
+  try {
+    const admin = req.authUser;
+    const { assignmentId } = req.params;
+    const { status, reason } = req.body || {};
+    if (!["active", "suspended", "removed"].includes(status)) {
+      return res.status(400).json({ success: false, error: "Status must be active, suspended, or removed." });
+    }
+    const { data: assignRow } = await supabaseAdmin.from("school_blogger_assignments").select("*").eq("id", assignmentId).maybeSingle();
+    if (!assignRow) {
+      return res.status(404).json({ success: false, error: "Blogger assignment record not found." });
+    }
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const { data: updated, error } = await supabaseAdmin.from("school_blogger_assignments").update({
+      status,
+      ended_by: status === "active" ? null : admin.id,
+      ended_at: status === "active" ? null : nowIso,
+      end_reason: status === "active" ? null : String(reason || `Marked as ${status} by Admin`).trim(),
+      updated_at: nowIso
+    }).eq("id", assignmentId).select("*").single();
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    await notifyUserOrAdmins({
+      title: "School Blogger Privileges Updated",
+      message: `Your blogger privileges for ${assignRow.institution_name} are now: ${status.toUpperCase()}.${reason ? ` Note: ${reason}` : ""}`,
+      targetUserId: assignRow.user_id
+    });
+    await writeAuditLog({
+      actorUserId: admin.id,
+      actorName: admin.name,
+      actorRole: admin.managerRole || "ADMIN",
+      action: `BLOGGER_STATUS_${status.toUpperCase()}`,
+      institutionId: assignRow.institution_id,
+      institutionName: assignRow.institution_name,
+      targetType: "blogger_assignment",
+      targetId: assignmentId,
+      details: { targetUserId: assignRow.user_id, previousStatus: assignRow.status, nextStatus: status, reason }
+    });
+    invalidateSchoolBlogCaches({ institutionId: assignRow.institution_id });
+    return res.json({
+      success: true,
+      message: `Blogger privileges updated to ${status}.`,
+      assignment: mapAssignmentRow(updated)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.post("/admin/articles/:articleId/moderate", requireAdmin, async (req, res) => {
+  try {
+    const admin = req.authUser;
+    const { articleId } = req.params;
+    const { action, reason } = req.body || {};
+    if (!["remove", "unpublish", "restore"].includes(action)) {
+      return res.status(400).json({ success: false, error: "Action must be remove, unpublish, or restore." });
+    }
+    const { data: art } = await supabaseAdmin.from("school_blog_articles").select("*").eq("id", articleId).maybeSingle();
+    if (!art) {
+      return res.status(404).json({ success: false, error: "Article not found." });
+    }
+    const nextStatus = action === "remove" ? "removed" : action === "unpublish" ? "unpublished" : "published";
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const { data: updated, error } = await supabaseAdmin.from("school_blog_articles").update({
+      status: nextStatus,
+      moderation_reason: action === "restore" ? null : String(reason || `Moderated (${action}) by Admin`).trim(),
+      moderated_by: admin.id,
+      moderated_at: nowIso,
+      published_at: action === "restore" ? art.published_at || nowIso : art.published_at,
+      updated_at: nowIso
+    }).eq("id", articleId).select("*").single();
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    await supabaseAdmin.from("school_blog_reports").update({ status: "resolved", resolved_by: admin.id, resolved_at: nowIso }).eq("article_id", articleId).eq("status", "open");
+    await notifyUserOrAdmins({
+      title: "School Blog Article Moderation",
+      message: `Your article "${art.title}" on ${art.institution_name} Blog was ${nextStatus} by Admin.${reason ? ` Reason: ${reason}` : ""}`,
+      targetUserId: art.author_user_id
+    });
+    await writeAuditLog({
+      actorUserId: admin.id,
+      actorName: admin.name,
+      actorRole: admin.managerRole || "ADMIN",
+      action: `ADMIN_ARTICLE_${action.toUpperCase()}`,
+      institutionId: art.blog_institution_id,
+      institutionName: art.institution_name,
+      targetType: "article",
+      targetId: articleId,
+      details: { title: art.title, previousStatus: art.status, nextStatus, reason }
+    });
+    invalidateSchoolBlogCaches({ institutionId: art.blog_institution_id, articleId });
+    return res.json({
+      success: true,
+      message: `Article ${nextStatus} successfully.`,
+      article: mapArticleRow(updated)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+schoolBlogRouter.post("/admin/reports/:reportId/dismiss", requireAdmin, async (req, res) => {
+  try {
+    const admin = req.authUser;
+    const { reportId } = req.params;
+    const { error } = await supabaseAdmin.from("school_blog_reports").update({
+      status: "dismissed",
+      resolved_by: admin.id,
+      resolved_at: (/* @__PURE__ */ new Date()).toISOString()
+    }).eq("id", reportId);
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.json({ success: true, message: "Report dismissed." });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // server/walletRouter.ts
 init_supabaseFirestoreAdapter();
-import { Router as Router5 } from "express";
-var walletRouter = Router5();
+import { Router as Router7 } from "express";
+var walletRouter = Router7();
 var processedQuizRewardKeys = /* @__PURE__ */ new Set();
 var userDailyQuizRewards = /* @__PURE__ */ new Map();
 var processedPaystackRefs = /* @__PURE__ */ new Set();
@@ -16301,6 +24831,16 @@ walletRouter.post("/credit-live-reward", async (req, res) => {
       timestamp: Date.now()
     };
     await setDocToSupabase("walletTransactions", txId, txRecord, true, { isServerAuthoritative: true });
+    void dispatchExternalPush({
+      eventType: "wallet_live_reward",
+      category: "wallet",
+      title: "Wallet GP Reward Credited",
+      body: `+${safeReward.toLocaleString()} GP has been credited to your Grobaax wallet.`,
+      actionUrl: "/wallet",
+      dedupeKey: `wallet_live_${txId}`,
+      recipientUserId: userId
+    }).catch(() => {
+    });
     return res.json({
       success: true,
       newBalance: newGp,
@@ -16400,6 +24940,16 @@ walletRouter.post("/verify-paystack-topup", async (req, res) => {
       data: txRecord,
       updated_at: (/* @__PURE__ */ new Date()).toISOString()
     });
+    void dispatchExternalPush({
+      eventType: "wallet_topup",
+      category: "wallet",
+      title: "Wallet Top-Up Confirmed",
+      body: `+${gpToCredit.toLocaleString()} GP has been added to your Grobaax wallet.`,
+      actionUrl: "/wallet",
+      dedupeKey: `wallet_topup_${reference}`,
+      recipientUserId: userId
+    }).catch(() => {
+    });
     return res.json({
       success: true,
       creditedGp: gpToCredit,
@@ -16443,8 +24993,8 @@ walletRouter.get("/balance/:userId", async (req, res) => {
 
 // server/supabaseRouter.ts
 init_supabase();
-import { Router as Router6 } from "express";
-var supabaseRouter = Router6();
+import { Router as Router8 } from "express";
+var supabaseRouter = Router8();
 supabaseRouter.post("/upsert", async (req, res) => {
   try {
     const { table, docId, data, now } = req.body;
@@ -16522,15 +25072,15 @@ supabaseRouter.post("/delete", async (req, res) => {
 
 // server/spinRouter.ts
 init_supabaseFirestoreAdapter();
-import { Router as Router7 } from "express";
-import fs3 from "fs";
-import path3 from "path";
-var spinRouter = Router7();
-var DOME_SPINS_FILE = path3.resolve(process.cwd(), "server", "school_dome_spins.json");
+import { Router as Router9 } from "express";
+import fs4 from "fs";
+import path4 from "path";
+var spinRouter = Router9();
+var DOME_SPINS_FILE = path4.resolve(process.cwd(), "server", "school_dome_spins.json");
 function loadDomeSpinStore() {
   try {
-    if (fs3.existsSync(DOME_SPINS_FILE)) {
-      const content = fs3.readFileSync(DOME_SPINS_FILE, "utf-8");
+    if (fs4.existsSync(DOME_SPINS_FILE)) {
+      const content = fs4.readFileSync(DOME_SPINS_FILE, "utf-8");
       const parsed = JSON.parse(content);
       if (parsed && typeof parsed === "object") {
         return {
@@ -16546,11 +25096,11 @@ function loadDomeSpinStore() {
 }
 function saveDomeSpinStore(store) {
   try {
-    const dir = path3.dirname(DOME_SPINS_FILE);
-    if (!fs3.existsSync(dir)) {
-      fs3.mkdirSync(dir, { recursive: true });
+    const dir = path4.dirname(DOME_SPINS_FILE);
+    if (!fs4.existsSync(dir)) {
+      fs4.mkdirSync(dir, { recursive: true });
     }
-    fs3.writeFileSync(DOME_SPINS_FILE, JSON.stringify(store, null, 2), "utf-8");
+    fs4.writeFileSync(DOME_SPINS_FILE, JSON.stringify(store, null, 2), "utf-8");
   } catch (err) {
     console.warn("[School Dome Spin Store] Notice writing store file:", err);
   }
@@ -17342,11 +25892,11 @@ spinRouter.post("/school-dome/reset-season", async (req, res) => {
 
 // server/systemSettingsRouter.ts
 init_supabase();
-import { Router as Router8 } from "express";
-import fs4 from "fs";
-import path4 from "path";
-var systemSettingsRouter = Router8();
-var SETTINGS_FILE = path4.resolve(process.cwd(), "server", "system_settings.json");
+import { Router as Router10 } from "express";
+import fs5 from "fs";
+import path5 from "path";
+var systemSettingsRouter = Router10();
+var SETTINGS_FILE = path5.resolve(process.cwd(), "server", "system_settings.json");
 var DEFAULT_SETTINGS2 = {
   platformName: "Grobaax Academic Competition Platform",
   maintenanceMode: false,
@@ -17372,8 +25922,8 @@ var DEFAULT_SETTINGS2 = {
 };
 function loadSettingsFromDisk() {
   try {
-    if (fs4.existsSync(SETTINGS_FILE)) {
-      const raw = fs4.readFileSync(SETTINGS_FILE, "utf-8");
+    if (fs5.existsSync(SETTINGS_FILE)) {
+      const raw = fs5.readFileSync(SETTINGS_FILE, "utf-8");
       if (raw && raw.trim()) {
         const parsed = JSON.parse(raw);
         return { ...DEFAULT_SETTINGS2, ...parsed };
@@ -17387,7 +25937,7 @@ function loadSettingsFromDisk() {
 function saveSettingsToDisk(data) {
   try {
     const merged = { ...loadSettingsFromDisk(), ...data };
-    fs4.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2), "utf-8");
+    fs5.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2), "utf-8");
   } catch (err) {
     console.warn("[SystemSettings] Failed to write disk file:", err);
   }
@@ -17464,18 +26014,18 @@ systemSettingsRouter.post("/", async (req, res) => {
 
 // server/mobileDownloadRouter.ts
 import express2 from "express";
-import path5 from "path";
-import fs5 from "fs";
+import path6 from "path";
+import fs6 from "fs";
 var mobileDownloadRouter = express2.Router();
 function getFilePath(filename) {
   const root = process.cwd();
   const candidates = [
-    path5.join(root, "public", "downloads", filename),
-    path5.join(root, "dist", "downloads", filename),
-    path5.join(root, filename)
+    path6.join(root, "public", "downloads", filename),
+    path6.join(root, "dist", "downloads", filename),
+    path6.join(root, filename)
   ];
   for (const candidate of candidates) {
-    if (fs5.existsSync(candidate)) {
+    if (fs6.existsSync(candidate)) {
       return candidate;
     }
   }
@@ -17543,7 +26093,7 @@ mobileDownloadRouter.get(["/info", "/status", "/json"], (_req, res) => {
         directStaticUrl: "/downloads/grobaax-android-project.zip",
         filename: "grobaax-android-project.zip",
         available: Boolean(androidFile),
-        sizeBytes: androidFile ? fs5.statSync(androidFile).size : 0,
+        sizeBytes: androidFile ? fs6.statSync(androidFile).size : 0,
         instructions: {
           testApk: "cd android && ./gradlew assembleDebug (outputs: app/build/outputs/apk/debug/app-debug.apk)",
           playStoreAab: "cd android && ./gradlew bundleRelease (outputs: app/build/outputs/bundle/release/app-release.aab)"
@@ -17554,7 +26104,7 @@ mobileDownloadRouter.get(["/info", "/status", "/json"], (_req, res) => {
         directStaticUrl: "/downloads/grobaax-ios-project.zip",
         filename: "grobaax-ios-project.zip",
         available: Boolean(iosFile),
-        sizeBytes: iosFile ? fs5.statSync(iosFile).size : 0,
+        sizeBytes: iosFile ? fs6.statSync(iosFile).size : 0,
         instructions: {
           openXcode: "npx cap open ios or open ios/App/App.xcworkspace in Xcode",
           appStoreArchive: "Product > Archive > Distribute App in Xcode"
@@ -17565,7 +26115,7 @@ mobileDownloadRouter.get(["/info", "/status", "/json"], (_req, res) => {
         directStaticUrl: "/downloads/grobaax-mobile-packaging-suite.zip",
         filename: "grobaax-mobile-packaging-suite.zip",
         available: Boolean(suiteFile),
-        sizeBytes: suiteFile ? fs5.statSync(suiteFile).size : 0
+        sizeBytes: suiteFile ? fs6.statSync(suiteFile).size : 0
       },
       packagingGuide: {
         url: "/api/download/guide",
@@ -17899,6 +26449,585 @@ curl -O ${baseUrl}/downloads/grobaax-mobile-packaging-suite.zip</div>
 </html>`;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(html);
+});
+
+// server/notificationsRouter.ts
+init_supabase();
+import express3 from "express";
+var notificationsRouter = express3.Router();
+function isAdminRole(role) {
+  const r = String(role || "").toLowerCase();
+  return r === "admin" || r === "super_admin" || r === "moderator" || r === "manager";
+}
+async function resolveCallerUserId(req) {
+  const explicit = String(
+    req.body?.userId || req.query?.userId || ""
+  ).trim();
+  const authHeader = String(req.headers.authorization || "").trim();
+  if (authHeader.toLowerCase().startsWith("bearer ")) {
+    const token = authHeader.slice(7).trim();
+    if (token) {
+      try {
+        const { data } = await supabaseAdmin.auth.getUser(token);
+        if (data?.user?.id) {
+          return data.user.id;
+        }
+      } catch {
+      }
+    }
+  }
+  return explicit;
+}
+notificationsRouter.post("/mark-read", async (req, res) => {
+  try {
+    const userId = await resolveCallerUserId(req);
+    if (!userId || userId === "guest") {
+      return res.json({ success: true, skipped: true });
+    }
+    const rawIds = Array.isArray(req.body?.notificationIds) ? req.body.notificationIds.map((x) => String(x || "").trim()).filter(Boolean) : [];
+    const rawFps = Array.isArray(req.body?.fingerprints) ? req.body.fingerprints.map((x) => String(x || "").trim().toLowerCase()).filter(Boolean) : [];
+    const uniqueIds = Array.from(new Set(rawIds));
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    if (uniqueIds.length > 0) {
+      const { data: rows } = await supabaseAdmin.from("notifications").select("id, data").in("id", uniqueIds);
+      if (rows && rows.length > 0) {
+        await Promise.all(
+          rows.map(async (row) => {
+            const existingData = row.data && typeof row.data === "object" ? row.data : {};
+            const existingReadBy = existingData.readBy && typeof existingData.readBy === "object" ? existingData.readBy : {};
+            const existingReadList = Array.isArray(existingData.readByUserIds) ? existingData.readByUserIds.map((x) => String(x)) : [];
+            const nextReadList = Array.from(/* @__PURE__ */ new Set([...existingReadList, userId]));
+            const nextReadBy = { ...existingReadBy, [userId]: true };
+            const rowTarget = existingData.targetUserId || existingData.userId;
+            const isDirectToCaller = Boolean(rowTarget) && String(rowTarget).trim() === userId;
+            const updatedData = {
+              ...existingData,
+              id: row.id,
+              readBy: nextReadBy,
+              readByUserIds: nextReadList,
+              updatedAt: nowIso
+            };
+            if (isDirectToCaller) {
+              updatedData.isRead = true;
+            }
+            await supabaseAdmin.from("notifications").update({
+              data: updatedData,
+              updated_at: nowIso
+            }).eq("id", row.id);
+          })
+        );
+      }
+    }
+    const keysToStore = Array.from(/* @__PURE__ */ new Set([...uniqueIds, ...rawFps]));
+    if (keysToStore.length > 0) {
+      const { data: userRow } = await supabaseAdmin.from("users").select("id, data").eq("id", userId).maybeSingle();
+      if (userRow) {
+        const userData = userRow.data && typeof userRow.data === "object" ? userRow.data : {};
+        const prevReadIds = Array.isArray(userData.readNotificationIds) ? userData.readNotificationIds.map((x) => String(x)) : [];
+        const merged = Array.from(/* @__PURE__ */ new Set([...prevReadIds, ...keysToStore])).slice(-600);
+        await supabaseAdmin.from("users").update({
+          data: {
+            ...userData,
+            readNotificationIds: merged,
+            updatedAt: nowIso
+          },
+          updated_at: nowIso
+        }).eq("id", userId);
+      }
+    }
+    return res.json({ success: true, persistedCount: uniqueIds.length });
+  } catch (err) {
+    console.warn("[NotificationsRouter] mark-read error:", err?.message || err);
+    return res.status(500).json({ success: false, error: err?.message || "Failed to mark read" });
+  }
+});
+notificationsRouter.post("/section-read", async (req, res) => {
+  try {
+    const userId = await resolveCallerUserId(req);
+    const sectionKey = String(req.body?.sectionKey || "").trim();
+    const readAt = Number(req.body?.readAt) || Date.now();
+    if (!userId || userId === "guest" || !sectionKey) {
+      return res.json({ success: true, skipped: true });
+    }
+    const { data: userRow } = await supabaseAdmin.from("users").select("id, data").eq("id", userId).maybeSingle();
+    if (userRow) {
+      const userData = userRow.data && typeof userRow.data === "object" ? userRow.data : {};
+      const existingMap = userData.sectionReadState && typeof userData.sectionReadState === "object" ? { ...userData.sectionReadState } : {};
+      const nextMap = {
+        ...existingMap,
+        [sectionKey]: Math.max(Number(existingMap[sectionKey] || 0), readAt)
+      };
+      if (sectionKey === "community" || sectionKey === "admin_community") {
+        ["community", "user", "minimart", "announcements", "campus", "admin_community"].forEach((k) => {
+          nextMap[k] = Math.max(Number(nextMap[k] || 0), readAt);
+        });
+      } else if (sectionKey.startsWith("admin_")) {
+        const stripped = sectionKey.replace(/^admin_/, "");
+        nextMap[stripped] = Math.max(Number(nextMap[stripped] || 0), readAt);
+      } else {
+        nextMap[`admin_${sectionKey}`] = Math.max(Number(nextMap[`admin_${sectionKey}`] || 0), readAt);
+      }
+      const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+      await supabaseAdmin.from("users").update({
+        data: {
+          ...userData,
+          sectionReadState: nextMap,
+          updatedAt: nowIso
+        },
+        updated_at: nowIso
+      }).eq("id", userId);
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.warn("[NotificationsRouter] section-read error:", err?.message || err);
+    return res.status(500).json({ success: false, error: err?.message || "Failed to save section read state" });
+  }
+});
+notificationsRouter.get("/live-summary", async (req, res) => {
+  try {
+    const isAdminFlag = String(req.query?.isAdmin || "").toLowerCase() === "true" || isAdminRole(String(req.query?.role || ""));
+    if (!isAdminFlag) {
+      return res.json({
+        success: true,
+        schoolBlogArticles: []
+      });
+    }
+    const { data: publishedArticles } = await supabaseAdmin.from("school_blog_articles").select("id, author_user_id, blog_institution_id, institution_name, published_at, updated_at, created_at").eq("status", "published").order("published_at", { ascending: false }).limit(40);
+    const schoolBlogArticles = (publishedArticles || []).map((a) => ({
+      id: a.id,
+      authorUserId: a.author_user_id,
+      blogInstitutionId: a.blog_institution_id,
+      institutionName: a.institution_name,
+      publishedAt: a.published_at || a.updated_at || a.created_at,
+      createdAt: a.created_at,
+      updatedAt: a.updated_at
+    }));
+    const [
+      pendingCompaniesRes,
+      recentCompaniesRes,
+      pendingCampaignsRes,
+      pendingTickersRes,
+      recentPaymentsRes,
+      pendingBlogAppsRes,
+      openBlogReportsRes
+    ] = await Promise.all([
+      supabaseAdmin.from("corporate_accounts").select("id", { count: "exact", head: true }).eq("status", "Pending"),
+      supabaseAdmin.from("corporate_accounts").select("id, status, created_at, updated_at").order("created_at", { ascending: false }).limit(15),
+      supabaseAdmin.from("corporate_ad_campaigns").select("id", { count: "exact", head: true }).eq("status", "Pending Review"),
+      supabaseAdmin.from("corporate_ticker_campaigns").select("id", { count: "exact", head: true }).eq("status", "Pending Review"),
+      supabaseAdmin.from("corporate_payments").select("id, status, paid_at, created_at").eq("status", "success").order("paid_at", { ascending: false }).limit(15),
+      supabaseAdmin.from("school_blogger_applications").select("id", { count: "exact", head: true }).eq("status", "Pending"),
+      supabaseAdmin.from("school_blog_reports").select("id", { count: "exact", head: true }).in("status", ["open", "pending", "Open", "Pending"])
+    ]);
+    const corporateRecentActivityTimestamps = [];
+    (recentCompaniesRes.data || []).forEach((c) => {
+      if (c.status && c.status !== "Pending" && (c.created_at || c.updated_at)) {
+        corporateRecentActivityTimestamps.push(c.created_at || c.updated_at);
+      }
+    });
+    (recentPaymentsRes.data || []).forEach((p) => {
+      if (p.paid_at || p.created_at) {
+        corporateRecentActivityTimestamps.push(p.paid_at || p.created_at);
+      }
+    });
+    const blogRecentArticleTimestamps = schoolBlogArticles.map((a) => a.publishedAt || a.createdAt).filter(Boolean);
+    return res.json({
+      success: true,
+      schoolBlogArticles,
+      adminQueues: {
+        corporatePendingCompanies: Number(pendingCompaniesRes.count || 0),
+        corporatePendingCampaigns: Number(pendingCampaignsRes.count || 0),
+        corporatePendingTickers: Number(pendingTickersRes.count || 0),
+        corporatePendingPayments: 0,
+        corporateRecentActivityTimestamps,
+        blogPendingApplications: Number(pendingBlogAppsRes.count || 0),
+        blogOpenReports: Number(openBlogReportsRes.count || 0),
+        blogRecentArticleTimestamps
+      }
+    });
+  } catch (err) {
+    console.warn("[NotificationsRouter] live-summary error:", err?.message || err);
+    return res.json({ success: false, schoolBlogArticles: [] });
+  }
+});
+notificationsRouter.get("/push-config", (_req, res) => {
+  try {
+    const cfg = getPublicPushConfig();
+    return res.json({
+      success: true,
+      ...cfg
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to read push configuration."
+    });
+  }
+});
+notificationsRouter.post("/devices/register", requireAuth, async (req, res) => {
+  try {
+    const authUser = req.authUser;
+    const { token, platform, browser, deviceLabel, userAgent, isStandalone } = req.body || {};
+    if (!token || typeof token !== "string") {
+      return res.status(400).json({ success: false, error: "Device registration token is required." });
+    }
+    const device = await registerUserPushDevice({
+      userId: authUser.id,
+      token,
+      platform,
+      browser,
+      deviceLabel,
+      userAgent: userAgent || String(req.headers["user-agent"] || ""),
+      isStandalone: Boolean(isStandalone)
+    });
+    return res.json({
+      success: true,
+      device
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      error: err?.message || "Failed to register push device."
+    });
+  }
+});
+notificationsRouter.get("/devices", requireAuth, async (req, res) => {
+  try {
+    const authUser = req.authUser;
+    const currentToken = String(req.query?.currentToken || "").trim();
+    const devices = await listUserPushDevices(authUser.id, currentToken);
+    return res.json({
+      success: true,
+      devices,
+      pushStatus: getPushConfigurationStatus()
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to load registered devices."
+    });
+  }
+});
+notificationsRouter.delete("/devices/:deviceId", requireAuth, async (req, res) => {
+  try {
+    const authUser = req.authUser;
+    const deviceId = String(req.params.deviceId || "").trim();
+    if (!deviceId) {
+      return res.status(400).json({ success: false, error: "Device ID is required." });
+    }
+    const removed = await removeUserPushDevice(authUser.id, deviceId);
+    if (!removed) {
+      return res.status(404).json({ success: false, error: "Device not found for this account." });
+    }
+    return res.json({ success: true, removed: true });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to remove device."
+    });
+  }
+});
+notificationsRouter.post("/devices/unregister", requireAuth, async (req, res) => {
+  try {
+    const authUser = req.authUser;
+    const token = String(req.body?.token || "").trim();
+    if (!token) {
+      return res.status(400).json({ success: false, error: "Token is required." });
+    }
+    const removed = await unregisterUserPushDeviceByToken(authUser.id, token);
+    return res.json({ success: true, removed });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to unregister push token."
+    });
+  }
+});
+notificationsRouter.get("/preferences", requireAuth, async (req, res) => {
+  try {
+    const authUser = req.authUser;
+    const preferences = await getUserPushPreferences(authUser.id);
+    return res.json({
+      success: true,
+      preferences
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to load push notification preferences."
+    });
+  }
+});
+notificationsRouter.put("/preferences", requireAuth, async (req, res) => {
+  try {
+    const authUser = req.authUser;
+    const { pushEnabled, categories: categories2 } = req.body || {};
+    const preferences = await updateUserPushPreferences(authUser.id, {
+      ...typeof pushEnabled === "boolean" ? { pushEnabled } : {},
+      ...categories2 && typeof categories2 === "object" ? { categories: categories2 } : {}
+    });
+    return res.json({
+      success: true,
+      preferences
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to save notification preferences."
+    });
+  }
+});
+notificationsRouter.post("/test-self", requireAuth, async (req, res) => {
+  try {
+    const authUser = req.authUser;
+    const pushResult = await dispatchExternalPush({
+      eventType: "self_test",
+      category: "system",
+      title: "Grobaax Push Notifications Active",
+      body: "Your device is configured to receive important Grobaax updates.",
+      actionUrl: "/home",
+      recipientUserId: authUser.id,
+      dedupeKey: `self_test_${authUser.id}_${Math.floor(Date.now() / 5e3)}`
+    });
+    return res.json({
+      success: true,
+      pushResult
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to test push notification."
+    });
+  }
+});
+notificationsRouter.post("/admin-broadcast", requireAdmin, async (req, res) => {
+  try {
+    const adminUser = req.authUser;
+    const {
+      title,
+      message,
+      type = "announcement",
+      targetRole = "ALL",
+      targetUserId,
+      actionUrl,
+      sendExternalPush = true
+    } = req.body || {};
+    const cleanTitle = String(title || "").trim();
+    const cleanMessage = String(message || "").trim();
+    if (!cleanTitle || !cleanMessage) {
+      return res.status(400).json({
+        success: false,
+        error: "Notification title and message are required."
+      });
+    }
+    let resolvedTargetUserId = String(targetUserId || "").trim();
+    if (resolvedTargetUserId.startsWith("@")) {
+      const handle = resolvedTargetUserId.toLowerCase();
+      const { data: matchedUsers } = await supabaseAdmin.from("users").select("id, data").limit(300);
+      const found = (matchedUsers || []).find((row) => {
+        const u = row.data || {};
+        const un = String(u.username || "").toLowerCase();
+        const normUn = un.startsWith("@") ? un : `@${un}`;
+        return normUn === handle || un === handle.slice(1);
+      });
+      if (!found) {
+        return res.status(404).json({
+          success: false,
+          error: `Scholar with username ${resolvedTargetUserId} was not found.`
+        });
+      }
+      resolvedTargetUserId = found.id;
+    }
+    const notifId = `notif_admin_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const resolvedActionUrl = String(actionUrl || "").trim() || (type === "dome" ? "school_dome" : type === "gus" ? "gus" : type === "league" ? "league" : type === "wallet" ? "wallet" : "/home");
+    const notifData = {
+      id: notifId,
+      title: cleanTitle,
+      message: cleanMessage,
+      type,
+      targetRole: resolvedTargetUserId ? void 0 : targetRole || "ALL",
+      userId: resolvedTargetUserId || null,
+      targetUserId: resolvedTargetUserId || null,
+      actionUrl: resolvedActionUrl,
+      isRead: false,
+      senderAdminUid: adminUser.id,
+      senderAdminName: adminUser.name,
+      timestamp: (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      createdAtMillis: Date.now(),
+      createdAt: nowIso
+    };
+    const { error: insertErr } = await supabaseAdmin.from("notifications").upsert(
+      {
+        id: notifId,
+        data: notifData,
+        updated_at: nowIso
+      },
+      { onConflict: "id" }
+    );
+    if (insertErr) {
+      return res.status(500).json({
+        success: false,
+        error: insertErr.message || "Failed to save broadcast notification."
+      });
+    }
+    try {
+      const auditId = `audit_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      await supabaseAdmin.from("auditLogs").upsert(
+        {
+          id: auditId,
+          data: {
+            id: auditId,
+            adminUid: adminUser.id,
+            adminName: adminUser.name,
+            action: "DISPATCH_BROADCAST_NOTIFICATION",
+            targetId: notifId,
+            details: {
+              title: cleanTitle,
+              type,
+              targetRole: resolvedTargetUserId ? "DIRECT_USER" : targetRole || "ALL",
+              targetUserId: resolvedTargetUserId || null,
+              sendExternalPush: Boolean(sendExternalPush)
+            },
+            createdAt: nowIso
+          },
+          updated_at: nowIso
+        },
+        { onConflict: "id" }
+      );
+    } catch {
+    }
+    let pushResult = null;
+    if (sendExternalPush !== false) {
+      const category = resolvePushCategory(type, resolvedActionUrl, cleanTitle);
+      pushResult = await dispatchExternalPush({
+        eventType: "admin_broadcast",
+        category,
+        title: cleanTitle,
+        body: cleanMessage,
+        actionUrl: resolvedActionUrl,
+        notificationId: notifId,
+        dedupeKey: `admin_broadcast_${notifId}`,
+        recipientUserId: resolvedTargetUserId || void 0,
+        targetRole: resolvedTargetUserId ? void 0 : targetRole || "ALL"
+      });
+    }
+    return res.json({
+      success: true,
+      notificationId: notifId,
+      notification: notifData,
+      pushResult
+    });
+  } catch (err) {
+    console.error("[NotificationsRouter] admin-broadcast error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to dispatch broadcast notification."
+    });
+  }
+});
+notificationsRouter.post("/trigger-event", requireAuth, async (req, res) => {
+  try {
+    const authUser = req.authUser;
+    const {
+      eventType,
+      title,
+      message,
+      type,
+      actionUrl,
+      notificationId,
+      dedupeKey,
+      recipientUserId,
+      targetRole,
+      excludeUserId,
+      requestId
+    } = req.body || {};
+    const cleanEvent = String(eventType || "").trim();
+    if (authUser.isAdmin) {
+      const cleanTitle = String(title || "").trim();
+      const cleanMessage = String(message || "").trim();
+      if (!cleanTitle || !cleanMessage) {
+        return res.status(400).json({ success: false, error: "Title and message are required." });
+      }
+      const category = resolvePushCategory(type || cleanEvent, actionUrl, cleanTitle);
+      const pushResult = await dispatchExternalPush({
+        eventType: cleanEvent || "admin_event",
+        category,
+        title: cleanTitle,
+        body: cleanMessage,
+        actionUrl,
+        notificationId,
+        dedupeKey: dedupeKey || (notificationId ? `notif_${notificationId}` : void 0),
+        recipientUserId: recipientUserId || void 0,
+        targetRole: recipientUserId ? void 0 : targetRole || "ALL",
+        excludeUserId: excludeUserId || void 0
+      });
+      return res.json({ success: true, pushResult });
+    }
+    if (cleanEvent === "campus_connection_request") {
+      const targetUid = String(recipientUserId || "").trim();
+      if (!targetUid || targetUid === authUser.id) {
+        return res.status(400).json({ success: false, error: "Valid recipient is required." });
+      }
+      const { data: reqRows } = await supabaseAdmin.from("campus_connection_requests").select("id, data").eq("data->>senderId", authUser.id).eq("data->>recipientId", targetUid).limit(5);
+      const verifiedReq = (reqRows || []).find(
+        (r) => !requestId || r.id === requestId || r.data?.id === requestId
+      );
+      if (!verifiedReq) {
+        return res.status(403).json({
+          success: false,
+          error: "Verified connection request record not found."
+        });
+      }
+      const pushResult = await dispatchExternalPush({
+        eventType: "campus_connection_request",
+        category: "connections",
+        title: "New Connection Request",
+        body: `${authUser.name} wants to connect with you on Grobaax Campus.`,
+        actionUrl: "/community?tab=campus&view=connections",
+        notificationId,
+        dedupeKey: `campus_req_${verifiedReq.id}`,
+        recipientUserId: targetUid
+      });
+      return res.json({ success: true, pushResult });
+    }
+    if (cleanEvent === "campus_connection_accepted") {
+      const targetUid = String(recipientUserId || "").trim();
+      if (!targetUid || targetUid === authUser.id) {
+        return res.status(400).json({ success: false, error: "Valid recipient is required." });
+      }
+      const { data: reqRows } = await supabaseAdmin.from("campus_connection_requests").select("id, data").eq("data->>senderId", targetUid).eq("data->>recipientId", authUser.id).limit(5);
+      const verifiedAccepted = (reqRows || []).find(
+        (r) => r.data?.status === "ACCEPTED" && (!requestId || r.id === requestId || r.data?.id === requestId)
+      );
+      if (!verifiedAccepted) {
+        return res.status(403).json({
+          success: false,
+          error: "Verified accepted connection record not found."
+        });
+      }
+      const pushResult = await dispatchExternalPush({
+        eventType: "campus_connection_accepted",
+        category: "connections",
+        title: "Connection Request Accepted",
+        body: `${authUser.name} accepted your Grobaax Campus connection request.`,
+        actionUrl: "/community?tab=campus&view=connections",
+        notificationId,
+        dedupeKey: `campus_accept_${verifiedAccepted.id}`,
+        recipientUserId: targetUid
+      });
+      return res.json({ success: true, pushResult });
+    }
+    return res.status(403).json({
+      success: false,
+      error: "Unauthorized push notification trigger."
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to process notification trigger."
+    });
+  }
 });
 
 // src/lib/academicIllustrationService.ts
@@ -18561,7 +27690,7 @@ var getAuthCallbackHtml = () => {
 
 // server/apiApp.ts
 dotenv2.config();
-var apiApp = express3();
+var apiApp = express4();
 apiApp.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
@@ -18595,9 +27724,9 @@ apiApp.use((req, res, next) => {
   if (req.body && typeof req.body === "object" && Object.keys(req.body).length > 0) {
     return next();
   }
-  express3.json({ limit: "10mb" })(req, res, (err) => {
+  express4.json({ limit: "10mb" })(req, res, (err) => {
     if (err) return next(err);
-    express3.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
+    express4.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
   });
 });
 apiApp.get(["/auth/callback", "/auth/callback/", "/api/auth/callback", "/api/auth/callback/"], (_req, res) => {
@@ -19281,6 +28410,8 @@ apiApp.use("/api/library", libraryRouter);
 apiApp.use("/library", libraryRouter);
 apiApp.use("/api/campus", campusRouter);
 apiApp.use("/campus", campusRouter);
+apiApp.use("/api/school-blogs", schoolBlogRouter);
+apiApp.use("/school-blogs", schoolBlogRouter);
 apiApp.use("/api/wallet", walletRouter);
 apiApp.use("/wallet", walletRouter);
 apiApp.use("/api/supabase", supabaseRouter);
@@ -19294,6 +28425,10 @@ apiApp.use("/system-settings", systemSettingsRouter);
 apiApp.use("/api/download", mobileDownloadRouter);
 apiApp.use("/download", mobileDownloadRouter);
 apiApp.use("/downloads", mobileDownloadRouter);
+apiApp.use("/api/corporate", corporateAdsRouter);
+apiApp.use("/corporate", corporateAdsRouter);
+apiApp.use("/api/notifications", notificationsRouter);
+apiApp.use("/notifications", notificationsRouter);
 var libraryGenerateHandler = async (req, res) => {
   const {
     faculty,

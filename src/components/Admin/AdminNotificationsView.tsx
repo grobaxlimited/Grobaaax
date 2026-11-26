@@ -328,9 +328,14 @@ export function AdminNotificationsView() {
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                   Reaches eligible devices outside the browser while respecting each user&apos;s push category settings.
-                  {pushConfig && !pushConfig.pushFullyConfigured && pushConfig.missingKeys.length > 0 && (
-                    <span className="block text-amber-600 dark:text-amber-400 mt-0.5">
-                      Missing server/client keys: {pushConfig.missingKeys.join(', ')}
+                  {pushConfig && !pushConfig.pushFullyConfigured && (pushConfig.missingKeys.length > 0 || pushConfig.credentialError) && (
+                    <span className="block text-amber-600 dark:text-amber-400 mt-0.5 space-y-0.5">
+                      {pushConfig.missingKeys.length > 0 && (
+                        <span className="block">Missing server/client keys: {pushConfig.missingKeys.join(', ')}</span>
+                      )}
+                      {pushConfig.credentialError && (
+                        <span className="block font-semibold">{pushConfig.credentialError}</span>
+                      )}
                     </span>
                   )}
                 </div>
