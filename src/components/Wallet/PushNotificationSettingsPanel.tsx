@@ -354,10 +354,12 @@ export const PushNotificationSettingsPanel: React.FC = () => {
                   ? 'Browser Allowed'
                   : capability?.status === 'denied'
                   ? 'Blocked in Browser'
+                  : capability?.status === 'iframe_restricted'
+                  ? 'Open Dedicated Tab'
                   : capability?.status === 'ios_install_required'
                   ? 'Add to Home Screen Required'
                   : capability?.status === 'missing_vapid'
-                  ? 'Pending Key Setup'
+                  ? 'Unavailable Here'
                   : capability?.supported
                   ? 'Permission Not Enabled'
                   : 'Unsupported Here'}
@@ -390,17 +392,10 @@ export const PushNotificationSettingsPanel: React.FC = () => {
           </div>
         )}
 
-        {/* Exact missing configuration keys notice (if any) without breaking existing in-app alerts */}
-        {pushConfig && !pushConfig.pushFullyConfigured && pushConfig.missingKeys.length > 0 && (
-          <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-300">
-            <strong>Push Key Configuration Notice:</strong> External FCM delivery needs:{' '}
-            <span className="font-mono">{pushConfig.missingKeys.join(', ')}</span>. In-app notifications remain fully active.
-          </div>
-        )}
-
         <div className="flex flex-wrap items-center gap-2 pt-0.5">
           {capability?.supported &&
             capability.status !== 'denied' &&
+            capability.status !== 'iframe_restricted' &&
             capability.status !== 'missing_vapid' &&
             (!currentDeviceRegistered || capability.status !== 'granted') && (
               <button

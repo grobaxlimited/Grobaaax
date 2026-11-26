@@ -68,6 +68,7 @@ export interface BrowserPushCapability {
     | 'granted'
     | 'ready'
     | 'denied'
+    | 'iframe_restricted'
     | 'ios_install_required'
     | 'ios_version_unsupported'
     | 'unsupported'
@@ -260,10 +261,28 @@ export async function getBrowserPushCapability(
   }
 
   const permission = Notification.permission;
+  let inIframe = false;
+  try {
+    inIframe = typeof window !== 'undefined' && window.self !== window.top;
+  } catch {
+    inIframe = true;
+  }
+
   const resolvedConfig = config !== undefined ? config : await fetchPublicPushConfig();
   const hasVapid = Boolean(
     resolvedConfig?.vapidPublicKey || (import.meta as any).env?.VITE_FIREBASE_VAPID_KEY
   );
+
+  if (inIframe && permission !== 'granted') {
+    return {
+      ...info,
+      supported: true,
+      status: 'iframe_restricted',
+      permission,
+      guidance:
+        'Push notifications cannot be enabled inside an embedded preview frame. Open Grobaax directly in its own browser tab or installed web app to enable device alerts.',
+    };
+  }
 
   if (permission === 'denied') {
     return {
@@ -283,7 +302,7 @@ export async function getBrowserPushCapability(
       status: 'missing_vapid',
       permission,
       guidance:
-        'Firebase Web Push (VAPID key or web app config) is not yet configured for this environment. In-app Grobaax notifications continue working normally.',
+        'External push delivery is not yet active on this deployment. Your Grobaax in-app notifications continue working normally.',
     };
   }
 
