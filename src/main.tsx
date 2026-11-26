@@ -151,11 +151,20 @@ if (isCorporatePortal) {
 } else {
   if (typeof window !== 'undefined') {
     if (import.meta.env.DEV && 'serviceWorker' in navigator) {
-      // Unregister stale service workers during development so Vite /src/* modules are never intercepted
+      // Unregister stale Vite PWA service workers during development so Vite /src/* modules are never intercepted,
+      // while preserving the isolated FCM push worker at /firebase-cloud-messaging-push-scope.
       navigator.serviceWorker
         .getRegistrations()
         .then((registrations) => {
           registrations.forEach((registration) => {
+            const scriptUrl =
+              registration.active?.scriptURL ||
+              registration.installing?.scriptURL ||
+              registration.waiting?.scriptURL ||
+              '';
+            if (scriptUrl.includes('firebase-messaging-sw.js')) {
+              return;
+            }
             void registration.unregister();
           });
         })

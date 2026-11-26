@@ -25,6 +25,19 @@ import { CorporateAdvertisingPortal } from './components/Corporate/CorporateAdve
 import { TutorGuideModal } from './components/Onboarding/TutorGuideModal';
 import { useDevicePlatform } from './hooks/useDevicePlatform';
 import { isCorporateAdvertisingDomain } from './utils/domainPortal';
+import {
+  capturePendingPushDestinationFromUrl,
+  consumePendingPushDestination,
+  setPendingPushDestination,
+  subscribeForegroundFcmMessages,
+  syncPushDeviceSilentlyIfGranted,
+} from './lib/pushNotifications';
+import { navigateToPushDestination } from './lib/notificationRouting';
+
+// Capture any notification click deep-link immediately before auth redirects alter URL state
+if (typeof window !== 'undefined' && !isCorporateAdvertisingDomain()) {
+  capturePendingPushDestinationFromUrl();
+}
 
 function resetViewportToTop(blurFocused = false) {
   if (typeof window === 'undefined') return;
@@ -102,9 +115,13 @@ function MainLayout() {
     login,
     viewMode,
     setViewMode,
+    openWalletModal,
+    setCommunitySubTab,
+    navigateToAdminTab,
   } = useApp();
 
   const [isTutorGuideOpen, setIsTutorGuideOpen] = useState(false);
+  const [pushNavSignal, setPushNavSignal] = useState(0);
 
   const { isIOS } = useDevicePlatform();
 
@@ -131,6 +148,101 @@ function MainLayout() {
     isLocallyCompleted ||
     currentUser?.academicProfileCompleted === true
   );
+
+  const isAdminUser = Boolean(
+    currentUser?.role === 'admin' ||
+      currentUser?.role === 'super_admin' ||
+      (currentUser as any)?.isAdmin ||
+      currentUser?.isSuperAdmin
+  );
+
+  // Listen for Service Worker notification clicks while the app is open (or preserve for post-login navigation)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    const handleSwMessage = (event: MessageEvent) => {
+      const payload = event?.data;
+      if (!payload || payload.type !== 'GROBAAX_PUSH_NAVIGATE') return;
+      let dest = String(payload.destination || '').trim();
+      if (!dest && payload.url) {
+        try {
+          const parsed = new URL(payload.url, window.location.origin);
+          dest = parsed.searchParams.get('push_dest') || '/home';
+        } catch {
+          dest = '/home';
+        }
+      }
+      if (dest) {
+        setPendingPushDestination(dest);
+        setPushNavSignal((n) => n + 1);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+  }, []);
+
+  // Resolve pending push notification click destination ONLY after login & profile completion
+  useEffect(() => {
+    if (!isAuthenticated || !isProfileLoaded || !isAcademicProfileComplete) return;
+    const pendingDest = consumePendingPushDestination();
+    if (!pendingDest) return;
+    navigateToPushDestination(pendingDest, {
+      setActiveTab,
+      setViewMode,
+      openWalletModal,
+      setCommunitySubTab,
+      navigateToAdminTab,
+      isAdmin: isAdminUser,
+    });
+  }, [
+    isAuthenticated,
+    isProfileLoaded,
+    isAcademicProfileComplete,
+    pushNavSignal,
+    isAdminUser,
+    setActiveTab,
+    setViewMode,
+    openWalletModal,
+    setCommunitySubTab,
+    navigateToAdminTab,
+  ]);
+
+  // Silently sync refreshed FCM token if permission was already granted + listen for foreground FCM messages
+  useEffect(() => {
+    const uid = firebaseUser?.uid;
+    if (!uid || !isAuthenticated || !isProfileLoaded) return;
+
+    void syncPushDeviceSilentlyIfGranted(uid);
+
+    let unsubscribeForeground: (() => void) | null = null;
+    let cancelled = false;
+
+    void subscribeForegroundFcmMessages((payload) => {
+      const n = payload?.notification || {};
+      const d = (payload?.data || {}) as Record<string, string>;
+      window.dispatchEvent(
+        new CustomEvent('grobaax_foreground_push', {
+          detail: {
+            notificationId: d.notificationId || payload?.messageId || '',
+            title: n.title || d.title || 'Grobaax Alert',
+            body: n.body || d.body || '',
+            category: d.category || '',
+            destination: d.destination || d.url || '/home',
+          },
+        })
+      );
+    }).then((unsub) => {
+      if (cancelled) {
+        unsub();
+      } else {
+        unsubscribeForeground = unsub;
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      if (unsubscribeForeground) unsubscribeForeground();
+    };
+  }, [firebaseUser?.uid, isAuthenticated, isProfileLoaded]);
 
   // Always start fresh at the very top of the page when entering after auth/registration,
   // completing academic profile, toggling admin/app mode, or switching top-level tabs.

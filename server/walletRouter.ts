@@ -4,6 +4,7 @@ import {
   isSuperAdmin,
   setDocToSupabase,
 } from '../src/lib/supabaseFirestoreAdapter';
+import { dispatchExternalPush } from './pushService';
 
 export const walletRouter = Router();
 
@@ -232,6 +233,16 @@ walletRouter.post('/credit-live-reward', async (req: Request, res: Response) => 
 
     await setDocToSupabase('walletTransactions', txId, txRecord, true, { isServerAuthoritative: true });
 
+    void dispatchExternalPush({
+      eventType: 'wallet_live_reward',
+      category: 'wallet',
+      title: 'Wallet GP Reward Credited',
+      body: `+${safeReward.toLocaleString()} GP has been credited to your Grobaax wallet.`,
+      actionUrl: '/wallet',
+      dedupeKey: `wallet_live_${txId}`,
+      recipientUserId: userId,
+    }).catch(() => {});
+
     return res.json({
       success: true,
       newBalance: newGp,
@@ -358,6 +369,16 @@ walletRouter.post('/verify-paystack-topup', async (req: Request, res: Response) 
       data: txRecord,
       updated_at: new Date().toISOString(),
     });
+
+    void dispatchExternalPush({
+      eventType: 'wallet_topup',
+      category: 'wallet',
+      title: 'Wallet Top-Up Confirmed',
+      body: `+${gpToCredit.toLocaleString()} GP has been added to your Grobaax wallet.`,
+      actionUrl: '/wallet',
+      dedupeKey: `wallet_topup_${reference}`,
+      recipientUserId: userId,
+    }).catch(() => {});
 
     return res.json({
       success: true,

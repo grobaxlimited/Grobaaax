@@ -111,12 +111,13 @@ export const InAppPushToast: React.FC = () => {
       setActiveToast(latestNotif);
       playNotificationSound();
 
-      // Native browser notification if allowed
+      // Native browser notification if allowed (fallback when SW push isn't handling this item)
       try {
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification(latestNotif.title || 'Grobaax Alert', {
             body: latestNotif.message,
-            icon: '/icon.png',
+            icon: '/pwa-192x192.png',
+            badge: '/favicon.png',
           });
         }
       } catch {}
@@ -128,6 +129,41 @@ export const InAppPushToast: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [latestNotifId, latestNotifIsRead]);
+
+  useEffect(() => {
+    const handleForegroundPush = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail;
+      if (!detail) return;
+      const incomingId = String(detail.notificationId || detail.id || '').trim();
+      if (incomingId && incomingId === lastSeenIdRef.current) {
+        return;
+      }
+      if (incomingId) {
+        lastSeenIdRef.current = incomingId;
+      }
+      const fcmNotif: NotificationItem = {
+        id: incomingId || `fcm_${Date.now()}`,
+        title: detail.title || 'Grobaax Alert',
+        message: detail.body || detail.message || 'Open Grobaax to view this update.',
+        type: (detail.category === 'school_dome'
+          ? 'dome'
+          : detail.category === 'connections'
+          ? 'campus'
+          : detail.category || 'announcement') as any,
+        actionUrl: detail.destination || detail.url || '/home',
+        timestamp: 'Just now',
+        isRead: false,
+      };
+      setActiveToast(fcmNotif);
+      playNotificationSound();
+      setTimeout(() => {
+        setActiveToast((curr) => (curr?.id === fcmNotif.id ? null : curr));
+      }, 6000);
+    };
+
+    window.addEventListener('grobaax_foreground_push', handleForegroundPush);
+    return () => window.removeEventListener('grobaax_foreground_push', handleForegroundPush);
+  }, []);
 
   if (!activeToast) return null;
 

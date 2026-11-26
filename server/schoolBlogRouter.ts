@@ -16,6 +16,7 @@ import {
   SchoolBlogReactionType,
   SchoolBlogRewardMilestone,
 } from '../src/types';
+import { dispatchExternalPush, resolvePushCategory } from './pushService';
 
 export const schoolBlogRouter = Router();
 
@@ -236,6 +237,20 @@ async function notifyUserOrAdmins(params: {
       },
       { onConflict: 'id' }
     );
+
+    if (params.targetUserId || params.targetRole === 'admin') {
+      void dispatchExternalPush({
+        eventType: resolvedType,
+        category: resolvePushCategory(resolvedType, params.actionUrl || defaultUrl, params.title),
+        title: params.title,
+        body: params.message,
+        actionUrl: params.actionUrl || defaultUrl,
+        notificationId: id,
+        dedupeKey: `blog_notif_${id}`,
+        recipientUserId: params.targetUserId || undefined,
+        targetRole: params.targetUserId ? undefined : params.targetRole,
+      }).catch(() => {});
+    }
   } catch (err) {
     console.warn('[SchoolBlog] Notification dispatch notice:', err);
   }
@@ -1262,7 +1277,7 @@ schoolBlogRouter.post('/articles/:articleId/react', requireAuth, async (req: Req
 
     const { data: articleRow } = await supabaseAdmin
       .from('school_blog_articles')
-      .select('id, status, blog_institution_id')
+      .select('id, status, blog_institution_id, author_user_id, title')
       .eq('id', articleId)
       .maybeSingle();
 
@@ -1338,6 +1353,50 @@ schoolBlogRouter.post('/articles/:articleId/react', requireAuth, async (req: Req
       .eq('id', articleId);
 
     invalidateSchoolBlogCaches({ institutionId: articleRow.blog_institution_id, articleId });
+
+    // Notify article author when a different scholar adds or updates a reaction
+    if (
+      nextUserReaction &&
+      articleRow.author_user_id &&
+      articleRow.author_user_id !== user.id
+    ) {
+      const reactNotifId = `notif_blog_react_${articleId}_${user.id}`;
+      const nowIso = new Date().toISOString();
+      const authorMsg = `${user.name} reacted (${nextUserReaction}) to your School Blog article "${articleRow.title || 'Update'}".`;
+      void (async () => {
+        try {
+          await supabaseAdmin.from('notifications').upsert(
+            {
+              id: reactNotifId,
+              data: {
+                id: reactNotifId,
+                title: 'New School Blog Reaction',
+                message: authorMsg,
+                type: 'school_blog',
+                targetUserId: articleRow.author_user_id,
+                userId: articleRow.author_user_id,
+                actionUrl: '/school-blog',
+                isRead: false,
+                createdAt: nowIso,
+                timestamp: nowIso,
+              },
+              updated_at: nowIso,
+            },
+            { onConflict: 'id' }
+          );
+          await dispatchExternalPush({
+            eventType: 'school_blog_reaction',
+            category: 'school_blog',
+            title: 'New School Blog Reaction',
+            body: authorMsg,
+            actionUrl: '/school-blog',
+            notificationId: reactNotifId,
+            dedupeKey: `blog_react_${articleId}_${user.id}`,
+            recipientUserId: articleRow.author_user_id,
+          });
+        } catch {}
+      })();
+    }
 
     return res.json({
       success: true,

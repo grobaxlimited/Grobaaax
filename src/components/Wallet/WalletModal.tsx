@@ -12,6 +12,7 @@ import { CampusSkillsSelector } from '../Community/Campus/CampusSkillsSelector';
 import { updateMyCampusSkills } from '../../lib/campusService';
 import { useDevicePlatform } from '../../hooks/useDevicePlatform';
 import { getBrandPromotionPortalHref } from '../../utils/domainPortal';
+import { PushNotificationSettingsPanel } from './PushNotificationSettingsPanel';
 import {
   ACADEMIC_STRUCTURE_BY_CATEGORY,
   getFacultiesByCategory,
@@ -1811,54 +1812,7 @@ export const WalletModal: React.FC = () => {
 
               {/* 3. NOTIFICATION PREFERENCES */}
               {(settingsSection === 'all' || settingsSection === 'notifications') && (
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
-                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-blue-500" />
-                    <span>Notification & Match Alert Preferences</span>
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Select which real-time notifications and announcements should be dispatched to your account.
-                  </p>
-
-                  <div className="space-y-2 pt-1">
-                    {[
-                      { key: 'enablePush', label: 'Push Notifications', desc: 'Receive real-time push alerts on your current browser device' },
-                      { key: 'matchAlerts', label: 'Arena & Match Alerts', desc: 'Alerts when scheduled head-to-head arena battles begin' },
-                      { key: 'gusAlerts', label: 'GUS Tournament Notifications', desc: 'Round kickoff and qualification announcements' },
-                      { key: 'walletAlerts', label: 'Wallet & GP Transactions', desc: 'GP winnings, conversion updates, and withdrawal confirmations' },
-                      { key: 'communityMentions', label: 'Community Mentions & Comments', desc: 'Notifications when scholars reply to your posts' },
-                      { key: 'adminBroadcasts', label: 'Official Super Admin Broadcasts', desc: 'Platform security advisories and nationwide tournament memos' },
-                    ].map((item) => (
-                      <div
-                        key={item.key}
-                        className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs"
-                      >
-                        <div>
-                          <div className="font-bold text-slate-800 dark:text-slate-200">{item.label}</div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400">{item.desc}</div>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={currentUser.notificationPreferences ? (currentUser.notificationPreferences as any)[item.key] !== false : true}
-                          onChange={(e) => {
-                            const updatedPrefs = {
-                              enablePush: true,
-                              matchAlerts: true,
-                              gusAlerts: true,
-                              walletAlerts: true,
-                              communityMentions: true,
-                              adminBroadcasts: true,
-                              ...(currentUser.notificationPreferences || {}),
-                              [item.key]: e.target.checked,
-                            };
-                            updateUserProfile({ notificationPreferences: updatedPrefs });
-                          }}
-                          className="w-4 h-4 text-blue-900 dark:text-blue-400 rounded focus:ring-blue-900 cursor-pointer"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <PushNotificationSettingsPanel />
               )}
 
               {/* 4. THEME & APPEARANCE */}

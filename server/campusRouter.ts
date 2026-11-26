@@ -17,6 +17,7 @@ import { supabaseAdmin } from '../src/lib/supabase';
 import { DEFAULT_CAMPUS_SKILL_CATEGORIES } from '../src/data/campusSkillsData';
 import { optionalAuth, requireAuth, requireAdmin } from './utils/authMiddleware';
 import { resolveCanonicalInstitution } from './utils/institutionResolver';
+import { dispatchExternalPush } from './pushService';
 
 export const campusRouter = Router();
 
@@ -1246,6 +1247,17 @@ campusRouter.post('/request', async (req: Request, res: Response) => {
     connectionRequestsCache.set(existingKey, newRequest);
     connectionRequestsCache.set(newRequest.id, newRequest);
 
+    // Fire-and-forget external FCM push notification (respects user preferences & dedupes)
+    void dispatchExternalPush({
+      eventType: 'campus_connection_request',
+      category: 'connections',
+      title: 'New Connection Request',
+      body: `${newRequest.senderName} wants to connect with you on Grobaax.`,
+      actionUrl: '/community?tab=campus&view=connections',
+      dedupeKey: `campus_req_${newRequest.id}`,
+      recipientUserId: recipientId,
+    }).catch(() => {});
+
     return res.json({
       success: true,
       message: 'Connection request sent successfully!',
@@ -1361,6 +1373,18 @@ campusRouter.post('/respond', async (req: Request, res: Response) => {
     connectionRequestsCache.set(actualDocId, requestObj);
     connectionRequestsCache.set(requestId, requestObj);
     connectionRequestsCache.set(`${requestObj.senderId}_${requestObj.recipientId}`, requestObj);
+
+    if (nextStatus === 'ACCEPTED' && requestObj.senderId) {
+      void dispatchExternalPush({
+        eventType: 'campus_connection_accepted',
+        category: 'connections',
+        title: 'Connection Request Accepted',
+        body: `${requestObj.recipientName} accepted your Campus connection request on Grobaax.`,
+        actionUrl: '/community?tab=campus&view=connections',
+        dedupeKey: `campus_accept_${actualDocId}`,
+        recipientUserId: requestObj.senderId,
+      }).catch(() => {});
+    }
 
     return res.json({
       success: true,

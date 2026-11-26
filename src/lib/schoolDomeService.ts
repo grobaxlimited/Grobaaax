@@ -1363,6 +1363,22 @@ export async function createSchoolDomeQuestion(
           actionUrl: 'school_dome',
         });
         grobaxNotificationService.incrementSection('school_dome', 1);
+        if (typeof window !== 'undefined') {
+          void import('./pushNotifications')
+            .then(({ triggerVerifiedPushEvent }) =>
+              triggerVerifiedPushEvent({
+                eventType: 'school_dome_question',
+                title: `⚡ Live School Dome Question #${nextQNumber}!`,
+                message: `Question #${nextQNumber} is now live in the School Dome Arena (${targetLabel}). Open Grobaax to compete.`,
+                type: 'dome',
+                actionUrl: 'school_dome',
+                notificationId: notifDoc.id,
+                dedupeKey: `notif_${notifDoc.id}`,
+                targetRole: 'ALL',
+              })
+            )
+            .catch(() => {});
+        }
       } catch (notifErr) {
         console.warn('Could not dispatch live question notification in background:', notifErr);
       }
@@ -1918,6 +1934,22 @@ export async function endSchoolDomeSeasonAndDistributePrize(
         actionUrl: 'school_dome_results',
       });
       grobaxNotificationService.incrementSection('school_dome_results', 1);
+      if (typeof window !== 'undefined') {
+        void import('./pushNotifications')
+          .then(({ triggerVerifiedPushEvent }) =>
+            triggerVerifiedPushEvent({
+              eventType: 'school_dome_results',
+              title: 'Competition Results Available',
+              message: `${seasonData.title} has concluded! Open Grobaax to view the official results.`,
+              type: 'dome',
+              actionUrl: 'school_dome_results',
+              notificationId: broadNotif.id,
+              dedupeKey: `notif_${broadNotif.id}`,
+              targetRole: 'ALL',
+            })
+          )
+          .catch(() => {});
+      }
     } catch {}
 
     // Update localStorage fallback active season

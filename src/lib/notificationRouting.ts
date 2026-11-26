@@ -120,3 +120,119 @@ export function consumePendingCampusView(): 'directory' | 'connections' | 'other
   } catch {}
   return null;
 }
+
+export interface PushNavigationHandlers {
+  setActiveTab: (tab: any) => void;
+  setViewMode: (mode: 'app' | 'admin') => void;
+  openWalletModal: (tab?: 'profile' | 'airtime_data' | 'privacy' | 'withdraw' | 'history' | 'upgrade' | 'contact') => void;
+  setCommunitySubTab?: (tab: 'minimart' | 'announcements' | 'campus') => void;
+  navigateToAdminTab?: (tab: AdminTabType) => void;
+  isAdmin?: boolean;
+}
+
+export function navigateToPushDestination(rawDestination: string, handlers: PushNavigationHandlers) {
+  const dest = String(rawDestination || '').trim();
+  const target = dest.toLowerCase();
+
+  if (!target || target === '/' || target === '/home' || target === 'home') {
+    handlers.setViewMode('app');
+    handlers.setActiveTab('home');
+    return;
+  }
+
+  if (target.startsWith('/admin') || target === 'admin') {
+    if (handlers.isAdmin && handlers.navigateToAdminTab) {
+      handlers.navigateToAdminTab(
+        resolveAdminNotificationTab({
+          id: 'push_nav',
+          title: '',
+          message: '',
+          timestamp: '',
+          isRead: false,
+          type: 'system',
+          actionUrl: dest,
+        })
+      );
+      return;
+    }
+    handlers.setViewMode('app');
+    handlers.setActiveTab('home');
+    return;
+  }
+
+  handlers.setViewMode('app');
+
+  if (target.includes('school_dome_results') || target.includes('results')) {
+    handlers.setActiveTab('school_dome_results');
+    return;
+  }
+
+  if (
+    target.includes('school_dome') ||
+    target.includes('dome') ||
+    target.includes('arena') ||
+    target.includes('gus') ||
+    target.includes('league')
+  ) {
+    handlers.setActiveTab('school_dome');
+    return;
+  }
+
+  if (target.includes('school-blog') || target.includes('school_blog')) {
+    handlers.setActiveTab('school_blog');
+    return;
+  }
+
+  if (target.includes('hint')) {
+    handlers.setActiveTab('hints');
+    return;
+  }
+
+  if (target.includes('campus') || target.includes('connection')) {
+    setPendingCampusView('connections');
+    handlers.setCommunitySubTab?.('campus');
+    handlers.setActiveTab('community');
+    return;
+  }
+
+  if (target.includes('minimart')) {
+    handlers.setCommunitySubTab?.('minimart');
+    handlers.setActiveTab('community');
+    return;
+  }
+
+  if (target.includes('community') || target.includes('announcement')) {
+    handlers.setCommunitySubTab?.('announcements');
+    handlers.setActiveTab('community');
+    return;
+  }
+
+  if (target.startsWith('wallet:')) {
+    const sub = target.split(':')[1] as any;
+    handlers.openWalletModal(sub || 'profile');
+    return;
+  }
+
+  if (target.includes('upgrade') || target.includes('membership') || target.includes('tier')) {
+    handlers.openWalletModal('upgrade');
+    return;
+  }
+
+  if (target.includes('privacy')) {
+    handlers.openWalletModal('privacy');
+    return;
+  }
+
+  if (target.includes('profile')) {
+    handlers.openWalletModal('profile');
+    return;
+  }
+
+  if (target.includes('wallet') || target.includes('reward') || target.includes('history')) {
+    handlers.openWalletModal('history');
+    return;
+  }
+
+  handlers.setActiveTab('home');
+}
+

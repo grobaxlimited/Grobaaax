@@ -5054,6 +5054,29 @@ export const sendBroadcastNotificationToFirestore = async (
       });
     }
 
+    // Trigger external push non-blockingly when caller has an active authenticated admin session
+    const isBlogPublishBroadcast =
+      String(docRef.id || '').startsWith('notif_blog_feed_') ||
+      ((notifData.type as string) === 'school_blog' && notifData.targetRole !== 'admin');
+    if (typeof window !== 'undefined' && !isBlogPublishBroadcast) {
+      void import('./pushNotifications')
+        .then(({ triggerVerifiedPushEvent }) =>
+          triggerVerifiedPushEvent({
+            eventType: notifData.type || 'announcement',
+            title: notifData.title,
+            message: notifData.message,
+            type: notifData.type,
+            actionUrl: notifData.actionUrl,
+            notificationId: docRef.id,
+            dedupeKey: `notif_${docRef.id}`,
+            recipientUserId: targetUid || undefined,
+            targetRole: targetUid ? undefined : notifData.targetRole || 'ALL',
+            excludeUserId: notifData.excludeUserId || undefined,
+          })
+        )
+        .catch(() => {});
+    }
+
     return docRef.id;
   } catch (err) {
     console.error('Error dispatching broadcast notification to Firestore:', err);

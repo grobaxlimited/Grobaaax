@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   sendBroadcastNotificationToFirestore,
   deleteNotificationFromFirestore,
 } from '../../lib/firebase';
+import {
+  fetchPublicPushConfig,
+  getSupabaseAccessToken,
+  type PublicPushConfigResponse,
+} from '../../lib/pushNotifications';
 import { NotificationItem } from '../../types';
 import { NotificationDetailModal } from '../Navigation/NotificationDetailModal';
 import {
@@ -19,45 +24,112 @@ import {
   Wallet,
   ShieldAlert,
   BookOpen,
-  ChevronRight,
+  Smartphone,
+  AlertCircle,
 } from 'lucide-react';
 
 export function AdminNotificationsView() {
-  const { notifications, firebaseUser, currentUser, setAdminActiveTab } = useApp();
+  const { notifications, firebaseUser, currentUser } = useApp();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [type, setType] = useState<'announcement' | 'dome' | 'gus' | 'league' | 'wallet' | 'system'>('announcement');
   const [targetRole, setTargetRole] = useState('ALL');
   const [targetUserId, setTargetUserId] = useState('');
+  const [sendExternalPush, setSendExternalPush] = useState(true);
+  const [pushConfig, setPushConfig] = useState<PublicPushConfigResponse | null>(null);
   const [isSending, setIsSending] = useState(false);
-  const [sentMsg, setSentMsg] = useState(false);
+  const [sentFeedback, setSentFeedback] = useState<{ text: string; isError?: boolean } | null>(null);
   const [previewNotif, setPreviewNotif] = useState<NotificationItem | null>(null);
+
+  useEffect(() => {
+    void fetchPublicPushConfig().then((cfg) => {
+      if (cfg) setPushConfig(cfg);
+    });
+  }, []);
 
   const handleSendNotification = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !message.trim()) return;
 
     setIsSending(true);
+    setSentFeedback(null);
     try {
-      await sendBroadcastNotificationToFirestore(
-        {
-          title: title.trim(),
-          message: message.trim(),
-          type,
-          targetRole: targetUserId.trim() ? undefined : targetRole,
-          targetUserId: targetUserId.trim() ? targetUserId.trim() : undefined,
-          userId: targetUserId.trim() ? targetUserId.trim() : undefined,
-        },
-        firebaseUser?.uid || currentUser.id,
-        currentUser.name || 'Grobaax Super Admin'
-      );
-      setSentMsg(true);
+      const accessToken = await getSupabaseAccessToken();
+      let dispatchedViaBackend = false;
+
+      if (accessToken) {
+        const res = await fetch('/api/notifications/admin-broadcast', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            title: title.trim(),
+            message: message.trim(),
+            type,
+            targetRole: targetUserId.trim() ? undefined : targetRole,
+            targetUserId: targetUserId.trim() ? targetUserId.trim() : undefined,
+            sendExternalPush,
+          }),
+        });
+
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.success) {
+          dispatchedViaBackend = true;
+          const pr = data.pushResult;
+          let pushNote = '';
+          if (!sendExternalPush) {
+            pushNote = ' (In-app only; external mobile push unchecked.)';
+          } else if (pr?.status === 'sent' || pr?.status === 'partial') {
+            pushNote = ` External push delivered to ${pr.sentCount || 0} device(s).`;
+          } else if (pr?.status === 'unconfigured') {
+            pushNote = ' In-app broadcast saved. External FCM push awaits VAPID/service-account configuration.';
+          } else if (pr?.reason) {
+            pushNote = ` In-app broadcast saved (${pr.reason}).`;
+          }
+
+          setSentFeedback({
+            text: `Notification broadcasted successfully!${pushNote}`,
+          });
+        } else if (res.status === 404 || res.status === 400 || res.status === 403) {
+          setSentFeedback({
+            text: data?.error || 'Could not dispatch broadcast.',
+            isError: true,
+          });
+          setIsSending(false);
+          return;
+        }
+      }
+
+      if (!dispatchedViaBackend) {
+        await sendBroadcastNotificationToFirestore(
+          {
+            title: title.trim(),
+            message: message.trim(),
+            type,
+            targetRole: targetUserId.trim() ? undefined : targetRole,
+            targetUserId: targetUserId.trim() ? targetUserId.trim() : undefined,
+            userId: targetUserId.trim() ? targetUserId.trim() : undefined,
+          },
+          firebaseUser?.uid || currentUser.id,
+          currentUser.name || 'Grobaax Super Admin'
+        );
+        setSentFeedback({
+          text: 'Notification broadcasted successfully to platform users!',
+        });
+      }
+
       setTitle('');
       setMessage('');
       setTargetUserId('');
-      setTimeout(() => setSentMsg(false), 4000);
-    } catch (err) {
+      setTimeout(() => setSentFeedback(null), 6000);
+    } catch (err: any) {
       console.error('Error sending notification:', err);
+      setSentFeedback({
+        text: err?.message || 'Error dispatching notification.',
+        isError: true,
+      });
     } finally {
       setIsSending(false);
     }
@@ -111,8 +183,16 @@ export function AdminNotificationsView() {
           </p>
         </div>
         <div className="flex items-center gap-2 bg-blue-950/40 border border-blue-800/50 px-3 py-1.5 rounded-xl text-xs">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-bold text-blue-100">Live Firebase Synchronization Active</span>
+          <span
+            className={`w-2.5 h-2.5 rounded-full ${
+              pushConfig?.pushFullyConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+            }`}
+          />
+          <span className="font-bold text-blue-100">
+            {pushConfig?.pushFullyConfigured
+              ? 'External FCM Push Ready'
+              : 'In-App Live (FCM Keys Pending)'}
+          </span>
         </div>
       </div>
 
@@ -123,9 +203,20 @@ export function AdminNotificationsView() {
             <Send className="w-4 h-4 text-blue-500" /> Dispatch New Broadcast
           </h2>
 
-          {sentMsg && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl font-bold text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" /> Notification broadcasted successfully to all platform users!
+          {sentFeedback && (
+            <div
+              className={`p-3 border rounded-xl font-bold text-xs flex items-start gap-2 ${
+                sentFeedback.isError
+                  ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
+                  : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+              }`}
+            >
+              {sentFeedback.isError ? (
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+              )}
+              <span>{sentFeedback.text}</span>
             </div>
           )}
 
@@ -185,12 +276,12 @@ export function AdminNotificationsView() {
                 type="text"
                 value={targetUserId}
                 onChange={(e) => setTargetUserId(e.target.value)}
-                placeholder="Leave blank for group broadcast, or enter User A ID / @scholar"
+                placeholder="Leave blank for group broadcast, or enter User ID / @username"
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-xs"
               />
               {targetUserId.trim() && (
                 <p className="text-[10px] text-blue-500 font-semibold mt-1">
-                  🎯 This notification will only appear to scholar: {targetUserId.trim()}
+                  This notification will only be delivered to scholar: {targetUserId.trim()}
                 </p>
               )}
             </div>
@@ -223,13 +314,36 @@ export function AdminNotificationsView() {
               />
             </div>
 
+            <label className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendExternalPush}
+                onChange={(e) => setSendExternalPush(e.target.checked)}
+                className="w-4 h-4 mt-0.5 text-blue-600 rounded cursor-pointer shrink-0"
+              />
+              <div>
+                <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Also deliver external mobile & desktop push (FCM)</span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Reaches eligible devices outside the browser while respecting each user&apos;s push category settings.
+                  {pushConfig && !pushConfig.pushFullyConfigured && pushConfig.missingKeys.length > 0 && (
+                    <span className="block text-amber-600 dark:text-amber-400 mt-0.5">
+                      Missing server/client keys: {pushConfig.missingKeys.join(', ')}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </label>
+
             <button
               type="submit"
               disabled={isSending}
               className="w-full py-3 bg-gradient-to-r from-blue-900 to-blue-700 hover:from-blue-800 hover:to-blue-600 text-white rounded-xl font-extrabold shadow-md flex items-center justify-center gap-2 cursor-pointer transition disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
-              <span>{isSending ? 'Broadcasting to Firebase...' : 'Send Broadcast Notification'}</span>
+              <span>{isSending ? 'Broadcasting Notification...' : 'Send Broadcast Notification'}</span>
             </button>
           </form>
         </div>

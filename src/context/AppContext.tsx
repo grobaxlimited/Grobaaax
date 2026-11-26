@@ -1280,6 +1280,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       setIsWalletModalOpen(false);
       setIsAuthModalOpen(false);
+      await import('../lib/pushNotifications')
+        .then(({ unregisterCurrentDeviceToken }) => unregisterCurrentDeviceToken())
+        .catch(() => {});
       await firebaseSignOut(auth);
       setFirebaseUser(null);
       setCurrentUser(MOCK_USERS.student);
