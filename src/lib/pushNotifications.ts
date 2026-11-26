@@ -565,10 +565,36 @@ export async function requestPermissionAndRegisterDevice(): Promise<{
   }
 
   try {
-    const token = await getToken(instance.messaging, {
-      vapidKey: cfg.vapidPublicKey,
-      serviceWorkerRegistration: registration,
-    });
+    let token = '';
+    try {
+      token = await getToken(instance.messaging, {
+        vapidKey: cfg.vapidPublicKey,
+        serviceWorkerRegistration: registration,
+      });
+    } catch (firstErr: any) {
+      const msg = String(firstErr?.message || firstErr || '').toLowerCase();
+      if (
+        msg.includes('applicationserverkey') ||
+        msg.includes('subscription') ||
+        msg.includes('invalidstateerror') ||
+        msg.includes('already exists')
+      ) {
+        try {
+          const existingSub = await registration.pushManager.getSubscription();
+          if (existingSub) {
+            await existingSub.unsubscribe();
+          }
+          token = await getToken(instance.messaging, {
+            vapidKey: cfg.vapidPublicKey,
+            serviceWorkerRegistration: registration,
+          });
+        } catch (retryErr: any) {
+          throw retryErr;
+        }
+      } else {
+        throw firstErr;
+      }
+    }
 
     if (!token) {
       return {
@@ -596,6 +622,24 @@ export async function requestPermissionAndRegisterDevice(): Promise<{
       error: err?.message || 'Failed to obtain FCM registration token.',
     };
   }
+}
+
+export const PUSH_PROMPT_DISMISSED_KEY = 'grobaax_push_prompt_dismissed_v1';
+
+export function isPushPromptDismissed(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    return localStorage.getItem(PUSH_PROMPT_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function markPushPromptDismissed(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PUSH_PROMPT_DISMISSED_KEY, '1');
+  } catch {}
 }
 
 export async function syncPushDeviceSilentlyIfGranted(userId: string): Promise<void> {

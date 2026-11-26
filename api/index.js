@@ -2463,6 +2463,7 @@ __export(pushNotifications_exports, {
   FCM_TOKEN_STORAGE_KEY: () => FCM_TOKEN_STORAGE_KEY,
   FCM_TOKEN_USER_STORAGE_KEY: () => FCM_TOKEN_USER_STORAGE_KEY,
   PENDING_PUSH_DEST_KEY: () => PENDING_PUSH_DEST_KEY,
+  PUSH_PROMPT_DISMISSED_KEY: () => PUSH_PROMPT_DISMISSED_KEY,
   capturePendingPushDestinationFromUrl: () => capturePendingPushDestinationFromUrl,
   consumePendingPushDestination: () => consumePendingPushDestination,
   deletePushDevice: () => deletePushDevice,
@@ -2474,6 +2475,8 @@ __export(pushNotifications_exports, {
   getBrowserPushCapability: () => getBrowserPushCapability,
   getStoredFcmToken: () => getStoredFcmToken,
   getSupabaseAccessToken: () => getSupabaseAccessToken,
+  isPushPromptDismissed: () => isPushPromptDismissed,
+  markPushPromptDismissed: () => markPushPromptDismissed,
   requestPermissionAndRegisterDevice: () => requestPermissionAndRegisterDevice,
   savePushPreferences: () => savePushPreferences,
   sendSelfTestPush: () => sendSelfTestPush,
@@ -2866,10 +2869,31 @@ async function requestPermissionAndRegisterDevice() {
     };
   }
   try {
-    const token = await getToken(instance.messaging, {
-      vapidKey: cfg.vapidPublicKey,
-      serviceWorkerRegistration: registration
-    });
+    let token = "";
+    try {
+      token = await getToken(instance.messaging, {
+        vapidKey: cfg.vapidPublicKey,
+        serviceWorkerRegistration: registration
+      });
+    } catch (firstErr) {
+      const msg = String(firstErr?.message || firstErr || "").toLowerCase();
+      if (msg.includes("applicationserverkey") || msg.includes("subscription") || msg.includes("invalidstateerror") || msg.includes("already exists")) {
+        try {
+          const existingSub = await registration.pushManager.getSubscription();
+          if (existingSub) {
+            await existingSub.unsubscribe();
+          }
+          token = await getToken(instance.messaging, {
+            vapidKey: cfg.vapidPublicKey,
+            serviceWorkerRegistration: registration
+          });
+        } catch (retryErr) {
+          throw retryErr;
+        }
+      } else {
+        throw firstErr;
+      }
+    }
     if (!token) {
       return {
         success: false,
@@ -2893,6 +2917,21 @@ async function requestPermissionAndRegisterDevice() {
       permission,
       error: err?.message || "Failed to obtain FCM registration token."
     };
+  }
+}
+function isPushPromptDismissed() {
+  if (typeof window === "undefined") return true;
+  try {
+    return localStorage.getItem(PUSH_PROMPT_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function markPushPromptDismissed() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PUSH_PROMPT_DISMISSED_KEY, "1");
+  } catch {
   }
 }
 async function syncPushDeviceSilentlyIfGranted(userId) {
@@ -3084,7 +3123,7 @@ function consumePendingPushDestination() {
   }
   return null;
 }
-var FCM_TOKEN_STORAGE_KEY, FCM_TOKEN_USER_STORAGE_KEY, PENDING_PUSH_DEST_KEY, FCM_SW_URL, FCM_SW_SCOPE, FCM_APP_NAME, cachedPushConfig, cachedPushConfigAt;
+var FCM_TOKEN_STORAGE_KEY, FCM_TOKEN_USER_STORAGE_KEY, PENDING_PUSH_DEST_KEY, FCM_SW_URL, FCM_SW_SCOPE, FCM_APP_NAME, cachedPushConfig, cachedPushConfigAt, PUSH_PROMPT_DISMISSED_KEY;
 var init_pushNotifications = __esm({
   "src/lib/pushNotifications.ts"() {
     init_supabase();
@@ -3097,6 +3136,7 @@ var init_pushNotifications = __esm({
     FCM_APP_NAME = "grobaax-fcm";
     cachedPushConfig = null;
     cachedPushConfigAt = 0;
+    PUSH_PROMPT_DISMISSED_KEY = "grobaax_push_prompt_dismissed_v1";
   }
 });
 
@@ -20503,7 +20543,7 @@ function getPublicFirebaseClientConfig() {
 }
 function getVapidPublicKey() {
   return String(
-    process.env.VITE_FIREBASE_VAPID_KEY || process.env.FIREBASE_VAPID_KEY || ""
+    process.env.VITE_FIREBASE_VAPID_KEY || process.env.FIREBASE_VAPID_KEY || process.env.ITE_FIREBASE_VAPID_KEY || ""
   ).trim();
 }
 function parseServiceAccountFromEnv() {

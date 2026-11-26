@@ -16,6 +16,7 @@ import { AcademicProfileCompletionScreen } from './components/Auth/AcademicProfi
 import { AdminPanelLayout } from './components/Admin/AdminPanelLayout';
 import { UpgradePromoPopup } from './components/Subscription/UpgradePromoPopup';
 import { InAppPushToast } from './components/Navigation/InAppPushToast';
+import { PushPermissionPrompt } from './components/Navigation/PushPermissionPrompt';
 import { PWASplashScreen } from './components/PWA/PWASplashScreen';
 import { PWAInstallBanner } from './components/PWA/PWAInstallBanner';
 import { OfflineIndicator } from './components/PWA/OfflineIndicator';
@@ -422,6 +423,17 @@ function MainLayout() {
 
       {/* Real-Time In-App Push Notification Toast Alerts */}
       <InAppPushToast />
+
+      {/* One-time non-intrusive browser notification permission prompt */}
+      <PushPermissionPrompt
+        userId={firebaseUser?.uid}
+        enabled={Boolean(
+          isAuthenticated &&
+            isProfileLoaded &&
+            isAcademicProfileComplete &&
+            viewMode === 'app'
+        )}
+      />
 
       {/* Firebase Authentication Modal */}
       <AuthModal

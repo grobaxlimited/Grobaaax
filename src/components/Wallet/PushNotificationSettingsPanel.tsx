@@ -417,7 +417,6 @@ export const PushNotificationSettingsPanel: React.FC = () => {
             {capability?.supported &&
               capability.status !== 'denied' &&
               capability.status !== 'iframe_restricted' &&
-              capability.status !== 'missing_vapid' &&
               (!currentDeviceRegistered || capability.status !== 'granted') && (
                 <button
                   type="button"

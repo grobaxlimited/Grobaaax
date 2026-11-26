@@ -128,6 +128,7 @@ export function getVapidPublicKey(): string {
   return String(
     process.env.VITE_FIREBASE_VAPID_KEY ||
       process.env.FIREBASE_VAPID_KEY ||
+      process.env.ITE_FIREBASE_VAPID_KEY ||
       ''
   ).trim();
 }
