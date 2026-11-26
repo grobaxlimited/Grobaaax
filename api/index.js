@@ -2824,11 +2824,18 @@ async function requestPermissionAndRegisterDevice() {
       error: capability.guidance
     };
   }
+  if (cfg?.projectMismatch) {
+    return {
+      success: false,
+      permission: capability.permission,
+      error: cfg.credentialError || "Push configuration mismatch detected on this deployment. Please check Admin Notification Diagnostics."
+    };
+  }
   if (capability.status === "missing_vapid" || !cfg?.vapidPublicKey) {
     return {
       success: false,
       permission: capability.permission,
-      error: "Missing Firebase VAPID key (VITE_FIREBASE_VAPID_KEY). Configure VAPID and service-account keys to activate device token registration."
+      error: "External push delivery is not yet configured on this deployment."
     };
   }
   let permission = Notification.permission;
