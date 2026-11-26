@@ -467,6 +467,15 @@ export const PushNotificationSettingsPanel: React.FC = () => {
           </div>
         )}
 
+        {(capability?.status === 'denied' ||
+          capability?.status === 'iframe_restricted' ||
+          capability?.status === 'unsupported' ||
+          capability?.status === 'ios_version_unsupported') && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed">
+            {capability.guidance}
+          </p>
+        )}
+
         {devices.length === 0 ? (
           <p className="text-[11px] text-slate-500 dark:text-slate-400 py-1">
             No devices are registered for external push on this account yet.

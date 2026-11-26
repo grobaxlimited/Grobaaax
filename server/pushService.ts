@@ -111,36 +111,45 @@ function readAppletConfigFile(): Record<string, string> {
   return cachedAppletConfig;
 }
 
+function cleanEnvString(value: unknown): string {
+  let s = String(value ?? '').trim();
+  if (
+    (s.startsWith('"') && s.endsWith('"') && s.length >= 2) ||
+    (s.startsWith("'") && s.endsWith("'") && s.length >= 2)
+  ) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
+
 export function getPublicFirebaseClientConfig() {
   const fileCfg = readAppletConfigFile();
   return {
-    apiKey: process.env.VITE_FIREBASE_API_KEY || fileCfg.apiKey || '',
-    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || fileCfg.authDomain || '',
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID || fileCfg.projectId || '',
-    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || fileCfg.storageBucket || '',
-    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || fileCfg.messagingSenderId || '',
-    appId: process.env.VITE_FIREBASE_APP_ID || fileCfg.appId || '',
-    measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID || fileCfg.measurementId || '',
+    apiKey: cleanEnvString(process.env.VITE_FIREBASE_API_KEY) || cleanEnvString(fileCfg.apiKey),
+    authDomain: cleanEnvString(process.env.VITE_FIREBASE_AUTH_DOMAIN) || cleanEnvString(fileCfg.authDomain),
+    projectId: cleanEnvString(process.env.VITE_FIREBASE_PROJECT_ID) || cleanEnvString(fileCfg.projectId),
+    storageBucket: cleanEnvString(process.env.VITE_FIREBASE_STORAGE_BUCKET) || cleanEnvString(fileCfg.storageBucket),
+    messagingSenderId:
+      cleanEnvString(process.env.VITE_FIREBASE_MESSAGING_SENDER_ID) || cleanEnvString(fileCfg.messagingSenderId),
+    appId: cleanEnvString(process.env.VITE_FIREBASE_APP_ID) || cleanEnvString(fileCfg.appId),
+    measurementId: cleanEnvString(process.env.VITE_FIREBASE_MEASUREMENT_ID) || cleanEnvString(fileCfg.measurementId),
   };
 }
 
 export function getVapidPublicKey(): string {
-  return String(
-    process.env.VITE_FIREBASE_VAPID_KEY ||
-      process.env.FIREBASE_VAPID_KEY ||
-      process.env.ITE_FIREBASE_VAPID_KEY ||
-      ''
-  ).trim();
+  return (
+    cleanEnvString(process.env.VITE_FIREBASE_VAPID_KEY) ||
+    cleanEnvString(process.env.FIREBASE_VAPID_KEY) ||
+    cleanEnvString(process.env.ITE_FIREBASE_VAPID_KEY) ||
+    cleanEnvString(process.env.FIREBASE_WEB_PUSH_VAPID_KEY) ||
+    ''
+  );
 }
 
 function parseServiceAccountFromEnv(): ServiceAccount | null {
-  let rawJson = String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
-  if (
-    (rawJson.startsWith("'") && rawJson.endsWith("'")) ||
-    (rawJson.startsWith('"') && rawJson.endsWith('"') && !rawJson.startsWith('{"'))
-  ) {
-    rawJson = rawJson.slice(1, -1).trim();
-  }
+  let rawJson = cleanEnvString(
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_ADMIN_CREDENTIALS || ''
+  );
   if (rawJson) {
     try {
       const decoded = rawJson.startsWith('{')
@@ -159,11 +168,12 @@ function parseServiceAccountFromEnv(): ServiceAccount | null {
     }
   }
 
-  const projectId = String(
-    process.env.FIREBASE_PROJECT_ID || getPublicFirebaseClientConfig().projectId || ''
-  ).trim();
-  const clientEmail = String(process.env.FIREBASE_CLIENT_EMAIL || '').trim();
-  const privateKeyRaw = String(process.env.FIREBASE_PRIVATE_KEY || '').trim();
+  const projectId =
+    cleanEnvString(process.env.FIREBASE_PROJECT_ID) ||
+    getPublicFirebaseClientConfig().projectId ||
+    '';
+  const clientEmail = cleanEnvString(process.env.FIREBASE_CLIENT_EMAIL);
+  const privateKeyRaw = cleanEnvString(process.env.FIREBASE_PRIVATE_KEY);
 
   if (projectId && clientEmail && privateKeyRaw) {
     return {
@@ -173,7 +183,7 @@ function parseServiceAccountFromEnv(): ServiceAccount | null {
     };
   }
 
-  const credPath = String(process.env.GOOGLE_APPLICATION_CREDENTIALS || '').trim();
+  const credPath = cleanEnvString(process.env.GOOGLE_APPLICATION_CREDENTIALS);
   if (credPath && fs.existsSync(credPath)) {
     try {
       const parsed = JSON.parse(fs.readFileSync(credPath, 'utf8'));

@@ -2518,19 +2518,26 @@ async function getAuthHeaders() {
   }
   return headers;
 }
+function cleanConfigValue(value) {
+  let s = String(value ?? "").trim();
+  if (s.startsWith('"') && s.endsWith('"') && s.length >= 2 || s.startsWith("'") && s.endsWith("'") && s.length >= 2) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
 function getLocalFallbackPushConfig() {
   const env = import.meta.env || {};
   const fallbackCfg = firebase_applet_config_default || {};
   const firebaseConfig2 = {
-    apiKey: env.VITE_FIREBASE_API_KEY || fallbackCfg.apiKey || "",
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || fallbackCfg.authDomain || "",
-    projectId: env.VITE_FIREBASE_PROJECT_ID || fallbackCfg.projectId || "",
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || fallbackCfg.storageBucket || "",
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || fallbackCfg.messagingSenderId || "",
-    appId: env.VITE_FIREBASE_APP_ID || fallbackCfg.appId || "",
-    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || fallbackCfg.measurementId || ""
+    apiKey: cleanConfigValue(env.VITE_FIREBASE_API_KEY) || cleanConfigValue(fallbackCfg.apiKey),
+    authDomain: cleanConfigValue(env.VITE_FIREBASE_AUTH_DOMAIN) || cleanConfigValue(fallbackCfg.authDomain),
+    projectId: cleanConfigValue(env.VITE_FIREBASE_PROJECT_ID) || cleanConfigValue(fallbackCfg.projectId),
+    storageBucket: cleanConfigValue(env.VITE_FIREBASE_STORAGE_BUCKET) || cleanConfigValue(fallbackCfg.storageBucket),
+    messagingSenderId: cleanConfigValue(env.VITE_FIREBASE_MESSAGING_SENDER_ID) || cleanConfigValue(fallbackCfg.messagingSenderId),
+    appId: cleanConfigValue(env.VITE_FIREBASE_APP_ID) || cleanConfigValue(fallbackCfg.appId),
+    measurementId: cleanConfigValue(env.VITE_FIREBASE_MEASUREMENT_ID) || cleanConfigValue(fallbackCfg.measurementId)
   };
-  const vapidPublicKey = String(env.VITE_FIREBASE_VAPID_KEY || "").trim();
+  const vapidPublicKey = cleanConfigValue(env.VITE_FIREBASE_VAPID_KEY) || cleanConfigValue(env.ITE_FIREBASE_VAPID_KEY);
   const firebaseConfigReady = Boolean(
     firebaseConfig2.apiKey && firebaseConfig2.projectId && firebaseConfig2.messagingSenderId && firebaseConfig2.appId
   );
@@ -2677,8 +2684,9 @@ async function getBrowserPushCapability(config) {
     inIframe = true;
   }
   const resolvedConfig = config !== void 0 ? config : await fetchPublicPushConfig();
+  const envVars = import.meta.env || {};
   const hasVapid = Boolean(
-    resolvedConfig?.vapidPublicKey || import.meta.env?.VITE_FIREBASE_VAPID_KEY
+    cleanConfigValue(resolvedConfig?.vapidPublicKey) || cleanConfigValue(envVars.VITE_FIREBASE_VAPID_KEY) || cleanConfigValue(envVars.ITE_FIREBASE_VAPID_KEY)
   );
   if (inIframe && permission !== "granted") {
     return {
@@ -2869,31 +2877,11 @@ async function requestPermissionAndRegisterDevice() {
     };
   }
   try {
-    let token = "";
-    try {
-      token = await getToken(instance.messaging, {
-        vapidKey: cfg.vapidPublicKey,
-        serviceWorkerRegistration: registration
-      });
-    } catch (firstErr) {
-      const msg = String(firstErr?.message || firstErr || "").toLowerCase();
-      if (msg.includes("applicationserverkey") || msg.includes("subscription") || msg.includes("invalidstateerror") || msg.includes("already exists")) {
-        try {
-          const existingSub = await registration.pushManager.getSubscription();
-          if (existingSub) {
-            await existingSub.unsubscribe();
-          }
-          token = await getToken(instance.messaging, {
-            vapidKey: cfg.vapidPublicKey,
-            serviceWorkerRegistration: registration
-          });
-        } catch (retryErr) {
-          throw retryErr;
-        }
-      } else {
-        throw firstErr;
-      }
-    }
+    const token = await getTokenWithRecovery(
+      instance.messaging,
+      cfg.vapidPublicKey,
+      registration
+    );
     if (!token) {
       return {
         success: false,
@@ -2934,26 +2922,64 @@ function markPushPromptDismissed() {
   } catch {
   }
 }
+async function getTokenWithRecovery(messaging, vapidKey, registration) {
+  try {
+    return await getToken(messaging, {
+      vapidKey,
+      serviceWorkerRegistration: registration
+    });
+  } catch (firstErr) {
+    const msg = String(firstErr?.message || firstErr || "").toLowerCase();
+    if (msg.includes("applicationserverkey") || msg.includes("subscription") || msg.includes("invalidstateerror") || msg.includes("already exists") || msg.includes("token-subscribe")) {
+      try {
+        const existingSub = await registration.pushManager.getSubscription();
+        if (existingSub) {
+          await existingSub.unsubscribe();
+        }
+      } catch {
+      }
+      return await getToken(messaging, {
+        vapidKey,
+        serviceWorkerRegistration: registration
+      });
+    }
+    throw firstErr;
+  }
+}
 async function syncPushDeviceSilentlyIfGranted(userId) {
   if (!userId || userId === "guest" || typeof window === "undefined") return;
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   try {
     const cfg = await fetchPublicPushConfig();
-    if (!cfg?.vapidPublicKey || !cfg.firebaseConfigReady) return;
+    if (!cfg?.vapidPublicKey || !cfg.firebaseConfigReady || cfg.projectMismatch) return;
     if (!await isSupported()) return;
     const registration = await getPushServiceWorkerRegistration();
     if (!registration) return;
     const instance = getOrInitMessagingInstance(cfg.firebaseConfig);
     if (!instance) return;
-    const token = await getToken(instance.messaging, {
-      vapidKey: cfg.vapidPublicKey,
-      serviceWorkerRegistration: registration
-    });
+    const token = await getTokenWithRecovery(
+      instance.messaging,
+      cfg.vapidPublicKey,
+      registration
+    );
     if (!token) return;
     const prevToken = localStorage.getItem(FCM_TOKEN_STORAGE_KEY) || "";
     const prevUid = localStorage.getItem(FCM_TOKEN_USER_STORAGE_KEY) || "";
     if (prevToken === token && prevUid === userId) {
       return;
+    }
+    if (prevToken && prevToken !== token) {
+      try {
+        const headers = await getAuthHeaders();
+        if (headers["Authorization"]) {
+          await fetch("/api/notifications/devices/unregister", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ token: prevToken })
+          });
+        }
+      } catch {
+      }
     }
     const saved = await saveTokenToBackend(token);
     if (saved.success) {
@@ -20529,28 +20555,32 @@ function readAppletConfigFile() {
   cachedAppletConfig = {};
   return cachedAppletConfig;
 }
+function cleanEnvString(value) {
+  let s = String(value ?? "").trim();
+  if (s.startsWith('"') && s.endsWith('"') && s.length >= 2 || s.startsWith("'") && s.endsWith("'") && s.length >= 2) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
 function getPublicFirebaseClientConfig() {
   const fileCfg = readAppletConfigFile();
   return {
-    apiKey: process.env.VITE_FIREBASE_API_KEY || fileCfg.apiKey || "",
-    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || fileCfg.authDomain || "",
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID || fileCfg.projectId || "",
-    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || fileCfg.storageBucket || "",
-    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || fileCfg.messagingSenderId || "",
-    appId: process.env.VITE_FIREBASE_APP_ID || fileCfg.appId || "",
-    measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID || fileCfg.measurementId || ""
+    apiKey: cleanEnvString(process.env.VITE_FIREBASE_API_KEY) || cleanEnvString(fileCfg.apiKey),
+    authDomain: cleanEnvString(process.env.VITE_FIREBASE_AUTH_DOMAIN) || cleanEnvString(fileCfg.authDomain),
+    projectId: cleanEnvString(process.env.VITE_FIREBASE_PROJECT_ID) || cleanEnvString(fileCfg.projectId),
+    storageBucket: cleanEnvString(process.env.VITE_FIREBASE_STORAGE_BUCKET) || cleanEnvString(fileCfg.storageBucket),
+    messagingSenderId: cleanEnvString(process.env.VITE_FIREBASE_MESSAGING_SENDER_ID) || cleanEnvString(fileCfg.messagingSenderId),
+    appId: cleanEnvString(process.env.VITE_FIREBASE_APP_ID) || cleanEnvString(fileCfg.appId),
+    measurementId: cleanEnvString(process.env.VITE_FIREBASE_MEASUREMENT_ID) || cleanEnvString(fileCfg.measurementId)
   };
 }
 function getVapidPublicKey() {
-  return String(
-    process.env.VITE_FIREBASE_VAPID_KEY || process.env.FIREBASE_VAPID_KEY || process.env.ITE_FIREBASE_VAPID_KEY || ""
-  ).trim();
+  return cleanEnvString(process.env.VITE_FIREBASE_VAPID_KEY) || cleanEnvString(process.env.FIREBASE_VAPID_KEY) || cleanEnvString(process.env.ITE_FIREBASE_VAPID_KEY) || cleanEnvString(process.env.FIREBASE_WEB_PUSH_VAPID_KEY) || "";
 }
 function parseServiceAccountFromEnv() {
-  let rawJson = String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "").trim();
-  if (rawJson.startsWith("'") && rawJson.endsWith("'") || rawJson.startsWith('"') && rawJson.endsWith('"') && !rawJson.startsWith('{"')) {
-    rawJson = rawJson.slice(1, -1).trim();
-  }
+  let rawJson = cleanEnvString(
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_ADMIN_CREDENTIALS || ""
+  );
   if (rawJson) {
     try {
       const decoded = rawJson.startsWith("{") ? rawJson : Buffer.from(rawJson, "base64").toString("utf8");
@@ -20566,11 +20596,9 @@ function parseServiceAccountFromEnv() {
       return null;
     }
   }
-  const projectId = String(
-    process.env.FIREBASE_PROJECT_ID || getPublicFirebaseClientConfig().projectId || ""
-  ).trim();
-  const clientEmail = String(process.env.FIREBASE_CLIENT_EMAIL || "").trim();
-  const privateKeyRaw = String(process.env.FIREBASE_PRIVATE_KEY || "").trim();
+  const projectId = cleanEnvString(process.env.FIREBASE_PROJECT_ID) || getPublicFirebaseClientConfig().projectId || "";
+  const clientEmail = cleanEnvString(process.env.FIREBASE_CLIENT_EMAIL);
+  const privateKeyRaw = cleanEnvString(process.env.FIREBASE_PRIVATE_KEY);
   if (projectId && clientEmail && privateKeyRaw) {
     return {
       projectId,
@@ -20578,7 +20606,7 @@ function parseServiceAccountFromEnv() {
       privateKey: privateKeyRaw.replace(/\\n/g, "\n")
     };
   }
-  const credPath = String(process.env.GOOGLE_APPLICATION_CREDENTIALS || "").trim();
+  const credPath = cleanEnvString(process.env.GOOGLE_APPLICATION_CREDENTIALS);
   if (credPath && fs3.existsSync(credPath)) {
     try {
       const parsed = JSON.parse(fs3.readFileSync(credPath, "utf8"));

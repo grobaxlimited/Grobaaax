@@ -122,19 +122,33 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
+function cleanConfigValue(value: unknown): string {
+  let s = String(value ?? '').trim();
+  if (
+    (s.startsWith('"') && s.endsWith('"') && s.length >= 2) ||
+    (s.startsWith("'") && s.endsWith("'") && s.length >= 2)
+  ) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
+
 function getLocalFallbackPushConfig(): PublicPushConfigResponse {
   const env = (import.meta as any).env || {};
   const fallbackCfg = (bundledAppletConfig || {}) as Record<string, string>;
   const firebaseConfig = {
-    apiKey: env.VITE_FIREBASE_API_KEY || fallbackCfg.apiKey || '',
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || fallbackCfg.authDomain || '',
-    projectId: env.VITE_FIREBASE_PROJECT_ID || fallbackCfg.projectId || '',
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || fallbackCfg.storageBucket || '',
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || fallbackCfg.messagingSenderId || '',
-    appId: env.VITE_FIREBASE_APP_ID || fallbackCfg.appId || '',
-    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || fallbackCfg.measurementId || '',
+    apiKey: cleanConfigValue(env.VITE_FIREBASE_API_KEY) || cleanConfigValue(fallbackCfg.apiKey),
+    authDomain: cleanConfigValue(env.VITE_FIREBASE_AUTH_DOMAIN) || cleanConfigValue(fallbackCfg.authDomain),
+    projectId: cleanConfigValue(env.VITE_FIREBASE_PROJECT_ID) || cleanConfigValue(fallbackCfg.projectId),
+    storageBucket: cleanConfigValue(env.VITE_FIREBASE_STORAGE_BUCKET) || cleanConfigValue(fallbackCfg.storageBucket),
+    messagingSenderId:
+      cleanConfigValue(env.VITE_FIREBASE_MESSAGING_SENDER_ID) || cleanConfigValue(fallbackCfg.messagingSenderId),
+    appId: cleanConfigValue(env.VITE_FIREBASE_APP_ID) || cleanConfigValue(fallbackCfg.appId),
+    measurementId: cleanConfigValue(env.VITE_FIREBASE_MEASUREMENT_ID) || cleanConfigValue(fallbackCfg.measurementId),
   };
-  const vapidPublicKey = String(env.VITE_FIREBASE_VAPID_KEY || '').trim();
+  const vapidPublicKey =
+    cleanConfigValue(env.VITE_FIREBASE_VAPID_KEY) ||
+    cleanConfigValue(env.ITE_FIREBASE_VAPID_KEY);
   const firebaseConfigReady = Boolean(
     firebaseConfig.apiKey &&
       firebaseConfig.projectId &&
@@ -326,8 +340,11 @@ export async function getBrowserPushCapability(
   }
 
   const resolvedConfig = config !== undefined ? config : await fetchPublicPushConfig();
+  const envVars = (import.meta as any).env || {};
   const hasVapid = Boolean(
-    resolvedConfig?.vapidPublicKey || (import.meta as any).env?.VITE_FIREBASE_VAPID_KEY
+    cleanConfigValue(resolvedConfig?.vapidPublicKey) ||
+      cleanConfigValue(envVars.VITE_FIREBASE_VAPID_KEY) ||
+      cleanConfigValue(envVars.ITE_FIREBASE_VAPID_KEY)
   );
 
   if (inIframe && permission !== 'granted') {
@@ -565,36 +582,11 @@ export async function requestPermissionAndRegisterDevice(): Promise<{
   }
 
   try {
-    let token = '';
-    try {
-      token = await getToken(instance.messaging, {
-        vapidKey: cfg.vapidPublicKey,
-        serviceWorkerRegistration: registration,
-      });
-    } catch (firstErr: any) {
-      const msg = String(firstErr?.message || firstErr || '').toLowerCase();
-      if (
-        msg.includes('applicationserverkey') ||
-        msg.includes('subscription') ||
-        msg.includes('invalidstateerror') ||
-        msg.includes('already exists')
-      ) {
-        try {
-          const existingSub = await registration.pushManager.getSubscription();
-          if (existingSub) {
-            await existingSub.unsubscribe();
-          }
-          token = await getToken(instance.messaging, {
-            vapidKey: cfg.vapidPublicKey,
-            serviceWorkerRegistration: registration,
-          });
-        } catch (retryErr: any) {
-          throw retryErr;
-        }
-      } else {
-        throw firstErr;
-      }
-    }
+    const token = await getTokenWithRecovery(
+      instance.messaging,
+      cfg.vapidPublicKey,
+      registration
+    );
 
     if (!token) {
       return {
@@ -642,13 +634,47 @@ export function markPushPromptDismissed(): void {
   } catch {}
 }
 
+async function getTokenWithRecovery(
+  messaging: Messaging,
+  vapidKey: string,
+  registration: ServiceWorkerRegistration
+): Promise<string> {
+  try {
+    return await getToken(messaging, {
+      vapidKey,
+      serviceWorkerRegistration: registration,
+    });
+  } catch (firstErr: any) {
+    const msg = String(firstErr?.message || firstErr || '').toLowerCase();
+    if (
+      msg.includes('applicationserverkey') ||
+      msg.includes('subscription') ||
+      msg.includes('invalidstateerror') ||
+      msg.includes('already exists') ||
+      msg.includes('token-subscribe')
+    ) {
+      try {
+        const existingSub = await registration.pushManager.getSubscription();
+        if (existingSub) {
+          await existingSub.unsubscribe();
+        }
+      } catch {}
+      return await getToken(messaging, {
+        vapidKey,
+        serviceWorkerRegistration: registration,
+      });
+    }
+    throw firstErr;
+  }
+}
+
 export async function syncPushDeviceSilentlyIfGranted(userId: string): Promise<void> {
   if (!userId || userId === 'guest' || typeof window === 'undefined') return;
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
   try {
     const cfg = await fetchPublicPushConfig();
-    if (!cfg?.vapidPublicKey || !cfg.firebaseConfigReady) return;
+    if (!cfg?.vapidPublicKey || !cfg.firebaseConfigReady || cfg.projectMismatch) return;
     if (!(await isSupported())) return;
 
     const registration = await getPushServiceWorkerRegistration();
@@ -657,16 +683,30 @@ export async function syncPushDeviceSilentlyIfGranted(userId: string): Promise<v
     const instance = getOrInitMessagingInstance(cfg.firebaseConfig);
     if (!instance) return;
 
-    const token = await getToken(instance.messaging, {
-      vapidKey: cfg.vapidPublicKey,
-      serviceWorkerRegistration: registration,
-    });
+    const token = await getTokenWithRecovery(
+      instance.messaging,
+      cfg.vapidPublicKey,
+      registration
+    );
     if (!token) return;
 
     const prevToken = localStorage.getItem(FCM_TOKEN_STORAGE_KEY) || '';
     const prevUid = localStorage.getItem(FCM_TOKEN_USER_STORAGE_KEY) || '';
     if (prevToken === token && prevUid === userId) {
       return;
+    }
+
+    if (prevToken && prevToken !== token) {
+      try {
+        const headers = await getAuthHeaders();
+        if (headers['Authorization']) {
+          await fetch('/api/notifications/devices/unregister', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ token: prevToken }),
+          });
+        }
+      } catch {}
     }
 
     const saved = await saveTokenToBackend(token);

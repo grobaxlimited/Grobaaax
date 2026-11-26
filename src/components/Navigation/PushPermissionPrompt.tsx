@@ -19,6 +19,7 @@ export const PushPermissionPrompt: React.FC<PushPermissionPromptProps> = ({
 }) => {
   const [visible, setVisible] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!enabled || !userId || userId === 'guest') {
@@ -32,7 +33,7 @@ export const PushPermissionPrompt: React.FC<PushPermissionPromptProps> = ({
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const cfg = await fetchPublicPushConfig();
+        const cfg = await fetchPublicPushConfig(true);
         if (!cfg || !cfg.vapidPublicKey || !cfg.firebaseConfigReady || cfg.projectMismatch) {
           return;
         }
@@ -59,12 +60,22 @@ export const PushPermissionPrompt: React.FC<PushPermissionPromptProps> = ({
 
   const handleAllow = async () => {
     setIsRequesting(true);
+    setErrorMessage(null);
     try {
-      await requestPermissionAndRegisterDevice();
-    } catch {} finally {
-      markPushPromptDismissed();
+      const res = await requestPermissionAndRegisterDevice();
+      if (res.success) {
+        markPushPromptDismissed();
+        setVisible(false);
+      } else if (res.permission === 'denied') {
+        markPushPromptDismissed();
+        setVisible(false);
+      } else {
+        setErrorMessage(res.error || 'Could not enable notifications on this device.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Could not enable notifications on this device.');
+    } finally {
       setIsRequesting(false);
-      setVisible(false);
     }
   };
 
@@ -83,6 +94,11 @@ export const PushPermissionPrompt: React.FC<PushPermissionPromptProps> = ({
               <p className="text-[11px] text-slate-300 leading-relaxed mt-0.5">
                 Get alerts for connection requests, messages, School Dome rounds, and competition results even when Grobaax is closed.
               </p>
+              {errorMessage && (
+                <p className="text-[11px] text-amber-300 leading-snug mt-1 font-medium">
+                  {errorMessage}
+                </p>
+              )}
             </div>
             <button
               type="button"
