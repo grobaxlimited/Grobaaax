@@ -56,6 +56,7 @@ export interface PublicPushConfigResponse {
   firebaseConfigReady: boolean;
   vapidConfigured: boolean;
   serverDeliveryConfigured: boolean;
+  projectMismatch?: boolean;
   pushFullyConfigured: boolean;
   credentialError?: string | null;
   missingKeys: string[];

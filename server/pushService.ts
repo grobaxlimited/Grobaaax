@@ -128,7 +128,13 @@ export function getVapidPublicKey(): string {
 }
 
 function parseServiceAccountFromEnv(): ServiceAccount | null {
-  const rawJson = String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
+  let rawJson = String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
+  if (
+    (rawJson.startsWith("'") && rawJson.endsWith("'")) ||
+    (rawJson.startsWith('"') && rawJson.endsWith('"') && !rawJson.startsWith('{"'))
+  ) {
+    rawJson = rawJson.slice(1, -1).trim();
+  }
   if (rawJson) {
     try {
       const decoded = rawJson.startsWith('{')
@@ -236,6 +242,13 @@ export function getPushConfigurationStatus() {
   );
   const vapidReady = Boolean(vapidPublicKey);
   const serverReady = Boolean(serviceAccount);
+  const serverProjectId = String(
+    (serviceAccount as any)?.project_id || serviceAccount?.projectId || ''
+  ).trim();
+  const clientProjectId = String(clientConfig.projectId || '').trim();
+  const projectMismatch = Boolean(
+    serverProjectId && clientProjectId && serverProjectId !== clientProjectId
+  );
 
   const missingKeys: string[] = [];
   if (!clientReady) {
@@ -247,13 +260,23 @@ export function getPushConfigurationStatus() {
   if (!serverReady) {
     missingKeys.push('FIREBASE_SERVICE_ACCOUNT_JSON (or FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY)');
   }
+  if (projectMismatch) {
+    missingKeys.push(
+      `Matching VITE_FIREBASE_* project config (frontend uses ${clientProjectId}, service account uses ${serverProjectId})`
+    );
+  }
+
+  const mismatchError = projectMismatch
+    ? `Firebase project mismatch: client uses "${clientProjectId}" while server service account uses "${serverProjectId}".`
+    : null;
 
   return {
     firebaseConfigReady: clientReady,
     vapidConfigured: vapidReady,
     serverDeliveryConfigured: serverReady,
-    pushFullyConfigured: clientReady && vapidReady && serverReady,
-    credentialError: firebaseAdminCredentialError,
+    projectMismatch,
+    pushFullyConfigured: clientReady && vapidReady && serverReady && !projectMismatch,
+    credentialError: firebaseAdminCredentialError || mismatchError,
     missingKeys,
   };
 }
